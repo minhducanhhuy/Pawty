@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  --color-coral: #FF6F61;
+  --color-coral-dark: #E65A4C;
+  --color-coral-light: #FFE8E5;
+  --color-mint: #A3E4D7;
+  --color-mint-dark: #48C4B0;
+  --color-mint-light: #EBF9F6;
+  --color-cream: #FDFBF7;
+  --color-cream-warm: #F6F1E8;
+  --font-fredoka: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  --font-nunito: 'Nunito', system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-nunito);
+    background-color: #1A1D24;
+    color: #1E293B;
+  }
+}
+
+/* Custom playful scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Custom micro-animations */
+@keyframes paw-bounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(4deg); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 0.3; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+@keyframes heart-float {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-40px) scale(1.3); opacity: 0; }
+}
+
+.animate-paw {
+  animation: paw-bounce 2s infinite ease-in-out;
+}
+
+.animate-radar-ring {
+  animation: pulse-ring 2.5s infinite ease-in-out;
+}
+
+.font-chubby {
+  font-family: var(--font-fredoka);
+}
