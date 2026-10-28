@@ -31,6 +31,7 @@ import { NotificationCenterScreen } from '../screens/NotificationCenterScreen';
 import { VouchersScreen } from '../screens/VouchersScreen';
 import { BadgesScreen } from '../screens/BadgesScreen';
 import { ReferralScreen } from '../screens/ReferralScreen';
+import { IntroScreen } from '../screens/IntroScreen';
 
 export const RootNavigator: React.FC = () => {
   const { isAuthenticated, hasCompletedOnboarding } = useAuth();
@@ -38,7 +39,16 @@ export const RootNavigator: React.FC = () => {
   const { inAppBanner, dismissBanner } = useNotifications();
   const { currentTab, currentScreen, navigate } = useNavigation();
 
-  if (!isAuthenticated || !hasCompletedOnboarding || currentScreen.name === 'Onboarding') {
+  if (!isAuthenticated) {
+    return (
+      <View style={styles.root}>
+        <IntroScreen onSuccess={() => {}} />
+        <ToastOverlay toast={toast} banner={inAppBanner} onDismissToast={hideToast} onPressBanner={dismissBanner} />
+      </View>
+    );
+  }
+
+  if (!hasCompletedOnboarding || currentScreen.name === 'Onboarding') {
     return (
       <View style={styles.root}>
         <OnboardingScreen />

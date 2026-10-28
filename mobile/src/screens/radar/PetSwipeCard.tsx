@@ -1,15 +1,28 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../theme';
+import React, { useRef } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  Animated,
+  PanResponder,
+  Dimensions,
+} from 'react-native';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '../../theme';
 import { Pet } from '../../types';
-import { Badge } from '../../components';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SWIPE_THRESHOLD = 110;
 
 interface PetSwipeCardProps {
   pet: Pet;
   distanceLabel: string;
-  isBoosted: boolean;
-  isWalkingNow: boolean;
-  hasSuperLikedMe: boolean;
+  isBoosted?: boolean;
+  isWalkingNow?: boolean;
+  hasSuperLikedMe?: boolean;
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
+  isTopCard?: boolean;
 }
 
 export const PetSwipeCard: React.FC<PetSwipeCardProps> = ({
@@ -18,105 +31,259 @@ export const PetSwipeCard: React.FC<PetSwipeCardProps> = ({
   isBoosted,
   isWalkingNow,
   hasSuperLikedMe,
+  onSwipeLeft,
+  onSwipeRight,
+  isTopCard = true,
 }) => {
-  const hasGoldHighlight = isBoosted || hasSuperLikedMe || pet.ownerIsVip;
+  const pan = useRef(new Animated.ValueXY()).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => isTopCard,
+      onMoveShouldSetPanResponder: (_, gesture) => {
+        return isTopCard && (Math.abs(gesture.dx) > 10 || Math.abs(gesture.dy) > 10);
+      },
+      onPanResponderMove: Animated.event(
+        [null, { dx: pan.x, dy: pan.y }],
+        { useNativeDriver: false }
+      ),
+      onPanResponderRelease: (_, gesture) => {
+        if (!isTopCard) return;
+
+        if (gesture.dx > SWIPE_THRESHOLD) {
+          // Swipe Right (Like)
+          Animated.timing(pan, {
+            toValue: { x: SCREEN_WIDTH + 150, y: gesture.dy },
+            duration: 250,
+            useNativeDriver: false,
+          }).start(() => {
+            onSwipeRight?.();
+            pan.setValue({ x: 0, y: 0 });
+          });
+        } else if (gesture.dx < -SWIPE_THRESHOLD) {
+          // Swipe Left (Pass)
+          Animated.timing(pan, {
+            toValue: { x: -SCREEN_WIDTH - 150, y: gesture.dy },
+            duration: 250,
+            useNativeDriver: false,
+          }).start(() => {
+            onSwipeLeft?.();
+            pan.setValue({ x: 0, y: 0 });
+          });
+        } else {
+          // Snap back
+          Animated.spring(pan, {
+            toValue: { x: 0, y: 0 },
+            friction: 6,
+            tension: 40,
+            useNativeDriver: false,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  // Rotation mapping (-15deg to +15deg)
+  const rotate = pan.x.interpolate({
+    inputRange: [-SCREEN_WIDTH / 1.5, 0, SCREEN_WIDTH / 1.5],
+    outputRange: ['-14deg', '0deg', '14deg'],
+    extrapolate: 'clamp',
+  });
+
+  // Stamp Opacity
+  const likeOpacity = pan.x.interpolate({
+    inputRange: [15, SCREEN_WIDTH / 4],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  const nopeOpacity = pan.x.interpolate({
+    inputRange: [-SCREEN_WIDTH / 4, -15],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  const cardStyle = isTopCard
+    ? {
+        transform: [{ translateX: pan.x }, { translateY: pan.y }, { rotate }],
+      }
+    : {};
 
   return (
-    <View style={[styles.card, hasGoldHighlight && styles.goldBorder]}>
-      <Image source={{ uri: pet.avatarUrl }} style={styles.image} />
+    <Animated.View
+      style={[styles.cardContainer, cardStyle]}
+      {...(isTopCard ? panResponder.panHandlers : {})}
+    >
+      <View style={styles.card}>
+        {/* Fullsize Pet Photo */}
+        <Image
+          source={{ uri: pet.avatarUrl }}
+          style={styles.image}
+          resizeMode="cover"
+        />
 
-      <View style={styles.topBadges}>
-        <View style={styles.distancePill}>
-          <Text style={styles.distanceText}>
-            📍 {distanceLabel} • {pet.condoComplex || 'Vinhomes'}
-          </Text>
-        </View>
-        {pet.isSafePet && <Badge text="🛡️ Safe Pet" tone="mint" />}
-      </View>
-
-      {(isWalkingNow || hasSuperLikedMe || isBoosted) && (
-        <View style={styles.statusRow}>
-          {isWalkingNow && (
-            <View style={styles.walkLivePill}>
-              <View style={styles.greenDot} />
-              <Text style={styles.walkLiveText}>Đang dắt dạo</Text>
+        {/* Top Badges (Minimal) */}
+        <View style={styles.topBar}>
+          <View style={styles.distanceBadge}>
+            <Text style={styles.distanceText}>📍 {distanceLabel}</Text>
+          </View>
+          {pet.isSafePet && (
+            <View style={styles.safePetBadge}>
+              <Text style={styles.safePetText}>🛡️ Safe Pet</Text>
             </View>
           )}
-          {hasSuperLikedMe && <Badge text="⭐ Đã Super Paw bạn!" tone="gold" />}
-          {isBoosted && <Badge text="⚡ Đang Boost" tone="coral" />}
         </View>
-      )}
 
-      <View style={styles.overlay}>
-        <View style={styles.titleRow}>
-          <Text style={styles.name}>
-            {pet.name} {pet.ownerIsVip ? '👑' : ''}
-          </Text>
-          <Text style={styles.meta}>
+        {/* Tinder STAMP: LIKE (Right swipe) */}
+        {isTopCard && (
+          <Animated.View style={[styles.stamp, styles.likeStamp, { opacity: likeOpacity }]}>
+            <Text style={styles.likeStampText}>THÍCH</Text>
+          </Animated.View>
+        )}
+
+        {/* Tinder STAMP: NOPE (Left swipe) */}
+        {isTopCard && (
+          <Animated.View style={[styles.stamp, styles.nopeStamp, { opacity: nopeOpacity }]}>
+            <Text style={styles.nopeStampText}>BỎ QUA</Text>
+          </Animated.View>
+        )}
+
+        {/* Clean Bottom Overlay (Visual-First, Clean) */}
+        <View style={styles.bottomOverlay}>
+          <View style={styles.petNameRow}>
+            <Text style={styles.petName}>
+              {pet.name} {pet.ownerIsVip ? '👑' : ''}
+            </Text>
+            <Text style={styles.petAge}>
+              {pet.ageYears ? `${pet.ageYears} tuổi` : 'Cún cưng'}
+            </Text>
+          </View>
+
+          <Text style={styles.petBreed}>
             {pet.gender === 'male' ? '♂️' : '♀️'} {pet.breed} • {pet.weightKg}kg
           </Text>
-        </View>
 
-        <Text style={styles.bio} numberOfLines={2}>
-          "{pet.bio}"
-        </Text>
-
-        <View style={styles.tagsRow}>
-          {pet.tags?.slice(0, 4).map((tag) => (
-            <View key={tag} style={styles.tagChip}>
-              <Text style={styles.tagText}>#{tag}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.ownerRow}>
-          <Text style={styles.ownerText}>
-            👤 Sen: {pet.ownerName || 'Cư dân Pawty'} • {pet.isNeutered ? 'Đã triệt sản ✓' : 'Chưa triệt sản'}
+          <Text style={styles.condoText} numberOfLines={1}>
+            🏢 {pet.condoComplex || 'Cư dân chung cư'} • Sen: {pet.ownerName || 'Chủ nuôi'}
           </Text>
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
+  cardContainer: {
+    width: '100%',
+    height: 460,
+  },
   card: {
-    height: 390,
+    flex: 1,
     borderRadius: RADIUS.xxl,
     overflow: 'hidden',
-    backgroundColor: COLORS.darkNavy,
+    backgroundColor: '#292524',
     position: 'relative',
     ...SHADOWS.card,
   },
-  goldBorder: { borderWidth: 3, borderColor: COLORS.goldVip },
-  image: { width: '100%', height: '100%', position: 'absolute' },
-  topBadges: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: SPACING.md, gap: 6, flexWrap: 'wrap',
+  image: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
   },
-  distancePill: {
-    backgroundColor: 'rgba(26,29,36,0.75)',
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.pill,
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: SPACING.md,
+    zIndex: 10,
   },
-  distanceText: { ...TYPOGRAPHY.caption, color: COLORS.white, fontWeight: '700' },
-  statusRow: { flexDirection: 'row', paddingHorizontal: SPACING.md, gap: 6, flexWrap: 'wrap' },
-  walkLivePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(16,185,129,0.92)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.pill,
+  distanceBadge: {
+    backgroundColor: 'rgba(28, 25, 23, 0.72)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.pill,
   },
-  greenDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.white },
-  walkLiveText: { ...TYPOGRAPHY.caption, color: COLORS.white, fontWeight: '800' },
-  overlay: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(26, 29, 36, 0.82)', padding: SPACING.md,
+  distanceText: {
+    color: '#FFFFFF',
+    fontFamily: 'Nunito-Bold',
+    fontSize: 12,
   },
-  titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 2 },
-  name: { ...TYPOGRAPHY.h2, color: COLORS.white },
-  meta: { ...TYPOGRAPHY.caption, color: COLORS.mint, fontWeight: '700' },
-  bio: { ...TYPOGRAPHY.body, color: '#F1F5F9', fontStyle: 'italic', marginBottom: SPACING.sm },
-  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6 },
-  tagChip: { backgroundColor: 'rgba(255, 111, 97, 0.28)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, borderWidth: 1, borderColor: COLORS.coral },
-  tagText: { ...TYPOGRAPHY.caption, fontSize: 11, color: '#FFE4E1' },
-  ownerRow: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)', paddingTop: 6 },
-  ownerText: { ...TYPOGRAPHY.caption, color: COLORS.mintLight },
+  safePetBadge: {
+    backgroundColor: 'rgba(163, 228, 215, 0.92)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.pill,
+  },
+  safePetText: {
+    color: '#064E3B',
+    fontFamily: 'Nunito-Bold',
+    fontSize: 12,
+  },
+  stamp: {
+    position: 'absolute',
+    top: 45,
+    borderWidth: 3.5,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    zIndex: 30,
+  },
+  likeStamp: {
+    left: 24,
+    borderColor: '#10B981',
+    transform: [{ rotate: '-15deg' }],
+  },
+  likeStampText: {
+    color: '#10B981',
+    fontFamily: 'Fredoka-Bold',
+    fontSize: 28,
+    letterSpacing: 1.5,
+  },
+  nopeStamp: {
+    right: 24,
+    borderColor: '#EF4444',
+    transform: [{ rotate: '15deg' }],
+  },
+  nopeStampText: {
+    color: '#EF4444',
+    fontFamily: 'Fredoka-Bold',
+    fontSize: 28,
+    letterSpacing: 1.5,
+  },
+  bottomOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 18,
+    paddingBottom: 20,
+    paddingTop: 36,
+    backgroundColor: 'rgba(28, 25, 23, 0.75)',
+  },
+  petNameRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  petName: {
+    color: '#FFFFFF',
+    fontFamily: 'Fredoka-Bold',
+    fontSize: 26,
+  },
+  petAge: {
+    color: '#E7E5E4',
+    fontFamily: 'Nunito-Bold',
+    fontSize: 16,
+  },
+  petBreed: {
+    color: '#A3E4D7',
+    fontFamily: 'Nunito-SemiBold',
+    fontSize: 14,
+    marginTop: 2,
+  },
+  condoText: {
+    color: '#D6D3D1',
+    fontFamily: 'Nunito-Regular',
+    fontSize: 12,
+    marginTop: 4,
+  },
 });

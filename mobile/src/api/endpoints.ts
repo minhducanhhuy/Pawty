@@ -7,6 +7,12 @@ import {
 
 export const api = {
   getConfig: () => apiRequest<PublicConfig>('GET', '/config/public'),
+  register: (body: { username: string; password: string; fullName: string; condoComplex?: string; referralCode?: string }) =>
+    apiRequest<{ token: string; user: User; isNewUser: boolean }>('POST', '/auth/register', body),
+  login: (body: { username: string; password: string }) =>
+    apiRequest<{ token: string; user: User }>('POST', '/auth/login', body),
+  googleLogin: (body: { email: string; fullName?: string; avatarUrl?: string; idToken?: string; referralCode?: string }) =>
+    apiRequest<{ token: string; user: User; isNewUser: boolean }>('POST', '/auth/google', body),
   sendOtp: (phone: string) => apiRequest<{ sessionInfo: string }>('POST', '/auth/send-otp', { phone }),
   verifyOtp: (phone: string, otpCode: string, referralCode?: string) =>
     apiRequest<{ token: string; user: User; isNewUser: boolean }>('POST', '/auth/verify-otp', { phone, otpCode, referralCode }),

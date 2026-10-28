@@ -11,7 +11,10 @@
 ```
 [Khởi động App]
        │
-       ├───> [Onboarding Flow] (Nếu chưa đăng ký SĐT/Tạo Boss)
+       ├───> [Splash & Intro Screen] Logo Pawty chính thức + Slogan
+       ├───> [Auth Flow: Google SSO & Username/Password]
+       ├───> [Xin quyền Vị trí GPS (expo-location)]
+       ├───> [Onboarding Tạo Boss tối giản]
        │            │ (1) SĐT -> (2) OTP SMS -> (3) Thông tin Sen -> (4) Profile Boss
        │            ▼
        └───> [Màn Hình Chính - Bottom Navigation (4 Tabs)]
@@ -64,7 +67,9 @@
 
 ### 2.3. Màn hình Radar Quẹt Thẻ (`RadarScreen`)
 - **Thanh Header:** Avatar Boss góc trái kèm vương miện vàng (nếu là VIP), Logo thương hiệu chính thức `pawty-logo-full.png`, Huy hiệu GPS cụm chung cư, Nút 🚨 SOS khẩn cấp, Nút Bộ lọc.
-- **Thẻ Quẹt Thẻ (Pet Card):**
+- **Thẻ Quẹt Thẻ (Pet Card) & Tinder Swipe Physics:**
+  - Kéo thả cử chỉ ngón tay thật (PanResponder Drag & Swipe): Thẻ xoay góc nghiêng (-15° đến +15°), hiện stamp "THÍCH" / "BỎ QUA", thả tay quá ngưỡng thì quẹt thẻ.
+  - Tinh giản Playful Minimalism: Ảnh lớn, thông tin cốt lõi, không nhồi nhét chữ gây ngợp.
   - Ảnh full tỷ lệ dọc, bo góc tròn lớn `rounded-[32px]`.
   - Huy hiệu khoảng cách: *"Cách bạn 280m • Park 3"*.
   - Huy hiệu an toàn: *"Đã tiêm 7 bệnh"*.

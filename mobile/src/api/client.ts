@@ -4,8 +4,8 @@ import { resolveMockRequest } from './mockRouter';
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 export const USE_MOCK_ENV = process.env.EXPO_PUBLIC_USE_MOCK === 'true';
 
-let authToken: string | null = 'mock_jwt_token_pawty_01';
-let activePetId: string | null = 'pet_bo_01';
+let authToken: string | null = null;
+let activePetId: string | null = null;
 let currentLocale: LocaleCode = 'vi';
 
 export const setClientToken = (token: string | null) => {

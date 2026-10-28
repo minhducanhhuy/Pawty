@@ -29,19 +29,19 @@ interface SenBossStepProps {
 
 export const SenBossStep: React.FC<SenBossStepProps> = ({ step, onNextSen, onFinishBoss, loading }) => {
   const { t } = useTranslation();
-  const [fullName, setFullName] = useState('Minh Khôi');
+  const [fullName, setFullName] = useState('');
   const [condo, setCondo] = useState(CONDOS[0]);
   const [referralCode, setReferralCode] = useState('');
 
   const [species, setSpecies] = useState<Species>('dog');
-  const [petName, setPetName] = useState('Bơ Lùn');
+  const [petName, setPetName] = useState('');
   const [breed, setBreed] = useState(DOG_BREEDS[0]);
-  const [weightStr, setWeightStr] = useState('11.2');
+  const [weightStr, setWeightStr] = useState('');
   const [isVaccinated, setIsVaccinated] = useState(true);
-  const [tags, setTags] = useState<string[]>(['Tăng động', 'Thân thiện']);
-  const [goodHabit, setGoodHabit] = useState('Đi vệ sinh đúng bãi cỏ, nghe lời');
-  const [badHabit, setBadHabit] = useState('Hay sủa xe máy, rượt bồ câu');
-  const [bio, setBio] = useState('Mông trái tim chân ngắn, tìm bạn dạo công viên mỗi tối!');
+  const [tags, setTags] = useState<string[]>(['Thân thiện']);
+  const [goodHabit, setGoodHabit] = useState('');
+  const [badHabit, setBadHabit] = useState('');
+  const [bio, setBio] = useState('');
 
   const weightNum = parseFloat(weightStr) || 5;
   const sizeLabel = weightNum < 5 ? 'Size Nhỏ (<5kg)' : weightNum <= 15 ? 'Size Vừa (5-15kg)' : 'Size Lớn (>15kg)';
@@ -94,32 +94,33 @@ export const SenBossStep: React.FC<SenBossStepProps> = ({ step, onNextSen, onFin
         <Text style={styles.label}>🛡️ Đã tiêm đủ mũi 7 bệnh & Phòng dại</Text>
         <Switch value={isVaccinated} onValueChange={setIsVaccinated} trackColor={{ true: COLORS.mintDark, false: COLORS.border }} />
       </View>
-      <Text style={styles.label}>Tính cách nổi bật (Tối đa 4 tag - Đã chọn {tags.length}/4)</Text>
+      <Text style={styles.label}>Tính cách nổi bật (Chọn tối đa 4 tag - {tags.length}/4)</Text>
       <View style={styles.chipsWrap}>
         {ALL_TAGS.map((tg) => (
           <Chip key={tg} label={`#${tg}`} selected={tags.includes(tg)} onPress={() => toggleTag(tg)} />
         ))}
       </View>
-      <Text style={styles.label}>✅ Thói quen tốt & ⚠️ Thói quen cần lưu ý (Tránh cắn nhau)</Text>
-      <TextInput style={styles.input} value={goodHabit} onChangeText={setGoodHabit} placeholder="Thói quen tốt" />
-      <TextInput style={styles.input} value={badHabit} onChangeText={setBadHabit} placeholder="Thói quen xấu cần lưu ý" />
-      <TextInput style={styles.input} value={bio} onChangeText={setBio} placeholder="Lời giới thiệu hóm hỉnh" />
+      <Text style={styles.label}>Giới thiệu ngắn về Boss (Tùy chọn)</Text>
+      <TextInput style={styles.input} value={bio} onChangeText={setBio} placeholder="VD: Rất ngoan, thích chạy nhảy công viên..." />
       <Button
-        title={t('onboarding.boss.submit')}
+        title="Hoàn tất & Khám phá bạn dắt dạo 🐾"
         loading={loading}
-        onPress={() =>
+        onPress={() => {
+          if (!petName.trim()) {
+            return;
+          }
           onFinishBoss({
-            name: petName,
+            name: petName.trim(),
             species,
             breed,
             weightKg: weightNum,
             isVaccinated,
             tags,
-            habitsGood: goodHabit.split(',').map((s) => s.trim()).filter(Boolean),
-            habitsBad: badHabit.split(',').map((s) => s.trim()).filter(Boolean),
-            bio,
-          })
-        }
+            habitsGood: goodHabit ? [goodHabit] : ['Thân thiện', 'Ngoan ngoãn'],
+            habitsBad: badHabit ? [badHabit] : [],
+            bio: bio.trim() || 'Boss đáng yêu tìm bạn đi dạo chung quanh toà nhà!',
+          });
+        }}
       />
     </Card>
   );

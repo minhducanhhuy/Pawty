@@ -1,6 +1,6 @@
 import { VipTierType } from '../config/business-rules';
 
-export type AuthProviderType = 'phone' | 'google' | 'apple';
+export type AuthProviderType = 'phone' | 'google' | 'apple' | 'username_password';
 export type UserRoleType = 'user' | 'moderator' | 'admin';
 export type UserLocaleType = 'vi' | 'en';
 export type PetSpeciesType = 'dog' | 'cat';
@@ -65,6 +65,9 @@ export interface NotificationPrefs {
 
 export interface UserRecord {
   id: string;
+  username?: string | null;
+  passwordHash?: string | null;
+  googleId?: string | null;
   phone: string;
   email: string | null;
   authProvider: AuthProviderType;

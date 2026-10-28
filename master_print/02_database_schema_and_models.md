@@ -27,7 +27,11 @@
 | Tên Cột | Kiểu Dữ Liệu | Khóa / Ràng buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
 | `id` | `UUID` | **PK**, default `gen_random_uuid()` | Khóa chính định danh tài khoản Sen |
-| `phone` | `VARCHAR(15)` | **UNIQUE**, NOT NULL | Số điện thoại thật định danh KYC |
+| `username` | `VARCHAR(50)` | **UNIQUE**, NULL | Tên đăng nhập (Username/Password) |
+| `password_hash` | `VARCHAR(255)` | NULL | Mật khẩu băm an toàn |
+| `email` | `VARCHAR(150)` | NULL | Email đăng nhập Google |
+| `google_id` | `VARCHAR(100)` | NULL | Google Sub ID |
+| `phone` | `VARCHAR(15)` | NULL | Số điện thoại KYC (tùy chọn) |
 | `full_name` | `VARCHAR(100)` | NOT NULL | Họ và tên chủ nuôi |
 | `nickname` | `VARCHAR(50)` | NULL | Biệt danh trong app (vd: *Nhà Sen Bơ*) |
 | `avatar_url` | `TEXT` | NOT NULL | Đường dẫn ảnh đại diện của chủ nuôi |

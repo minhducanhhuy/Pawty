@@ -27,32 +27,17 @@ export const mockCoreStore: {
   lastSwipedPet: Pet | null;
 } = {
   user: {
-    id: 'usr_sen_01', phone: '0908123456', fullName: 'Minh Khôi (Nhà Sen Bơ)', nickname: 'Nhà Sen Bơ',
+    id: 'usr_new_01', phone: '', fullName: 'Chủ Nuôi Pawty', nickname: 'Sen',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-    condoComplex: 'Vinhomes Central Park - Park 3', latitude: 10.7951, longitude: 106.7218,
+    condoComplex: 'Vinhomes Central Park', latitude: 10.7951, longitude: 106.7218,
     isVerified: true, isVip: false, vipTier: 'free', vipExpiresAt: null,
-    dailySwipesCount: 2, swipesLeft: 18, superLikesToday: 0, superLikeBalance: 2, superLikesLeft: 3,
-    boostBalance: 1, boostExpiresAt: null, isWalkingNow: false, walkingUntil: null,
-    referralCode: 'PAWTYBO88', walkStreakDays: 4, lastWalkDate: '2026-10-27', totalWalkMeters: 6420,
+    dailySwipesCount: 0, swipesLeft: 20, superLikesToday: 0, superLikeBalance: 1, superLikesLeft: 1,
+    boostBalance: 0, boostExpiresAt: null, isWalkingNow: false, walkingUntil: null,
+    referralCode: 'PAWTYNEW', walkStreakDays: 0, lastWalkDate: null, totalWalkMeters: 0,
     isDistanceHidden: false, flakeReportsCount: 0, isBannedSwiping: false, banUntil: null, locale: 'vi',
     notificationPrefs: { match: true, message: true, appointment: true, sos: true, reminder: true, event: true },
   },
-  myPets: [
-    {
-      id: 'pet_bo_01', userId: 'usr_sen_01', name: 'Bơ Lùn', species: 'dog', breed: 'Corgi Pembroke',
-      gender: 'male', isNeutered: true, ageYears: 1, ageMonths: 6, weightKg: 11.2, size: 'medium',
-      isVaccinated: true, lastVaccineDate: '15/01/2026',
-      vaccineDetails: 'Vắc-xin 7 bệnh Vanguard Plus & Phòng Dại - Thú Y PetCare',
-      vaccineStatus: 'verified', vaccineProofUrls: ['https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=400&q=80'],
-      vaccineNextDueDate: '15/01/2027', isSafePet: true, isPrimary: true,
-      bio: 'Mông trái tim chân ngắn 1 khúc, siêu mê xúc xích nướng Landmark!',
-      tags: ['Tăng động', 'Thân thiện', 'Mê xúc xích'],
-      habitsGood: ['Đi vệ sinh đúng bãi cỏ', 'Ngồi chờ hiệu lệnh'],
-      habitsBad: ['Hay sủa xe máy nẹt pô', 'Thấy bồ câu là rượt'],
-      avatarUrl: 'https://images.unsplash.com/photo-1612536057832-2ff7ead58194?auto=format&fit=crop&w=600&q=80',
-      photos: [], ownerName: 'Minh Khôi', ownerPhone: '0908***456', condoComplex: 'Vinhomes Central Park - Park 3',
-    },
-  ],
+  myPets: [],
   radarPets: [
     {
       id: 'pet_mochi_02', userId: 'usr_sen_02', name: 'Mochi', species: 'dog', breed: 'Shiba Inu',

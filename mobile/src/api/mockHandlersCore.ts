@@ -4,6 +4,32 @@ import { Pet, RadarItem, MomentItem, MomentComment } from '../types';
 export function handleMockCore(method: string, path: string, body?: any): any {
   const user = mockCoreStore.user;
   if (path === '/config/public') return DEFAULT_CONFIG;
+  if (path === '/auth/register') {
+    const newUser = {
+      ...user,
+      id: `usr_${Date.now()}`,
+      username: body?.username || 'user',
+      fullName: body?.fullName || 'Chủ Nuôi Mới',
+      condoComplex: body?.condoComplex || 'Vinhomes Central Park',
+    };
+    mockCoreStore.user = newUser;
+    mockCoreStore.myPets = [];
+    return { token: `jwt_${Date.now()}`, user: newUser, isNewUser: true };
+  }
+  if (path === '/auth/login') {
+    return { token: `jwt_${Date.now()}`, user };
+  }
+  if (path === '/auth/google') {
+    const googleUser = {
+      ...user,
+      id: `usr_google_${Date.now()}`,
+      email: body?.email || 'user@gmail.com',
+      fullName: body?.fullName || 'Sen Google',
+      avatarUrl: body?.avatarUrl || user.avatarUrl,
+    };
+    mockCoreStore.user = googleUser;
+    return { token: `jwt_${Date.now()}`, user: googleUser, isNewUser: mockCoreStore.myPets.length === 0 };
+  }
   if (path === '/auth/send-otp') return { sessionInfo: 'mock_session_888888' };
   if (path === '/auth/verify-otp' || path === '/auth/social') {
     if (body?.phone) user.phone = body.phone;

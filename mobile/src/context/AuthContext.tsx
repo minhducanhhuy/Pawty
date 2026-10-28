@@ -13,6 +13,9 @@ interface AuthContextType {
   isLoading: boolean;
   hasCompletedOnboarding: boolean;
   setHasCompletedOnboarding: (done: boolean) => void;
+  loginWithUsernamePassword: (username: string, password: string) => Promise<void>;
+  registerWithUsernamePassword: (username: string, password: string, fullName: string, condoComplex?: string) => Promise<void>;
+  loginWithGoogle: (email?: string, fullName?: string, avatarUrl?: string) => Promise<void>;
   loginWithOtp: (phone: string, otpCode: string, referralCode?: string) => Promise<void>;
   loginWithSocial: (provider: 'google' | 'apple', phone: string) => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -42,17 +45,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (async () => {
       try {
         const storedToken = await storage.getItem(AUTH_TOKEN_KEY);
-        const initialToken = storedToken || 'mock_jwt_token_pawty_01';
-        setToken(initialToken);
-        setClientToken(initialToken);
-        const me = await api.getMe();
-        setUser(me);
+        if (storedToken) {
+          setToken(storedToken);
+          setClientToken(storedToken);
+          const me = await api.getMe();
+          setUser(me);
+          const pets = await api.getMyPets();
+          setHasCompletedOnboarding(pets.length > 0);
+        } else {
+          setToken(null);
+          setClientToken(null);
+          setUser(null);
+          setHasCompletedOnboarding(false);
+        }
       } catch (err) {
-        console.error('Auth bootstrap error:', err);
+        console.warn('Auth bootstrap notice:', err);
+        setToken(null);
+        setClientToken(null);
+        setUser(null);
+        setHasCompletedOnboarding(false);
       } finally {
         setIsLoading(false);
       }
     })();
+  }, []);
+
+  const loginWithUsernamePassword = useCallback(async (username: string, password: string) => {
+    const res = await api.login({ username, password });
+    setToken(res.token);
+    setClientToken(res.token);
+    setUser(res.user);
+    const pets = await api.getMyPets();
+    setHasCompletedOnboarding(pets.length > 0);
+    await storage.setItem(AUTH_TOKEN_KEY, res.token);
+  }, []);
+
+  const registerWithUsernamePassword = useCallback(async (username: string, password: string, fullName: string, condoComplex?: string) => {
+    const res = await api.register({ username, password, fullName, condoComplex });
+    setToken(res.token);
+    setClientToken(res.token);
+    setUser(res.user);
+    setHasCompletedOnboarding(false);
+    await storage.setItem(AUTH_TOKEN_KEY, res.token);
+  }, []);
+
+  const loginWithGoogle = useCallback(async (email?: string, fullName?: string, avatarUrl?: string) => {
+    const res = await api.googleLogin({
+      email: email || `user_${Date.now()}@gmail.com`,
+      fullName: fullName || 'Sen Thú Cưng',
+      avatarUrl: avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
+    });
+    setToken(res.token);
+    setClientToken(res.token);
+    setUser(res.user);
+    const pets = await api.getMyPets();
+    setHasCompletedOnboarding(pets.length > 0);
+    await storage.setItem(AUTH_TOKEN_KEY, res.token);
   }, []);
 
   const loginWithOtp = useCallback(async (phone: string, otpCode: string, referralCode?: string) => {
@@ -99,6 +147,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         hasCompletedOnboarding,
         setHasCompletedOnboarding,
+        loginWithUsernamePassword,
+        registerWithUsernamePassword,
+        loginWithGoogle,
         loginWithOtp,
         loginWithSocial,
         refreshUser,

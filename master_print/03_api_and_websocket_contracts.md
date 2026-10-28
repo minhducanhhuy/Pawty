@@ -26,7 +26,16 @@
 
 ## 2. DANH SÁCH REST API ENDPOINTS
 
-### 2.1. Module Auth (Định danh SĐT thật)
+### 2.1. Module Auth (Đăng nhập Google & Username/Password)
+- **`POST /api/auth/register`**
+  - *Request Body:* `{ "username": "sen_bo", "password": "securePassword123", "fullName": "Nguyễn Văn Sen", "condoComplex": "Vinhomes Central Park" }`
+  - *Response 200:* `{ "token": "jwt...", "user": { "id": "...", "username": "sen_bo", "fullName": "..." } }`
+- **`POST /api/auth/login`**
+  - *Request Body:* `{ "username": "sen_bo", "password": "securePassword123" }`
+  - *Response 200:* `{ "token": "jwt...", "user": { ... } }`
+- **`POST /api/auth/google`**
+  - *Request Body:* `{ "idToken": "google_token_or_profile", "email": "sen@gmail.com", "fullName": "Sen Bơ", "avatarUrl": "..." }`
+  - *Response 200:* `{ "token": "jwt...", "user": { ... } }`
 - **`POST /api/auth/send-otp`**
   - *Request Body:* `{ "phone": "0908123456" }`
   - *Response 200:* `{ "success": true, "sessionInfo": "firebase_mock_token_123" }`

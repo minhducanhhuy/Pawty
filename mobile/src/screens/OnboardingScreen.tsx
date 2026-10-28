@@ -9,14 +9,15 @@ import { useNavigation } from '../navigation/NavigationContext';
 import { Species } from '../types';
 
 export const OnboardingScreen: React.FC = () => {
-  const { loginWithOtp, loginWithSocial, updateUser, setHasCompletedOnboarding } = useAuth();
+  const { user, loginWithOtp, loginWithSocial, updateUser, setHasCompletedOnboarding } = useAuth();
   const { addPet } = useActivePet();
   const { showToast } = useAppConfig();
   const { resetToMain } = useNavigation();
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [phone, setPhone] = useState('0908123456');
-  const [otpCode, setOtpCode] = useState('888888');
+  // If user already authenticated via Google/Username, jump straight to creating Boss
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(user ? 4 : 1);
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [otpCode, setOtpCode] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [loading, setLoading] = useState(false);
 

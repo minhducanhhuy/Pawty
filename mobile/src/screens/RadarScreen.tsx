@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
-import { COLORS, SPACING } from '../theme';
+import { ScrollView, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import * as Location from 'expo-location';
+import { COLORS, SPACING, RADIUS } from '../theme';
 import { EmptyState } from '../components';
 import { PetSwipeCard } from './radar/PetSwipeCard';
 import { NativeAdCard } from './radar/NativeAdCard';
@@ -29,10 +30,35 @@ export const RadarScreen: React.FC = () => {
   const [matchedRoomId, setMatchedRoomId] = useState<string>('room_mochi_01');
   const [likesMe, setLikesMe] = useState<{ count: number; items: Pet[] }>({ count: 2, items: [] });
   const [boostMinsLeft, setBoostMinsLeft] = useState<number>(0);
+  const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(null);
+  const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number }>({
+    lat: user?.latitude || 10.7951,
+    lng: user?.longitude || 106.7218,
+  });
+
+  const requestLocation = useCallback(async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        setHasLocationPermission(true);
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setCurrentCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+      } else {
+        setHasLocationPermission(false);
+      }
+    } catch (err) {
+      console.warn('Location request error:', err);
+      setHasLocationPermission(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
 
   const loadRadar = useCallback(async () => {
     try {
-      const res = await api.getRadar({ lat: user?.latitude || 10.7951, lng: user?.longitude || 106.7218, ...filters });
+      const res = await api.getRadar({ lat: currentCoords.lat, lng: currentCoords.lng, ...filters });
       let list = res.items;
       if (filters.verifiedOnly) list = list.filter((it) => it.type === 'ad' || it.pet.isSafePet);
       if (filters.walkingNow) list = list.filter((it) => it.type === 'ad' || it.isWalkingNow);
@@ -44,7 +70,7 @@ export const RadarScreen: React.FC = () => {
     } catch (err) {
       console.error('Radar fetch error:', err);
     }
-  }, [user?.latitude, user?.longitude, filters]);
+  }, [currentCoords.lat, currentCoords.lng, filters]);
 
   useEffect(() => { loadRadar(); }, [loadRadar]);
 
@@ -102,8 +128,26 @@ export const RadarScreen: React.FC = () => {
         onPressSos={() => navigate('SosCreate')} onPressNotif={() => navigate('NotificationCenter')}
         onPressFilter={() => setFilterVisible(true)} onPressWalkNow={() => navigate('WalkNow')}
       />
+
+      {/* Location Permission Prompt (Real Native App) */}
+      {hasLocationPermission === false && (
+        <View style={styles.permissionBanner}>
+          <Text style={styles.permissionText}>
+            📍 Pawty cần vị trí để quét tìm Boss quanh khu vực chung cư của bạn.
+          </Text>
+          <TouchableOpacity style={styles.permissionBtn} onPress={requestLocation}>
+            <Text style={styles.permissionBtnText}>Cấp quyền vị trí</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {!currentItem ? (
-        <EmptyState title="Không tìm thấy Boss phù hợp" subtitle="Thử mở rộng bán kính lọc PostGIS" actionLabel="Mở bộ lọc" onAction={() => setFilterVisible(true)} />
+        <EmptyState
+          title="Chưa có bạn cún nào quanh đây"
+          subtitle="Hãy thử tăng bán kính trong Bộ Lọc hoặc rủ hàng xóm dắt cún tham gia nhé! 🐾"
+          actionLabel="Mở bộ lọc bán kính"
+          onAction={() => setFilterVisible(true)}
+        />
       ) : currentItem.type === 'ad' ? (
         <NativeAdCard
           ad={currentItem.ad}
@@ -111,7 +155,16 @@ export const RadarScreen: React.FC = () => {
           onPassAd={() => setIndex((i) => (i + 1) % items.length)}
         />
       ) : (
-        <PetSwipeCard pet={currentItem.pet} distanceLabel={currentItem.distanceLabel} isBoosted={currentItem.isBoosted} isWalkingNow={currentItem.isWalkingNow} hasSuperLikedMe={currentItem.hasSuperLikedMe} />
+        <PetSwipeCard
+          pet={currentItem.pet}
+          distanceLabel={currentItem.distanceLabel}
+          isBoosted={currentItem.isBoosted}
+          isWalkingNow={currentItem.isWalkingNow}
+          hasSuperLikedMe={currentItem.hasSuperLikedMe}
+          onSwipeLeft={() => handleAction('dislike')}
+          onSwipeRight={() => handleAction('like')}
+          isTopCard={true}
+        />
       )}
       <RadarControls
         superLikesLeft={user?.superLikesLeft ?? 1} onRewind={handleRewind} onPass={() => handleAction('dislike')}
@@ -135,4 +188,31 @@ export const RadarScreen: React.FC = () => {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.cream },
   content: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.lg },
+  permissionBanner: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    alignItems: 'center',
+    gap: 8,
+  },
+  permissionText: {
+    fontFamily: 'Nunito-SemiBold',
+    fontSize: 13,
+    color: '#92400E',
+    textAlign: 'center',
+  },
+  permissionBtn: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: RADIUS.pill,
+  },
+  permissionBtnText: {
+    fontFamily: 'Nunito-Bold',
+    fontSize: 12,
+    color: '#FFFFFF',
+  },
 });
