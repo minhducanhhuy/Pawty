@@ -56,7 +56,10 @@ export const MatchCelebrationModal: React.FC<MatchCelebrationModalProps> = ({
           </View>
 
           <Text style={styles.pairNames}>
-            {myPet?.name || 'Bơ Lùn'} × {matchedPet.name}
+            {myPet?.ownerName || 'Bạn'} & {matchedPet.ownerName || 'Người bạn mới'}
+          </Text>
+          <Text style={styles.subPairNames}>
+            🐾 Cùng Boss: {myPet?.name || 'Bé cưng'} × {matchedPet.name}
           </Text>
 
           <Button
@@ -118,5 +121,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.mintDark,
   },
   pawBumpEmoji: { fontSize: 18 },
-  pairNames: { ...TYPOGRAPHY.h3, color: COLORS.textDark, marginBottom: SPACING.md },
+  pairNames: { ...TYPOGRAPHY.h3, color: COLORS.textDark, textAlign: 'center', marginTop: 4 },
+  subPairNames: { ...TYPOGRAPHY.bodyBold, color: COLORS.coral, textAlign: 'center', marginBottom: SPACING.md, fontSize: 13 },
 });

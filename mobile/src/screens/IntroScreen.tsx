@@ -105,22 +105,22 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onSuccess }) => {
             resizeMode="contain"
           />
           <Text style={styles.brandTitle}>Pawty</Text>
-          <Text style={styles.tagline}>Quẹt thẻ · Tìm bạn dắt dạo · Chung cư yêu Boss</Text>
+          <Text style={styles.tagline}>Mạng xã hội & Hẹn hò kết nối người nuôi thú cưng</Text>
         </Animated.View>
 
         {/* 3 Core Highlights (Minimal & Visual) */}
         <View style={styles.highlightsContainer}>
           <View style={styles.highlightPill}>
-            <Text style={styles.highlightEmoji}>🐾</Text>
-            <Text style={styles.highlightText}>Tìm bạn cún gần toà nhà (500m - 3km)</Text>
+            <Text style={styles.highlightEmoji}>❤️</Text>
+            <Text style={styles.highlightText}>Hẹn hò & Tìm bạn dắt dạo cùng chung cư (500m - 3km)</Text>
           </View>
           <View style={styles.highlightPill}>
-            <Text style={styles.highlightEmoji}>🛡️</Text>
-            <Text style={styles.highlightText}>Sổ tiêm Safe Pet đã xác minh an toàn</Text>
+            <Text style={styles.highlightEmoji}>🐾</Text>
+            <Text style={styles.highlightText}>Hồ sơ đôi: Chủ nuôi chân thành + Boss đồng hành</Text>
           </View>
           <View style={styles.highlightPill}>
             <Text style={styles.highlightEmoji}>☕</Text>
-            <Text style={styles.highlightText}>Hẹn dạo trung điểm tại quán cafe thân thiện</Text>
+            <Text style={styles.highlightText}>Hẹn gặp an toàn tại quán cafe thân thiện thú cưng</Text>
           </View>
         </View>
       </View>

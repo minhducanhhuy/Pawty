@@ -217,3 +217,4 @@ const styles = StyleSheet.create({
   continueBtnDisabled: { backgroundColor: COLORS.border },
   continueBtnText: { ...TYPOGRAPHY.bodyBold, color: COLORS.white, fontSize: 15 },
 });
+

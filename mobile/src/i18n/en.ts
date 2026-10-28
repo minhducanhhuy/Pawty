@@ -2,7 +2,7 @@ import { TranslationKey } from './vi';
 
 export const en: Record<TranslationKey, string> = {
   'app.name': 'Pawty',
-  'app.slogan': 'Walk Everywhere - Happy Pets All Day',
+  'app.slogan': 'Connecting Pet Parents & Pet Lovers',
   'common.back': 'Back',
   'common.close': 'Close',
   'common.save': 'Save',
@@ -43,9 +43,9 @@ export const en: Record<TranslationKey, string> = {
   'radar.swipe.exhausted': 'Daily free swipes reached! Upgrade to VIP for unlimited swipes.',
   'radar.ad.sponsored': 'Sponsored • Native Ad',
   'radar.ad.saveVoucher': 'Save Voucher Now 🎁',
-  'radar.match.title': 'PAW-FECT MATCH! 🎉',
-  'radar.match.subtitle': 'Both pets bumped paws! Schedule a walk together now.',
-  'radar.match.chatNow': 'Message & Schedule Walk 🐾',
+  'radar.match.title': "IT'S A MATCH! 🎉",
+  'radar.match.subtitle': 'You and your new pet parent friend liked each other. Say hello and plan a walk together!',
+  'radar.match.chatNow': 'Chat & Plan a Meetup 🐾',
   'walkNow.title': 'Walk Now Live Mode',
   'walkNow.privacy': '🔒 Privacy: Location rounded to 100m grid, auto-off in 30m.',
   'walkNow.extend': 'Extend +30m',

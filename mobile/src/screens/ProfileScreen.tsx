@@ -45,12 +45,20 @@ export const ProfileScreen: React.FC = () => {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Card style={styles.headerCard}>
         <View style={styles.topRow}>
-          <TouchableOpacity style={styles.switcherBtn} onPress={() => setSwitcherOpen(true)}>
-            <Text style={styles.switcherText}>🐾 Đổi Boss ({pets.length}/{maxPets}) ▾</Text>
-          </TouchableOpacity>
+          <View style={styles.intentBadge}>
+            <Text style={styles.intentBadgeText}>
+              {user?.intentTags?.[0] === 'dating'
+                ? '❤️ Đang tìm: Hẹn hò đôi'
+                : user?.intentTags?.[0] === 'walk_buddy'
+                ? '🚶 Đang tìm: Bạn dắt dạo đôi'
+                : user?.intentTags?.[0] === 'playdate'
+                ? '🐾 Đang tìm: Bạn cho Boss'
+                : '💬 Giao lưu cộng đồng'}
+            </Text>
+          </View>
           <View style={styles.rightBtns}>
             <TouchableOpacity style={styles.streakPill} onPress={() => navigate('Badges')}>
-              <Text style={styles.streakText}>🔥 {user?.walkStreakDays || 4} ngày</Text>
+              <Text style={styles.streakText}>🔥 {user?.walkStreakDays || 0} ngày</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.settingsBtn} onPress={() => navigate('Settings')}>
               <Text style={styles.settingsText}>⚙️</Text>
@@ -58,19 +66,38 @@ export const ProfileScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Human Owner Row */}
         <View style={styles.profileRow}>
-          <Avatar uri={activePet.avatarUrl} size={76} isVip={user?.isVip} isWalkingNow={user?.isWalkingNow} />
+          <Avatar uri={user?.avatarUrl || activePet.avatarUrl} size={76} isVip={user?.isVip} isWalkingNow={user?.isWalkingNow} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{activePet.name}</Text>
-            <Text style={styles.breed}>{activePet.breed} • {activePet.weightKg}kg</Text>
+            <Text style={styles.name}>
+              {user?.fullName || 'Chủ nuôi'}{user?.age ? `, ${user.age}` : ''}
+            </Text>
+            <Text style={styles.occupationText}>💼 {user?.occupation || 'Cư dân Pawty'}</Text>
             <Text style={styles.condo}>🏢 {user?.condoComplex}</Text>
             <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
               <Badge text={user?.isVip ? `👑 ${user.vipTier.toUpperCase()}` : 'Gói Free'} tone={user?.isVip ? 'gold' : 'coral'} />
-              {activePet.isSafePet && <Badge text="🛡️ Safe Pet" tone="mint" />}
             </View>
           </View>
         </View>
-        <Text style={styles.bio}>"{activePet.bio}"</Text>
+
+        {user?.bio ? <Text style={styles.bio}>"{user.bio}"</Text> : null}
+
+        {/* Boss Co-pilot Bar */}
+        <View style={styles.bossCoPilotBar}>
+          <Image source={{ uri: activePet.avatarUrl }} style={styles.bossAvatar} />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.bossName}>{activePet.name}</Text>
+              {activePet.isSafePet && <Badge text="🛡️ Safe Pet" tone="mint" />}
+            </View>
+            <Text style={styles.bossBreed}>{activePet.gender === 'male' ? '♂️' : '♀️'} {activePet.breed} • {activePet.weightKg}kg</Text>
+          </View>
+          <TouchableOpacity style={styles.switcherBtn} onPress={() => setSwitcherOpen(true)}>
+            <Text style={styles.switcherText}>Đổi Boss ▾</Text>
+          </TouchableOpacity>
+        </View>
+
         <Button title="👑 Nâng Cấp Đặc Quyền Sen VIP / Mua Boost" variant="gold" size="sm" onPress={() => navigate('Paywall')} />
       </Card>
 
@@ -123,6 +150,8 @@ const styles = StyleSheet.create({
   content: { padding: SPACING.md, gap: SPACING.md, paddingBottom: 32 },
   headerCard: { gap: SPACING.sm },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  intentBadge: { backgroundColor: '#FFE4E1', paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.pill },
+  intentBadgeText: { ...TYPOGRAPHY.caption, color: COLORS.coral, fontWeight: '800', fontSize: 11 },
   switcherBtn: { backgroundColor: COLORS.coralLight, paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.pill },
   switcherText: { ...TYPOGRAPHY.caption, color: COLORS.coralDark, fontWeight: '800' },
   rightBtns: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -132,9 +161,24 @@ const styles = StyleSheet.create({
   settingsText: { fontSize: 16 },
   profileRow: { flexDirection: 'row', gap: SPACING.md, alignItems: 'center' },
   name: { ...TYPOGRAPHY.h2, color: COLORS.textDark },
+  occupationText: { ...TYPOGRAPHY.caption, color: COLORS.coralDark, fontWeight: '700', marginTop: 2 },
   breed: { ...TYPOGRAPHY.caption, color: COLORS.textBody, fontWeight: '700' },
   condo: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
   bio: { ...TYPOGRAPHY.body, fontStyle: 'italic', color: COLORS.textBody },
+  bossCoPilotBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: COLORS.creamWarm,
+    padding: SPACING.sm + 2,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginTop: 4,
+  },
+  bossAvatar: { width: 40, height: 40, borderRadius: 20 },
+  bossName: { ...TYPOGRAPHY.bodyBold, color: COLORS.textDark },
+  bossBreed: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' },
   quickItem: { width: '23%', backgroundColor: COLORS.white, paddingVertical: 10, borderRadius: RADIUS.lg, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
   quickIcon: { fontSize: 20, marginBottom: 2 },
