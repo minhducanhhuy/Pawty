@@ -1,5 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Pawty Super App — Prisma Schema (v1.1 SSOT)
+// Matches master_print/02_database_schema_and_models.md (incl. PHỤ LỤC v1.1 §3.1–3.7)
 
 generator client {
   provider        = "prisma-client-js"
@@ -10,6 +10,29 @@ datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
   extensions = [postgis]
+}
+
+enum AuthProvider {
+  phone
+  google
+  apple
+}
+
+enum UserRole {
+  user
+  moderator
+  admin
+}
+
+enum UserLocale {
+  vi
+  en
+}
+
+enum VipTier {
+  free
+  vip
+  vip_plus
 }
 
 enum PetSpecies {
@@ -28,10 +51,24 @@ enum PetSize {
   large
 }
 
+enum VaccineStatus {
+  none
+  pending
+  verified
+  rejected
+}
+
 enum MatchStatus {
   liked
   disliked
   matched
+  superliked
+}
+
+enum MatchAction {
+  like
+  superlike
+  dislike
 }
 
 enum AppointmentStatus {
@@ -42,72 +79,308 @@ enum AppointmentStatus {
   completed
 }
 
+enum ReportTargetType {
+  user
+  pet
+  moment
+  message
+  club
+}
+
+enum ReportReason {
+  spam
+  harassment
+  abuse_animal
+  nsfw
+  fake
+  other
+}
+
+enum ReportStatus {
+  open
+  resolved
+  dismissed
+}
+
+enum NotificationType {
+  match
+  message
+  appointment
+  sos
+  reminder
+  event
+  system
+  badge
+  referral
+}
+
+enum ReminderKind {
+  vaccine
+  deworm
+  custom
+}
+
+enum WalkSource {
+  walk_now
+  appointment
+}
+
+enum ClubType {
+  breed
+  building
+}
+
+enum ClubMemberRole {
+  owner
+  member
+}
+
+enum EventRsvpStatus {
+  going
+  maybe
+}
+
+enum PlaceCategory {
+  park
+  cafe
+  spa
+  vet
+  shop
+  hotel
+}
+
+enum PartnerStatus {
+  pending
+  approved
+  suspended
+}
+
+enum PartnerPlan {
+  cpc
+  monthly
+}
+
+enum AdStatus {
+  draft
+  active
+  paused
+  ended
+}
+
+enum VoucherStatus {
+  saved
+  redeemed
+  expired
+}
+
+enum TransactionType {
+  sos
+  vip_month
+  vip_year
+  vip_plus_month
+  boost
+  boost_pack
+  super_like_pack
+  partner_topup
+}
+
 model User {
-  id                 String       @id @default(uuid())
-  phone              String       @unique
-  fullName           String       @map("full_name")
+  id                 String        @id @default(uuid())
+  phone              String        @unique
+  email              String?
+  authProvider       AuthProvider  @default(phone) @map("auth_provider")
+  role               UserRole      @default(user)
+  locale             UserLocale    @default(vi)
+  fullName           String        @map("full_name")
   nickname           String?
-  avatarUrl          String       @map("avatar_url")
-  isVerified         Boolean      @default(false) @map("is_verified")
-  isVip              Boolean      @default(false) @map("is_vip")
-  vipExpiresAt       DateTime?    @map("vip_expires_at")
-  dailySwipesCount   Int          @default(0) @map("daily_swipes_count")
+  avatarUrl          String        @map("avatar_url")
+  isVerified         Boolean       @default(false) @map("is_verified")
+  isVip              Boolean       @default(false) @map("is_vip")
+  vipTier            VipTier       @default(free) @map("vip_tier")
+  vipExpiresAt       DateTime?     @map("vip_expires_at")
+  dailySwipesCount   Int           @default(0) @map("daily_swipes_count")
+  superLikesToday    Int           @default(0) @map("super_likes_today")
+  superLikeBalance   Int           @default(0) @map("super_like_balance")
+  boostBalance       Int           @default(0) @map("boost_balance")
+  boostExpiresAt     DateTime?     @map("boost_expires_at")
+  isWalkingNow       Boolean       @default(false) @map("is_walking_now")
+  walkingUntil       DateTime?     @map("walking_until")
+  referralCode       String        @unique @map("referral_code")
+  referredByUserId   String?       @map("referred_by_user_id")
+  walkStreakDays     Int           @default(0) @map("walk_streak_days")
+  lastWalkDate       DateTime?     @map("last_walk_date") @db.Date
+  totalWalkMeters    Int           @default(0) @map("total_walk_meters")
   latitude           Float
   longitude          Float
-  condoComplex       String       @map("condo_complex")
-  flakeReportsCount  Int          @default(0) @map("flake_reports_count")
-  isBannedSwiping    Boolean      @default(false) @map("is_banned_swiping")
-  banUntil           DateTime?    @map("ban_until")
-  createdAt          DateTime     @default(now()) @map("created_at")
-  updatedAt          DateTime     @updatedAt @map("updated_at")
+  isDistanceHidden   Boolean       @default(false) @map("is_distance_hidden")
+  condoComplex       String        @map("condo_complex")
+  flakeReportsCount  Int           @default(0) @map("flake_reports_count")
+  isBannedSwiping    Boolean       @default(false) @map("is_banned_swiping")
+  banUntil           DateTime?     @map("ban_until")
+  fcmToken           String?       @map("fcm_token")
+  notificationPrefs  Json          @default("{\"match\":true,\"message\":true,\"appointment\":true,\"sos\":true,\"reminder\":true,\"event\":true}") @map("notification_prefs")
+  isDeleted          Boolean       @default(false) @map("is_deleted")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
 
+  referredBy         User?         @relation("UserReferrals", fields: [referredByUserId], references: [id])
+  referredUsers      User[]        @relation("UserReferrals")
   pets               Pet[]
   momentLikes        MomentLike[]
+  momentComments     MomentComment[]
   transactions       Transaction[]
+  blocksInitiated    Block[]       @relation("Blocker")
+  blocksReceived     Block[]       @relation("Blocked")
+  reportsCreated     Report[]      @relation("Reporter")
+  notifications      Notification[]
+  userBadges         UserBadge[]
+  walkLogs           WalkLog[]
+  clubsOwned         Club[]
+  clubMemberships    ClubMember[]
+  eventsCreated      Event[]
+  eventRsvps         EventRsvp[]
+  placeReviews       PlaceReview[]
+  vouchers           Voucher[]
+  referralsSent      Referral[]    @relation("ReferrerUser")
+  referralReceived   Referral?     @relation("ReferredUser")
 
+  @@index([latitude, longitude])
   @@map("users")
 }
 
 model Pet {
-  id                 String       @id @default(uuid())
-  userId             String       @map("user_id")
-  name               String
-  species            PetSpecies
-  breed              String
-  gender             PetGender
-  isNeutered         Boolean      @default(false) @map("is_neutered")
-  ageYears           Int          @default(0) @map("age_years")
-  ageMonths          Int          @default(0) @map("age_months")
-  weightKg           Float        @map("weight_kg")
-  size               PetSize
-  isVaccinated       Boolean      @default(true) @map("is_vaccinated")
-  lastVaccineDate    String?      @map("last_vaccine_date")
-  vaccineDetails     String?      @map("vaccine_details")
-  bio                String?
-  tags               String[]
-  habitsGood         String[]     @map("habits_good")
-  habitsBad          String[]     @map("habits_bad")
-  avatarUrl          String       @map("avatar_url")
-  photos             String[]
-  createdAt          DateTime     @default(now()) @map("created_at")
+  id                  String        @id @default(uuid())
+  userId              String        @map("user_id")
+  isPrimary           Boolean       @default(false) @map("is_primary")
+  name                String
+  species             PetSpecies
+  breed               String
+  gender              PetGender
+  isNeutered          Boolean       @default(false) @map("is_neutered")
+  ageYears            Int           @default(0) @map("age_years")
+  ageMonths           Int           @default(0) @map("age_months")
+  weightKg            Float         @map("weight_kg")
+  size                PetSize
+  isVaccinated        Boolean       @default(true) @map("is_vaccinated")
+  lastVaccineDate     String?       @map("last_vaccine_date")
+  vaccineDetails      String?       @map("vaccine_details")
+  vaccineStatus       VaccineStatus @default(none) @map("vaccine_status")
+  vaccineProofUrls    String[]      @default([]) @map("vaccine_proof_urls")
+  vaccineNextDueDate  DateTime?     @map("vaccine_next_due_date") @db.Date
+  vaccineRejectReason String?       @map("vaccine_reject_reason")
+  isSafePet           Boolean       @default(false) @map("is_safe_pet")
+  bio                 String?
+  tags                String[]      @default([])
+  habitsGood          String[]      @default([]) @map("habits_good")
+  habitsBad           String[]      @default([]) @map("habits_bad")
+  avatarUrl           String        @map("avatar_url")
+  photos              String[]      @default([])
+  createdAt           DateTime      @default(now()) @map("created_at")
 
-  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  moments            PetMoment[]
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moments             PetMoment[]
+  sentMatches         Match[]       @relation("SenderPet")
+  receivedMatches     Match[]       @relation("TargetPet")
+  chatRoomsAsA        ChatRoom[]    @relation("ChatPetA")
+  chatRoomsAsB        ChatRoom[]    @relation("ChatPetB")
+  chatMessages        ChatMessage[]
+  sentAppointments    WalkAppointment[] @relation("AppointmentSender")
+  receivedAppointments WalkAppointment[] @relation("AppointmentReceiver")
+  reminders           Reminder[]
+  walkLogs            WalkLog[]
 
   @@map("pets")
 }
 
-model PetMoment {
-  id          String       @id @default(uuid())
-  petId       String       @map("pet_id")
-  mediaUrl    String       @map("media_url")
-  mediaType   String       @default("image") @map("media_type")
-  caption     String
-  likesCount  Int          @default(0) @map("likes_count")
-  createdAt   DateTime     @default(now()) @map("created_at")
+model Match {
+  id          String      @id @default(uuid())
+  senderPetId String      @map("sender_pet_id")
+  targetPetId String      @map("target_pet_id")
+  action      MatchAction @default(like)
+  status      MatchStatus
+  isUndone    Boolean     @default(false) @map("is_undone")
+  matchedAt   DateTime?   @map("matched_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
 
-  pet         Pet          @relation(fields: [petId], references: [id], onDelete: Cascade)
+  senderPet   Pet         @relation("SenderPet", fields: [senderPetId], references: [id], onDelete: Cascade)
+  targetPet   Pet         @relation("TargetPet", fields: [targetPetId], references: [id], onDelete: Cascade)
+
+  @@index([senderPetId, targetPetId])
+  @@map("matches")
+}
+
+model ChatRoom {
+  id              String        @id @default(uuid())
+  petAId          String        @map("pet_a_id")
+  petBId          String        @map("pet_b_id")
+  lastMessageText String?       @map("last_message_text")
+  lastMessageAt   DateTime?     @map("last_message_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  petA            Pet           @relation("ChatPetA", fields: [petAId], references: [id], onDelete: Cascade)
+  petB            Pet           @relation("ChatPetB", fields: [petBId], references: [id], onDelete: Cascade)
+  messages        ChatMessage[]
+  appointments    WalkAppointment[]
+
+  @@map("chat_rooms")
+}
+
+model ChatMessage {
+  id            String           @id @default(uuid())
+  roomId        String           @map("room_id")
+  senderPetId   String           @map("sender_pet_id")
+  text          String?
+  appointmentId String?          @map("appointment_id")
+  isRead        Boolean          @default(false) @map("is_read")
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  room          ChatRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderPet     Pet              @relation(fields: [senderPetId], references: [id], onDelete: Cascade)
+  appointment   WalkAppointment? @relation(fields: [appointmentId], references: [id])
+
+  @@map("chat_messages")
+}
+
+model WalkAppointment {
+  id                   String            @id @default(uuid())
+  roomId               String            @map("room_id")
+  senderPetId          String            @map("sender_pet_id")
+  receiverPetId        String            @map("receiver_pet_id")
+  scheduledTime        DateTime          @map("scheduled_time")
+  displayTime          String            @map("display_time")
+  placeName            String            @map("place_name")
+  placeAddress         String            @map("place_address")
+  placeThumbnail       String            @map("place_thumbnail")
+  placeLat             Float             @map("place_lat")
+  placeLng             Float             @map("place_lng")
+  checkedInSenderAt    DateTime?         @map("checked_in_sender_at")
+  checkedInReceiverAt  DateTime?         @map("checked_in_receiver_at")
+  reminderSentAt       DateTime?         @map("reminder_sent_at")
+  completedAt          DateTime?         @map("completed_at")
+  note                 String?
+  status               AppointmentStatus @default(pending)
+  createdAt            DateTime          @default(now()) @map("created_at")
+
+  room                 ChatRoom          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderPet            Pet               @relation("AppointmentSender", fields: [senderPetId], references: [id], onDelete: Cascade)
+  receiverPet          Pet               @relation("AppointmentReceiver", fields: [receiverPetId], references: [id], onDelete: Cascade)
+  messages             ChatMessage[]
+
+  @@map("walk_appointments")
+}
+
+model PetMoment {
+  id          String          @id @default(uuid())
+  petId       String          @map("pet_id")
+  mediaUrl    String          @map("media_url")
+  mediaType   String          @default("image") @map("media_type")
+  caption     String
+  likesCount  Int             @default(0) @map("likes_count")
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  pet         Pet             @relation(fields: [petId], references: [id], onDelete: Cascade)
   likes       MomentLike[]
+  comments    MomentComment[]
 
   @@map("pet_moments")
 }
@@ -125,54 +398,336 @@ model MomentLike {
   @@map("moment_likes")
 }
 
-model WalkAppointment {
-  id                   String            @id @default(uuid())
-  roomId               String            @map("room_id")
-  senderPetId          String            @map("sender_pet_id")
-  receiverPetId        String            @map("receiver_pet_id")
-  scheduledTime        DateTime          @map("scheduled_time")
-  displayTime          String            @map("display_time")
-  placeName            String            @map("place_name")
-  placeAddress         String            @map("place_address")
-  placeThumbnail       String            @map("place_thumbnail")
-  placeDistanceMeters  Int               @map("place_distance_meters")
-  note                 String?
-  status               AppointmentStatus @default(pending)
-  createdAt            DateTime          @default(now()) @map("created_at")
+model MomentComment {
+  id        String    @id @default(uuid())
+  momentId  String    @map("moment_id")
+  userId    String    @map("user_id")
+  text      String
+  createdAt DateTime  @default(now()) @map("created_at")
 
-  @@map("walk_appointments")
+  moment    PetMoment @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("moment_comments")
 }
 
 model SosAlert {
-  id               String       @id @default(uuid())
-  petName          String       @map("pet_name")
-  species          PetSpecies
-  breed            String
-  petPhotoUrl      String       @map("pet_photo_url")
-  latitude         Float
-  longitude        Float
-  lastSeenAddress  String       @map("last_seen_address")
-  radiusKm         Int          @default(3) @map("radius_km")
-  rewardAmountVnd  String       @map("reward_amount_vnd")
-  contactPhone     String       @map("contact_phone")
-  notes            String
-  status           String       @default("active")
-  createdAt        DateTime     @default(now()) @map("created_at")
+  id              String     @id @default(uuid())
+  petName         String     @map("pet_name")
+  species         PetSpecies
+  breed           String
+  petPhotoUrl     String     @map("pet_photo_url")
+  latitude        Float
+  longitude       Float
+  lastSeenAddress String     @map("last_seen_address")
+  radiusKm        Int        @default(3) @map("radius_km")
+  rewardAmountVnd String     @map("reward_amount_vnd")
+  contactPhone    String     @map("contact_phone")
+  notes           String
+  status          String     @default("active")
+  createdAt       DateTime   @default(now()) @map("created_at")
 
+  @@index([latitude, longitude])
   @@map("sos_alerts")
 }
 
 model Transaction {
-  id              String       @id @default(uuid())
-  userId          String       @map("user_id")
-  type            String
-  amountVnd       Int          @map("amount_vnd")
-  paymentGateway  String       @default("vietqr") @map("payment_gateway")
-  paymentCode     String       @map("payment_code")
-  status          String       @default("pending")
-  createdAt       DateTime     @default(now()) @map("created_at")
+  id             String          @id @default(uuid())
+  userId         String          @map("user_id")
+  type           TransactionType
+  amountVnd      Int             @map("amount_vnd")
+  paymentGateway String          @default("vietqr") @map("payment_gateway")
+  paymentCode    String          @unique @map("payment_code")
+  status         String          @default("pending")
+  createdAt      DateTime        @default(now()) @map("created_at")
 
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("transactions")
+}
+
+model Block {
+  id            String   @id @default(uuid())
+  blockerUserId String   @map("blocker_user_id")
+  blockedUserId String   @map("blocked_user_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  blocker       User     @relation("Blocker", fields: [blockerUserId], references: [id], onDelete: Cascade)
+  blocked       User     @relation("Blocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerUserId, blockedUserId])
+  @@map("blocks")
+}
+
+model Report {
+  id             String           @id @default(uuid())
+  reporterUserId String           @map("reporter_user_id")
+  targetType     ReportTargetType @map("target_type")
+  targetId       String           @map("target_id")
+  reason         ReportReason
+  detail         String?
+  status         ReportStatus     @default(open)
+  resolvedBy     String?          @map("resolved_by")
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  reporter       User             @relation("Reporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("reports")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  body      String
+  payload   Json             @default("{}")
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model Reminder {
+  id                 String       @id @default(uuid())
+  petId              String       @map("pet_id")
+  kind               ReminderKind
+  title              String
+  dueDate            DateTime     @map("due_date") @db.Date
+  isDone             Boolean      @default(false) @map("is_done")
+  lastNotifiedOffset Int?         @map("last_notified_offset")
+
+  pet                Pet          @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@map("reminders")
+}
+
+model Badge {
+  code          String      @id
+  nameVi        String      @map("name_vi")
+  nameEn        String      @map("name_en")
+  icon          String
+  descriptionVi String      @map("description_vi")
+  descriptionEn String      @map("description_en")
+
+  userBadges    UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  userId    String   @map("user_id")
+  badgeCode String   @map("badge_code")
+  earnedAt  DateTime @default(now()) @map("earned_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeCode], references: [code], onDelete: Cascade)
+
+  @@id([userId, badgeCode])
+  @@map("user_badges")
+}
+
+model WalkLog {
+  id             String     @id @default(uuid())
+  userId         String     @map("user_id")
+  petId          String     @map("pet_id")
+  startedAt      DateTime   @map("started_at")
+  endedAt        DateTime   @map("ended_at")
+  distanceMeters Int        @map("distance_meters")
+  source         WalkSource
+
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pet            Pet        @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@map("walk_logs")
+}
+
+model Club {
+  id              String       @id @default(uuid())
+  name            String       @unique
+  type            ClubType
+  breedOrBuilding String       @map("breed_or_building")
+  coverUrl        String?      @map("cover_url")
+  description     String
+  ownerUserId     String       @map("owner_user_id")
+  membersCount    Int          @default(1) @map("members_count")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  owner           User         @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  members         ClubMember[]
+  events          Event[]
+
+  @@map("clubs")
+}
+
+model ClubMember {
+  clubId   String         @map("club_id")
+  userId   String         @map("user_id")
+  role     ClubMemberRole @default(member)
+  joinedAt DateTime       @default(now()) @map("joined_at")
+
+  club     Club           @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([clubId, userId])
+  @@map("club_members")
+}
+
+model Event {
+  id          String      @id @default(uuid())
+  clubId      String?     @map("club_id")
+  title       String
+  description String
+  coverUrl    String?     @map("cover_url")
+  placeName   String      @map("place_name")
+  lat         Float
+  lng         Float
+  startsAt    DateTime    @map("starts_at")
+  capacity    Int
+  rsvpCount   Int         @default(0) @map("rsvp_count")
+  createdBy   String      @map("created_by")
+
+  club        Club?       @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  creator     User        @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  rsvps       EventRsvp[]
+
+  @@map("events")
+}
+
+model EventRsvp {
+  eventId   String          @map("event_id")
+  userId    String          @map("user_id")
+  status    EventRsvpStatus
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  event     Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, userId])
+  @@map("event_rsvps")
+}
+
+model PetFriendlyPlace {
+  id           String        @id @default(uuid())
+  name         String
+  category     PlaceCategory
+  address      String
+  lat          Float
+  lng          Float
+  thumbnailUrl String        @map("thumbnail_url")
+  ratingAvg    Float         @default(5.0) @map("rating_avg")
+  reviewsCount Int           @default(0) @map("reviews_count")
+  partnerId    String?       @map("partner_id")
+
+  partner      Partner?      @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  reviews      PlaceReview[]
+
+  @@index([lat, lng])
+  @@map("pet_friendly_places")
+}
+
+model PlaceReview {
+  id        String           @id @default(uuid())
+  placeId   String           @map("place_id")
+  userId    String           @map("user_id")
+  rating    Int
+  text      String
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  place     PetFriendlyPlace @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("place_reviews")
+}
+
+model Partner {
+  id           String             @id @default(uuid())
+  businessName String             @map("business_name")
+  category     PlaceCategory
+  contactEmail String             @unique @map("contact_email")
+  passwordHash String             @map("password_hash")
+  phone        String
+  lat          Float
+  lng          Float
+  address      String
+  status       PartnerStatus      @default(pending)
+  plan         PartnerPlan        @default(cpc)
+  balanceVnd   Int                @default(0) @map("balance_vnd")
+  createdAt    DateTime           @default(now()) @map("created_at")
+
+  places       PetFriendlyPlace[]
+  ads          NativeAd[]
+
+  @@map("partners")
+}
+
+model NativeAd {
+  id              String    @id @default(uuid())
+  partnerId       String    @map("partner_id")
+  title           String
+  description     String
+  imageUrl        String    @map("image_url")
+  discountPercent Int       @map("discount_percent")
+  voucherQuota    Int       @map("voucher_quota")
+  vouchersIssued  Int       @default(0) @map("vouchers_issued")
+  radiusMeters    Int       @default(1000) @map("radius_meters")
+  targetLat       Float     @map("target_lat")
+  targetLng       Float     @map("target_lng")
+  status          AdStatus  @default(draft)
+  impressions     Int       @default(0)
+  clicks          Int       @default(0)
+  startsAt        DateTime  @map("starts_at")
+  endsAt          DateTime  @map("ends_at")
+
+  partner         Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  vouchers        Voucher[]
+
+  @@index([targetLat, targetLng])
+  @@map("native_ads")
+}
+
+model Voucher {
+  id         String        @id @default(uuid())
+  adId       String        @map("ad_id")
+  userId     String        @map("user_id")
+  code       String        @unique
+  status     VoucherStatus @default(saved)
+  expiresAt  DateTime      @map("expires_at")
+  redeemedAt DateTime?     @map("redeemed_at")
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  ad         NativeAd      @relation(fields: [adId], references: [id], onDelete: Cascade)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([adId, userId])
+  @@map("vouchers")
+}
+
+model Referral {
+  id              String    @id @default(uuid())
+  referrerUserId  String    @map("referrer_user_id")
+  referredUserId  String    @unique @map("referred_user_id")
+  rewardGrantedAt DateTime? @map("reward_granted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  referrer        User      @relation("ReferrerUser", fields: [referrerUserId], references: [id], onDelete: Cascade)
+  referred        User      @relation("ReferredUser", fields: [referredUserId], references: [id], onDelete: Cascade)
+
+  @@map("referrals")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String   @map("actor_id")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  meta       Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
 }

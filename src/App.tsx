@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { DeviceFrame } from './components/common/DeviceFrame';
 import { BottomNav } from './components/common/BottomNav';
@@ -9,6 +9,8 @@ import { PetProfileScreen } from './components/profile/PetProfileScreen';
 import { OnboardingModal } from './components/onboarding/OnboardingModal';
 import { SosModal } from './components/monetization/SosModal';
 import { VipModal } from './components/monetization/VipModal';
+import { P1FeatureDrawer } from './components/common/P1FeatureDrawer';
+import { Sparkles } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const {
@@ -23,6 +25,8 @@ const AppContent: React.FC = () => {
     setIsOnboardingOpen,
   } = useApp();
 
+  const [isP1DrawerOpen, setIsP1DrawerOpen] = useState(false);
+
   return (
     <DeviceFrame>
       <div className="flex-1 flex flex-col min-h-0 relative">
@@ -33,6 +37,16 @@ const AppContent: React.FC = () => {
           {activeTab === 'chat' && <ChatListScreen />}
           {activeTab === 'profile' && <PetProfileScreen />}
         </div>
+
+        {/* Floating P1 Hub Pill */}
+        <button
+          onClick={() => setIsP1DrawerOpen(true)}
+          className="absolute bottom-16 right-3 z-30 px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-[11px] font-fredoka font-bold shadow-lg shadow-emerald-600/30 flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-transform cursor-pointer border border-white/30"
+          title="Mở tiện ích Phase 1–2: Walk Now, Voucher, Nhắc lịch, Huy hiệu, Referral, Portal"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Tiện ích P1</span>
+        </button>
 
         {/* Bottom Navigation */}
         <BottomNav />
@@ -64,6 +78,11 @@ const AppContent: React.FC = () => {
       <VipModal
         isOpen={isVipModalOpen}
         onClose={() => setIsVipModalOpen(false)}
+      />
+
+      <P1FeatureDrawer
+        isOpen={isP1DrawerOpen}
+        onClose={() => setIsP1DrawerOpen(false)}
       />
     </DeviceFrame>
   );

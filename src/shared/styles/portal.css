@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* Tokens trùng khớp src/index.css (web demo) để hai cổng dùng chung nhận diện Pawty. */
+@theme {
+  --color-coral: #FF6F61;
+  --color-coral-dark: #E65A4C;
+  --color-coral-light: #FFE8E5;
+  --color-mint: #A3E4D7;
+  --color-mint-dark: #48C4B0;
+  --color-mint-light: #EBF9F6;
+  --color-cream: #FDFBF7;
+  --color-cream-warm: #F6F1E8;
+  --font-fredoka: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  --font-nunito: 'Nunito', system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-nunito);
+    background-color: var(--color-cream);
+    color: #1E293B;
+  }
+  h1, h2, h3 {
+    font-family: var(--font-fredoka);
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-coral);
+    outline-offset: 2px;
+  }
+}
+
+@keyframes toast-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.2s ease-out;
+}

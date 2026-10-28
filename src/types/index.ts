@@ -17,12 +17,47 @@ export interface UserProfile {
   avatarUrl: string;
   isVerified: boolean;
   isVip: boolean;
+  vipTier?: 'free' | 'vip' | 'vip_plus';
+  locale?: 'vi' | 'en';
+  superLikesLeft?: number;
+  boostActiveUntil?: number | null;
+  isWalkingNow?: boolean;
+  walkingUntil?: number | null;
+  walkStreakDays?: number;
+  referralCode?: string;
   dailySwipesCount: number;
   maxFreeSwipesPerDay: number;
   location: UserLocation;
   flakeReportsCount: number;
   isBannedFromSwiping: boolean;
   banUntil?: string;
+}
+
+export interface SavedVoucher {
+  id: string;
+  code: string;
+  title: string;
+  brandName: string;
+  discountBadge: string;
+  expiresAt: string;
+  status: 'saved' | 'redeemed';
+}
+
+export interface PetReminder {
+  id: string;
+  petId: string;
+  kind: 'vaccine' | 'deworm' | 'custom';
+  title: string;
+  dueDate: string;
+  isDone: boolean;
+}
+
+export interface MomentComment {
+  id: string;
+  momentId: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
 }
 
 export interface PetHabit {
@@ -43,6 +78,11 @@ export interface PetProfile {
   weightKg: number;
   size: PetSize;
   isVaccinated: boolean;
+  isSafePet?: boolean;
+  vaccineStatus?: 'none' | 'pending' | 'verified' | 'rejected';
+  isWalkingNow?: boolean;
+  isBoosted?: boolean;
+  hasSuperLikedMe?: boolean;
   lastVaccineDate?: string;
   vaccineDetails?: string;
   bio: string;
@@ -74,7 +114,7 @@ export interface MatchRecord {
   id: string;
   petId: string;
   targetPetId: string;
-  status: 'liked' | 'disliked' | 'matched';
+  status: 'liked' | 'disliked' | 'matched' | 'superliked';
   matchedAt?: string;
 }
 
@@ -97,11 +137,13 @@ export interface WalkAppointment {
   senderPetName: string;
   receiverPetId: string;
   receiverPetName: string;
-  scheduledTime: string; // ISO string or human string
+  scheduledTime: string;
   displayTime: string;
   place: PetFriendlyPlace;
   note?: string;
   status: AppointmentStatus;
+  checkedInByMe?: boolean;
+  checkedInByPartner?: boolean;
   createdAt: string;
 }
 
@@ -113,6 +155,7 @@ export interface ChatMessage {
   text?: string;
   timestamp: string;
   isOwn: boolean;
+  isRead?: boolean;
   appointment?: WalkAppointment;
 }
 
@@ -160,4 +203,5 @@ export interface RadarFilterOptions {
   species: 'all' | 'dog' | 'cat';
   size: 'all' | 'small' | 'medium' | 'large';
   verifiedOnly: boolean;
+  walkingNowOnly?: boolean;
 }

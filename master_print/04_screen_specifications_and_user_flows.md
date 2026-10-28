@@ -111,3 +111,51 @@
   - Nút **[Đồng Ý Kèo!]** và **[Để dịp khác]**.
   - Khi đã đồng ý: Chuyển sang huy hiệu xanh *"Đã chốt kèo!"* và hiển thị dòng chữ *"Pawty sẽ gửi thông báo nhắc cả 2 trước 15 phút giờ ra đường ⏰"*.
   - Nút *"Báo cáo bùng kèo"* mở hộp thoại cảnh báo: Nếu bị báo cáo 2 lần/tuần sẽ bị tạm khóa quẹt thẻ 3 ngày.
+
+
+---
+
+# PHỤ LỤC v1.1 — MÀN HÌNH & LUỒNG NGƯỜI DÙNG P1
+
+## 4.1. Điều hướng mới (Mobile = bản chính)
+```
+RootStack
+ ├─ Onboarding (Phone → OTP/Social → Sen info (+Referral code) → Boss 1)
+ └─ MainTabs  (Radar | Feed | Chat | Hồ sơ)
+      Stack con dùng chung: PetDetail, NotificationCenter, Settings, BossSwitcher/AddBoss,
+      VaccineUpload, Reminders, Clubs → ClubDetail → CreateEvent, Events → EventDetail,
+      Places → PlaceDetail(+Review), Vouchers, Badges, Streak/WalkLog, Referral,
+      Language, Privacy&Blocks, WalkNow, Boost, Paywall(VIP/VIP+/IAP), SOS, SOSNearby,
+      ChatRoom → WalkScheduler → CheckIn, LiveLocation
+```
+
+## 4.2. Đặc tả màn hình mới/thay đổi
+| Màn hình | Nội dung bắt buộc |
+| :--- | :--- |
+| **Radar (nâng cấp)** | 5 nút dưới đáy: Rewind ⏪ (khoá 🔒 + mở Paywall nếu free) · Pass ❌ · Super Paw ⭐ (đếm quota) · Like 💖 · Info ℹ️. Chip lọc nhanh: Tất cả/Đang dắt dạo/Safe Pet. Thẻ Boss có chấm xanh "Đang dắt dạo" & viền vàng khi Boost/Super Like. Nút **Boost ⚡** ở header (hiện bộ đếm ngược khi đang chạy). Thẻ Native Ad chèn theo 4.3; click → `/ads/:id/click`; CTA lưu voucher. |
+| **Walk Now** | Nút lớn "Dắt dạo ngay 🐕" trên Radar; màn hình đếm giờ 30 phút, bản đồ đơn giản (danh sách Boss đang dắt dạo gần), nút Gia hạn/Dừng, tóm tắt quãng đường & streak khi dừng. |
+| **Feed** (thay tab Khoảnh khắc) | 2 sub-tab: "Khu vực" (`/feed`) · "Của tôi". Card ảnh + tim + bình luận + Share (xuất ảnh có watermark Pawty bằng `expo-sharing`/`Share` API). Màn bình luận bottom-sheet. |
+| **Hồ sơ của tôi** | Header chuyển Boss (BossSwitcher), huy hiệu hàng ngang, Streak 🔥, nút Cài đặt. Tab 2 hiện **Safe Pet verified ✓ / Chờ duyệt ⏳ / Bị từ chối ✗**, nút Upload sổ tiêm, ngày tái chủng kế tiếp. |
+| **VaccineUpload** | Chụp/chọn ảnh (≤4), ngày tiêm, hạn tái chủng, gửi duyệt. |
+| **Reminders** | Danh sách nhắc (vaccine/tẩy giun/tuỳ chọn), tick hoàn thành, thêm mới. |
+| **Chat Room (nâng cấp)** | Trạng thái gửi/đã đọc ✓✓, typing indicator, gợi ý mở đầu AI (3 chip khi phòng trống), nút 📅 Hẹn dạo, bong bóng hẹn có **nút Check-in** khi trong cửa sổ, nút **Chia sẻ vị trí trực tiếp 📍**, nút "Báo cáo bùng kèo" chỉ khi đủ điều kiện 4.5. Menu ⋯: Chặn / Báo cáo. |
+| **CheckIn** | Hiển thị khoảng cách tới điểm hẹn (cập nhật), nút Check-in bật khi ≤150m, trạng thái đối phương. |
+| **Places** | Danh sách + lọc danh mục (park/cafe/spa/vet/shop/hotel), chi tiết, đánh giá sao, nút "Chọn làm điểm hẹn". |
+| **Clubs / Events** | Tìm CLB (breed/building), tham gia, danh sách sự kiện, RSVP, tạo sự kiện (owner). |
+| **NotificationCenter** | Danh sách theo thời gian, chấm chưa đọc, đọc tất cả, điều hướng sâu theo `payload`; badge số trên chuông header. Banner push trong app khi nhận `notification_created`. |
+| **Settings** | Ngôn ngữ (vi/en), thông báo theo loại, ẩn khoảng cách, danh sách chặn, xuất dữ liệu, xoá tài khoản (xác nhận 2 bước), điều khoản/riêng tư, đăng xuất. |
+| **Paywall** | So sánh 3 gói (`free`/`vip`/`vip_plus`), gói tháng/năm, mua lẻ Boost/Super Like, hiển thị QR + poll trạng thái; thành công → confetti & cập nhật tier. |
+| **Vouchers** | Ví voucher (mã `PAW-XXXXXX`, hạn dùng, trạng thái). |
+| **Badges / Streak** | Lưới huy hiệu (earned/locked + tiến độ), lịch sử dạo, chuỗi ngày. |
+| **Referral** | Mã + nút chia sẻ, số người đã mời, ngày VIP nhận được. |
+
+## 4.3. Đa ngôn ngữ (i18n)
+- File `mobile/src/i18n/{vi,en}.ts` (key phẳng dạng `radar.superLike.exhausted`). Mặc định `vi`; đổi runtime, lưu vào `users.locale`. Không còn chuỗi cứng trong component (trừ tên riêng/mock data).
+
+## 4.4. Cổng quản trị & Đối tác (Web)
+- **Admin Portal** (`/admin.html`, đăng nhập SĐT quản trị): Dashboard KPI (thẻ số + biểu đồ 14 ngày), Hàng đợi sổ tiêm (xem ảnh → Duyệt/Từ chối), Báo cáo vi phạm, Người dùng, Giao dịch, Đối tác & Quảng cáo, SOS, Audit log.
+- **Partner Portal** (`/partner.html`): Đăng ký/đăng nhập, Tổng quan số dư & thống kê, Tạo/Sửa chiến dịch (preview thẻ Native Ad đúng như trên Radar), Nạp tiền, Redeem voucher.
+- Cả hai dùng Tailwind v4 + brand tokens (Coral/Mint/Cream, Fredoka/Nunito), responsive desktop-first, bảng có tìm kiếm & phân trang.
+
+## 4.5. Web demo (`src/`)
+- Giữ vai trò bản **mô phỏng** để duyệt UX: đồng bộ các tính năng P1 chính (Super Like/Rewind/Boost, Walk Now, Feed + comment, Notifications, Reminders, Vouchers, Settings/i18n tối thiểu) — ưu tiên sau Mobile.

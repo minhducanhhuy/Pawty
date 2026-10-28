@@ -154,3 +154,89 @@
 | `notes` | `TEXT` | NOT NULL | Đặc điểm vòng cổ, tính cách khi hoảng sợ |
 | `status` | `VARCHAR(15)`| ENUM (`'active'`, `'resolved'`) | Đang tìm kiếm / Đã tìm thấy |
 | `created_at` | `TIMESTAMPTZ` | default `NOW()` | Thời gian phát lệnh |
+
+
+---
+
+# PHỤ LỤC v1.1 — MỞ RỘNG DATABASE CHO P0 + P1 (theo `plan/03_chuc_nang_core_va_phu.md`)
+
+> **Phiên bản:** `1.1.0` · **Phạm vi:** Phase 0–2. Quy ước tên: DB dùng `snake_case`, JSON/API & code TypeScript dùng `camelCase` (map 1-1).
+> **Trình điều khiển dữ liệu (Data Driver):** v1.1 chạy bằng `DataStoreService` in-memory + **lưu bền ra file `server/data/pawty-db.json`** (sandbox driver, bật/tắt bằng `DATA_PERSIST=true|false`). `server/prisma/schema.prisma` được cập nhật song song và là hợp đồng schema Production (PostgreSQL + PostGIS); driver Prisma là hạng mục của phiên sau.
+
+## 3.1. Cột bổ sung cho bảng `users`
+| Cột | Kiểu | Mặc định | Mô tả |
+| :--- | :--- | :--- | :--- |
+| `email` | `VARCHAR(150)` NULL | NULL | Email từ Google/Apple (không thay thế xác thực SĐT) |
+| `auth_provider` | ENUM `phone`,`google`,`apple` | `phone` | Cách đăng nhập gần nhất |
+| `role` | ENUM `user`,`moderator`,`admin` | `user` | Phân quyền Admin Portal |
+| `locale` | ENUM `vi`,`en` | `vi` | Ngôn ngữ giao diện + push |
+| `vip_tier` | ENUM `free`,`vip`,`vip_plus` | `free` | Gói thành viên (đồng bộ `is_vip = vip_tier != 'free'`) |
+| `super_likes_today` | INT | 0 | Số Super Like đã dùng hôm nay |
+| `super_like_balance` | INT | 0 | Super Like mua lẻ còn lại |
+| `boost_balance` | INT | 0 | Số lượt Boost mua lẻ còn lại |
+| `boost_expires_at` | TIMESTAMPTZ NULL | NULL | Hết hạn Boost đang chạy (30 phút) |
+| `is_walking_now` | BOOLEAN | false | Đang bật chế độ Dắt dạo ngay |
+| `walking_until` | TIMESTAMPTZ NULL | NULL | Tự tắt sau 30 phút |
+| `referral_code` | `VARCHAR(12)` UNIQUE | sinh khi tạo | Mã giới thiệu |
+| `referred_by_user_id` | UUID NULL FK | NULL | Người giới thiệu |
+| `walk_streak_days` | INT | 0 | Chuỗi ngày dắt dạo liên tiếp |
+| `last_walk_date` | DATE NULL | NULL | Ngày dắt dạo gần nhất |
+| `total_walk_meters` | INT | 0 | Tổng quãng đường (từ `walk_logs`) |
+| `is_distance_hidden` | BOOLEAN | false | Ẩn khoảng cách chính xác (chỉ hiện "Gần bạn") |
+| `fcm_token` | TEXT NULL | NULL | Token push |
+| `notification_prefs` | JSONB | tất cả `true` | `{match,message,appointment,sos,reminder,event}` |
+| `is_deleted` | BOOLEAN | false | Xoá mềm (xoá cứng sau 30 ngày) |
+
+## 3.2. Cột bổ sung cho bảng `pets`
+| Cột | Kiểu | Mô tả |
+| :--- | :--- | :--- |
+| `is_primary` | BOOLEAN | Boss đang chọn làm Boss chính trên Radar |
+| `vaccine_status` | ENUM `none`,`pending`,`verified`,`rejected` | Trạng thái xác minh sổ tiêm |
+| `vaccine_proof_urls` | TEXT[] | Ảnh sổ tiêm đã upload |
+| `vaccine_next_due_date` | DATE NULL | Hạn tái chủng kế tiếp (sinh nhắc lịch) |
+| `vaccine_reject_reason` | TEXT NULL | Lý do từ chối khi `rejected` |
+| `is_safe_pet` | BOOLEAN | `true` khi `vaccine_status = 'verified'` → huy hiệu Safe Pet |
+
+> **Quy tắc Safe Pet:** bộ lọc `verifiedOnly` trên Radar dựa vào `is_safe_pet`, **không còn** dựa vào `is_vaccinated` tự khai.
+
+## 3.3. Bảng `matches` — mở rộng
+- `status` thêm giá trị `superliked`.
+- Thêm `action` (`like`/`superlike`/`dislike`), `is_undone` (BOOLEAN, dùng cho Rewind).
+
+## 3.4. Bảng `appointments` (`walk_appointments`) — mở rộng
+| Cột | Mô tả |
+| :--- | :--- |
+| `place_lat`, `place_lng` | Tọa độ điểm hẹn (dùng cho check-in) |
+| `checked_in_sender_at`, `checked_in_receiver_at` | Thời điểm mỗi bên check-in |
+| `reminder_sent_at` | Đã bắn nhắc 15 phút chưa |
+| `completed_at` | Khi cả hai check-in → `status='completed'` |
+
+## 3.5. Bảng mới
+| Bảng | Cột chính |
+| :--- | :--- |
+| `blocks` | `id`, `blocker_user_id`, `blocked_user_id`, `created_at`; UNIQUE(blocker, blocked) |
+| `reports` | `id`, `reporter_user_id`, `target_type` (`user`,`pet`,`moment`,`message`,`club`), `target_id`, `reason` (`spam`,`harassment`,`abuse_animal`,`nsfw`,`fake`,`other`), `detail`, `status` (`open`,`resolved`,`dismissed`), `resolved_by`, `created_at` |
+| `moment_comments` | `id`, `moment_id`, `user_id`, `text`, `created_at` |
+| `notifications` | `id`, `user_id`, `type` (`match`,`message`,`appointment`,`sos`,`reminder`,`event`,`system`,`badge`,`referral`), `title`, `body`, `payload` JSONB, `is_read`, `created_at` |
+| `reminders` | `id`, `pet_id`, `kind` (`vaccine`,`deworm`,`custom`), `title`, `due_date`, `is_done`, `last_notified_offset` (30/7/1/0) |
+| `badges` | `code` PK (`first_match`,`walk_7_streak`,`social_butterfly`,`safe_pet`,`moment_10`,`club_member`,`referral_3`,`sos_hero`), `name_vi`, `name_en`, `icon`, `description_vi`, `description_en` |
+| `user_badges` | `user_id`, `badge_code`, `earned_at`; PK(user, badge) |
+| `walk_logs` | `id`, `user_id`, `pet_id`, `started_at`, `ended_at`, `distance_meters`, `source` (`walk_now`,`appointment`) |
+| `clubs` | `id`, `name`, `type` (`breed`,`building`), `breed_or_building`, `cover_url`, `description`, `owner_user_id`, `members_count`, `created_at` |
+| `club_members` | `club_id`, `user_id`, `role` (`owner`,`member`), `joined_at` |
+| `events` | `id`, `club_id` NULL, `title`, `description`, `cover_url`, `place_name`, `lat`, `lng`, `starts_at`, `capacity`, `rsvp_count`, `created_by` |
+| `event_rsvps` | `event_id`, `user_id`, `status` (`going`,`maybe`), `created_at` |
+| `pet_friendly_places` | `id`, `name`, `category` (`park`,`cafe`,`spa`,`vet`,`shop`,`hotel`), `address`, `lat`, `lng`, `thumbnail_url`, `rating_avg`, `reviews_count`, `partner_id` NULL |
+| `place_reviews` | `id`, `place_id`, `user_id`, `rating` 1–5, `text`, `created_at` |
+| `partners` | `id`, `business_name`, `category`, `contact_email` UNIQUE, `password_hash`, `phone`, `lat`, `lng`, `address`, `status` (`pending`,`approved`,`suspended`), `plan` (`cpc`,`monthly`), `balance_vnd`, `created_at` |
+| `native_ads` | `id`, `partner_id`, `title`, `description`, `image_url`, `discount_percent`, `voucher_quota`, `vouchers_issued`, `radius_meters` (default 1000), `target_lat`, `target_lng`, `status` (`draft`,`active`,`paused`,`ended`), `impressions`, `clicks`, `starts_at`, `ends_at` |
+| `vouchers` | `id`, `ad_id`, `user_id`, `code` UNIQUE, `status` (`saved`,`redeemed`,`expired`), `expires_at`, `redeemed_at`, `created_at` |
+| `referrals` | `id`, `referrer_user_id`, `referred_user_id` UNIQUE, `reward_granted_at`, `created_at` |
+| `audit_logs` | `id`, `actor_id`, `action`, `target_type`, `target_id`, `meta` JSONB, `created_at` |
+| `live_locations` | (in-memory/Redis, TTL) `room_id`, `user_id`, `lat`, `lng`, `updated_at` — chỉ tồn tại khi đang chia sẻ vị trí trong hẹn dạo |
+
+## 3.6. Cập nhật `transactions.type`
+`sos`, `vip_month`, `vip_year`, `vip_plus_month`, `boost`, `super_like_pack`, `partner_topup`.
+
+## 3.7. Index bắt buộc
+GiST trên `users.location`, `pet_friendly_places(lat,lng)`, `native_ads(target)`; B-tree trên `notifications(user_id, is_read, created_at DESC)`, `matches(sender_pet_id, target_pet_id)`, `reports(status)`.

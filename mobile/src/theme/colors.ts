@@ -1,0 +1,28 @@
+export const COLORS = {
+  coral: '#FF6F61',
+  coralDark: '#E85B4E',
+  coralLight: '#FFE8E5',
+  mint: '#A3E4D7',
+  mintDark: '#48C4B0',
+  mintLight: '#E8F8F5',
+  cream: '#FDFBF7',
+  creamWarm: '#F6F1E8',
+  darkNavy: '#1A1D24',
+  goldVip: '#FFD700',
+  goldDark: '#B45309',
+  goldLight: '#FEF3C7',
+  white: '#FFFFFF',
+  textDark: '#1E293B',
+  textBody: '#334155',
+  textMuted: '#64748B',
+  border: '#E2E8F0',
+  danger: '#EF4444',
+  dangerLight: '#FEE2E2',
+  success: '#10B981',
+  successLight: '#D1FAE5',
+  warning: '#F59E0B',
+  warningLight: '#FEF3C7',
+  overlay: 'rgba(26, 29, 36, 0.55)',
+} as const;
+
+export type ColorToken = keyof typeof COLORS;

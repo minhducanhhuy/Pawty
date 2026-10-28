@@ -1,96 +1,112 @@
-import { Controller, Get, Post, Query, Body } from '@nestjs/common';
-import { DataStoreService } from '../../database/data-store.service';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+} from '@nestjs/common';
+import { RadarService } from './radar.service';
+import {
+  ActivePet,
+  CurrentUser,
+} from '../../common/decorators/current-user.decorator';
+import {
+  MatchActionType,
+  PetRecord,
+  UserRecord,
+} from '../../database/types';
 
 @Controller('radar')
 export class RadarController {
-  constructor(private readonly dataStore: DataStoreService) {}
+  constructor(private readonly radarService: RadarService) {}
 
   @Get()
   getNearbyPets(
-    @Query('lat') latStr: string,
-    @Query('lng') lngStr: string,
-    @Query('radius') radiusStr?: string,
+    @CurrentUser() user: UserRecord,
+    @ActivePet() activePet: PetRecord | undefined,
+    @Query('lat') lat?: string,
+    @Query('lng') lng?: string,
+    @Query('radius') radius?: string,
     @Query('species') species?: string,
     @Query('size') size?: string,
     @Query('verifiedOnly') verifiedOnly?: string,
+    @Query('walkingNow') walkingNow?: string,
   ) {
-    const lat = latStr ? parseFloat(latStr) : 10.7951;
-    const lng = lngStr ? parseFloat(lngStr) : 106.7218;
-    const radiusMeters = radiusStr ? parseInt(radiusStr, 10) : 2500;
-    const isVerifiedOnly = verifiedOnly === 'true';
-
-    // PostGIS Spatial Filter: ST_DWithin(pet.location, ST_MakePoint(lng, lat)::geography, radius)
-    const results = this.dataStore.pets
-      .filter((pet) => pet.id !== 'pet_bo_01') // exclude own pet
-      .map((pet) => {
-        const distance = this.dataStore.calculatePostGisDistanceMeters(lat, lng, pet.latitude, pet.longitude);
-        return {
-          ...pet,
-          distanceMeters: distance,
-        };
-      })
-      .filter((pet) => {
-        if (pet.distanceMeters > radiusMeters) return false;
-        if (species && species !== 'all' && pet.species !== species) return false;
-        if (size && size !== 'all' && pet.size !== size) return false;
-        if (isVerifiedOnly && !pet.isVaccinated) return false;
-        return true;
-      })
-      .sort((a, b) => a.distanceMeters - b.distanceMeters);
-
-    return {
-      success: true,
-      query: { lat, lng, radiusMeters },
-      totalFound: results.length,
-      data: results,
-    };
+    return this.radarService.getRadarFeed(user, activePet, {
+      lat,
+      lng,
+      radius,
+      species,
+      size,
+      verifiedOnly,
+      walkingNow,
+    });
   }
 
   @Post('matches')
-  handleMatchAction(@Body() body: { senderPetId: string; targetPetId: string; action: 'like' | 'dislike' }) {
-    const { senderPetId, targetPetId, action } = body;
+  @HttpCode(HttpStatus.OK)
+  handleRadarMatchAlias(
+    @CurrentUser() user: UserRecord,
+    @ActivePet() activePet: PetRecord | undefined,
+    @Body()
+    body: {
+      targetPetId: string;
+      action: MatchActionType;
+      senderPetId?: string;
+    },
+  ) {
+    return this.radarService.handleSwipe(user, activePet, body);
+  }
+}
 
-    if (action === 'dislike') {
-      this.dataStore.matches.push({
-        id: `m_${Date.now()}`,
-        senderPetId,
-        targetPetId,
-        status: 'disliked',
-        matchedAt: null,
-      });
-      return { success: true, isMatch: false, status: 'disliked' };
-    }
+@Controller('matches')
+export class MatchesController {
+  constructor(private readonly radarService: RadarService) {}
 
-    // Check if mutual like (simulation of high affinity match)
-    const isMutual = ['pet_mochi_02', 'pet_bunbo_03', 'pet_banhbao_04'].includes(targetPetId);
+  @Post()
+  @HttpCode(HttpStatus.OK)
+  createMatch(
+    @CurrentUser() user: UserRecord,
+    @ActivePet() activePet: PetRecord | undefined,
+    @Body()
+    body: {
+      targetPetId: string;
+      action: MatchActionType;
+      senderPetId?: string;
+    },
+  ) {
+    return this.radarService.handleSwipe(user, activePet, body);
+  }
 
-    if (isMutual) {
-      const matchRecord = {
-        id: `m_${Date.now()}`,
-        senderPetId,
-        targetPetId,
-        status: 'matched',
-        matchedAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-      };
-      this.dataStore.matches.push(matchRecord);
+  @Post('rewind')
+  @HttpCode(HttpStatus.OK)
+  rewindSwipe(
+    @CurrentUser() user: UserRecord,
+    @ActivePet() activePet: PetRecord | undefined,
+  ) {
+    return this.radarService.rewindLastSwipe(user, activePet);
+  }
 
-      return {
-        success: true,
-        isMatch: true,
-        status: 'matched',
-        message: 'Hú hồn! Cả hai Boss đều đã quẹt thích nhau! 🐾',
-        matchedAt: matchRecord.matchedAt,
-        roomId: `room_${targetPetId}`,
-      };
-    } else {
-      this.dataStore.matches.push({
-        id: `m_${Date.now()}`,
-        senderPetId,
-        targetPetId,
-        status: 'liked',
-        matchedAt: null,
-      });
-      return { success: true, isMatch: false, status: 'liked' };
-    }
+  @Get('likes-me')
+  getLikesMe(@CurrentUser() user: UserRecord) {
+    return this.radarService.getLikesMe(user);
+  }
+
+  @Get()
+  getMyMatches(@CurrentUser() user: UserRecord) {
+    return this.radarService.getMyMatches(user);
+  }
+}
+
+@Controller('boosts')
+export class BoostsController {
+  constructor(private readonly radarService: RadarService) {}
+
+  @Post('activate')
+  @HttpCode(HttpStatus.OK)
+  activateBoost(@CurrentUser() user: UserRecord) {
+    return this.radarService.activateBoost(user);
   }
 }

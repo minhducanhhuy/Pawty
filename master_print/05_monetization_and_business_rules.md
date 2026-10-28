@@ -71,3 +71,92 @@
    - **Lần 1 trong tuần:** Ghi nhận log cảnh báo, gửi thông báo nhắc nhở tuân thủ văn minh cộng đồng.
    - **Lần 2 trong tuần:** Hệ thống tự động kích hoạt chế tài: **Khóa quyền quẹt thẻ Radar của tài khoản đó trong vòng 3 ngày (`is_banned_swiping = true`)**.
 3. **Mở khóa:** Sau 3 ngày, hệ thống tự động gỡ cờ khóa và đặt lại số đếm bùng kèo về 0.
+
+
+---
+
+# PHỤ LỤC v1.1 — QUY TẮC NGHIỆP VỤ P1 (theo `plan/02`, `plan/03`)
+
+## 4.1. Ba hạng thành viên (`vip_tier`)
+| Quyền lợi | `free` | `vip` (49k/tháng · 399k/năm) | `vip_plus` (99k/tháng) |
+| :--- | :--- | :--- | :--- |
+| Lượt quẹt/ngày | 20 | Không giới hạn | Không giới hạn |
+| Super Like/ngày | 1 | 5 | 10 |
+| Rewind | ❌ (mua kèm VIP) | ✅ Không giới hạn | ✅ Không giới hạn |
+| Boost miễn phí | 0 | 1/tuần | 3/tuần |
+| Ảnh Khoảnh khắc | 5 | Không giới hạn | Không giới hạn |
+| Số Boss/tài khoản | 1 | 2 | 5 |
+| Huy hiệu 👑, ưu tiên Radar ×3 | ❌ | ✅ | ✅ |
+| Xem "ai đã thích tôi" (`GET /matches/likes-me`) | Làm mờ, chỉ đếm số | ✅ | ✅ |
+| Ẩn Native Ads | ❌ | ❌ | ✅ |
+| Nhắc lịch sức khoẻ nâng cao | Cơ bản | Cơ bản | ✅ |
+> Giá `vip_plus` và quota là **cấu hình** trong `server/src/config/business-rules.ts` (một nơi duy nhất, không hard-code rải rác).
+
+## 4.2. Mua lẻ (IAP / VietQR)
+| Sản phẩm | Giá | Hiệu lực |
+| :--- | :--- | :--- |
+| Boost 30 phút | 15.000đ | Thẻ Boss xếp đầu Radar quanh khu vực 30 phút (×5 tần suất) |
+| Gói 5 Super Like | 29.000đ | Cộng vào `super_like_balance`, không hết hạn |
+| Gói Boost ×3 | 39.000đ | Cộng vào `boost_balance` |
+- Thanh toán đi qua `PaymentGateway` adapter (`sandbox` tự duyệt sau 5 giây; `vietqr` webhook thật khi có key).
+
+## 4.3. Super Like / Rewind / Boost
+- **Super Like:** hạ tầng như Like nhưng người nhận thấy thẻ có viền vàng ⭐ ở đầu danh sách "Thích bạn"; luôn đẩy FCM `match`-type "⭐ <Boss> đã Super Paw bạn!". Trừ quota ngày trước, hết quota thì trừ `super_like_balance`; hết cả hai → lỗi `SUPER_LIKE_EXHAUSTED`.
+- **Rewind:** chỉ hoàn tác **lượt quẹt gần nhất** (trong 60 giây) của Boss hiện tại; đánh dấu `is_undone=true`, hoàn lại 1 lượt quẹt. Không rewind được khi đã `matched`. Không VIP → lỗi `VIP_REQUIRED`.
+- **Boost:** kích hoạt dùng `boost_balance` hoặc quota tuần; đặt `boost_expires_at = now + 30 phút`. Không cộng dồn: đang chạy thì trả `BOOST_ALREADY_ACTIVE`.
+- **Trọng số xếp hạng Radar:** `score = 1000 - distance_m` + (VIP ? +300 : 0) + (Boost active ? +1000 : 0) + (Super Like nhận được ? +500 : 0). Native Ad chèn sau mỗi 5–7 thẻ (vị trí ngẫu nhiên trong khoảng), không chèn cho `vip_plus`.
+
+## 4.4. Dắt dạo ngay (Walk Now)
+- Bật: `is_walking_now=true`, `walking_until = now + 30 phút` (gia hạn được). Hiện trên Radar với chấm xanh "Đang dắt dạo" và được tăng điểm ưu tiên +200.
+- Quyền riêng tư: chỉ chia sẻ vị trí **làm tròn lưới 100m** và chỉ cho người trong bán kính lọc; tắt tự động khi hết hạn hoặc khi người dùng bấm Dừng.
+- Khi Dừng: ghi `walk_logs` (quãng đường từ chuỗi điểm GPS client gửi lên, tối đa 50 điểm), cập nhật `walk_streak_days` (+1 nếu `last_walk_date = hôm qua`, giữ nếu = hôm nay, reset =1 nếu cũ hơn).
+
+## 4.5. Check-in & hoàn thành kèo hẹn (Anti-flake nâng cấp)
+- Cửa sổ check-in: từ **−30 phút đến +60 phút** quanh `scheduled_time`; khoảng cách GPS ≤ **150m** tới điểm hẹn (`place_lat/lng`), ngược lại lỗi `TOO_FAR_FROM_PLACE`.
+- Cả hai bên check-in → `status='completed'`, +1 vào `walk_logs` cho mỗi người (source=`appointment`), cộng tiến độ huy hiệu.
+- Sau `scheduled_time + 60 phút`, nếu chỉ một bên check-in thì bên đã check-in mới được bấm **Báo cáo bùng kèo** (`reported_flake`); bên chưa check-in không có quyền báo cáo. Phạt: lần 1/tuần cảnh báo, lần 2/tuần khoá quẹt 3 ngày (giữ nguyên quy tắc cũ), kèm ghi `audit_logs`.
+- Nhắc lịch: server gửi push `appointment` trước 15 phút (đặt `reminder_sent_at`).
+
+## 4.6. Sổ tiêm & Safe Pet
+- Chủ nuôi upload ảnh sổ tiêm → `vaccine_status='pending'` → Admin/Moderator duyệt ở Admin Portal:
+  - **Duyệt:** `verified`, `is_safe_pet=true`, đặt `vaccine_next_due_date` (admin nhập hoặc mặc định +365 ngày), sinh `reminders` kind=`vaccine`.
+  - **Từ chối:** `rejected` kèm `vaccine_reject_reason`, push cho chủ nuôi.
+- Nhắc tái chủng: gửi push ở mốc **30 / 7 / 1 / 0 ngày** trước hạn (ghi `last_notified_offset` để không gửi trùng).
+- Gợi ý OCR: `OcrProvider` adapter (sandbox trả về "cần duyệt thủ công"); khi có key Vision API sẽ tự điền ngày tiêm.
+
+## 4.7. Cộng đồng, CLB & Sự kiện
+- CLB tự do tạo (tối đa 3 CLB/người, mỗi tên duy nhất); loại `breed` hoặc `building`. Người tạo là `owner`, có quyền tạo sự kiện và xoá bình luận.
+- Sự kiện có `capacity`; RSVP vượt sức chứa → lỗi `EVENT_FULL`. Push `event` nhắc trước 1 giờ cho người `going`.
+- Moderation: nội dung bị ≥3 `reports` mở sẽ tự ẩn chờ duyệt (`is_hidden=true`).
+
+## 4.8. Gamification: Streak, Huy hiệu, Referral
+| Huy hiệu (`code`) | Điều kiện |
+| :--- | :--- |
+| `first_match` | Match đầu tiên |
+| `walk_7_streak` | Streak dắt dạo 7 ngày |
+| `social_butterfly` | Hoàn thành 5 kèo hẹn (`completed`) |
+| `safe_pet` | Boss được xác minh sổ tiêm |
+| `moment_10` | Đăng 10 khoảnh khắc |
+| `club_member` | Tham gia CLB đầu tiên |
+| `referral_3` | Mời thành công 3 người |
+| `sos_hero` | Phản hồi/ chia sẻ một SOS được đánh dấu "đã tìm thấy" |
+- Mỗi lần mở khoá: tạo `notifications` loại `badge` + push.
+- **Referral:** người mới nhập `referralCode` khi onboarding (hợp lệ trong 7 ngày đầu) → cả hai nhận **7 ngày VIP** (cộng dồn vào `vip_expires_at`, `vip_tier` tối thiểu `vip`). Mỗi người chỉ được giới thiệu tối đa 20 người; tự giới thiệu bị chặn (`SELF_REFERRAL`).
+
+## 4.9. Native Ads & Voucher cho đối tác
+- Đối tác đăng ký → `pending` → Admin duyệt → `approved` mới được tạo chiến dịch.
+- Mô hình thu phí: `cpc` (3.000đ/lượt click/lưu voucher, trừ `balance_vnd`) hoặc `monthly` (1.500.000đ/tháng, không trừ theo lượt). Hết `balance_vnd` (gói cpc) → chiến dịch tự `paused`.
+- Chỉ phát quảng cáo trong bán kính `radius_meters` quanh `target`, **tối đa 1 lần/giờ/chiến dịch/user** (frequency cap), user `vip_plus` không thấy.
+- Voucher: mã dạng `PAW-XXXXXX`, hiệu lực 14 ngày, mỗi user 1 voucher/chiến dịch; cửa hàng "redeem" trong Partner Portal bằng cách nhập mã.
+
+## 4.10. An toàn & Quyền riêng tư
+- **Block:** chặn 2 chiều (không thấy nhau trên Radar, Chat bị ẩn, không match mới).
+- **Report:** lý do liệt kê ở bảng `reports`; Admin xử lý (`resolved` kèm hành động: cảnh cáo / ẩn nội dung / khoá tài khoản).
+- **Xoá tài khoản:** `DELETE /api/users/me` → xoá mềm ngay, ẩn khỏi Radar; xoá cứng sau 30 ngày. **Xuất dữ liệu:** `GET /api/users/me/export` trả JSON toàn bộ dữ liệu của người dùng.
+- **Chia sẻ vị trí trực tiếp khi hẹn dạo:** chỉ giữa 2 người trong kèo `confirmed`, từ −15 phút đến +60 phút quanh giờ hẹn, tự tắt hết thời hạn; dữ liệu không lưu DB.
+
+## 4.11. AI Icebreaker & Chatbot sức khoẻ
+- `IcebreakerProvider` adapter (sandbox: bộ gợi ý theo `tags`/`breed` của hai Boss, hóm hỉnh tiếng Việt). Trả 3 câu/lần, giới hạn 10 lần/giờ/người.
+
+## 4.12. Chỉ số & KPI hiển thị ở Admin
+DAU, MAU, tổng user, Boss mới/ngày, match/ngày, kèo hẹn tạo/hoàn thành, tỷ lệ bùng kèo, doanh thu theo nguồn (SOS, VIP, IAP, Ads), báo cáo mở, sổ tiêm chờ duyệt, đối tác chờ duyệt. **North Star:** số kèo hẹn `completed` mỗi tuần.

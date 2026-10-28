@@ -1,27 +1,32 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
   const logger = new Logger('PawtyServer');
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS for web frontend (localhost:5173 & LAN) and Mobile Expo clients
   app.enableCors({
     origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
 
-  // Global API route prefix
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: false,
+    }),
+  );
+
   app.setGlobalPrefix('api');
 
-  const PORT = process.env.PORT || 3000;
-  await app.listen(PORT, '0.0.0.0');
+  const port = Number(process.env.PORT || 3000);
+  await app.listen(port, '0.0.0.0');
 
-  logger.log(`🐾 Pawty Fullstack Backend is running on: http://localhost:${PORT}/api`);
-  logger.log(`📱 LAN Access for Mobile Expo: http://192.168.21.100:${PORT}/api`);
-  logger.log(`⚡ WebSocket Gateway listening on ws://localhost:${PORT}`);
+  logger.log(`🐾 Pawty Fullstack Backend running on: http://localhost:${port}/api`);
+  logger.log(`⚡ WebSocket Gateway listening on ws://localhost:${port}`);
 }
 
 bootstrap();

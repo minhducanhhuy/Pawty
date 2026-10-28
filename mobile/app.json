@@ -24,6 +24,13 @@
         "backgroundColor": "#FDFBF7"
       },
       "package": "com.pawty.app"
-    }
+    },
+    "plugins": [
+      "expo-font",
+      "expo-localization",
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-status-bar"
+    ]
   }
 }

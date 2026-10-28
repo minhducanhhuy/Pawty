@@ -12,7 +12,7 @@
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        PAWTY CLIENT APPLICATION                         │
 │   • Phase 1: React 19 + Vite (Web Mock Mobile Frame)                   │
-│   • Phase 2: React Native & Expo SDK 57 (iOS / Android Native)         │
+│   • Phase 2: React Native & Expo SDK 58 (iOS / Android Native)         │
 └──────────────────┬─────────────────────────────────┬───────────────────┘
                    │ HTTPS REST API                  │ WebSocket (Socket.io)
                    ▼                                 ▼
@@ -119,3 +119,36 @@ Pawty/
     │   └── main.ts
     └── prisma/schema.prisma
 ```
+
+
+---
+
+# PHỤ LỤC v1.1 — KIẾN TRÚC P0 + P1
+
+## 3.1. Cấu trúc thư mục cập nhật
+```
+Pawty/
+├── master_print/                 # SSOT
+├── plan/                         # Kế hoạch sản phẩm (đầu vào của master_print)
+├── server/src/
+│   ├── common/                   # decorators (@Public, @CurrentUser), guards (JwtAuthGuard, RolesGuard),
+│   │                             # interceptors (ResponseEnvelopeInterceptor), filters (AllExceptionsFilter), errors.ts
+│   ├── config/business-rules.ts  # Quota, giá, bảng điểm Radar — duy nhất 1 nơi
+│   ├── adapters/                 # otp, push, media, payment, places, icebreaker, ocr (interface + sandbox + stub thật)
+│   ├── database/                 # DataStoreService (+ JSON persistence), seed
+│   ├── jobs/                     # Scheduler: nhắc hẹn 15', nhắc tiêm 30/7/1/0, auto-tắt Walk/Boost, reset quota ngày, mở khoá ban
+│   └── modules/ auth users pets radar matches walks moments feed chat appointments places
+│                clubs events notifications badges referrals payments sos ads vouchers partners admin reports
+├── mobile/                       # BẢN CHÍNH (Expo SDK 57 + React Navigation)
+│   ├── App.tsx                   # chỉ bootstrap providers + navigator
+│   └── src/ api/ (client + từng resource) · context/ · hooks/ · i18n/ · navigation/ · screens/ · components/ · theme/ · utils/
+├── src/                          # Web demo (đồng bộ dần)
+├── admin.html + src/admin/       # Admin Portal (Vite multi-page)
+└── partner.html + src/partner/   # Partner Portal
+```
+## 3.2. Nguyên tắc
+- **Adapter pattern** cho mọi dịch vụ ngoài; đổi sandbox → thật chỉ bằng `.env` (`server/.env.example` liệt kê đầy đủ biến).
+- **Một nguồn cấu hình nghiệp vụ** (`business-rules.ts`), client đọc qua `GET /config/public` (quota/giá hiển thị) để không lệch.
+- **Mobile**: React Navigation (native-stack + bottom-tabs), cài bằng `npx expo install`; API base URL lấy từ `EXPO_PUBLIC_API_URL`, không hard-code IP.
+- **Quan sát:** log có cấu trúc `Logger` Nest, mọi lỗi nghiệp vụ trả mã lỗi chuẩn (xem 03).
+- **Scheduler:** dùng `@nestjs/schedule` (cron) cho `jobs/`.

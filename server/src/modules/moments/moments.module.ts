@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { MomentsController } from './moments.controller';
+import { FeedController, MomentsController } from './moments.controller';
 
 @Module({
-  controllers: [MomentsController],
+  controllers: [MomentsController, FeedController],
 })
 export class MomentsModule {}
