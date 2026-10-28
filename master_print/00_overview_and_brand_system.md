@@ -9,8 +9,8 @@
 ## 1. BRIEF DỰ ÁN (PROJECT BRIEF)
 
 - **Tên dự án:** **Pawty** (Ghép từ *Paw* 🐾 + *Party* 🎉).
-- **Slogan:** *"Bạn dạo muôn nơi - Boss vui cả ngày"*.
-- **Sứ mệnh:** Giải tỏa sự cô đơn, bí bách và trầm cảm cho thú cưng sống trong không gian khép kín tại các khu căn hộ, chung cư cao cấp. Giúp chủ nuôi (Sen) kết nối nhanh, an toàn để tìm bạn đi dạo chung nội khu, đồng thời tạo không gian lưu trữ và giải trí hằng ngày qua những "khoảnh khắc bựa" của Boss.
+- **Slogan:** *"Kết nối người nuôi thú cưng · Hẹn hò, Đi dạo & Bạn cho Boss"*.
+- **Sứ mệnh:** Mạng xã hội & Hẹn hò kết nối người nuôi thú cưng với nhau. Thú cưng là "wingman" tự nhiên nhất, giúp chủ nuôi kết nối theo 3 mục đích rõ ràng: Hẹn hò đôi, Đi dạo đôi, hoặc Tìm bạn cho Boss.
 - **Tệp khách hàng mục tiêu:**
   - Nhóm **DINK** (*Double Income, No Kid* - Cặp đôi thu nhập tốt, chưa/không sinh con, xem thú cưng như con ruột).
   - Người trẻ **Độc thân** (Thế hệ Gen Z & Millennials, nhân viên văn phòng, chuyên gia, expat).

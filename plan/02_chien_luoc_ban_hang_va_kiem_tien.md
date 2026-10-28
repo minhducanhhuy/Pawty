@@ -1,95 +1,43 @@
-# 02. CHIẾN LƯỢC "BÁN" (GO-TO-MARKET) & MÔ HÌNH KIẾM TIỀN
+# 02. CHIẾN LƯỢC GO-TO-MARKET & MÔ HÌNH DOANH THU (PET LOVERS NETWORK)
 
-## PHẦN A – LÀM SAO ĐỂ "BÁN" (THU HÚT NGƯỜI DÙNG)
+## PHẦN A – CHIẾN LƯỢC BÁN (GTM & TĂNG TRƯỞNG NGƯỜI DÙNG)
 
-### A1. Nguyên tắc: Hyperlocal Blitz – chiếm từng cụm chung cư
-- Mỗi cụm (VD: Vinhomes Central Park, Masteri Thảo Điền, Ecopark) là một "thị trường nhỏ".
-- Mục tiêu mỗi cụm: **≥ 300 chủ nuôi đăng ký** (đủ mật độ để radar có người trong 500m).
-- Chỉ mở rộng sang cụm kế tiếp khi cụm hiện tại đạt D30 retention ≥ 25%.
-
-### A2. Kênh tăng trưởng
-
-| Kênh | Hành động | Chi phí | Ưu tiên |
-|---|---|---|---|
-| Offline tại chung cư | Sự kiện "Pawty Day" tại công viên nội khu, QR trên bảng tin thang máy, hợp tác BQL | Thấp–Trung | ★★★★★ |
-| Đối tác pet local | Pet shop/spa/thú y phát QR + voucher "ghép bạn dạo" | Thấp | ★★★★★ |
-| TikTok/Reels | Series "khoảnh khắc bựa" của Boss, hội chợ cún, UGC challenge | Trung | ★★★★★ |
-| KOL/KOC pet | 50–100 micro-influencer (chủ cún nổi tiếng) | Trung | ★★★★ |
-| Facebook/Zalo group | Seeding vào group chủ nuôi từng quận | Thấp | ★★★★ |
-| Referral | "Mời 1 Sen → cả hai nhận 7 ngày VIP + huy hiệu" | Thấp | ★★★★ |
-| ASO/Paid UA | Meta/TikTok Ads geo-target bán kính chung cư | Trung–Cao | ★★★ |
-| PR | Báo chí: "Tinder cho chó mèo" – dễ viral | Thấp | ★★★ |
-
-### A3. Viral loop cốt lõi
-1. Boss đăng khoảnh khắc → chia sẻ thẻ Boss có watermark Pawty ra IG/TikTok.
-2. Match → tạo "Playdate Card" đẹp để share.
-3. Sổ tiêm điện tử → chia sẻ cho thú y/khách sạn thú cưng (kéo thêm đối tác).
-
-### A4. Phễu & KPI mục tiêu
-
-| Giai đoạn | KPI |
-|---|---|
-| Install → Đăng ký xong profile Boss | ≥ 60% |
-| Đăng ký → Match đầu tiên (7 ngày) | ≥ 40% |
-| Match → Hẹn dạo thực tế | ≥ 15% |
-| D1 / D7 / D30 retention | 45% / 25% / 15% |
-| Free → Trả phí (VIP) | 4–6% |
-| WAU/MAU | ≥ 40% |
+### A1. Phễu Tiếp Cận Hyperlocal: Chiếm Trọn Các Cụm Chung Cư Đô Thị
+- **Đối tượng khách hàng mục tiêu:**
+  - Nhóm 1: Người độc thân/DINK tuổi 22–35 sống tại các khu chung cư hiện đại (Vinhomes, Masteri, Sala, Times City...).
+  - Nhóm 2: Các chủ nuôi có nhu cầu dắt dạo đôi hoặc tìm bạn chơi cho Boss hằng ngày.
+- **Kênh tăng trưởng offline:**
+  - Hợp tác với Pet Cafe, Pet Spa nội khu chung cư: Tặng voucher giảm 35% cho các cuộc hẹn gặp mặt đầu tiên qua Pawty.
+  - Tổ chức sự kiện "Pawty Speed Dating / Walk Date" tại công viên nội khu vào chiều Chủ Nhật.
+- **Viral Loop:**
+  - Khi match thành công: Ứng dụng tạo thẻ "Pawty Date Card" đẹp mắt để người dùng chia sẻ lên Story Instagram / TikTok.
 
 ---
 
-## PHẦN B – "BÁN RỒI THÌ KIẾM LỜI KIỂU GÌ" (MONETIZATION)
+## PHẦN B – MÔ HÌNH KIẾM TIỀN TOÀN DIỆN (MONETIZATION)
 
-> Nguyên tắc: **Miễn phí lõi để lấy mật độ → kiếm tiền từ các tầng giá trị cao hơn.** Không paywall tính năng an toàn.
+### B1. Gói Hội Viên Sen VIP (49k/tháng, 399k/năm)
+- **Lọc theo Mục đích kết nối:** Chọn chỉ quẹt người tìm **Hẹn hò đôi** hoặc chỉ tìm **Đi dạo đôi / Playdate**.
+- **Xem ai thích bạn (See Who Liked You):** Xem trực tiếp danh sách người nuôi thú cưng đã quẹt phải bạn để match tức thì.
+- **Quẹt không giới hạn (Unlimited Swipes) & Hoàn tác (Rewind).**
+- **Vương miện vàng VIP 👑:** Tăng độ uy tín và hiển thị ưu tiên x3 lần trên Radar.
 
-### B1. Danh sách nguồn thu
+### B2. Quà Ảo Cho Boss (Virtual Treats & Super Like)
+- Gói xương vàng, pate cao cấp, tim bay (15k - 49k): Gửi kèm lời nhắn mở đầu đặc biệt trước khi match để tạo ấn tượng mạnh mẽ với đối phương.
 
-| # | Nguồn thu | Mô hình | Ước tính biên LN | Giai đoạn |
-|---|---|---|---|---|
-| 1 | **Pawty VIP (Sen VIP)** | 49k/tháng, 399k/năm: quẹt vô hạn, rewind, boost, xem ai thích, ẩn quảng cáo | ~85% | MVP |
-| 2 | **SOS Boss lạc** | 39k/lần, push 3km | ~90% | MVP |
-| 3 | **Native Ads hyperlocal** | CPC/CPM hoặc gói tháng 1.5tr/cửa hàng; voucher -35% | ~70% | MVP+ |
-| 4 | **Boost / Super Like / Gift** (IAP lẻ) | 15k–99k mỗi gói; quà ảo cho Boss | ~85% | Phase 2 |
-| 5 | **Marketplace dịch vụ** (dắt chó thuê, pet sitter, grooming, thú y tại nhà) | Hoa hồng 10–20%/đơn | ~15–20% (trên GMV) | Phase 2 |
-| 6 | **Booking Pet Hotel/Spa/Thú y** | Hoa hồng 10–15% | tương tự | Phase 2 |
-| 7 | **E-commerce Pet** (thức ăn, phụ kiện, affiliate + hàng riêng Pawty) | Affiliate 8–15% / margin hàng riêng 30–40% | trung bình | Phase 3 |
-| 8 | **Pawty Care – Bảo hiểm thú cưng** | Hoa hồng đối tác bảo hiểm 15–25% | cao | Phase 3 |
-| 9 | **Pawty Health+** (sổ tiêm, tele-vet, tư vấn AI) | Subscription 79–149k/tháng, tele-vet trả theo lần | cao | Phase 3 |
-| 10 | **B2B SaaS** cho Pet Shop/Spa/Phòng khám (CRM, đặt lịch, loyalty) | 299k–1.5tr/tháng/cửa hàng | ~80% | Phase 3 |
-| 11 | **Sự kiện & Sponsorship** (Pawty Fest, cuộc thi Boss) | Tài trợ thương hiệu lớn (Royal Canin, Pedigree...) | cao | Phase 3 |
-| 12 | **Data Insights (ẩn danh, tuân thủ pháp lý)** | Báo cáo xu hướng pet cho nhãn hàng | ~90% | Phase 4 |
+### B3. SOS Boss Lạc Khẩn Cấp (39k qua VietQR)
+- Khi thú cưng bị lạc trong khu đô thị: Kích hoạt báo động khẩn cấp bắn thông báo Push Notification tới toàn bộ người nuôi cún trong bán kính 3km kèm ảnh và SĐT liên hệ.
 
-### B2. Mô hình VIP – 3 tầng
-| Gói | Giá | Quyền lợi |
-|---|---|---|
-| Free | 0 | 20 lượt quẹt/ngày, 5 ảnh, 1 Boss |
-| Sen VIP | 49k/tháng | Quẹt vô hạn, rewind, kho ảnh vô hạn, huy hiệu 👑, ưu tiên ×3 |
-| Sen VIP+ (Pawty Plus) | 99k/tháng | VIP + nhiều Boss, Health+, giảm phí booking, xem "ai thích tôi" |
+### B4. Doanh Thu Đối Tác Địa Phương (Pet-Friendly Places & Native Ads)
+- Các quán cafe, nhà hàng, pet spa thân thiện thú cưng đăng ký trở thành "Điểm hẹn đề xuất" (Recommended Midpoint Date Spots) và tài trợ voucher -35% trên thẻ Radar.
 
-### B3. Unit economics giả định (cần kiểm chứng bằng dữ liệu thật)
+---
 
-| Chỉ số | Giá trị giả định |
-|---|---|
-| CAC (organic + paid blended) | 25.000–60.000 đ |
-| ARPU/tháng (user active) | 12.000–25.000 đ (Phase 1) → 60.000+ đ (khi có marketplace) |
-| Tỷ lệ trả phí | 5% |
-| LTV (12–18 tháng) | 150.000–500.000 đ |
-| Mục tiêu LTV/CAC | ≥ 3 |
+## B5. LỘ TRÌNH DOANH THU 5 NĂM (KỊCH BẢN THỰC TẾ)
 
-### B4. Lộ trình doanh thu minh hoạ (kịch bản cơ sở – chỉ để lập kế hoạch)
-
-| Mốc | MAU | Doanh thu/năm (ước tính) | Trụ cột |
+| Mốc | MAU | Doanh thu ước tính | Nguồn thu trọng tâm |
 |---|---|---|---|
-| Năm 1 | 50k | 1–3 tỷ VND | VIP, SOS, Ads local |
-| Năm 2 | 300k | 15–30 tỷ VND | + Marketplace, Booking |
-| Năm 3 | 1M | 80–150 tỷ VND | + E-commerce, Bảo hiểm, B2B |
-| Năm 5 (ĐNÁ) | 8–10M | ~$50–100M | Đa quốc gia, đa vertical |
-
-> [!NOTE]
-> Các con số trên là giả định để lập kế hoạch ngân sách, không phải dự báo cam kết. Cần A/B test giá và đo lại sau 90 ngày đầu.
-
-### B5. Vì sao con đường tới "tỷ đô" khả thi về mặt cấu trúc
-1. **Chi tiêu pet/hộ ngày càng tăng** → có thể "ăn" trên GMV, không chỉ phí app.
-2. **Hyperlocal data + niềm tin** → đòn bẩy cho ads, booking, bảo hiểm.
-3. **Nhân rộng theo thành phố/quốc gia** (VN → TH → ID → PH → MY) với cùng playbook.
-4. **Vertical bền vững**: Chủ nuôi gắn bó 10–15 năm vòng đời của Boss.
+| **Năm 1** | 50.000 | 2 – 4 tỷ VND | Gói VIP, Quà ảo Super Like, SOS tìm cún lạc |
+| **Năm 2** | 250.000 | 18 – 35 tỷ VND | VIP, Booking điểm hẹn cafe/spa, Native Ads |
+| **Năm 3** | 800.000 | 75 – 120 tỷ VND | Marketplace dịch vụ, Bảo hiểm thú cưng |
+| **Năm 5 (ĐNÁ)** | 5 – 8 triệu | 30 – 50 triệu USD | Mở rộng Thái Lan, Indonesia, Philippines |

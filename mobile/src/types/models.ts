@@ -3,6 +3,7 @@ export type LocaleCode = 'vi' | 'en';
 export type Species = 'dog' | 'cat';
 export type PetSize = 'small' | 'medium' | 'large';
 export type VaccineStatus = 'none' | 'pending' | 'verified' | 'rejected';
+export type ConnectionIntent = 'dating' | 'walk_buddy' | 'playdate' | 'community';
 
 export interface NotificationPrefs {
   match: boolean;
@@ -17,8 +18,14 @@ export interface User {
   id: string;
   phone: string;
   fullName: string;
+  username?: string;
   nickname?: string;
   avatarUrl: string;
+  age?: number;
+  gender?: string;
+  occupation?: string;
+  bio?: string;
+  intentTags?: ConnectionIntent[];
   condoComplex: string;
   latitude: number;
   longitude: number;
@@ -76,6 +83,13 @@ export interface Pet {
   photos: string[];
   ownerName?: string;
   ownerPhone?: string;
+  ownerAge?: number;
+  ownerGender?: string;
+  ownerOccupation?: string;
+  ownerBio?: string;
+  ownerAvatarUrl?: string;
+  ownerAvatar?: string;
+  intentTags?: ConnectionIntent[];
   condoComplex?: string;
   ownerIsVip?: boolean;
 }

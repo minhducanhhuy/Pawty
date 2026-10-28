@@ -64,6 +64,7 @@ export const RadarScreen: React.FC = () => {
       if (filters.walkingNow) list = list.filter((it) => it.type === 'ad' || it.isWalkingNow);
       if (filters.species !== 'all') list = list.filter((it) => it.type === 'ad' || it.pet.species === filters.species);
       if (filters.size !== 'all') list = list.filter((it) => it.type === 'ad' || it.pet.size === filters.size);
+      if (filters.intent && filters.intent !== 'all') list = list.filter((it) => it.type === 'ad' || it.pet.intentTags?.includes(filters.intent as any));
       setItems(list);
       setIndex(0);
       setLikesMe(await api.getLikesMe());

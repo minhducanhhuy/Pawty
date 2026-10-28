@@ -16,36 +16,15 @@ export const mockCommunityStore: {
   vouchers: VoucherItem[];
   sosAlerts: SosAlert[];
 } = {
-  rooms: [
-    {
-      id: 'room_mochi_01', partnerPet: mockCoreStore.radarPets[0],
-      lastMessageText: 'Dạ chào chị Mochi! Chiều nay ra công viên ven sông nhé 🐾',
-      lastMessageAt: '17:35', unreadCount: 1,
-      activeAppointment: {
-        id: 'apt_01', roomId: 'room_mochi_01', senderPetId: 'pet_bo_01', receiverPetId: 'pet_mochi_02',
-        scheduledTime: new Date(Date.now() + 20 * 60000).toISOString(), displayTime: 'Tối nay • 19:30',
-        placeId: 'place_01', placeName: 'Bãi cỏ ven sông Vinhomes Central Park',
-        placeAddress: 'Đối diện Park 3, P.22, Bình Thạnh',
-        placeThumbnail: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=400&q=80',
-        placeLat: 10.7955, placeLng: 106.7222,
-        note: 'Nhớ mang dây dắt và túi nhặt vệ sinh nha Sen!',
-        status: 'confirmed', checkedInSenderAt: null, checkedInReceiverAt: null,
-      },
-    },
-  ],
-  messages: {
-    room_mochi_01: [
-      { id: 'msg_1', roomId: 'room_mochi_01', senderPetId: 'pet_mochi_02', text: 'Gâu gâu! Chiều nay Sen có rảnh dắt bé Bơ ra hóng gió không?', status: 'read', createdAt: '17:32' },
-      { id: 'msg_2', roomId: 'room_mochi_01', senderPetId: 'pet_bo_01', text: 'Dạ chào chị Mochi! Chiều nay ra công viên ven sông nhé 🐾', status: 'read', createdAt: '17:35' },
-    ],
-  },
+  rooms: [],
+  messages: {},
   places: [
     {
       id: 'place_01', name: 'Bãi cỏ ven sông Vinhomes Central Park', category: 'park',
       address: 'Khu công viên ven sông Landmark 81, Bình Thạnh', lat: 10.7955, lng: 106.7222, distanceMeters: 210,
       thumbnailUrl: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=500&q=80',
       ratingAvg: 4.9, reviewsCount: 38,
-      reviews: [{ id: 'rv_1', placeId: 'place_01', userId: 'u_2', userName: 'Thanh Hằng', rating: 5, text: 'Bãi cỏ siêu rộng, gió mát, có thùng rác riêng cho thú cưng!', createdAt: 'Hôm qua' }],
+      reviews: [{ id: 'rv_1', placeId: 'place_01', userId: 'u_2', userName: 'Cư Dân', rating: 5, text: 'Bãi cỏ siêu rộng, gió mát, có thùng rác riêng cho thú cưng!', createdAt: 'Hôm qua' }],
     },
     {
       id: 'place_02', name: 'Corgi & Friends Pet Cafe Thảo Điền', category: 'cafe',

@@ -5,6 +5,7 @@ import { Duplex } from 'stream';
 import { AppModule } from '../src/app.module';
 import { DataStoreService } from '../src/database/data-store.service';
 import { computeWebhookHmac } from '../src/adapters/payment.adapter';
+import { setupE2eFixtures } from './test-fixtures';
 
 /**
  * In-memory HTTP dispatcher for NestJS + Express that executes the full
@@ -139,6 +140,7 @@ describe('Pawty Backend E2E & Business Rules Suite (v1.1)', () => {
 
   beforeEach(() => {
     dataStore.resetToSeed();
+    setupE2eFixtures(dataStore);
   });
 
   afterAll(async () => {

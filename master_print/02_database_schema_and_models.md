@@ -34,6 +34,11 @@
 | `phone` | `VARCHAR(15)` | NULL | Số điện thoại KYC (tùy chọn) |
 | `full_name` | `VARCHAR(100)` | NOT NULL | Họ và tên chủ nuôi |
 | `nickname` | `VARCHAR(50)` | NULL | Biệt danh trong app (vd: *Nhà Sen Bơ*) |
+| `intent_tags` | `TEXT[]` | default `{'dating'}` | Mục đích kết nối (dating, walk_buddy, playdate, community) |
+| `bio` | `TEXT` | NULL | Giới thiệu về chủ nuôi |
+| `age` | `INTEGER` | NULL | Tuổi của chủ nuôi |
+| `gender` | `VARCHAR(20)` | NULL | Giới tính chủ nuôi |
+| `occupation` | `VARCHAR(100)` | NULL | Nghề nghiệp / Lĩnh vực |
 | `avatar_url` | `TEXT` | NOT NULL | Đường dẫn ảnh đại diện của chủ nuôi |
 | `is_verified` | `BOOLEAN` | default `false` | Trạng thái xác thực OTP qua Firebase |
 | `is_vip` | `BOOLEAN` | default `false` | Trạng thái hội viên VIP trả phí |

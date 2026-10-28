@@ -8,6 +8,7 @@ export interface RadarFilters {
   radius: number;
   species: 'all' | 'dog' | 'cat';
   size: 'all' | 'small' | 'medium' | 'large';
+  intent?: 'all' | 'dating' | 'walk_buddy' | 'playdate' | 'community';
   verifiedOnly: boolean;
   walkingNow: boolean;
 }
@@ -50,6 +51,15 @@ export const RadarFilterModal: React.FC<RadarFilterModalProps> = ({
               onPress={() => setFilters({ ...filters, radius: r })}
             />
           ))}
+        </View>
+
+        <Text style={styles.label}>Mục đích kết nối</Text>
+        <View style={styles.row}>
+          <Chip label="Tất cả" selected={!filters.intent || filters.intent === 'all'} onPress={() => setFilters({ ...filters, intent: 'all' })} />
+          <Chip label="❤️ Hẹn hò đôi" selected={filters.intent === 'dating'} onPress={() => setFilters({ ...filters, intent: 'dating' })} />
+          <Chip label="🚶 Đi dạo đôi" selected={filters.intent === 'walk_buddy'} onPress={() => setFilters({ ...filters, intent: 'walk_buddy' })} />
+          <Chip label="🐾 Bạn cho Boss" selected={filters.intent === 'playdate'} onPress={() => setFilters({ ...filters, intent: 'playdate' })} />
+          <Chip label="💬 Giao lưu" selected={filters.intent === 'community'} onPress={() => setFilters({ ...filters, intent: 'community' })} />
         </View>
 
         <Text style={styles.label}>Loài thú cưng</Text>

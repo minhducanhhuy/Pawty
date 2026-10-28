@@ -75,6 +75,11 @@ export interface UserRecord {
   locale: UserLocaleType;
   fullName: string;
   nickname: string | null;
+  bio?: string | null;
+  age?: number | null;
+  gender?: string | null;
+  occupation?: string | null;
+  intentTags?: string[];
   avatarUrl: string;
   isVerified: boolean;
   isVip: boolean;
@@ -138,6 +143,11 @@ export interface PetRecord {
   condoComplex: string;
   ownerName: string;
   ownerAvatar: string;
+  ownerAge?: number;
+  ownerGender?: string;
+  ownerOccupation?: string;
+  ownerBio?: string;
+  intentTags?: string[];
   isHidden?: boolean;
   createdAt: string;
 }

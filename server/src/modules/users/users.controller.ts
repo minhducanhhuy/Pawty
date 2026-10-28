@@ -33,6 +33,11 @@ export class UsersController {
       nickname?: string;
       avatarUrl?: string;
       condoComplex?: string;
+      age?: number;
+      gender?: string;
+      occupation?: string;
+      bio?: string;
+      intentTags?: string[];
       latitude?: number;
       longitude?: number;
       locale?: UserLocaleType;
@@ -45,6 +50,11 @@ export class UsersController {
     if (body.nickname !== undefined) user.nickname = body.nickname;
     if (body.avatarUrl !== undefined) user.avatarUrl = body.avatarUrl;
     if (body.condoComplex !== undefined) user.condoComplex = body.condoComplex;
+    if (typeof body.age === 'number') user.age = body.age;
+    if (body.gender !== undefined) user.gender = body.gender;
+    if (body.occupation !== undefined) user.occupation = body.occupation;
+    if (body.bio !== undefined) user.bio = body.bio;
+    if (Array.isArray(body.intentTags)) user.intentTags = body.intentTags;
     if (typeof body.latitude === 'number') user.latitude = body.latitude;
     if (typeof body.longitude === 'number') user.longitude = body.longitude;
     if (body.locale === 'vi' || body.locale === 'en') user.locale = body.locale;
@@ -67,6 +77,11 @@ export class UsersController {
         if (body.condoComplex !== undefined) pet.condoComplex = body.condoComplex;
         if (body.fullName !== undefined) pet.ownerName = body.fullName;
         if (body.avatarUrl !== undefined) pet.ownerAvatar = body.avatarUrl;
+        if (typeof body.age === 'number') pet.ownerAge = body.age;
+        if (body.gender !== undefined) pet.ownerGender = body.gender;
+        if (body.occupation !== undefined) pet.ownerOccupation = body.occupation;
+        if (body.bio !== undefined) pet.ownerBio = body.bio;
+        if (Array.isArray(body.intentTags)) pet.intentTags = body.intentTags;
       }
     }
 

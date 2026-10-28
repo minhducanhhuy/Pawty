@@ -109,18 +109,22 @@ export class ChatGateway
       return { status: 'error', message: 'Missing roomId' };
     }
 
-    const userId = client.data?.userId || 'usr_sen_01';
+    const userId = client.data?.userId;
+    if (!userId) {
+      return { status: 'error', message: 'Unauthorized socket client' };
+    }
     const senderPet =
       (payload.senderPetId &&
         this.dataStore.pets.find((p) => p.id === payload.senderPetId)) ||
-      this.dataStore.getActivePetForUser(userId) ||
-      this.dataStore.pets[0];
+      this.dataStore.getActivePetForUser(userId);
+    const senderUser = this.dataStore.users.find((u) => u.id === userId);
 
     const nowIso = new Date().toISOString();
+    const senderPetId = senderPet?.id || `pet_${userId}`;
     const messageRecord = {
       id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       roomId: payload.roomId,
-      senderPetId: senderPet.id,
+      senderPetId,
       text: payload.text || null,
       appointmentId: payload.appointmentId || payload.appointment?.id || null,
       isRead: false,
@@ -139,8 +143,8 @@ export class ChatGateway
 
     const outbound = {
       ...messageRecord,
-      senderName: senderPet.name,
-      senderAvatar: senderPet.avatarUrl,
+      senderName: senderPet?.name || senderUser?.fullName || 'Người dùng',
+      senderAvatar: senderPet?.avatarUrl || senderUser?.avatarUrl || '',
       appointment: payload.appointment || null,
       timestamp: new Date().toLocaleTimeString('vi-VN', {
         hour: '2-digit',
@@ -153,17 +157,18 @@ export class ChatGateway
     }
 
     if (room) {
+      const senderId = senderPet?.id || senderPetId;
       const recipientPetId =
-        room.petAId === senderPet.id ? room.petBId : room.petAId;
+        room.petAId === senderId ? room.petBId : room.petAId;
       const recipientPet = this.dataStore.pets.find(
         (p) => p.id === recipientPetId,
       );
       if (recipientPet && recipientPet.userId !== userId) {
         await this.pushAdapter.sendPush(recipientPet.userId, {
           type: 'message',
-          title: `💬 Tin nhắn mới từ ${senderPet.name}`,
+          title: `💬 Tin nhắn mới từ ${senderPet?.name || senderUser?.fullName || 'Bạn mới'}`,
           body: payload.text || 'Đã gửi lời mời hẹn dắt dạo!',
-          payload: { roomId: room.id, senderPetId: senderPet.id },
+          payload: { roomId: room.id, senderPetId: senderId },
         });
       }
     }

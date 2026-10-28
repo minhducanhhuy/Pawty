@@ -45,6 +45,7 @@ export class RadarService {
       size?: string;
       verifiedOnly?: string;
       walkingNow?: string;
+      intent?: string;
     },
   ) {
     const lat = query.lat ? parseFloat(query.lat) : user.latitude || 10.7951;
@@ -54,6 +55,7 @@ export class RadarService {
       : BUSINESS_RULES.radar.defaultRadius;
     const verifiedOnly = query.verifiedOnly === 'true';
     const walkingNowFilter = query.walkingNow === 'true';
+    const intentFilter = query.intent && query.intent !== 'all' ? query.intent : null;
     const now = new Date();
 
     const alreadySwipedPetIds = new Set(
@@ -148,6 +150,9 @@ export class RadarService {
         if (walkingNowFilter && !entry.isWalkingNow) {
           return false;
         }
+        if (intentFilter && !entry.owner.intentTags?.includes(intentFilter)) {
+          return false;
+        }
         return true;
       })
       .sort((a, b) => b.score - a.score);
@@ -163,6 +168,12 @@ export class RadarService {
         type: 'pet' as const,
         pet: {
           ...entry.pet,
+          ownerAge: entry.owner.age || undefined,
+          ownerGender: entry.owner.gender || undefined,
+          ownerOccupation: entry.owner.occupation || undefined,
+          ownerBio: entry.owner.bio || undefined,
+          ownerAvatarUrl: entry.owner.avatarUrl || undefined,
+          intentTags: entry.owner.intentTags || undefined,
           isVip: entry.isOwnerVip,
           vipTier: entry.owner.vipTier,
           distanceMeters,

@@ -35,13 +35,14 @@ export const api = {
   uploadVaccineProof: (petId: string, body: { proofUrls: string[]; vaccineDetails?: string; lastVaccineDate?: string; nextDueDate?: string }) =>
     apiRequest<Pet>('POST', `/pets/${petId}/vaccine-proof`, body),
 
-  getRadar: (params: { lat: number; lng: number; radius?: number; species?: string; size?: string; verifiedOnly?: boolean; walkingNow?: boolean }) => {
+  getRadar: (params: { lat: number; lng: number; radius?: number; species?: string; size?: string; verifiedOnly?: boolean; walkingNow?: boolean; intent?: string }) => {
     const q = new URLSearchParams({
       lat: String(params.lat), lng: String(params.lng), radius: String(params.radius || 1500),
       ...(params.species && params.species !== 'all' ? { species: params.species } : {}),
       ...(params.size && params.size !== 'all' ? { size: params.size } : {}),
       ...(params.verifiedOnly ? { verifiedOnly: 'true' } : {}),
       ...(params.walkingNow ? { walkingNow: 'true' } : {}),
+      ...(params.intent && params.intent !== 'all' ? { intent: params.intent } : {}),
     });
     return apiRequest<{ items: RadarItem[]; radiusMeters: number; totalFound: number }>('GET', `/radar?${q.toString()}`);
   },

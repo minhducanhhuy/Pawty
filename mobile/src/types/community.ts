@@ -27,6 +27,7 @@ export interface ChatMessage {
   senderPetId: string;
   text?: string;
   appointment?: WalkAppointment;
+  appointmentId?: string;
   status: 'sent' | 'delivered' | 'read';
   createdAt: string;
 }

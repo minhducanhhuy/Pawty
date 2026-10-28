@@ -1,143 +1,268 @@
 import React, { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, TYPOGRAPHY } from '../theme';
-import { PhoneOtpStep } from './onboarding/PhoneOtpStep';
-import { SenBossStep } from './onboarding/SenBossStep';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { COLORS, SPACING, TYPOGRAPHY, RADIUS } from '../theme';
+import { IntentStep } from './onboarding/IntentStep';
+import { OwnerProfileStep } from './onboarding/OwnerProfileStep';
+import { PetProfileStep } from './onboarding/PetProfileStep';
+import { ReviewProfileStep } from './onboarding/ReviewProfileStep';
 import { api } from '../api/endpoints';
 import { useAuth, useActivePet, useAppConfig } from '../context';
 import { useNavigation } from '../navigation/NavigationContext';
-import { Species } from '../types';
+import { ConnectionIntent, Species } from '../types';
 
 export const OnboardingScreen: React.FC = () => {
-  const { user, loginWithOtp, loginWithSocial, updateUser, setHasCompletedOnboarding } = useAuth();
+  const { user, updateUser, setHasCompletedOnboarding, logout } = useAuth();
   const { addPet } = useActivePet();
   const { showToast } = useAppConfig();
   const { resetToMain } = useNavigation();
 
-  // If user already authenticated via Google/Username, jump straight to creating Boss
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(user ? 4 : 1);
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [otpCode, setOtpCode] = useState('');
-  const [referralCode, setReferralCode] = useState('');
+  // Navigation Steps: 1: Intent -> 2: Owner Profile -> 3: Pet Profile -> 4: Review & Launch
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);
 
-  const handleSendOtp = async () => {
-    if (phone.trim().length < 9) {
-      showToast('Vui lòng nhập số điện thoại hợp lệ!', 'error');
-      return;
-    }
-    setLoading(true);
-    try {
-      await api.sendOtp(phone.trim());
-      setStep(2);
-      showToast('Đã gửi mã OTP (Sandbox: 888888)', 'success');
-    } catch (err) {
-      console.error('Send OTP error:', err);
-      showToast('Không thể gửi OTP, vui lòng thử lại.', 'error');
-    } finally {
-      setLoading(false);
+  // Intent State
+  const [selectedIntents, setSelectedIntents] = useState<ConnectionIntent[]>(
+    user?.intentTags?.length ? user.intentTags : ['dating']
+  );
+
+  // Owner State
+  const [fullName, setFullName] = useState(user?.fullName || '');
+  const [age, setAge] = useState(user?.age ? String(user.age) : '24');
+  const [gender, setGender] = useState<'male' | 'female' | 'other'>(
+    (user?.gender as any) || 'female'
+  );
+  const [occupation, setOccupation] = useState(user?.occupation || 'UI/UX Designer');
+  const [condoComplex, setCondoComplex] = useState(user?.condoComplex || 'Vinhomes Central Park');
+  const [bio, setBio] = useState(
+    user?.bio || 'Tìm người yêu cùng sở thích nuôi thú cưng & bạn dắt cún quanh công viên!'
+  );
+
+  // Pet State
+  const [species, setSpecies] = useState<Species>('dog');
+  const [petName, setPetName] = useState('');
+  const [breed, setBreed] = useState('Corgi Pembroke');
+  const [weightStr, setWeightStr] = useState('11');
+  const [isVaccinated, setIsVaccinated] = useState(true);
+  const [tags, setTags] = useState<string[]>(['Thân thiện', 'Tăng động']);
+  const [petBio, setPetBio] = useState('Boss vui tươi, ngoan ngoãn và rất thích bạn bè.');
+
+  const toggleIntent = (intent: ConnectionIntent) => {
+    if (selectedIntents.includes(intent)) {
+      if (selectedIntents.length > 1) {
+        setSelectedIntents(selectedIntents.filter((x) => x !== intent));
+      }
+    } else {
+      setSelectedIntents([...selectedIntents, intent]);
     }
   };
 
-  const handleVerifyOtp = async () => {
-    setLoading(true);
-    try {
-      await loginWithOtp(phone.trim(), otpCode.trim() || '888888', referralCode.trim() || undefined);
-      setStep(3);
-    } catch (err) {
-      console.error('Verify OTP error:', err);
-      showToast('Mã OTP không hợp lệ!', 'error');
-    } finally {
-      setLoading(false);
+  const handleBack = () => {
+    if (step > 1) {
+      setStep((prev) => (prev - 1) as 1 | 2 | 3 | 4);
     }
   };
 
-  const handleSocial = async (provider: 'google' | 'apple') => {
+  const handleFinishOnboarding = async () => {
     setLoading(true);
     try {
-      await loginWithSocial(provider, phone.trim() || '0908123456');
-      setStep(3);
-      showToast(`Đã xác thực ${provider.toUpperCase()} + SĐT`, 'success');
-    } catch (err) {
-      console.error('Social login error:', err);
-      showToast('Lỗi đăng nhập mạng xã hội', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+      // 1. Update Owner Profile & Intents
+      await updateUser({
+        fullName: fullName.trim() || 'Chủ Nuôi Pawty',
+        age: parseInt(age, 10) || 25,
+        gender,
+        occupation: occupation.trim(),
+        condoComplex,
+        bio: bio.trim(),
+        intentTags: selectedIntents,
+      });
 
-  const handleNextSen = async (fullName: string, condoComplex: string, refCode: string) => {
-    setReferralCode(refCode);
-    await updateUser({ fullName, condoComplex });
-    if (refCode.trim()) {
-      showToast('🎁 Áp dụng mã giới thiệu: Tặng +7 ngày VIP!', 'success');
-    }
-    setStep(4);
-  };
+      // 2. Create Boss Profile
+      const weightNum = parseFloat(weightStr) || 5;
+      await addPet({
+        name: petName.trim() || 'Boss',
+        species,
+        breed,
+        weightKg: weightNum,
+        isVaccinated,
+        tags,
+        habitsGood: ['Thân thiện', 'Đi vệ sinh đúng chỗ'],
+        habitsBad: [],
+        bio: petBio.trim() || 'Boss đáng yêu tìm bạn đi dạo chung quanh toà nhà!',
+      });
 
-  const handleFinishBoss = async (bossData: {
-    name: string;
-    species: Species;
-    breed: string;
-    weightKg: number;
-    isVaccinated: boolean;
-    tags: string[];
-    habitsGood: string[];
-    habitsBad: string[];
-    bio: string;
-  }) => {
-    setLoading(true);
-    try {
-      await addPet(bossData);
+      // 3. Mark Onboarding Completed & Launch Radar
       setHasCompletedOnboarding(true);
-      showToast(`Chào mừng Boss ${bossData.name} gia nhập Pawty! 🎉`, 'success');
+      showToast(`Chào mừng bạn và Boss ${petName || 'Boss'} gia nhập Pawty! 🎉`, 'success');
       resetToMain('Radar');
     } catch (err) {
-      console.error('Create boss error:', err);
-      showToast('Không thể tạo hồ sơ Boss.', 'error');
+      console.error('Finish onboarding error:', err);
+      showToast('Có lỗi xảy ra khi tạo hồ sơ. Vui lòng thử lại.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.stepIndicatorRow}>
-        {[1, 2, 3, 4].map((s) => (
-          <View key={s} style={[styles.stepDot, step >= s && styles.stepDotActive]} />
-        ))}
-        <Text style={styles.stepText}>Bước {step}/4</Text>
+    <View style={styles.screen}>
+      {/* Top Navigation & Step Indicator Header */}
+      <View style={styles.topBar}>
+        {step > 1 ? (
+          <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
+            <Text style={styles.backBtnText}>← Quay lại</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.7}>
+            <Text style={styles.logoutBtnText}>Đổi tài khoản</Text>
+          </TouchableOpacity>
+        )}
+
+        <View style={styles.stepIndicatorRow}>
+          {[1, 2, 3, 4].map((s) => (
+            <View
+              key={s}
+              style={[
+                styles.stepDot,
+                step === s && styles.stepDotCurrent,
+                step > s && styles.stepDotCompleted,
+              ]}
+            />
+          ))}
+          <Text style={styles.stepText}>{step}/4</Text>
+        </View>
       </View>
 
-      {step === 1 || step === 2 ? (
-        <PhoneOtpStep
-          step={step}
-          phone={phone}
-          setPhone={setPhone}
-          otpCode={otpCode}
-          setOtpCode={setOtpCode}
-          onSendOtp={handleSendOtp}
-          onVerifyOtp={handleVerifyOtp}
-          onSocialLogin={handleSocial}
-          loading={loading}
-        />
-      ) : (
-        <SenBossStep
-          step={step}
-          onNextSen={handleNextSen}
-          onFinishBoss={handleFinishBoss}
-          loading={loading}
-        />
-      )}
-    </ScrollView>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {step === 1 && (
+          <IntentStep
+            selectedIntents={selectedIntents}
+            onToggleIntent={toggleIntent}
+            onContinue={() => setStep(2)}
+          />
+        )}
+
+        {step === 2 && (
+          <OwnerProfileStep
+            fullName={fullName}
+            setFullName={setFullName}
+            age={age}
+            setAge={setAge}
+            gender={gender}
+            setGender={setGender}
+            occupation={occupation}
+            setOccupation={setOccupation}
+            condoComplex={condoComplex}
+            setCondoComplex={setCondoComplex}
+            bio={bio}
+            setBio={setBio}
+            onContinue={() => setStep(3)}
+          />
+        )}
+
+        {step === 3 && (
+          <PetProfileStep
+            species={species}
+            setSpecies={setSpecies}
+            petName={petName}
+            setPetName={setPetName}
+            breed={breed}
+            setBreed={setBreed}
+            weightStr={weightStr}
+            setWeightStr={setWeightStr}
+            isVaccinated={isVaccinated}
+            setIsVaccinated={setIsVaccinated}
+            tags={tags}
+            setTags={setTags}
+            petBio={petBio}
+            setPetBio={setPetBio}
+            onContinue={() => setStep(4)}
+          />
+        )}
+
+        {step === 4 && (
+          <ReviewProfileStep
+            fullName={fullName}
+            age={age}
+            occupation={occupation}
+            condoComplex={condoComplex}
+            bio={bio}
+            selectedIntents={selectedIntents}
+            petName={petName}
+            species={species}
+            breed={breed}
+            weightStr={weightStr}
+            isVaccinated={isVaccinated}
+            tags={tags}
+            petBio={petBio}
+            loading={loading}
+            onSubmit={handleFinishOnboarding}
+          />
+        )}
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.cream },
-  content: { padding: SPACING.lg, paddingBottom: 48 },
-  stepIndicatorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.md },
-  stepDot: { flex: 1, height: 6, borderRadius: 3, backgroundColor: COLORS.border },
-  stepDotActive: { backgroundColor: COLORS.coral },
-  stepText: { ...TYPOGRAPHY.caption, color: COLORS.coral, fontWeight: '800', marginLeft: 6 },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.white,
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.creamWarm,
+  },
+  backBtnText: {
+    ...TYPOGRAPHY.bodyBold,
+    color: COLORS.coral,
+    fontSize: 13,
+  },
+  logoutBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  logoutBtnText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textMuted,
+  },
+  stepIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  stepDot: {
+    width: 24,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.border,
+  },
+  stepDotCompleted: {
+    backgroundColor: COLORS.coral,
+  },
+  stepDotCurrent: {
+    backgroundColor: COLORS.coral,
+    width: 32,
+  },
+  stepText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.coral,
+    fontWeight: '800',
+    marginLeft: 4,
+    fontSize: 12,
+  },
+  content: {
+    padding: SPACING.lg,
+    paddingBottom: 48,
+  },
 });

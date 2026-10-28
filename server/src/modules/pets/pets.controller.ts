@@ -109,6 +109,11 @@ export class PetsController {
       condoComplex: user.condoComplex,
       ownerName: user.fullName,
       ownerAvatar: user.avatarUrl,
+      ownerAge: user.age || undefined,
+      ownerGender: user.gender || undefined,
+      ownerOccupation: user.occupation || undefined,
+      ownerBio: user.bio || undefined,
+      intentTags: user.intentTags || undefined,
       createdAt: new Date().toISOString(),
     };
 

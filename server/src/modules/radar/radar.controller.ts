@@ -33,6 +33,7 @@ export class RadarController {
     @Query('size') size?: string,
     @Query('verifiedOnly') verifiedOnly?: string,
     @Query('walkingNow') walkingNow?: string,
+    @Query('intent') intent?: string,
   ) {
     return this.radarService.getRadarFeed(user, activePet, {
       lat,
@@ -42,6 +43,7 @@ export class RadarController {
       size,
       verifiedOnly,
       walkingNow,
+      intent,
     });
   }
 

@@ -197,6 +197,11 @@ model User {
   locale             UserLocale    @default(vi)
   fullName           String        @map("full_name")
   nickname           String?
+  bio                String?
+  age                Int?
+  gender             String?
+  occupation         String?
+  intentTags         String[]      @default(["dating"]) @map("intent_tags")
   avatarUrl          String        @map("avatar_url")
   isVerified         Boolean       @default(false) @map("is_verified")
   isVip              Boolean       @default(false) @map("is_vip")
