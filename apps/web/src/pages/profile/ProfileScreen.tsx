@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
 import {
-  Bookmark,
-  Calendar,
-  CheckCircle2,
-  Crown,
-  Download,
+  AlertTriangle,
+  Award,
+  Cat,
+  Check,
+  Dog,
+  Edit3,
+  Globe,
+  Grid,
   Lock,
   MapPin,
   Plus,
-  Share2,
+  Settings,
   ShieldCheck,
-  Star,
-  Syringe,
-  Users,
 } from 'lucide-react';
-import { formatSizeCategoryLabel, formatVndCurrency } from '@pawty/utils';
+import { formatSizeCategoryLabel } from '@pawty/utils';
 import { usePawtyStore } from '../../stores/usePawtyStore';
+import { WEB_THEMES } from '../../mocks/seedData';
 
 export const ProfileScreen: React.FC = () => {
   const {
@@ -24,26 +25,22 @@ export const ProfileScreen: React.FC = () => {
     activePetId,
     setActivePetId,
     posts,
-    bookings,
-    submitPartnerReview,
-    addVaccinationRecord,
     addPetBehaviorChip,
     setActiveModal,
     showToast,
+    themeId,
   } = usePawtyStore();
 
-  const [activeProfileTab, setActiveProfileTab] = useState<'moments' | 'bio'>('bio');
-  const [subPanel, setSubPanel] = useState<'none' | 'calendar' | 'history' | 'bookmarks'>('none');
-  const [newVaccineName, setNewVaccineName] = useState('');
+  const theme = WEB_THEMES[themeId] ?? WEB_THEMES.coral;
+  const [activeProfileTab, setActiveProfileTab] = useState<'moments' | 'bio'>('moments');
+  const [isPrivateMode, setIsPrivateMode] = useState(false);
+  const [isVaccinatedAndRabies, setIsVaccinatedAndRabies] = useState(true);
   const [newCautionChip, setNewCautionChip] = useState('');
-  const [reviewBookingId, setReviewBookingId] = useState<string | null>(null);
-  const [reviewText, setReviewText] = useState('');
 
   const activePet = pets.find((p) => p.id === activePetId) ?? pets[0];
   const petPosts = posts.filter(
     (p) => p.petIds.includes(activePet.id) || p.authorId === user.id
   );
-  const bookmarkedPosts = posts.filter((p) => p.isBookmarked);
 
   const momentPhotos = [
     activePet.avatarUrl,
@@ -60,444 +57,383 @@ export const ProfileScreen: React.FC = () => {
   const cautions = activePet.behaviors.filter((b) => b.category === 'caution');
 
   return (
-    <div className="pb-8">
-      {/* Cover Photo & Pet Switcher Header */}
-      <div className="relative h-44 bg-stone-200">
-        <img
-          src={activePet.coverPhotoUrl}
-          alt={activePet.name}
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+    <div className="p-4 pb-6 space-y-3.5">
+      {/* Instagram-Style Owner & Pet Header Card */}
+      <div
+        style={{ backgroundColor: theme.surface, borderColor: theme.border }}
+        className="p-4 rounded-2xl border space-y-3"
+      >
+        <div className="flex items-center gap-4">
+          <img
+            src={user.avatarUrl}
+            alt={user.displayName}
+            className="w-16 h-16 rounded-full object-cover shrink-0"
+          />
+          <div className="flex-1 grid grid-cols-3 text-center">
+            <div>
+              <p style={{ color: theme.text }} className="text-base font-extrabold">
+                {petPosts.length + momentPhotos.length}
+              </p>
+              <p style={{ color: theme.textSoft }} className="text-[11px]">
+                Bài viết
+              </p>
+            </div>
+            <div>
+              <p style={{ color: theme.text }} className="text-base font-extrabold">
+                148
+              </p>
+              <p style={{ color: theme.textSoft }} className="text-[11px]">
+                Bạn bè
+              </p>
+            </div>
+            <div>
+              <p style={{ color: theme.text }} className="text-base font-extrabold">
+                1.2k
+              </p>
+              <p style={{ color: theme.textSoft }} className="text-[11px]">
+                Lượt thích
+              </p>
+            </div>
+          </div>
+        </div>
 
-        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 style={{ color: theme.text }} className="text-sm font-extrabold">
+              {user.displayName}
+            </h1>
+            <span
+              style={{ backgroundColor: theme.primarySoft, color: theme.primary }}
+              className="px-2 py-0.5 rounded-lg text-[10px] font-bold"
+            >
+              Bạn thân của cún
+            </span>
+          </div>
+          <p
+            style={{ color: theme.textSoft }}
+            className="text-xs flex items-center gap-1 mt-0.5 truncate"
+          >
+            <MapPin className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{user.neighborhood}</span>
+          </p>
+          <p style={{ color: theme.text }} className="text-xs mt-1 leading-relaxed">
+            {user.bio}
+          </p>
+        </div>
+
+        {/* Private Profile Toggle (Only Friends or Tinder Matches can view) */}
+        <button
+          onClick={() => {
+            const next = !isPrivateMode;
+            setIsPrivateMode(next);
+            showToast(
+              next ? 'Đã bật Chế độ Riêng tư' : 'Đã chuyển sang Chế độ Công khai',
+              next
+                ? 'Chỉ bạn bè hoặc người đã Match trên Hẹn hò mới xem được bài viết và hồ sơ.'
+                : 'Mọi người trên Pawty có thể xem bài viết của bạn.'
+            );
+          }}
+          style={{
+            backgroundColor: isPrivateMode ? theme.primarySoft : theme.bg,
+            borderColor: isPrivateMode ? theme.primary : theme.border,
+          }}
+          className="w-full p-2.5 rounded-xl border flex items-center justify-between gap-2 text-left"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              style={{ backgroundColor: theme.surface }}
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+            >
+              {isPrivateMode ? (
+                <Lock style={{ color: theme.primary }} className="w-4 h-4" />
+              ) : (
+                <Globe style={{ color: theme.primary }} className="w-4 h-4" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p style={{ color: theme.text }} className="text-xs font-bold">
+                {isPrivateMode ? 'Chế độ Riêng tư: Đang Bật' : 'Chế độ Công khai'}
+              </p>
+              <p style={{ color: theme.textSoft }} className="text-[11px] truncate">
+                Chỉ bạn bè hoặc người đã Match Tinder mới xem được hồ sơ
+              </p>
+            </div>
+          </div>
+          <span
+            style={{ backgroundColor: isPrivateMode ? theme.primary : theme.border }}
+            className="px-2 py-0.5 rounded-md text-white text-[10px] font-extrabold shrink-0"
+          >
+            {isPrivateMode ? 'BẬT' : 'TẮT'}
+          </span>
+        </button>
+
+        {/* Profile Edit, VIP Plans & Settings Action Row */}
+        <div className="grid grid-cols-3 gap-1.5 pt-1">
+          <button
+            onClick={() => setActiveModal('edit_profile')}
+            style={{
+              backgroundColor: theme.primary,
+              color: '#FFFFFF',
+            }}
+            className="py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:opacity-90"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            <span>Sửa hồ sơ</span>
+          </button>
+
           <button
             onClick={() => setActiveModal('vip_upgrade')}
-            className="px-2.5 py-1 rounded-full bg-amber-400 text-[#2D3436] text-[11px] font-extrabold flex items-center gap-1 shadow-sm"
+            style={{
+              backgroundColor: theme.bg,
+              borderColor: theme.border,
+              color: theme.text,
+            }}
+            className="py-2 px-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1 hover:opacity-90"
           >
-            <Crown className="w-3.5 h-3.5" />
-            {user.isVip ? 'Sen VIP' : 'Nâng cấp VIP'}
+            <Award style={{ color: theme.primary }} className="w-3.5 h-3.5" />
+            <span>Gói Plus</span>
           </button>
+
           <button
-            onClick={() => setActiveModal('privacy_center')}
-            className="p-2 rounded-full bg-black/50 text-white"
-            title="Quyền riêng tư & Dữ liệu"
+            onClick={() => setActiveModal('settings')}
+            style={{
+              backgroundColor: theme.primarySoft,
+              color: theme.primary,
+            }}
+            className="py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:opacity-90"
           >
-            <Lock className="w-3.5 h-3.5" />
+            <Settings className="w-3.5 h-3.5" />
+            <span>Giao diện</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Unified Pet Profile Object Card (Species: Chó / Mèo) */}
+      <div
+        style={{ backgroundColor: theme.surface, borderColor: theme.border }}
+        className="p-4 rounded-2xl border space-y-3"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 style={{ color: theme.text }} className="text-sm font-bold">
+              Hồ sơ thú cưng ({pets.length})
+            </h2>
+          </div>
+
+          <button
+            onClick={() => setActiveModal('add_pet_wizard')}
+            style={{ backgroundColor: theme.primary }}
+            className="px-3 py-1.5 rounded-xl text-white text-xs font-bold flex items-center gap-1"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Thêm hồ sơ thú</span>
           </button>
         </div>
 
-        {/* Pet Switcher Pills on Cover */}
-        <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
-          {pets.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setActivePetId(p.id)}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
-                p.id === activePet.id
-                  ? 'bg-[#FF6F61] text-white shadow'
-                  : 'bg-white/85 text-[#2D3436]'
-              }`}
-            >
-              {p.species === 'dog' ? '🐕' : '🐈'} {p.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Main Profile Header Card */}
-      <div className="px-4 -mt-10 relative z-10">
-        <div className="bg-white rounded-3xl p-4 border border-stone-200/80 shadow-sm space-y-3">
-          <div className="flex items-end justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <img
-                src={activePet.avatarUrl}
-                alt={activePet.name}
-                className="w-18 h-18 rounded-3xl object-cover border-4 border-white shadow-md -mt-8"
-              />
-              <div>
-                <h1 className="font-display text-lg font-bold text-[#2D3436]">
-                  {activePet.name} — {activePet.breed}
-                </h1>
-                <p className="text-xs text-stone-500 flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-[#FF6F61]" /> {user.neighborhood}
-                </p>
-                <p className="text-xs font-extrabold text-[#FF6F61] mt-0.5">
-                  🐾 {activePet.followerCount} followers · Quản lý bởi {user.displayName}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="grid grid-cols-3 gap-2 pt-1">
-            <button
-              onClick={() => setActiveModal('invite_circle')}
-              className="py-2 rounded-xl bg-[#FF6F61] text-white text-xs font-bold flex items-center justify-center gap-1 shadow-2xs"
-            >
-              <Users className="w-3.5 h-3.5" /> Vòng Circle
-            </button>
-            <button
-              onClick={() => {
-                if (!user.isVip) {
-                  setActiveModal('vip_upgrade');
-                  showToast(
-                    'Tính năng Sen VIP 👑',
-                    'Nâng cấp Sen VIP để xuất file PDF Sổ tiêm chủng có mã QR xác thực.',
-                    'warning'
-                  );
-                } else {
-                  showToast(
-                    'Đã xuất PDF Sổ tiêm chủng 📄',
-                    `Sổ tiêm điện tử của ${activePet.name} đã sẵn sàng tải xuống.`
-                  );
-                }
-              }}
-              className="py-2 rounded-xl bg-[#A3E4D7]/45 text-teal-950 text-xs font-bold flex items-center justify-center gap-1"
-            >
-              <Download className="w-3.5 h-3.5" /> Xuất Sổ tiêm
-            </button>
-            <button
-              onClick={() =>
-                showToast('Đã sao chép hồ sơ công khai 🔗', `pawty.vn/pet/${activePet.name.toLowerCase()}`)
-              }
-              className="py-2 rounded-xl bg-stone-100 text-stone-700 text-xs font-bold flex items-center justify-center gap-1"
-            >
-              <Share2 className="w-3.5 h-3.5" /> Chia sẻ
-            </button>
-          </div>
-
-          {/* Quick Utility Sub-Navigation (Calendar, Service History, Saved Bookmarks, Privacy) */}
-          <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-stone-100">
-            <button
-              onClick={() => setSubPanel(subPanel === 'calendar' ? 'none' : 'calendar')}
-              className={`py-1.5 rounded-xl text-[11px] font-bold flex flex-col items-center gap-0.5 ${
-                subPanel === 'calendar' ? 'bg-[#2D3436] text-white' : 'bg-stone-50 text-stone-600'
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              <span>Lịch tháng</span>
-            </button>
-            <button
-              onClick={() => setSubPanel(subPanel === 'history' ? 'none' : 'history')}
-              className={`py-1.5 rounded-xl text-[11px] font-bold flex flex-col items-center gap-0.5 ${
-                subPanel === 'history' ? 'bg-[#2D3436] text-white' : 'bg-stone-50 text-stone-600'
-              }`}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Đơn dịch vụ</span>
-            </button>
-            <button
-              onClick={() => setSubPanel(subPanel === 'bookmarks' ? 'none' : 'bookmarks')}
-              className={`py-1.5 rounded-xl text-[11px] font-bold flex flex-col items-center gap-0.5 ${
-                subPanel === 'bookmarks' ? 'bg-[#2D3436] text-white' : 'bg-stone-50 text-stone-600'
-              }`}
-            >
-              <Bookmark className="w-3.5 h-3.5" />
-              <span>Đã lưu ({bookmarkedPosts.length})</span>
-            </button>
-            <button
-              onClick={() => setActiveModal('privacy_center')}
-              className="py-1.5 rounded-xl text-[11px] font-bold flex flex-col items-center gap-0.5 bg-stone-50 text-stone-600"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-teal-700" />
-              <span>BVDLCN</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Expandable Sub-Panels (Calendar / Service History / Bookmarks) */}
-      {subPanel === 'calendar' && (
-        <div className="px-4 mt-3">
-          <div className="p-4 rounded-3xl bg-white border border-stone-200 space-y-2">
-            <h3 className="font-display text-sm font-bold">📅 Lịch Chăm Sóc Tháng 11/2026</h3>
-            <div className="grid grid-cols-7 gap-1 text-center text-[11px]">
-              {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((d) => (
-                <span key={d} className="font-bold text-stone-400">
-                  {d}
-                </span>
-              ))}
-              {Array.from({ length: 14 }, (_, idx) => idx + 1).map((day) => {
-                const hasEvent = day === 2 || day === 3 || day === 15;
-                return (
-                  <div
-                    key={day}
-                    className={`py-1.5 rounded-xl font-bold ${
-                      hasEvent ? 'bg-[#FF6F61] text-white' : 'bg-stone-50 text-stone-700'
-                    }`}
-                  >
-                    {day}
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-[11px] text-stone-500">
-              • 02/11: Grooming @ PetSpa Bubble & Paws · 03/11: Hẹn dắt dạo trung điểm Q9
-            </p>
-          </div>
-        </div>
-      )}
-
-      {subPanel === 'history' && (
-        <div className="px-4 mt-3 space-y-2.5">
-          <div className="p-4 rounded-3xl bg-white border border-stone-200 space-y-2.5">
-            <h3 className="font-display text-sm font-bold">
-              💼 Lịch sử Dịch vụ gắn với Hồ sơ {activePet.name}
-            </h3>
-            {bookings.map((bk) => (
-              <div
-                key={bk.id}
-                className="p-3 rounded-2xl bg-[#FDFBF7] border border-stone-200 space-y-1.5"
+        {/* Pet Object List */}
+        <div className="grid grid-cols-2 gap-2">
+          {pets.map((pet) => {
+            const isSelected = pet.id === activePet.id;
+            return (
+              <button
+                key={pet.id}
+                onClick={() => setActivePetId(pet.id)}
+                style={{
+                  backgroundColor: isSelected ? theme.primarySoft : theme.bg,
+                  borderColor: isSelected ? theme.primary : theme.border,
+                }}
+                className="p-2.5 rounded-xl border text-left flex items-center gap-2.5 transition-all"
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold">{bk.partnerName}</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#A3E4D7]/50 text-teal-950 uppercase">
-                    {bk.status}
+                <img
+                  src={pet.avatarUrl}
+                  alt={pet.name}
+                  className="w-10 h-10 rounded-xl object-cover shrink-0"
+                />
+                <div className="min-w-0">
+                  <p style={{ color: theme.text }} className="text-xs font-bold truncate">
+                    {pet.name}
+                  </p>
+                  <span
+                    style={{ color: theme.primary }}
+                    className="inline-flex items-center gap-1 text-[10px] font-bold"
+                  >
+                    {pet.species === 'dog' ? (
+                      <Dog className="w-3 h-3" />
+                    ) : (
+                      <Cat className="w-3 h-3" />
+                    )}
+                    <span>{pet.species === 'dog' ? 'Chó' : 'Mèo'} · {pet.breed}</span>
                   </span>
                 </div>
-                <p className="text-xs text-stone-600">
-                  {bk.serviceNames.join(', ')} ·{' '}
-                  <strong className="text-[#FF6F61]">
-                    {formatVndCurrency(bk.totalPriceVnd)}
-                  </strong>
-                </p>
-                {!bk.hasReviewed && (
-                  <button
-                    onClick={() => setReviewBookingId(bk.id)}
-                    className="text-[11px] font-bold text-[#FF6F61] underline flex items-center gap-1"
-                  >
-                    <Star className="w-3 h-3" /> Đánh giá giao dịch thật
-                  </button>
-                )}
-              </div>
-            ))}
-
-            {reviewBookingId && (
-              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
-                <p className="text-xs font-bold">Viết đánh giá xác thực cho Đối tác:</p>
-                <input
-                  type="text"
-                  value={reviewText}
-                  onChange={(e) => setReviewText(e.target.value)}
-                  placeholder="Chia sẻ trải nghiệm của Boss..."
-                  className="w-full px-3 py-1.5 rounded-xl bg-white border border-stone-200 text-xs"
-                />
-                <button
-                  onClick={() => {
-                    submitPartnerReview(
-                      reviewBookingId,
-                      5,
-                      reviewText || 'Dịch vụ rất chu đáo, Boss về nhà vui vẻ!'
-                    );
-                    setReviewBookingId(null);
-                    setReviewText('');
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-[#FF6F61] text-white text-xs font-bold"
-                >
-                  Gửi đánh giá 5 ⭐
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {subPanel === 'bookmarks' && (
-        <div className="px-4 mt-3">
-          <div className="p-4 rounded-3xl bg-white border border-stone-200 space-y-2">
-            <h3 className="font-display text-sm font-bold">
-              📌 Bộ sưu tập đã lưu (Thư mục: Mẹo chăm sóc)
-            </h3>
-            {bookmarkedPosts.length === 0 ? (
-              <p className="text-xs text-stone-500">Chưa có bài viết nào được lưu.</p>
-            ) : (
-              bookmarkedPosts.map((bp) => (
-                <div key={bp.id} className="p-2.5 rounded-xl bg-[#FDFBF7] border border-stone-100">
-                  <p className="text-xs font-bold">{bp.authorName}</p>
-                  <p className="text-[11px] text-stone-600 line-clamp-2">{bp.textContent}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 2-TAB PUBLIC PET PROFILE SWITCHER (Tầng 2 Section 5) */}
-      <div className="px-4 mt-4">
-        <div className="grid grid-cols-2 bg-stone-200/70 p-1 rounded-2xl">
-          <button
-            onClick={() => setActiveProfileTab('moments')}
-            className={`py-2 rounded-xl text-xs font-bold transition-all ${
-              activeProfileTab === 'moments'
-                ? 'bg-white text-[#2D3436] shadow-xs'
-                : 'text-stone-600'
-            }`}
-          >
-            📸 Khoảnh khắc ({petPosts.length + momentPhotos.length})
-          </button>
-          <button
-            onClick={() => setActiveProfileTab('bio')}
-            className={`py-2 rounded-xl text-xs font-bold transition-all ${
-              activeProfileTab === 'bio'
-                ? 'bg-white text-[#2D3436] shadow-xs'
-                : 'text-stone-600'
-            }`}
-          >
-            🟢 Hồ sơ & Sổ tiêm
-          </button>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* TAB 1: KHOẢNH KHẮC (3-COLUMN INSTAGRAM GRID) */}
+      {/* 2-Tab Switcher: Khoảnh khắc (Instagram Grid) vs Hồ sơ chi tiết & Tiêm chủng */}
+      <div
+        style={{ backgroundColor: theme.surface, borderColor: theme.border }}
+        className="grid grid-cols-2 p-1 rounded-2xl border"
+      >
+        <button
+          onClick={() => setActiveProfileTab('moments')}
+          style={{
+            backgroundColor: activeProfileTab === 'moments' ? theme.primary : 'transparent',
+            color: activeProfileTab === 'moments' ? '#FFFFFF' : theme.textSoft,
+          }}
+          className="py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+        >
+          <Grid className="w-3.5 h-3.5" />
+          <span>Khoảnh khắc ({petPosts.length + momentPhotos.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveProfileTab('bio')}
+          style={{
+            backgroundColor: activeProfileTab === 'bio' ? theme.primary : 'transparent',
+            color: activeProfileTab === 'bio' ? '#FFFFFF' : theme.textSoft,
+          }}
+          className="py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+        >
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>Hồ sơ {activePet.name}</span>
+        </button>
+      </div>
+
+      {/* TAB 1: KHOẢNH KHẮC (INSTAGRAM 3-COL GRID) */}
       {activeProfileTab === 'moments' ? (
-        <div className="px-4 mt-3 space-y-3">
+        <div className="space-y-3">
           <div className="grid grid-cols-3 gap-1.5">
             {momentPhotos.map((imgUrl, idx) => (
               <div
                 key={idx}
-                className="aspect-square rounded-2xl overflow-hidden bg-stone-100 relative group"
+                className="aspect-square rounded-xl overflow-hidden bg-stone-100"
               >
                 <img
                   src={imgUrl}
-                  alt={`${activePet.name} moment ${idx + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  alt={`${activePet.name} ${idx + 1}`}
+                  className="w-full h-full object-cover"
                 />
-                <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/60 text-white text-[10px] font-bold">
-                  🐾 {18 + idx * 7}
-                </span>
               </div>
             ))}
           </div>
           <button
             onClick={() => setActiveModal('new_moment')}
-            className="w-full py-2.5 rounded-2xl border-2 border-dashed border-[#FF6F61] text-[#FF6F61] text-xs font-bold"
+            style={{
+              borderColor: theme.primary,
+              color: theme.primary,
+              backgroundColor: theme.surface,
+            }}
+            className="w-full py-2.5 rounded-xl border text-xs font-bold"
           >
-            + Đăng thêm khoảnh khắc của {activePet.name}
+            Đăng ảnh / video mới của {activePet.name}
           </button>
         </div>
       ) : (
-        /* TAB 2: HỒ SƠ CHUYÊN SÂU & CARD XANH MINT SỔ TIÊM (Tầng 2 Section 5.1) */
-        <div className="px-4 mt-3 space-y-4">
-          {/* Mint Green Vaccination Certificate Card */}
-          <div className="p-4 rounded-3xl bg-[#A3E4D7]/45 border-2 border-[#A3E4D7] space-y-2.5 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-teal-600" />
-                <h3 className="font-display text-sm font-bold text-teal-950">
-                  🟢 Đã tiêm phòng đầy đủ (Safe Pet Verified)
-                </h3>
-              </div>
-              <Syringe className="w-4 h-4 text-teal-800" />
+        /* TAB 2: HỒ SƠ CHI TIẾT & 1 DẤU TÍCH TIÊM CHỦNG + PHÒNG DẠI */
+        <div className="space-y-3">
+          {/* Simplified 1-Tick Vaccination & Rabies Card */}
+          <button
+            onClick={() => {
+              const next = !isVaccinatedAndRabies;
+              setIsVaccinatedAndRabies(next);
+              showToast(
+                next
+                  ? `Đã đánh dấu ${activePet.name} tiêm chủng & phòng dại đầy đủ`
+                  : `Đã bỏ đánh dấu tiêm chủng của ${activePet.name}`,
+                'Trạng thái đã được cập nhật ngay trên hồ sơ.'
+              );
+            }}
+            style={{
+              backgroundColor: isVaccinatedAndRabies ? theme.primarySoft : theme.surface,
+              borderColor: isVaccinatedAndRabies ? theme.primary : theme.border,
+            }}
+            className="w-full p-3.5 rounded-2xl border flex items-center gap-3 text-left"
+          >
+            <div
+              style={{
+                backgroundColor: isVaccinatedAndRabies ? theme.primary : theme.bg,
+                borderColor: isVaccinatedAndRabies ? theme.primary : theme.border,
+              }}
+              className="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0"
+            >
+              {isVaccinatedAndRabies && <Check className="w-4 h-4 text-white stroke-[3]" />}
             </div>
-
-            <div className="space-y-1.5">
-              {activePet.vaccinations.map((v) => (
-                <div
-                  key={v.id}
-                  className="p-2.5 rounded-2xl bg-white/85 flex items-center justify-between text-xs"
-                >
-                  <div>
-                    <p className="font-bold text-teal-950">{v.vaccineName} ✓</p>
-                    <p className="text-[11px] text-stone-500">
-                      Ngày tiêm: {v.dateGiven} · Tái chủng: {v.nextDueDate || 'Hằng năm'}
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-[#A3E4D7] text-teal-950">
-                    Vet Verified
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Quick Add Vaccination Record */}
-            <div className="flex gap-1.5 pt-1">
-              <input
-                type="text"
-                value={newVaccineName}
-                onChange={(e) => setNewVaccineName(e.target.value)}
-                placeholder="Thêm mũi tiêm mới (VD: Tẩy giun / Dại)..."
-                className="flex-1 px-3 py-1.5 rounded-xl bg-white text-xs"
-              />
-              <button
-                onClick={() => {
-                  if (newVaccineName.trim()) {
-                    addVaccinationRecord(
-                      activePet.id,
-                      newVaccineName.trim(),
-                      '2026-10-29',
-                      activePet.vetName
-                    );
-                    setNewVaccineName('');
-                  }
-                }}
-                className="px-3 py-1.5 rounded-xl bg-teal-800 text-white text-xs font-bold"
+            <div className="flex-1">
+              <p
+                style={{ color: isVaccinatedAndRabies ? theme.primary : theme.text }}
+                className="text-xs font-extrabold"
               >
-                + Lưu sổ
+                Đã tiêm chủng & Phòng bệnh dại đầy đủ
+              </p>
+              <p style={{ color: theme.textSoft }} className="text-[11px] mt-0.5">
+                Chạm vào dấu tích để xác nhận trạng thái tiêm chủng và phòng dại của {activePet.name}
+              </p>
+            </div>
+          </button>
+
+          {/* Detailed Pet Attributes */}
+          <div
+            style={{ backgroundColor: theme.surface, borderColor: theme.border }}
+            className="p-4 rounded-2xl border space-y-2.5 text-xs"
+          >
+            <div className="flex items-center justify-between pb-1">
+              <h3 style={{ color: theme.text }} className="text-sm font-bold">
+                Thông tin chi tiết của {activePet.name}
+              </h3>
+              <button
+                onClick={() => setActiveModal('edit_profile')}
+                style={{ color: theme.primary }}
+                className="text-xs font-bold underline"
+              >
+                Chỉnh sửa
               </button>
             </div>
+            {[
+              { label: 'Loài thú cưng', val: activePet.species === 'dog' ? 'Chó' : 'Mèo' },
+              { label: 'Giống loài', val: activePet.breed },
+              { label: 'Giới tính', val: activePet.gender === 'male' ? 'Đực' : 'Cái' },
+              { label: 'Ngày sinh / Độ tuổi', val: `${activePet.dateOfBirth} (${activePet.ageDisplay})` },
+              {
+                label: 'Cân nặng & Phân nhóm',
+                val: `${activePet.weightKg}kg (${formatSizeCategoryLabel(activePet.sizeCategory)})`,
+              },
+              { label: 'Lưu ý dị ứng', val: activePet.allergies || 'Không có' },
+            ].map((row) => (
+              <div
+                key={row.label}
+                style={{ borderColor: theme.border }}
+                className="flex items-center justify-between py-1.5 border-b last:border-b-0"
+              >
+                <span style={{ color: theme.textSoft }} className="font-medium">
+                  {row.label}
+                </span>
+                <span style={{ color: theme.text }} className="font-bold">
+                  {row.val}
+                </span>
+              </div>
+            ))}
           </div>
 
-          {/* Basic Bio Details */}
-          <div className="p-4 rounded-3xl bg-white border border-stone-200/80 space-y-2.5">
-            <h3 className="font-display text-sm font-bold text-[#2D3436]">
-              📋 Thông tin cơ bản & Theo dõi cân nặng
-            </h3>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2.5 rounded-2xl bg-[#FDFBF7]">
-                <span className="text-stone-400 block text-[10px]">Giống</span>
-                <strong>{activePet.breed}</strong>
-              </div>
-              <div className="p-2.5 rounded-2xl bg-[#FDFBF7]">
-                <span className="text-stone-400 block text-[10px]">Tuổi</span>
-                <strong>{activePet.ageDisplay}</strong>
-              </div>
-              <div className="p-2.5 rounded-2xl bg-[#FDFBF7]">
-                <span className="text-stone-400 block text-[10px]">Cân nặng</span>
-                <strong>
-                  {activePet.weightKg}kg ({formatSizeCategoryLabel(activePet.sizeCategory)})
-                </strong>
-              </div>
-              <div className="p-2.5 rounded-2xl bg-[#FDFBF7]">
-                <span className="text-stone-400 block text-[10px]">Mức năng lượng & Triệt sản</span>
-                <strong>
-                  {activePet.energyLevel.toUpperCase()} ⚡ ·{' '}
-                  {activePet.isNeutered ? 'Đã triệt sản' : 'Chưa'}
-                </strong>
-              </div>
-            </div>
-
-            {/* Weight Progression Mini Chart */}
-            <div className="pt-2">
-              <p className="text-[11px] font-bold text-stone-500 mb-2">
-                📈 Biểu đồ cân nặng theo tháng:
-              </p>
-              <div className="flex items-end gap-2 h-16 px-2">
-                {activePet.weightHistory.map((w) => (
-                  <div key={w.date} className="flex-1 flex flex-col items-center gap-1">
-                    <span className="text-[10px] font-mono font-bold text-[#FF6F61]">
-                      {w.weightKg}kg
-                    </span>
-                    <div
-                      style={{ height: `${Math.min(44, Math.max(16, w.weightKg * 1.4))}px` }}
-                      className="w-full rounded-t-lg bg-[#FF6F61]/80"
-                    />
-                    <span className="text-[9px] text-stone-400">{w.date}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Good Habits & Fight Prevention Cautions */}
-          <div className="p-4 rounded-3xl bg-white border border-stone-200/80 space-y-3">
+          {/* Habits & Cautions Card */}
+          <div
+            style={{ backgroundColor: theme.surface, borderColor: theme.border }}
+            className="p-4 rounded-2xl border space-y-3"
+          >
             <div>
-              <h4 className="text-xs font-extrabold text-teal-800 mb-1.5">✅ Thói quen tốt</h4>
+              <h4 style={{ color: theme.text }} className="text-xs font-bold mb-2">
+                Tính cách & Thói quen tốt
+              </h4>
               <div className="flex flex-wrap gap-1.5">
                 {goodHabits.map((g) => (
                   <span
                     key={g.id}
-                    className="px-3 py-1 rounded-full bg-[#A3E4D7]/40 text-teal-950 text-xs font-bold"
+                    style={{
+                      backgroundColor: theme.primarySoft,
+                      color: theme.primary,
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold"
                   >
                     {g.label}
                   </span>
@@ -505,27 +441,41 @@ export const ProfileScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-2 border-t border-stone-100">
-              <h4 className="text-xs font-extrabold text-amber-800 mb-1.5">
-                ⚠️ Cần lưu ý (Minh bạch hành vi tránh cắn nhau)
+            <div style={{ borderColor: theme.border }} className="pt-3 border-t">
+              <h4
+                style={{ color: '#C88A2E' }}
+                className="text-xs font-bold mb-2 flex items-center gap-1"
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Lưu ý khi tiếp xúc</span>
               </h4>
-              <div className="flex flex-wrap gap-1.5 mb-2">
+              <div className="flex flex-wrap gap-1.5 mb-2.5">
                 {cautions.map((c) => (
                   <span
                     key={c.id}
-                    className="px-3 py-1 rounded-full bg-amber-100 text-amber-950 text-xs font-bold"
+                    style={{
+                      backgroundColor: '#FDF5E6',
+                      color: '#9A6519',
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold"
                   >
                     {c.label}
                   </span>
                 ))}
               </div>
+
               <div className="flex gap-1.5">
                 <input
                   type="text"
                   value={newCautionChip}
                   onChange={(e) => setNewCautionChip(e.target.value)}
-                  placeholder="Thêm lưu ý hành vi (VD: Sợ người lạ)..."
-                  className="flex-1 px-3 py-1.5 rounded-xl bg-stone-50 border border-stone-200 text-xs"
+                  placeholder="Thêm lưu ý (VD: Sợ tiếng máy sấy lớn)..."
+                  style={{
+                    backgroundColor: theme.bg,
+                    borderColor: theme.border,
+                    color: theme.text,
+                  }}
+                  className="flex-1 px-3 py-2 rounded-xl border text-xs focus:outline-none"
                 />
                 <button
                   onClick={() => {
@@ -534,21 +484,12 @@ export const ProfileScreen: React.FC = () => {
                       setNewCautionChip('');
                     }
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold flex items-center gap-1"
+                  style={{ backgroundColor: theme.primary }}
+                  className="px-3.5 py-2 rounded-xl text-white text-xs font-bold"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Thêm
+                  Thêm
                 </button>
               </div>
-            </div>
-
-            <div className="pt-2 border-t border-stone-100 text-xs">
-              <p className="font-bold text-[#2D3436]">🏥 Bác sĩ thú y phụ trách</p>
-              <p className="text-stone-600 mt-0.5">
-                {activePet.vetName} ({activePet.vetContact})
-              </p>
-              <p className="text-[11px] text-red-600 font-semibold mt-1">
-                Lưu ý dị ứng: {activePet.allergies}
-              </p>
             </div>
           </div>
         </div>
@@ -556,4 +497,3 @@ export const ProfileScreen: React.FC = () => {
     </div>
   );
 };
-
