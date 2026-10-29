@@ -1,22 +1,39 @@
 # Tầng 2 — Đặc tả Mạng xã hội Thú cưng (Pet Social Network)
 
 > Tất cả tính năng mạng xã hội đều custom riêng cho thú cưng — từ content type, thuật toán gợi ý, hệ thống tương tác đến sàng lọc nội dung.
+> **Cập nhật Quy chuẩn Đăng bài & Khám phá:**
+>
+> - Khi đăng bài bắt buộc hỗ trợ **Đính kèm hình ảnh**, **Chọn phân loại bài viết** (`Nhật ký hàng ngày`, `Mẹo chăm nuôi`, `Hỏi kinh nghiệm`, `Đánh giá dịch vụ`) và **Gợi ý Hashtag một chạm**.
+> - Toàn bộ biểu tượng cảm xúc và điều hướng sử dụng **Vector Icons** (`lucide-react`), tuyệt đối không lạm dụng emoji.
 
 ---
 
-## 1. Triết lý Mạng xã hội Thú cưng
+## 1. Triết lý Mạng xã hội Thú cưng (Instagram & Tinder Style — "Những bàn chân nhỏ đang tới")
+
+- **Chốt Khám phá = Bảng tin chính:** Khi mở ứng dụng, người dùng vào thẳng trang `Khám phá` (Bảng tin mạng xã hội). Tách `Kết nối` (Tinder), `Dịch vụ`, `Lịch hẹn`, `Tin nhắn`, `Tôi` thành các nhánh chính độc lập, và `SOS` mở toàn màn hình từ nút góc trên phải.
+- **Header Động theo Nhánh chính (Dynamic Contextual Header):**
+  - Nhánh `Khám phá`: Bên trái là nút `+` (Đăng bài mới), ở giữa là 1 logo duy nhất (`pawty-logo-full.png`), bên phải là nút `SOS` (mở trang Bảng tin Thú lạc toàn màn hình) và `Thông báo`.
+  - Nhánh `Tôi` (Chuẩn Instagram): Bên trái là nút `+`, chính giữa là biểu tượng khóa `🔒` (nếu bật chế độ riêng tư) + `@username` + `⌄`, bên phải là nút `Plus` và nút Menu `☰` (mở trang **Cài đặt của tôi** chứa công tắc Chế độ Riêng tư, phiên thiết bị, giao diện).
+  - Các nhánh `Kết nối`, `Dịch vụ`, `Lịch hẹn`, `Tin nhắn`, `SOS`: Header tự động chuyển sang tiêu đề và công cụ đặc thù của nhánh đó.
+- **Đăng bài & Phóng to vuốt chuyển ảnh:**
+  - Khi đăng bài: **Bỏ phần phân loại bài viết** và **bỏ phần chọn định dạng phương tiện** (lấy chung cả ảnh và video trong 1 thao tác chọn từ thư viện điện thoại `expo-image-picker` hoặc chụp mới).
+  - **Hashtag:** Cho phép **nhập hashtag tự do** kết hợp chọn từ danh sách gợi ý.
+  - Khi bài viết có nhiều ảnh: Hỗ trợ **gạt ngang (swipe)** để chuyển ảnh ngay trên bài đăng và khi **phóng to toàn màn hình (Lightbox)** cũng gạt ngang để chuyển ảnh mượt mà.
+- **Ràng buộc đăng nhập 1 thiết bị & Chống bàn phím che ô nhập:**
+  - Mỗi tài khoản chỉ đăng nhập hoạt động trên 1 thiết bị duy nhất tại 1 thời điểm.
+  - Màn hình tạo tài khoản mới tự động đẩy ô nhập lên trên bàn phím (`KeyboardAvoidingView` + cuộn tự động).
 
 ### Khác biệt với MXH tổng hợp
 
-| Yếu tố | Instagram/Facebook | **Pawty Social** |
-|---|---|---|
-| Đơn vị chính | Người | **Thú cưng (Boss)** |
-| Profile | Cá nhân | **Hồ sơ Boss** (chủ nuôi là người quản lý) |
-| Nội dung | Mọi thứ | **Chỉ thú cưng** — kiểm duyệt nghiêm |
-| Tương tác | Like ❤️ | **Paw 🐾** — cảm xúc riêng cho pet |
-| Thuật toán | Engagement-maximizing | **Purpose-driven** — ưu tiên giúp ích |
-| Quảng cáo | Mọi ngành | **Chỉ pet-related** — từ đối tác xác minh |
-| Kết nối | Social graph | **Care graph** — theo nhu cầu chăm sóc |
+| Yếu tố       | Instagram/Facebook    | **Pawty Social**                           |
+| ------------ | --------------------- | ------------------------------------------ |
+| Đơn vị chính | Người                 | **Thú cưng (Boss)**                        |
+| Profile      | Cá nhân               | **Hồ sơ Boss** (chủ nuôi là người quản lý) |
+| Nội dung     | Mọi thứ               | **Chỉ thú cưng** — kiểm duyệt nghiêm       |
+| Tương tác    | Like ❤️               | **Paw 🐾** — cảm xúc riêng cho pet         |
+| Thuật toán   | Engagement-maximizing | **Purpose-driven** — ưu tiên giúp ích      |
+| Quảng cáo    | Mọi ngành             | **Chỉ pet-related** — từ đối tác xác minh  |
+| Kết nối      | Social graph          | **Care graph** — theo nhu cầu chăm sóc     |
 
 ### Nguyên tắc Content
 
@@ -30,15 +47,15 @@
 
 ### 2.1 Content Types
 
-| Loại | Mô tả | Ví dụ |
-|---|---|---|
-| **Moment** | Ảnh/video khoảnh khắc Boss | "Lu sáng nay nghịch nước" 📸 |
-| **Care Log** | Ghi chú chăm sóc có thể chia sẻ | "Mới tiêm phòng mũi 2 xong!" |
-| **Question** | Hỏi cộng đồng | "Boss 3 tháng bỏ ăn bình thường không?" |
-| **Tip** | Chia sẻ kinh nghiệm/mẹo | "Cách tập cho cún đi toilet" |
-| **Place Review** | Đánh giá địa điểm pet-friendly | "Quán cafe XYZ cho mang pet 🌟" |
-| **Event** | Buổi gặp, hoạt động cộng đồng | "Offline dắt cún Q2 Chủ nhật này" |
-| **Service Review** | Đánh giá dịch vụ đã sử dụng | "Review spa ABC — grooming tốt" |
+| Loại               | Mô tả                           | Ví dụ                                   |
+| ------------------ | ------------------------------- | --------------------------------------- |
+| **Moment**         | Ảnh/video khoảnh khắc Boss      | "Lu sáng nay nghịch nước" 📸            |
+| **Care Log**       | Ghi chú chăm sóc có thể chia sẻ | "Mới tiêm phòng mũi 2 xong!"            |
+| **Question**       | Hỏi cộng đồng                   | "Boss 3 tháng bỏ ăn bình thường không?" |
+| **Tip**            | Chia sẻ kinh nghiệm/mẹo         | "Cách tập cho cún đi toilet"            |
+| **Place Review**   | Đánh giá địa điểm pet-friendly  | "Quán cafe XYZ cho mang pet 🌟"         |
+| **Event**          | Buổi gặp, hoạt động cộng đồng   | "Offline dắt cún Q2 Chủ nhật này"       |
+| **Service Review** | Đánh giá dịch vụ đã sử dụng     | "Review spa ABC — grooming tốt"         |
 
 ### 2.2 Post Structure
 
@@ -46,7 +63,7 @@
 {
   "post_id": "uuid",
   "author_id": "uuid",
-  "pet_ids": ["uuid"],           // Tag Boss nào xuất hiện
+  "pet_ids": ["uuid"], // Tag Boss nào xuất hiện
   "content_type": "moment | care_log | question | tip | place_review | event | service_review",
   "text": "string (max 2000 chars)",
   "media": [
@@ -60,7 +77,7 @@
   "hashtags": ["#GoldenRetriever", "#MèoCon"],
   "location": {
     "name": "Vinhomes Central Park",
-    "approximate": true          // Chỉ hiển thị khu vực, không chính xác
+    "approximate": true // Chỉ hiển thị khu vực, không chính xác
   },
   "species_tags": ["dog", "cat"],
   "breed_tags": ["golden_retriever"],
@@ -68,7 +85,7 @@
   "visibility": "public | circle_only | private",
   "is_expert_content": false,
   "expert_verified": false,
-  "health_disclaimer": false,    // Auto-true nếu chứa từ khóa sức khỏe
+  "health_disclaimer": false, // Auto-true nếu chứa từ khóa sức khỏe
   "created_at": "ISO 8601",
   "engagement": {
     "paw_count": 0,
@@ -81,12 +98,12 @@
 
 ### 2.3 Media Guidelines
 
-| Quy định | Chi tiết |
-|---|---|
-| Ảnh | Max 10 ảnh/post, max 10MB/ảnh, JPEG/PNG/WebP |
-| Video | Max 1 video/post, max 60s MVP (mở rộng 3 phút sau), max 100MB, MP4/MOV |
-| Thumbnail | Auto-generated, lazy loading |
-| Image Moderation | AI scan + manual review nếu bị flag |
+| Quy định         | Chi tiết                                                               |
+| ---------------- | ---------------------------------------------------------------------- |
+| Ảnh              | Max 10 ảnh/post, max 10MB/ảnh, JPEG/PNG/WebP                           |
+| Video            | Max 1 video/post, max 60s MVP (mở rộng 3 phút sau), max 100MB, MP4/MOV |
+| Thumbnail        | Auto-generated, lazy loading                                           |
+| Image Moderation | AI scan + manual review nếu bị flag                                    |
 
 ## 3. Hệ thống Tương tác (Engagement System)
 
@@ -94,13 +111,13 @@
 
 Thay vì Like đơn giản, Pawty có hệ thống reaction custom cho thú cưng:
 
-| Reaction | Icon | Ý nghĩa | Code |
-|---|---|---|---|
-| **Paw** | 🐾 | Thích / Dễ thương | `paw` |
-| **Heart Eyes** | 😍 | Yêu quá! | `heart_eyes` |
-| **Laughing** | 😂 | Hài quá Boss! | `laughing` |
-| **Worried** | 😟 | Lo lắng / Thương Boss | `worried` |
-| **Helpful** | 💡 | Hữu ích (cho Tip/Q&A) | `helpful` |
+| Reaction       | Icon | Ý nghĩa               | Code         |
+| -------------- | ---- | --------------------- | ------------ |
+| **Paw**        | 🐾   | Thích / Dễ thương     | `paw`        |
+| **Heart Eyes** | 😍   | Yêu quá!              | `heart_eyes` |
+| **Laughing**   | 😂   | Hài quá Boss!         | `laughing`   |
+| **Worried**    | 😟   | Lo lắng / Thương Boss | `worried`    |
+| **Helpful**    | 💡   | Hữu ích (cho Tip/Q&A) | `helpful`    |
 
 - Tap nhanh = Paw (mặc định)
 - Long press = Mở reaction picker với animation
@@ -113,8 +130,8 @@ Thay vì Like đơn giản, Pawty có hệ thống reaction custom cho thú cưn
   "post_id": "uuid",
   "author_id": "uuid",
   "text": "string (max 500 chars)",
-  "reply_to": "uuid | null",      // Nested comments (1 cấp)
-  "is_expert": false,             // Badge chuyên gia
+  "reply_to": "uuid | null", // Nested comments (1 cấp)
+  "is_expert": false, // Badge chuyên gia
   "mentions": ["@username"],
   "reactions": { "paw": 0, "helpful": 0 },
   "created_at": "ISO 8601"
@@ -122,6 +139,7 @@ Thay vì Like đơn giản, Pawty có hệ thống reaction custom cho thú cưn
 ```
 
 **Quy tắc comment:**
+
 - Nested reply chỉ 1 cấp (tránh phức tạp)
 - Expert comments hiển thị trước + badge xanh mint
 - Bình luận chứa từ khóa sức khỏe kèm auto-disclaimer
@@ -129,12 +147,12 @@ Thay vì Like đơn giản, Pawty có hệ thống reaction custom cho thú cưn
 
 ### 3.3 Share System
 
-| Loại chia sẻ | Mô tả |
-|---|---|
-| Share to Feed | Chia sẻ lên feed cá nhân kèm caption |
-| Share to Circle | Chia sẻ riêng cho vòng chăm sóc |
-| Share to Group | Chia sẻ vào nhóm cộng đồng |
-| External Share | Tạo link/ảnh để chia sẻ ngoài app (watermark Pawty) |
+| Loại chia sẻ    | Mô tả                                               |
+| --------------- | --------------------------------------------------- |
+| Share to Feed   | Chia sẻ lên feed cá nhân kèm caption                |
+| Share to Circle | Chia sẻ riêng cho vòng chăm sóc                     |
+| Share to Group  | Chia sẻ vào nhóm cộng đồng                          |
+| External Share  | Tạo link/ảnh để chia sẻ ngoài app (watermark Pawty) |
 
 ### 3.4 Save / Bookmark
 
@@ -152,39 +170,42 @@ Thay vì Like đơn giản, Pawty có hệ thống reaction custom cho thú cưn
 
 Feed pha trộn từ nhiều nguồn, với tỷ lệ mục tiêu:
 
-| Nguồn | Tỷ lệ | Mô tả |
-|---|---|---|
-| Circle & Following | 40% | Người đã follow/Circle |
-| Local Community | 25% | Cùng khu vực, cùng nhóm |
-| Discovery | 20% | Nội dung hay từ ngoài mạng lưới |
-| Expert & Helpful | 10% | Nội dung chuyên gia, Q&A hữu ích |
-| Partner Content | 5% | Từ đối tác xác minh (ghi rõ "Tài trợ") |
+| Nguồn              | Tỷ lệ | Mô tả                                  |
+| ------------------ | ----- | -------------------------------------- |
+| Circle & Following | 40%   | Người đã follow/Circle                 |
+| Local Community    | 25%   | Cùng khu vực, cùng nhóm                |
+| Discovery          | 20%   | Nội dung hay từ ngoài mạng lưới        |
+| Expert & Helpful   | 10%   | Nội dung chuyên gia, Q&A hữu ích       |
+| Partner Content    | 5%    | Từ đối tác xác minh (ghi rõ "Tài trợ") |
 
 ### 4.3 Ranking Signals
 
-| Signal | Weight | Mô tả |
-|---|---|---|
-| **Relevance** | 30% | Cùng loài, giống, vấn đề tương tự |
-| **Recency** | 25% | Mới hơn ưu tiên hơn |
-| **Engagement Quality** | 20% | Comment dài > Paw > View |
-| **Author Trust** | 15% | Đánh giá tốt, nội dung chất lượng, expert badge |
-| **Proximity** | 10% | Gần về địa lý |
+| Signal                 | Weight | Mô tả                                           |
+| ---------------------- | ------ | ----------------------------------------------- |
+| **Relevance**          | 30%    | Cùng loài, giống, vấn đề tương tự               |
+| **Recency**            | 25%    | Mới hơn ưu tiên hơn                             |
+| **Engagement Quality** | 20%    | Comment dài > Paw > View                        |
+| **Author Trust**       | 15%    | Đánh giá tốt, nội dung chất lượng, expert badge |
+| **Proximity**          | 10%    | Gần về địa lý                                   |
 
 ### 4.4 Content Boost & Demotion
 
 **Boost (+):**
+
 - Nội dung được expert xác nhận
 - Q&A có answer được mark "Helpful" nhiều
 - Care tips có ảnh/video minh họa
 - Post đầu tiên của người dùng mới (khuyến khích tham gia)
 
 **Demotion (-):**
+
 - Clickbait (AI detect)
 - Nội dung spam/trùng lặp
 - Post không liên quan thú cưng
 - Engagement bait ("Like nếu yêu Boss")
 
 **Block:**
+
 - Mua bán thú cưng
 - Phối giống
 - Bạo lực / ngược đãi
@@ -196,6 +217,7 @@ Feed pha trộn từ nhiều nguồn, với tỷ lệ mục tiêu:
 ### 5.1 Layout: 2 Tab
 
 #### Tab 1: "Khoảnh khắc" (Moments)
+
 ```
 ┌──────────────────────────────────┐
 │  🖼️ Cover Photo (Boss)          │
@@ -222,6 +244,7 @@ Feed pha trộn từ nhiều nguồn, với tỷ lệ mục tiêu:
 ```
 
 #### Tab 2: "Hồ sơ" (Bio & Care Info)
+
 ```
 ┌──────────────────────────────────┐
 │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
@@ -287,20 +310,20 @@ Published / Removed
 
 ### 6.2 Content Categories & Rules
 
-| Category | Cho phép | Kiểm duyệt | Cấm |
-|---|---|---|---|
-| Khoảnh khắc Boss | ✅ | | |
-| Mẹo chăm sóc | ✅ | Gắn disclaimer nếu liên quan sức khỏe | |
-| Review địa điểm | ✅ | | |
-| Hỏi đáp | ✅ | Expert answer ưu tiên | |
-| Mua bán thú cưng | | | ❌ |
-| Phối giống | | | ❌ |
-| Tự chữa bệnh/kê đơn | | | ❌ |
-| Bạo lực/ngược đãi | | | ❌ |
-| Nội dung người lớn | | | ❌ |
-| Quảng cáo trá hình | | | ❌ |
-| Spam/scam | | | ❌ |
-| Chính trị/tôn giáo | | | ❌ |
+| Category            | Cho phép | Kiểm duyệt                            | Cấm |
+| ------------------- | -------- | ------------------------------------- | --- |
+| Khoảnh khắc Boss    | ✅       |                                       |     |
+| Mẹo chăm sóc        | ✅       | Gắn disclaimer nếu liên quan sức khỏe |     |
+| Review địa điểm     | ✅       |                                       |     |
+| Hỏi đáp             | ✅       | Expert answer ưu tiên                 |     |
+| Mua bán thú cưng    |          |                                       | ❌  |
+| Phối giống          |          |                                       | ❌  |
+| Tự chữa bệnh/kê đơn |          |                                       | ❌  |
+| Bạo lực/ngược đãi   |          |                                       | ❌  |
+| Nội dung người lớn  |          |                                       | ❌  |
+| Quảng cáo trá hình  |          |                                       | ❌  |
+| Spam/scam           |          |                                       | ❌  |
+| Chính trị/tôn giáo  |          |                                       | ❌  |
 
 ### 6.3 Health Content Protocol
 
@@ -322,13 +345,13 @@ Khi phát hiện nội dung liên quan sức khỏe:
 
 ### 7.1 Group Types
 
-| Loại | Ví dụ | Ai tạo |
-|---|---|---|
-| **Khu vực** | "Pet Lovers Vinhomes Q9" | Auto-generated theo khu |
-| **Giống** | "Hội Golden Retriever SG" | User-created |
-| **Nhu cầu** | "Hỏi đáp sức khỏe Boss" | Pawty + Expert mod |
-| **Hoạt động** | "Nhóm dắt dạo sáng Q7" | User-created |
-| **Đối tác** | "PetSpa ABC — Tin tức" | Partner-created |
+| Loại          | Ví dụ                     | Ai tạo                  |
+| ------------- | ------------------------- | ----------------------- |
+| **Khu vực**   | "Pet Lovers Vinhomes Q9"  | Auto-generated theo khu |
+| **Giống**     | "Hội Golden Retriever SG" | User-created            |
+| **Nhu cầu**   | "Hỏi đáp sức khỏe Boss"   | Pawty + Expert mod      |
+| **Hoạt động** | "Nhóm dắt dạo sáng Q7"    | User-created            |
+| **Đối tác**   | "PetSpa ABC — Tin tức"    | Partner-created         |
 
 ### 7.2 Group Governance
 
@@ -341,15 +364,15 @@ Khi phát hiện nội dung liên quan sức khỏe:
 
 ### 8.1 Hashtag Categories
 
-| Category | Ví dụ | Auto-suggest |
-|---|---|---|
-| **Loài** | #Chó, #Mèo, #Hamster | ✅ |
-| **Giống** | #GoldenRetriever, #MèoAnh, #Corgi | ✅ |
-| **Hoạt động** | #DắtDạo, #Grooming, #Swimming | ✅ |
-| **Sức khỏe** | #TiêmPhòng, #Triệtsản, #GiảmCân | ✅ + disclaimer |
-| **Địa điểm** | #VinhomesQ9, #ParkQ7 | ✅ |
-| **Trending** | #BossNghịch, #MèoNgủ | Dynamic |
-| **Sự kiện** | #PawtyMeetupQ9, #DogDaySG | Event-linked |
+| Category      | Ví dụ                             | Auto-suggest    |
+| ------------- | --------------------------------- | --------------- |
+| **Loài**      | #Chó, #Mèo, #Hamster              | ✅              |
+| **Giống**     | #GoldenRetriever, #MèoAnh, #Corgi | ✅              |
+| **Hoạt động** | #DắtDạo, #Grooming, #Swimming     | ✅              |
+| **Sức khỏe**  | #TiêmPhòng, #Triệtsản, #GiảmCân   | ✅ + disclaimer |
+| **Địa điểm**  | #VinhomesQ9, #ParkQ7              | ✅              |
+| **Trending**  | #BossNghịch, #MèoNgủ              | Dynamic         |
+| **Sự kiện**   | #PawtyMeetupQ9, #DogDaySG         | Event-linked    |
 
 ### 8.2 Explore/Discover Page
 
@@ -381,17 +404,16 @@ Khi phát hiện nội dung liên quan sức khỏe:
 
 ## 9. Notification Strategy cho Social
 
-| Event | Push | In-app | Mặc định |
-|---|---|---|---|
-| Người follow mới | ❌ | ✅ | On |
-| Paw trên post | ❌ | ✅ | On (batch) |
-| Comment trên post | ✅ | ✅ | On |
-| Reply comment | ✅ | ✅ | On |
-| Mention (@) | ✅ | ✅ | On |
-| Post mới từ Circle | ❌ | ✅ | On |
-| Trending trong khu | ❌ | ✅ | Off |
-| Expert trả lời Q&A | ✅ | ✅ | On |
+| Event              | Push | In-app | Mặc định   |
+| ------------------ | ---- | ------ | ---------- |
+| Người follow mới   | ❌   | ✅     | On         |
+| Paw trên post      | ❌   | ✅     | On (batch) |
+| Comment trên post  | ✅   | ✅     | On         |
+| Reply comment      | ✅   | ✅     | On         |
+| Mention (@)        | ✅   | ✅     | On         |
+| Post mới từ Circle | ❌   | ✅     | On         |
+| Trending trong khu | ❌   | ✅     | Off        |
+| Expert trả lời Q&A | ✅   | ✅     | On         |
 
 > [!TIP]
 > Batch paw notifications: "Lu, Miu và 12 Boss khác đã 🐾 bài viết của bạn" — tránh spam notification.
-

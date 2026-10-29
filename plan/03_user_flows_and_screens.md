@@ -1,10 +1,33 @@
 # Tầng 3 — Luồng Người dùng & Đặc tả Màn hình
 
 > Chi tiết từng màn hình, trạng thái, micro-interactions và luồng chuyển tiếp.
+> **Cập nhật Quy chuẩn Thiết kế Tối giản Ấm áp (Warm Minimalism):**
+> 1. **Mở đầu, Đăng nhập & Tạo tài khoản:** Hiển thị Logo Pawty chính thức (`/assets/pawty-logo-full.png`, `/assets/pawty-icon.png`), hỗ trợ Đăng nhập / Tạo tài khoản mới hoặc tự động vào thẳng app nếu đã lưu phiên đăng nhập.
+> 2. **Safe Area chuẩn Điện thoại:** Tự động chừa khoảng trống cho thanh trạng thái (Wi-Fi, Pin, Giờ) phía trên và thanh điều hướng 3 nút / nút trợ năng phía dưới (Android Pixel, Samsung, iOS).
+> 3. **100% Vector Icons & Cá nhân hóa Theme:** Loại bỏ toàn bộ emoji, thay bằng Vector Icons (`lucide-react-native` / `lucide-react`). Người dùng chọn được 4 Theme ấm áp tại Cài đặt (`San Hô Ấm`, `Xanh Lá Dịu`, `Nâu Latte`, `Tối Dịu Mắt`).
+> 4. **100% Tiếng Việt tự nhiên & Xóa thông tin Dev:** Loại bỏ toàn bộ tiếng Anh và thông tin kỹ thuật nội bộ khỏi giao diện. Văn phong ngắn gọn, gần gũi như lời nói hằng ngày.
+> 5. **Màn hình Hôm nay chia 3 Tab độc lập:** Tách thành 3 tab (`Việc hôm nay`, `Lịch hẹn`, `Cùng chăm`) để hiển thị gọn trên 1 khung hình thay vì dồn chung 1 trang dài.
+> 6. **Mời thành viên Cùng chăm qua `@tag` & Thông báo:** Tìm kiếm và tag người dùng (`@tag`), gửi lời mời qua thông báo; khi người nhận bấm Chấp nhận thì thú cưng sẽ được thêm vào danh sách quản lý chung (bỏ trường mối quan hệ).
+> 7. **Khám phá hiển thị trọn trong 1 khung hình:** Sử dụng 4 mục vừa khít chiều ngang màn hình (`Bảng tin`, `Cộng đồng`, `Dịch vụ`, `Quanh đây`) kèm bộ lọc Selector bên trong, không cuộn ngang tràn lề. Khi đăng bài có đính kèm ảnh, chọn phân loại bài viết và gợi ý hashtag.
+> 8. **Tin nhắn (Chat):** Có thanh tìm kiếm bạn bè theo tên/`@tag` và bộ lọc `Tất cả`, `Chưa đọc`, `Cùng chăm`, `Bạn bè`, `Dịch vụ`.
+> 9. **Hồ sơ & Cài đặt:** Quản lý Hồ sơ Thú cưng như 1 đối tượng thống nhất kèm thuộc tính `Loài thú` (`Chó` / `Mèo`), tích hợp đầy đủ Chỉnh sửa hồ sơ và Cài đặt.
 
 ---
 
-## 1. Tổng quan Navigation
+## 1. Tổng quan Navigation (Kiến trúc mới — "Những bàn chân nhỏ đang tới")
+
+- **Màn hình Mở đầu (Load / Đăng nhập):** Hiển thị Logo Pawty chính thức kèm khẩu hiệu hệ sinh thái **"Những bàn chân nhỏ đang tới"**.
+- **Header chuẩn Instagram (1 Logo duy nhất):** Nút `+` (Đăng bài) bên trái, 1 Logo `Pawty` ở giữa, nút `SOS` (Bảng tin Thú lạc) và `Thông báo` bên phải.
+- **Xóa bỏ hoàn toàn Chăm chung (Circle), Todo (Việc hôm nay) & Theo dõi sức khỏe rườm rà:** Trang chính mặc định khi vào ứng dụng là **`Khám phá`**.
+- **Thanh Điều hướng Dưới Đáy (Bottom Tab Bar — Bỏ nút dấu `+` ở dưới đáy):**
+  1. **`Khám phá`** (Bảng tin MXH Instagram-style, tìm kiếm có lịch sử & thịnh hành, đăng nhiều ảnh/video, phóng to ảnh, chia sẻ bài viết, xem profile người dùng).
+  2. **`Hẹn hò`** (Chức năng Tinder quẹt thẻ kéo thả trực tiếp — Chọn mong muốn: Hẹn hò, Tìm bạn chơi chung, Giao lưu; tích hợp khóa tính năng Premium riêng; Match chuyển thẳng sang Tin nhắn).
+  3. **`Dịch vụ`** (Tab chính riêng biệt để tìm và đặt lịch Spa, Thú y, Khách sạn thú cưng).
+  4. **`Lịch hẹn`** (Tab chính riêng biệt để quản lý lịch hẹn Spa, Thú y đã đặt).
+  5. **`Tin nhắn`** (Nhắn tin với bạn bè và người đã Match từ Tinder — xóa các nút hẹn đi dạo/bàn giao cũ).
+  6. **`Tôi`** (Trang cá nhân kiểu Instagram, chỉnh sửa đầy đủ thông tin thú cưng, tiêm chủng gộp gọn thành 1 dấu Tick xác nhận `Đã tiêm chủng & Phòng dại`, chế độ Riêng tư chỉ cho Bạn bè hoặc người đã Match Tinder xem, xem đầy đủ danh sách gói VIP kể cả khi đang là VIP).
+- **Cử chỉ Back & Nút Back Phần cứng (`BackHandler`):** Vuốt Back hoặc bấm nút Back trên điện thoại sẽ lùi từng bước tương ứng với nút Back trong ứng dụng, không bị văng thoát app.
+- **Cổng SOS Thú Lạc Chuyên Biệt:** Tách riêng khỏi màn hình chính; có phí cam kết nhỏ (19.000đ) chống spam, thuật toán ưu tiên bán kính động (`Geo-Sighting Boost`) chống trôi bài mà không làm phiền người dùng, và quy trình xác nhận tìm thấy + tự động cảm ơn người hỗ trợ.
 
 ### Bottom Tab Bar (5 tabs)
 
