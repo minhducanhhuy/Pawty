@@ -27,7 +27,7 @@ export const INITIAL_USER: UserProfile = {
   username: 'mai_petmom',
   avatarUrl:
     'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
-  bio: 'Sen của Lu (Golden) & Bơ (Mèo Anh). Thích dắt dạo sáng cuối tuần ở Vinhomes Grand Park Q9 🐾',
+  bio: 'Nuôi Lu và Bơ. Hay đi bộ buổi chiều quanh công viên nội khu Vinhomes Q9.',
   district: 'TP. Thủ Đức (Quận 9)',
   neighborhood: 'Vinhomes Grand Park - Khu Rainbow',
   location: { lat: 10.8412, lng: 106.8286 },
@@ -362,7 +362,7 @@ export const INITIAL_POSTS: SocialPost[] = [
       'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=300&q=80',
     contentType: 'moment',
     textContent:
-      'Lu sáng nay tắm xong thơm phức, nghịch máy sấy suýt rớt khỏi bàn grooming luôn 😂 Cuối tuần này có Boss nào ở Vinhomes Q9 ra công viên ánh sáng chạy bộ chung không?',
+      'Lu sáng nay tắm xong thơm phức, chạy ra sân cỏ phơi nắng liền. Cuối tuần này nhà nào ở Vinhomes Q9 rảnh cho các bé ra chạy bộ chung không?',
     media: [
       {
         type: 'image',
@@ -450,7 +450,7 @@ export const INITIAL_POSTS: SocialPost[] = [
       'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&q=80',
     contentType: 'tip',
     textContent:
-      '💡 3 Dấu hiệu phân biệt Boss bị say nắng khi đi dạo trưa vs mệt thông thường:\n1. Thở gấp kèm lưỡi đỏ sẫm hoặc tím tái.\n2. Chảy nước dãi đặc, bước đi loạng choạng.\n3. Nhiệt độ cơ thể > 40°C.\nHãy luôn mang theo bình nước gấp gọn và tránh mặt đường nhựa nóng từ 10h–16h nhé!',
+      '3 dấu hiệu phân biệt chó bị say nắng khi đi dạo trưa và mệt thông thường:\n1. Thở gấp kèm lưỡi đỏ sẫm.\n2. Chảy nước dãi đặc, bước đi chậm.\n3. Thân nhiệt cao.\nNên mang theo bình nước gấp gọn và tránh mặt đường nhựa nóng từ 10h đến 16h.',
     media: [
       {
         type: 'image',
@@ -523,7 +523,7 @@ export const INITIAL_POSTS: SocialPost[] = [
       'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=300&q=80',
     contentType: 'question',
     textContent:
-      '❓ Hỏi cộng đồng: Bé mèo 4 tháng tuổi nhà mình mới tiêm phòng mũi 2 về hơi lừ đừ và bỏ ăn bữa tối nay thì có bình thường không ạ? Mình nên theo dõi bao lâu thì cần đưa lại phòng khám?',
+      'Mèo 4 tháng tuổi nhà mình mới tiêm phòng mũi 2 về hơi mệt và ăn ít bữa tối nay thì có bình thường không mọi người? Theo dõi bao lâu thì cần đưa lại phòng khám?',
     media: [],
     hashtags: ['#MèoAnh', '#TiêmPhòng', '#HỏiĐápSứcKhỏe'],
     location: {
@@ -588,7 +588,7 @@ export const INITIAL_POSTS: SocialPost[] = [
       'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=300&q=80',
     contentType: 'service_review',
     textContent:
-      '🎁 Ưu đãi dành riêng cho cư dân Vinhomes & Thủ Đức: Giảm ngay 20% Combo Tắm Sục Ozone + Cắt Tỉa Tạo Kiểu cho Boss mới đặt lịch qua Pawty! Cam kết sử dụng sữa tắm hữu cơ dịu nhẹ và phòng sấy êm chống стресс.',
+      'Ưu đãi cho cư dân Vinhomes và Thủ Đức: Giảm 20% gói tắm thảo dược và cắt tỉa cho bé mới đặt lịch qua Pawty. Dùng sữa tắm hữu cơ dịu nhẹ và phòng sấy êm.',
     media: [
       {
         type: 'image',
@@ -969,39 +969,39 @@ export const INITIAL_CONVERSATIONS: Conversation[] = [
   {
     id: 'conv-1',
     type: 'direct',
-    title: 'Miu (Corgi) · @hoa_corgi',
-    subtitle: 'Vinhomes Q9 · Cách 320m',
+    title: 'Hòa Trần · Bé Miu',
+    subtitle: '@hoa_corgi · Cách 320m',
     avatarUrl:
       'https://images.unsplash.com/photo-1612536057832-2ff7ead58194?auto=format&fit=crop&w=300&q=80',
     partnerUserId: 'user-hoa',
     partnerLocation: { lat: 10.8435, lng: 106.8271 },
     isOnline: true,
     unreadCount: 1,
-    lastMessageText: '📅 Đã gửi lời hẹn dắt dạo tại Công viên Ánh Sáng',
+    lastMessageText: 'Đã gửi lời hẹn đi dạo tại Công viên Ánh Sáng',
     lastMessageAt: '10 phút',
   },
   {
     id: 'conv-circle',
     type: 'circle',
-    title: 'Vòng Chăm Sóc Nhà Lu & Bơ 🏡',
-    subtitle: 'Mai, Mẹ Mai, Ba Mai',
+    title: 'Nhóm chăm sóc nhà Lu & Bơ',
+    subtitle: 'Mai, Cô Lan, Chú Hùng',
     avatarUrl:
       'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=300&q=80',
     isOnline: true,
     unreadCount: 0,
-    lastMessageText: 'Ba Mai: Lu ăn hết bát sáng rồi nha!',
+    lastMessageText: 'Chú Hùng: Lu ăn hết bữa sáng rồi nha.',
     lastMessageAt: '55 phút',
   },
   {
     id: 'conv-partner',
     type: 'direct',
-    title: 'PetSpa Bubble & Paws (Đối tác xác minh)',
-    subtitle: 'Grooming & Spa · Quận 9',
+    title: 'PetSpa Bubble & Paws',
+    subtitle: 'Cắt tỉa & Tắm thảo dược · Quận 9',
     avatarUrl:
       'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=300&q=80',
     isOnline: true,
     unreadCount: 0,
-    lastMessageText: 'Lịch hẹn Thứ 7 10:00 AM của bé Lu đã được xác nhận ạ!',
+    lastMessageText: 'Lịch hẹn Thứ 7 lúc 10:00 của Lu đã được xác nhận.',
     lastMessageAt: '2 giờ',
   },
 ];
@@ -1016,7 +1016,7 @@ export const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {
       senderAvatar:
         'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
       messageType: 'text',
-      textContent: 'Chào bạn! Lu thích chơi bóng không? Miu nhà mình mê chạy theo bóng lắm 🎾',
+      textContent: 'Chào bạn, Lu thích chơi bóng không? Miu nhà mình mê chạy theo bóng lắm.',
       isRead: true,
       createdAt: '09:15',
     },
@@ -1028,7 +1028,7 @@ export const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {
       senderAvatar:
         'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
       messageType: 'text',
-      textContent: 'Lu mê bóng lắm luôn! 😍 Sổ tiêm của Lu cũng đầy đủ rồi nên yên tâm cho 2 bé chơi chung.',
+      textContent: 'Lu mê bóng lắm. Sổ tiêm của Lu cũng đầy đủ rồi nên yên tâm cho 2 bé chơi chung.',
       isRead: true,
       createdAt: '09:17',
     },
@@ -1354,4 +1354,215 @@ export const INITIAL_DASHBOARD_METRICS: NorthStarDashboardMetrics = {
   avgOpsMinutesPerBooking: 11,
   moderationFlagRate: 2.4,
 };
+
+export interface SearchableUserTag {
+  id: string;
+  tag: string;
+  displayName: string;
+  avatarUrl: string;
+  area: string;
+  petsSummary: string;
+}
+
+export const SEARCHABLE_USER_DIRECTORY: SearchableUserTag[] = [
+  {
+    id: 'user-dad',
+    tag: '@hungle',
+    displayName: 'Hùng Lê',
+    avatarUrl:
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+    area: 'Vinhomes Grand Park',
+    petsSummary: 'Chăm cùng bé Lu',
+  },
+  {
+    id: 'user-mom',
+    tag: '@lantran',
+    displayName: 'Lan Trần',
+    avatarUrl:
+      'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=300&q=80',
+    area: 'Vinhomes Grand Park',
+    petsSummary: 'Chăm cùng bé Lu',
+  },
+  {
+    id: 'user-minh',
+    tag: '@minhpham',
+    displayName: 'Minh Phạm',
+    avatarUrl:
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+    area: 'Origami - Vinhomes Q9',
+    petsSummary: 'Nuôi bé Bơ (Corgi)',
+  },
+  {
+    id: 'user-thao',
+    tag: '@thaovy',
+    displayName: 'Thảo Vy',
+    avatarUrl:
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    area: 'Thảo Điền, Quận 2',
+    petsSummary: 'Nuôi bé Cam (Mèo Anh)',
+  },
+  {
+    id: 'user-khanh',
+    tag: '@khanhhoang',
+    displayName: 'Khánh Hoàng',
+    avatarUrl:
+      'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=300&q=80',
+    area: 'Beverly - Vinhomes Q9',
+    petsSummary: 'Nuôi bé Sữa (Poodle)',
+  },
+];
+
+export interface AppNotificationItem {
+  id: string;
+  type: 'care_invite' | 'walk_invite' | 'task_done' | 'system';
+  title: string;
+  body: string;
+  createdAt: string;
+  isRead: boolean;
+  invitePayload?: {
+    fromUserName: string;
+    fromUserTag: string;
+    petId: string;
+    petName: string;
+    petSpecies: 'dog' | 'cat';
+    petBreed: string;
+    petWeightKg: number;
+    petAgeLabel: string;
+    petAvatarUrl: string;
+    status: 'pending' | 'accepted' | 'declined';
+  };
+}
+
+export const INITIAL_NOTIFICATIONS: AppNotificationItem[] = [
+  {
+    id: 'notif-invite-1',
+    type: 'care_invite',
+    title: 'Lời mời chăm thú cưng chung',
+    body: '@minhpham (Minh Phạm) mời bạn cùng chăm bé Cốm (Corgi · 11kg).',
+    createdAt: '10 phút trước',
+    isRead: false,
+    invitePayload: {
+      fromUserName: 'Minh Phạm',
+      fromUserTag: '@minhpham',
+      petId: 'pet-com-shared',
+      petName: 'Cốm',
+      petSpecies: 'dog',
+      petBreed: 'Pembroke Welsh Corgi',
+      petWeightKg: 11,
+      petAgeLabel: '1.5 tuổi',
+      petAvatarUrl:
+        'https://images.unsplash.com/photo-1612536057832-2ff7ead58194?auto=format&fit=crop&w=600&q=80',
+      status: 'pending',
+    },
+  },
+  {
+    id: 'notif-2',
+    type: 'task_done',
+    title: 'Đã hoàn thành việc chăm sóc',
+    body: 'Chú Hùng (@hungle) đã dắt Lu đi dạo sáng 35 phút.',
+    createdAt: '1 giờ trước',
+    isRead: false,
+  },
+];
+
+export const SUGGESTED_HASHTAGS: string[] = [
+  '#DiDaoChieu',
+  '#ChamSocCho',
+  '#ChamSocMeo',
+  '#DinhDuong',
+  '#TimBanDiDao',
+  '#KinhNghiemNuoi',
+  '#GocDangYeu',
+  '#ThuY',
+];
+
+export const SAMPLE_POST_PHOTOS: { id: string; label: string; url: string }[] = [
+  {
+    id: 'sample-1',
+    label: 'Chó đi dạo công viên',
+    url: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'sample-2',
+    label: 'Corgi chạy trên cỏ',
+    url: 'https://images.unsplash.com/photo-1612536057832-2ff7ead58194?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'sample-3',
+    label: 'Mèo nằm sưởi nắng',
+    url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'sample-4',
+    label: 'Tắm & chải lông',
+    url: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=900&q=80',
+  },
+];
+
+export type WebThemeId = 'coral' | 'mint' | 'mocha' | 'dark';
+
+export interface WebThemePalette {
+  id: WebThemeId;
+  name: string;
+  description: string;
+  primary: string;
+  primarySoft: string;
+  bg: string;
+  surface: string;
+  text: string;
+  textSoft: string;
+  border: string;
+}
+
+export const WEB_THEMES: Record<WebThemeId, WebThemePalette> = {
+  coral: {
+    id: 'coral',
+    name: 'San Hô Ấm',
+    description: 'Tông cam san hô nhẹ nhàng, nền kem ấm áp',
+    primary: '#E86A58',
+    primarySoft: '#FDECE9',
+    bg: '#FAF8F5',
+    surface: '#FFFFFF',
+    text: '#23201E',
+    textSoft: '#605A55',
+    border: '#EAE4DC',
+  },
+  mint: {
+    id: 'mint',
+    name: 'Xanh Lá Dịu',
+    description: 'Tông xanh lá tự nhiên, mát mắt và thư giãn',
+    primary: '#2F8F78',
+    primarySoft: '#E3F4EF',
+    bg: '#F6FAF8',
+    surface: '#FFFFFF',
+    text: '#1D2825',
+    textSoft: '#52635E',
+    border: '#DCE8E3',
+  },
+  mocha: {
+    id: 'mocha',
+    name: 'Nâu Latte',
+    description: 'Tông nâu cà phê sữa tối giản, sang trọng',
+    primary: '#9C6B4E',
+    primarySoft: '#F5EBE4',
+    bg: '#FAF7F4',
+    surface: '#FFFFFF',
+    text: '#29221E',
+    textSoft: '#695C54',
+    border: '#E8DFD8',
+  },
+  dark: {
+    id: 'dark',
+    name: 'Tối Dịu Mắt',
+    description: 'Nền tối ấm áp, giảm mỏi mắt khi dùng ban đêm',
+    primary: '#F07B6B',
+    primarySoft: '#362523',
+    bg: '#161514',
+    surface: '#211F1D',
+    text: '#F5F2EE',
+    textSoft: '#B8B0A8',
+    border: '#332F2C',
+  },
+};
+
 

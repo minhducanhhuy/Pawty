@@ -1,475 +1,1238 @@
 import React, { useState } from 'react';
 import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Image,
+  StyleSheet,
+  Dimensions,
 } from 'react-native';
-import { useMobilePawty } from '../context/MobilePawtyContext';
-import { PAWTY_COLORS } from '../theme/colors';
+import { Feather } from '../components/FeatherIcon';
+import { useMobilePawty, MAX_FREE_PETS } from '../context/MobilePawtyContext';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const GRID_ITEM_SIZE = Math.floor((SCREEN_WIDTH - 32 - 8) / 3);
 
 export const MobileProfileScreen: React.FC = () => {
   const {
-    apiBaseUrl,
-    isApiOnline,
+    theme,
     ownerName,
-    ownerNeighborhood,
-    isVip,
-    vipPlanName,
+    ownerHandle,
+    ownerBio,
+    ownerArea,
+    ownerNoteBubble,
+    isPrivateProfile,
     pets,
-    activePet,
+    activePetId,
     setActivePetId,
-    addVaccination,
+    addNewPetProfile,
+    deletePetProfile,
+    togglePetVaccinationAndRabies,
+    posts,
+    isVip,
+    activeVipPlanId,
+    userTinderSetup,
+    suggestedPeople,
+    toggleFollowSuggestedPerson,
+    dismissSuggestedPerson,
+    openPublicUserProfile,
+    openLightboxMedia,
     setActiveModal,
-    syncWithLanBackend,
-    restartOnboarding,
-    showToast,
   } = useMobilePawty();
 
-  const [profileTab, setProfileTab] = useState<'moments' | 'bio'>('bio');
-  const [newVacName, setNewVacName] = useState('');
+  const [profileSubTab, setProfileSubTab] = useState<'grid' | 'pets' | 'tinder_setup'>('grid');
+  const [showDiscoverPeople, setShowDiscoverPeople] = useState(true);
+  const [isAddingPetInline, setIsAddingPetInline] = useState(false);
+
+  // Inline Add Pet Form State (Free up to 3 pets)
+  const [newPetName, setNewPetName] = useState('');
+  const [newPetSpecies, setNewPetSpecies] = useState<'Chó' | 'Mèo'>('Chó');
+  const [newPetBreed, setNewPetBreed] = useState('');
+  const [newPetWeight, setNewPetWeight] = useState('6.5');
+  const [newPetAge, setNewPetAge] = useState('1 tuổi');
+
+  const myPosts = posts.filter((p) => p.authorHandle === ownerHandle);
+  const displayPosts = myPosts.length > 0 ? myPosts : posts.slice(0, 4);
+  const ownerAvatarUrl =
+    pets[0]?.avatarUrl ||
+    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Pet Profile Header */}
-      <View style={styles.headerCard}>
-        <View style={styles.petRow}>
-          <Image source={{ uri: activePet.avatarUrl }} style={styles.petAvatar} />
-          <View style={{ flex: 1 }}>
-            <View style={styles.nameBadgeRow}>
-              <Text style={styles.petName}>{activePet.name}</Text>
-              <Text style={styles.safeBadge}>🟢 SAFE PET</Text>
-              {isVip && <Text style={styles.vipBadge}>👑 {vipPlanName}</Text>}
-            </View>
-            <Text style={styles.petMeta}>
-              {activePet.breed} · {activePet.ageDisplay} · {activePet.weightKg}kg ({activePet.sizeLabel})
-            </Text>
-            <Text style={styles.ownerMeta}>
-              👤 Sen: {ownerName} · 📍 {ownerNeighborhood}
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* 1. INSTAGRAM-STYLE PROFILE TOP SECTION */}
+      <View style={styles.igTopSection}>
+        {/* Floating Note Bubble above Avatar */}
+        <TouchableOpacity
+          style={styles.noteBubbleWrap}
+          onPress={() => setActiveModal('edit_profile')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.noteBubble}>
+            <Text style={styles.noteBubbleText} numberOfLines={2}>
+              {ownerNoteBubble || 'Hỏi bạn bè bất cứ điều gì...'}
             </Text>
           </View>
-        </View>
-
-        <Text style={styles.petBio}>{activePet.bio}</Text>
-
-        {/* Boss Switcher */}
-        <View style={styles.switcherRow}>
-          {pets.map((p) => (
-            <TouchableOpacity
-              key={p.id}
-              style={[styles.switchPill, p.id === activePet.id && styles.switchPillActive]}
-              onPress={() => setActivePetId(p.id)}
-            >
-              <Text style={[styles.switchText, p.id === activePet.id && styles.switchTextActive]}>
-                {p.species === 'dog' ? '🐶' : '🐱'} Hồ sơ {p.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* 2-Tab Segmented Switch (Moments vs Deep Bio) */}
-      <View style={styles.tabsRow}>
-        <TouchableOpacity
-          style={[styles.tabBtn, profileTab === 'moments' && styles.tabBtnActive]}
-          onPress={() => setProfileTab('moments')}
-        >
-          <Text style={[styles.tabBtnText, profileTab === 'moments' && styles.tabBtnTextActive]}>
-            📸 Khoảnh khắc ({activePet.momentPhotos.length})
-          </Text>
+          <View style={styles.noteBubbleTail} />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabBtn, profileTab === 'bio' && styles.tabBtnActive]}
-          onPress={() => setProfileTab('bio')}
-        >
-          <Text style={[styles.tabBtnText, profileTab === 'bio' && styles.tabBtnTextActive]}>
-            🩺 Sổ tiêm & Hành vi
-          </Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* TAB 1: 3-COLUMN INSTAGRAM PHOTO GRID */}
-      {profileTab === 'moments' && (
-        <View style={styles.gridWrap}>
-          {activePet.momentPhotos.map((uri, idx) => (
-            <Image key={`${uri}-${idx}`} source={{ uri }} style={styles.gridPhoto} />
-          ))}
-        </View>
-      )}
-
-      {/* TAB 2: MINT GREEN VACCINATION CARD + HABITS + WEIGHT */}
-      {profileTab === 'bio' && (
-        <View>
-          {/* Mint Green Safe Pet Vaccination Card */}
-          <View style={styles.mintVaccineCard}>
-            <View style={styles.mintHeader}>
-              <Text style={styles.mintTitle}>🛡️ SỔ TIÊM CHỦNG ĐIỆN TỬ (SAFE PET)</Text>
-              <Text style={styles.mintVerified}>✓ ĐÃ XÁC MINH</Text>
+        <View style={styles.avatarAndStatsRow}>
+          <TouchableOpacity
+            style={styles.avatarWrap}
+            onPress={() => setActiveModal('edit_profile')}
+            activeOpacity={0.85}
+          >
+            <Image source={{ uri: ownerAvatarUrl }} style={styles.igAvatar} />
+            <View style={styles.avatarPlusBadge}>
+              <Feather name="plus" size={13} color="#FFFFFF" />
             </View>
-            {activePet.vaccinations.map((vac) => (
-              <View key={vac.id} style={styles.vacRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.vacName}>💉 {vac.vaccineName}</Text>
-                  <Text style={styles.vacMeta}>
-                    Đã tiêm: {vac.dateGiven} · Tái chủng: {vac.nextDueDate} · {vac.clinicName}
+          </TouchableOpacity>
+
+          {/* Owner Name + 3 Stats */}
+          <View style={styles.rightStatsColumn}>
+            <View style={styles.ownerNameRow}>
+              <Text style={styles.igOwnerName}>{ownerName}</Text>
+              {isVip && (
+                <View style={[styles.tierPill, { backgroundColor: theme.primarySoft }]}>
+                  <Feather name="award" size={11} color={theme.primary} />
+                  <Text style={[styles.tierPillText, { color: theme.primary }]}>
+                    {activeVipPlanId === 'vip_gold' ? 'Gold' : 'Plus'}
                   </Text>
                 </View>
-                <Text style={styles.vacStatus}>🟢 Đạt</Text>
+              )}
+            </View>
+
+            <View style={styles.statsRow}>
+              <View style={styles.statCol}>
+                <Text style={styles.statNum}>{myPosts.length}</Text>
+                <Text style={styles.statLabel}>bài viết</Text>
               </View>
-            ))}
-
-            <View style={styles.addVacRow}>
-              <TextInput
-                style={styles.vacInput}
-                placeholder="Thêm mũi tiêm mới (VD: Tẩy giun / Dại)..."
-                value={newVacName}
-                onChangeText={setNewVacName}
-              />
-              <TouchableOpacity
-                style={styles.vacAddBtn}
-                onPress={() => {
-                  if (newVacName.trim()) {
-                    addVaccination(newVacName, activePet.vetClinicName);
-                    setNewVacName('');
-                  }
-                }}
-              >
-                <Text style={styles.vacAddBtnText}>+ Lưu</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Good Habits & Fight Prevention Cautions */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>🐾 Tính cách, Thói quen tốt & Cần lưu ý</Text>
-            <Text style={styles.sectionSub}>
-              Hiển thị minh bạch trên Radar để phòng tránh xung đột khi dắt dạo công viên.
-            </Text>
-
-            <View style={styles.chipsWrap}>
-              {activePet.behaviors
-                .filter((b) => b.category !== 'caution')
-                .map((b) => (
-                  <View key={b.id} style={styles.goodChip}>
-                    <Text style={styles.goodChipText}>✓ {b.label}</Text>
-                  </View>
-                ))}
-            </View>
-
-            <View style={[styles.chipsWrap, { marginTop: 8 }]}>
-              {activePet.behaviors
-                .filter((b) => b.category === 'caution')
-                .map((b) => (
-                  <View key={b.id} style={styles.cautionChip}>
-                    <Text style={styles.cautionChipText}>⚠️ Cần lưu ý: {b.label}</Text>
-                  </View>
-                ))}
-            </View>
-          </View>
-
-          {/* Weight History & Vet Contact */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>⚖️ Biểu đồ Cân nặng & Phòng khám Thú y</Text>
-            <View style={styles.weightRow}>
-              {activePet.weightHistory.map((w) => (
-                <View key={w.month} style={styles.weightCol}>
-                  <Text style={styles.weightVal}>{w.weightKg}kg</Text>
-                  <View style={styles.weightBar} />
-                  <Text style={styles.weightMonth}>{w.month}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={styles.vetBox}>
-              <Text style={styles.vetBoxTitle}>🏥 {activePet.vetClinicName}</Text>
-              <Text style={styles.vetBoxSub}>
-                Bác sĩ phụ trách: {activePet.vetDoctorName} · ☎️ {activePet.vetPhone}
-              </Text>
+              <View style={styles.statCol}>
+                <Text style={styles.statNum}>218</Text>
+                <Text style={styles.statLabel}>người theo dõi</Text>
+              </View>
+              <View style={styles.statCol}>
+                <Text style={styles.statNum}>305</Text>
+                <Text style={styles.statLabel}>đang theo dõi</Text>
+              </View>
             </View>
           </View>
         </View>
-      )}
 
-      {/* Monetization & Ecosystem Controls */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>🚀 Hệ sinh thái Kinh tế & Quản trị Pawty</Text>
-
-        <TouchableOpacity
-          style={styles.actionRowBtn}
-          onPress={() => setActiveModal('vip_upgrade')}
-        >
-          <Text style={styles.actionEmoji}>👑</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.actionTitle}>Gói Sen VIP (29k / 49k / 399k VietQR)</Text>
-            <Text style={styles.actionSub}>
-              Quẹt Radar không giới hạn, Vòng chăm sóc không giới hạn, Ưu tiên hiển thị x3
-            </Text>
+        {/* @handle pill + Bio */}
+        <View style={styles.bioBlock}>
+          <View style={styles.handleAndLocationRow}>
+            <View style={styles.atHandlePill}>
+              <Text style={styles.atHandleText}>{ownerHandle}</Text>
+            </View>
+            <View style={styles.locationMiniRow}>
+              <Feather name="map-pin" size={11} color="#7A6E63" />
+              <Text style={styles.locationMiniText}>{ownerArea}</Text>
+            </View>
+            {isPrivateProfile && (
+              <View style={styles.privateMiniTag}>
+                <Feather name="lock" size={10} color="#6C6055" />
+                <Text style={styles.privateMiniText}>Riêng tư</Text>
+              </View>
+            )}
           </View>
-        </TouchableOpacity>
+          <Text style={styles.igBioText}>{ownerBio}</Text>
+        </View>
 
-        <TouchableOpacity
-          style={[styles.actionRowBtn, { backgroundColor: PAWTY_COLORS.dangerSoft }]}
-          onPress={() => setActiveModal('sos_alert')}
-        >
-          <Text style={styles.actionEmoji}>🚨</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.actionTitle, { color: PAWTY_COLORS.danger }]}>
-              Phát Tín Hiệu SOS Tìm Boss Lạc 3km (39.000đ)
-            </Text>
-            <Text style={styles.actionSub}>
-              Bắn Push Notification khẩn cấp tới toàn bộ cư dân nuôi thú cưng trong bán kính 3km
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionRowBtn, { backgroundColor: PAWTY_COLORS.mintSoft }]}
-          onPress={() => setActiveModal('pro_dashboard')}
-        >
-          <Text style={styles.actionEmoji}>🏢</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.actionTitle, { color: PAWTY_COLORS.mintDark }]}>
-              Pawty Pro Partner & North Star KPI Console
-            </Text>
-            <Text style={styles.actionSub}>
-              Duyệt lịch hẹn Grooming/Vet, xem hoa hồng 12% và chỉ số North Star Metric
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* Privacy & LAN Backend Status (Luật BVDLCN 91/2025/QH15) */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>🔒 Quyền riêng tư (Luật BVDLCN 91/2025/QH15) & LAN API</Text>
-        <Text style={styles.sectionSub}>
-          Backend: {apiBaseUrl} ({isApiOnline ? '🟢 Đang kết nối LAN' : '🟡 Chế độ Local/Offline'})
-        </Text>
-
-        <View style={styles.privacyBtnsRow}>
-          <TouchableOpacity style={styles.smallOutlineBtn} onPress={syncWithLanBackend}>
-            <Text style={styles.smallOutlineText}>🔄 Đồng bộ LAN Server</Text>
+        {/* Action Buttons Row: Chỉnh sửa trang cá nhân | Hồ sơ Kết nối | Toggle Suggested People */}
+        <View style={styles.igActionButtonsRow}>
+          <TouchableOpacity
+            style={styles.igGrayActionBtn}
+            onPress={() => setActiveModal('edit_profile')}
+          >
+            <Text style={styles.igGrayActionBtnText}>Chỉnh sửa trang cá nhân</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.smallOutlineBtn}
-            onPress={() =>
-              showToast(
-                'Đã xuất Dữ liệu Cá nhân (JSON) 📦',
-                'Tuân thủ Điều 14 Luật BVDLCN số 91/2025/QH15.',
-                'success'
-              )
-            }
+            style={styles.igGrayActionBtn}
+            onPress={() => setActiveModal('tinder_setup')}
           >
-            <Text style={styles.smallOutlineText}>📥 Xuất Dữ liệu JSON</Text>
+            <Text style={styles.igGrayActionBtnText}>Hồ sơ Kết nối</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.smallOutlineBtn} onPress={restartOnboarding}>
-            <Text style={styles.smallOutlineText}>✨ Chạy lại Onboarding</Text>
+          <TouchableOpacity
+            style={[
+              styles.igIconActionBtn,
+              showDiscoverPeople && { backgroundColor: '#E5DDD3' },
+            ]}
+            onPress={() => setShowDiscoverPeople(!showDiscoverPeople)}
+          >
+            <Feather name="user-plus" size={15} color="#1C1815" />
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* 2. INSTAGRAM "KHÁM PHÁ MỌI NGƯỜI" HORIZONTAL CARDS */}
+      {showDiscoverPeople && suggestedPeople.length > 0 && (
+        <View style={styles.discoverSection}>
+          <View style={styles.discoverHeaderRow}>
+            <Text style={styles.discoverTitle}>Khám phá mọi người</Text>
+            <TouchableOpacity onPress={() => setActiveModal('my_settings')}>
+              <Text style={[styles.discoverSeeAll, { color: theme.primary }]}>
+                Cài đặt & Plus
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.discoverScrollContent}
+          >
+            {suggestedPeople.map((person) => (
+              <View key={person.id} style={styles.discoverPersonCard}>
+                <TouchableOpacity
+                  style={styles.dismissPersonBtn}
+                  onPress={() => dismissSuggestedPerson(person.id)}
+                >
+                  <Feather name="x" size={14} color="#8E8074" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.discoverPersonCenter}
+                  onPress={() => openPublicUserProfile(person.handle)}
+                >
+                  <Image source={{ uri: person.avatarUrl }} style={styles.discoverAvatar} />
+                  <Text style={styles.discoverName} numberOfLines={1}>
+                    {person.name}
+                  </Text>
+                  <Text style={styles.discoverMutual} numberOfLines={2}>
+                    {person.mutualText}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.followPersonBtn,
+                    { backgroundColor: person.isFollowing ? '#ECE6DF' : '#4C68D7' },
+                  ]}
+                  onPress={() => toggleFollowSuggestedPerson(person.id)}
+                >
+                  <Text
+                    style={[
+                      styles.followPersonBtnText,
+                      person.isFollowing && { color: '#2C2520' },
+                    ]}
+                  >
+                    {person.isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* 3. INSTAGRAM ICON TAB BAR: Bài viết (Grid) | Thú cưng (Max 3 Free) | Hồ sơ Kết nối */}
+      <View style={styles.igTabBar}>
+        <TouchableOpacity
+          style={[
+            styles.igTabBtn,
+            profileSubTab === 'grid' && [
+              styles.igTabBtnActive,
+              { borderBottomColor: '#1C1815' },
+            ],
+          ]}
+          onPress={() => setProfileSubTab('grid')}
+        >
+          <Feather
+            name="grid"
+            size={18}
+            color={profileSubTab === 'grid' ? '#1C1815' : '#9C8E80'}
+          />
+          <Text
+            style={[
+              styles.igTabText,
+              profileSubTab === 'grid' && styles.igTabTextActive,
+            ]}
+          >
+            Bài viết
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.igTabBtn,
+            profileSubTab === 'pets' && [
+              styles.igTabBtnActive,
+              { borderBottomColor: '#1C1815' },
+            ],
+          ]}
+          onPress={() => setProfileSubTab('pets')}
+        >
+          <Feather
+            name="shield"
+            size={18}
+            color={profileSubTab === 'pets' ? '#1C1815' : '#9C8E80'}
+          />
+          <Text
+            style={[
+              styles.igTabText,
+              profileSubTab === 'pets' && styles.igTabTextActive,
+            ]}
+          >
+            Thú cưng ({pets.length}/{MAX_FREE_PETS})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.igTabBtn,
+            profileSubTab === 'tinder_setup' && [
+              styles.igTabBtnActive,
+              { borderBottomColor: '#1C1815' },
+            ],
+          ]}
+          onPress={() => setProfileSubTab('tinder_setup')}
+        >
+          <Feather
+            name="heart"
+            size={18}
+            color={profileSubTab === 'tinder_setup' ? '#1C1815' : '#9C8E80'}
+          />
+          <Text
+            style={[
+              styles.igTabText,
+              profileSubTab === 'tinder_setup' && styles.igTabTextActive,
+            ]}
+          >
+            Hồ sơ Kết nối
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* SUB-TAB 1: 3-COLUMN PHOTO GRID */}
+      {profileSubTab === 'grid' && (
+        <View style={styles.photoGrid}>
+          {displayPosts.map((post) => {
+            const urls = post.mediaUrls;
+            return (
+              <TouchableOpacity
+                key={post.id}
+                style={styles.gridCell}
+                activeOpacity={0.9}
+                onPress={() =>
+                  openLightboxMedia({
+                    postId: post.id,
+                    mediaUrls: urls,
+                    initialIndex: 0,
+                    mediaType: post.mediaType,
+                    videoDuration: post.videoDuration,
+                    caption: post.content,
+                    authorName: post.authorName,
+                  })
+                }
+              >
+                <Image source={{ uri: urls[0] }} style={styles.gridImg} />
+                {urls.length > 1 && (
+                  <View style={styles.gridMultiBadge}>
+                    <Feather name="layers" size={11} color="#FFFFFF" />
+                  </View>
+                )}
+                {post.mediaType === 'video' && (
+                  <View style={styles.gridMultiBadge}>
+                    <Feather name="video" size={11} color="#FFFFFF" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      {/* SUB-TAB 2: PET PROFILES (MAX 3 FREE FOR ALL USERS + DELETE PET + PER-PET VACCINATION) */}
+      {profileSubTab === 'pets' && (
+        <View style={styles.petsTabSection}>
+          <View style={styles.petPolicyBanner}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.petPolicyTitle}>
+                Quản lý Thú cưng ({pets.length}/{MAX_FREE_PETS} bé miễn phí)
+              </Text>
+              <Text style={styles.petPolicySub}>
+                Mỗi tài khoản được tạo tối đa 3 hồ sơ thú cưng hoàn toàn miễn phí. Dấu tích tiêm chủng & phòng dại được gắn riêng trên từng bé.
+              </Text>
+            </View>
+            {pets.length < MAX_FREE_PETS && (
+              <TouchableOpacity
+                style={[styles.addPetBtn, { backgroundColor: theme.primary }]}
+                onPress={() => setIsAddingPetInline(!isAddingPetInline)}
+              >
+                <Feather name={isAddingPetInline ? 'x' : 'plus'} size={14} color="#FFFFFF" />
+                <Text style={styles.addPetBtnText}>
+                  {isAddingPetInline ? 'Đóng' : 'Thêm bé'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {isAddingPetInline && (
+            <View style={styles.inlineAddPetCard}>
+              <Text style={styles.petPolicyTitle}>Thêm thú cưng mới ({pets.length}/{MAX_FREE_PETS})</Text>
+              <View style={styles.twoCol}>
+                <TouchableOpacity
+                  style={[
+                    styles.speciesBtn,
+                    newPetSpecies === 'Chó' && {
+                      backgroundColor: theme.primary,
+                      borderColor: theme.primary,
+                    },
+                  ]}
+                  onPress={() => setNewPetSpecies('Chó')}
+                >
+                  <Text style={[styles.speciesBtnText, newPetSpecies === 'Chó' && { color: '#FFFFFF' }]}>
+                    Loài Chó
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.speciesBtn,
+                    newPetSpecies === 'Mèo' && {
+                      backgroundColor: theme.primary,
+                      borderColor: theme.primary,
+                    },
+                  ]}
+                  onPress={() => setNewPetSpecies('Mèo')}
+                >
+                  <Text style={[styles.speciesBtnText, newPetSpecies === 'Mèo' && { color: '#FFFFFF' }]}>
+                    Loài Mèo
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.twoCol}>
+                <TextInput
+                  style={[styles.inlineInput, { flex: 1 }]}
+                  placeholder="Tên bé (VD: Bơ)"
+                  placeholderTextColor="#A3968A"
+                  value={newPetName}
+                  onChangeText={setNewPetName}
+                />
+                <TextInput
+                  style={[styles.inlineInput, { width: 100 }]}
+                  placeholder="Kg (6.5)"
+                  placeholderTextColor="#A3968A"
+                  keyboardType="decimal-pad"
+                  value={newPetWeight}
+                  onChangeText={setNewPetWeight}
+                />
+              </View>
+
+              <View style={styles.twoCol}>
+                <TextInput
+                  style={[styles.inlineInput, { flex: 1 }]}
+                  placeholder="Giống loài (VD: Poodle)"
+                  placeholderTextColor="#A3968A"
+                  value={newPetBreed}
+                  onChangeText={setNewPetBreed}
+                />
+                <TextInput
+                  style={[styles.inlineInput, { width: 100 }]}
+                  placeholder="Tuổi (1 tuổi)"
+                  placeholderTextColor="#A3968A"
+                  value={newPetAge}
+                  onChangeText={setNewPetAge}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.saveInlinePetBtn, { backgroundColor: theme.primary }]}
+                onPress={() => {
+                  addNewPetProfile({
+                    name: newPetName,
+                    species: newPetSpecies,
+                    breed: newPetBreed || 'Chưa rõ giống',
+                    weightKg: parseFloat(newPetWeight) || 5.0,
+                    ageLabel: newPetAge || '1 tuổi',
+                  });
+                  setNewPetName('');
+                  setNewPetBreed('');
+                  setIsAddingPetInline(false);
+                }}
+              >
+                <Feather name="check" size={14} color="#FFFFFF" />
+                <Text style={styles.saveInlinePetBtnText}>Lưu thú cưng mới</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {pets.map((pet) => {
+            const isSelected = pet.id === activePetId;
+            return (
+              <View
+                key={pet.id}
+                style={[
+                  styles.petManageCard,
+                  isSelected && { borderColor: theme.primary, borderWidth: 1.5 },
+                ]}
+              >
+                <View style={styles.petManageTopRow}>
+                  <Image source={{ uri: pet.avatarUrl }} style={styles.petManageAvatar} />
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.petNameLine}>
+                      <Text style={styles.petManageName}>{pet.name}</Text>
+                      <View style={styles.speciesChip}>
+                        <Text style={styles.speciesChipText}>Loài {pet.species}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.petManageMeta}>
+                      {pet.breed} · {pet.gender} · {pet.ageLabel} · {pet.weightKg} kg
+                    </Text>
+
+                    {/* Per-Pet Vaccination & Rabies Tick (Tap to toggle directly on this pet) */}
+                    <TouchableOpacity
+                      style={[
+                        styles.petVaccinePill,
+                        !pet.isVaccinatedAndRabies && styles.petVaccinePillWarn,
+                      ]}
+                      onPress={() => togglePetVaccinationAndRabies(pet.id)}
+                    >
+                      <Feather
+                        name={pet.isVaccinatedAndRabies ? 'check-circle' : 'alert-triangle'}
+                        size={12}
+                        color={pet.isVaccinatedAndRabies ? '#2E7D5B' : '#B85D43'}
+                      />
+                      <Text
+                        style={[
+                          styles.petVaccinePillText,
+                          !pet.isVaccinatedAndRabies && { color: '#B85D43' },
+                        ]}
+                      >
+                        {pet.isVaccinatedAndRabies
+                          ? 'Đã tiêm chủng & Phòng dại đầy đủ'
+                          : 'Chạm để xác nhận mũi tiêm & phòng dại'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Text style={styles.petBioNote}>{pet.bio}</Text>
+
+                <View style={styles.petActionsFooter}>
+                  <TouchableOpacity
+                    style={[styles.petEditBtn, { backgroundColor: theme.primarySoft }]}
+                    onPress={() => {
+                      setActivePetId(pet.id);
+                      setActiveModal('edit_profile');
+                    }}
+                  >
+                    <Feather name="edit-3" size={13} color={theme.primary} />
+                    <Text style={[styles.petEditBtnText, { color: theme.primary }]}>
+                      Chỉnh sửa hồ sơ bé
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.petDeleteBtn}
+                    onPress={() => deletePetProfile(pet.id)}
+                  >
+                    <Feather name="trash-2" size={13} color="#C9302C" />
+                    <Text style={styles.petDeleteBtnText}>Xóa thú cưng</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* SUB-TAB 3: USER TINDER SETUP PROFILE PREVIEW & EDIT */}
+      {profileSubTab === 'tinder_setup' && (
+        <View style={styles.tinderSetupSection}>
+          <View style={styles.tinderSetupCard}>
+            <View style={styles.tinderSetupHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.tinderSetupTitle}>
+                  Hồ sơ Kết nối của {ownerName}, {userTinderSetup.age}
+                </Text>
+                <Text style={styles.tinderSetupSub}>
+                  Thông tin này hiển thị trên thẻ của bạn ở nhánh Kết nối (Tinder)
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.editTinderBtn, { backgroundColor: theme.primary }]}
+                onPress={() => setActiveModal('tinder_setup')}
+              >
+                <Feather name="edit-3" size={13} color="#FFFFFF" />
+                <Text style={styles.editTinderBtnText}>Thiết lập</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.tinderPreviewBox}>
+              <Text style={styles.tinderFieldLabel}>Đang tìm kiếm</Text>
+              <Text style={styles.tinderFieldBig}>{userTinderSetup.lookingFor}</Text>
+            </View>
+
+            <View style={styles.tinderLifestyleGrid}>
+              <View style={styles.tinderPillItem}>
+                <Feather name="user" size={13} color="#5C5046" />
+                <Text style={styles.tinderPillText}>Giới tính: {userTinderSetup.gender}</Text>
+              </View>
+              <View style={styles.tinderPillItem}>
+                <Feather name="zap" size={13} color="#5C5046" />
+                <Text style={styles.tinderPillText}>{userTinderSetup.smoking}</Text>
+              </View>
+              <View style={styles.tinderPillItem}>
+                <Feather name="activity" size={13} color="#5C5046" />
+                <Text style={styles.tinderPillText}>Tập luyện: {userTinderSetup.workout}</Text>
+              </View>
+              <View style={styles.tinderPillItem}>
+                <Feather name="coffee" size={13} color="#5C5046" />
+                <Text style={styles.tinderPillText}>{userTinderSetup.drinking}</Text>
+              </View>
+              <View style={styles.tinderPillItem}>
+                <Feather name="star" size={13} color="#5C5046" />
+                <Text style={styles.tinderPillText}>{userTinderSetup.zodiac}</Text>
+              </View>
+              <View style={styles.tinderPillItem}>
+                <Feather name="message-circle" size={13} color="#5C5046" />
+                <Text style={styles.tinderPillText}>{userTinderSetup.chatStyle}</Text>
+              </View>
+            </View>
+
+            <Text style={[styles.tinderFieldLabel, { marginTop: 14, marginBottom: 6 }]}>
+              Thú cưng đính kèm trên thẻ Kết nối ({pets.length} bé)
+            </Text>
+            {pets.map((p) => (
+              <View key={p.id} style={styles.tinderAttachedPetRow}>
+                <Image source={{ uri: p.avatarUrl }} style={styles.tinderAttachedPetAvatar} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.tinderAttachedPetName}>
+                    {p.name} ({p.species} · {p.breed})
+                  </Text>
+                  <Text style={styles.tinderAttachedPetVaccine}>
+                    {p.isVaccinatedAndRabies
+                      ? '✓ Đã tiêm chủng & Phòng dại đầy đủ'
+                      : 'Chưa xác nhận tiêm phòng'}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PAWTY_COLORS.cream },
-  content: { padding: 16, paddingBottom: 115 },
-  headerCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-    marginBottom: 12,
-  },
-  petRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  petAvatar: { width: 72, height: 72, borderRadius: 36, borderWidth: 3, borderColor: PAWTY_COLORS.mint },
-  nameBadgeRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  petName: { fontSize: 20, fontWeight: '900', color: PAWTY_COLORS.charcoal },
-  safeBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: PAWTY_COLORS.mintDark,
-    backgroundColor: PAWTY_COLORS.mintSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  vipBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#B45309',
-    backgroundColor: PAWTY_COLORS.goldSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  petMeta: { fontSize: 12, color: PAWTY_COLORS.slate, marginTop: 4 },
-  ownerMeta: { fontSize: 11, fontWeight: '700', color: PAWTY_COLORS.coral, marginTop: 3 },
-  petBio: { fontSize: 13, color: PAWTY_COLORS.charcoal, marginTop: 10, lineHeight: 19 },
-  switcherRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  switchPill: {
+  container: {
     flex: 1,
-    minHeight: 42,
-    borderRadius: 12,
-    backgroundColor: PAWTY_COLORS.cream,
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  switchPillActive: {
-    backgroundColor: PAWTY_COLORS.coralSoft,
-    borderColor: PAWTY_COLORS.coral,
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 32,
   },
-  switchText: { fontSize: 12, fontWeight: '800', color: PAWTY_COLORS.slate },
-  switchTextActive: { color: PAWTY_COLORS.coral },
-
-  tabsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  tabBtn: {
-    flex: 1,
-    minHeight: 46,
-    borderRadius: 14,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabBtnActive: {
-    backgroundColor: PAWTY_COLORS.charcoal,
-    borderColor: PAWTY_COLORS.charcoal,
-  },
-  tabBtnText: { fontSize: 13, fontWeight: '800', color: PAWTY_COLORS.slate },
-  tabBtnTextActive: { color: '#FFF' },
-
-  gridWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  igTopSection: {
     marginBottom: 14,
   },
-  gridPhoto: {
-    width: '31%',
-    aspectRatio: 1,
-    borderRadius: 14,
+  noteBubbleWrap: {
+    alignSelf: 'flex-start',
+    marginLeft: 6,
+    marginBottom: -6,
+    zIndex: 5,
   },
-
-  mintVaccineCard: {
-    backgroundColor: PAWTY_COLORS.mintSoft,
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: PAWTY_COLORS.mint,
-    marginBottom: 12,
+  noteBubble: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    maxWidth: 160,
+    borderWidth: 1,
+    borderColor: '#E5DDD3',
   },
-  mintHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  mintTitle: { fontSize: 13, fontWeight: '900', color: PAWTY_COLORS.mintDark },
-  mintVerified: { fontSize: 11, fontWeight: '900', color: PAWTY_COLORS.mintDark },
-  vacRow: {
+  noteBubbleText: {
+    fontSize: 11,
+    color: '#4A3F35',
+    fontWeight: '600',
+  },
+  noteBubbleTail: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5DDD3',
+    marginLeft: 22,
+    marginTop: -3,
+  },
+  avatarAndStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
-    padding: 12,
-    borderRadius: 14,
-    marginBottom: 8,
+    gap: 18,
   },
-  vacName: { fontSize: 13, fontWeight: '800', color: PAWTY_COLORS.charcoal },
-  vacMeta: { fontSize: 11, color: PAWTY_COLORS.slate, marginTop: 2 },
-  vacStatus: { fontSize: 11, fontWeight: '800', color: PAWTY_COLORS.mintDark },
-  addVacRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  vacInput: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 12,
+  avatarWrap: {
+    position: 'relative',
   },
-  vacAddBtn: {
-    backgroundColor: PAWTY_COLORS.mintDark,
-    paddingHorizontal: 14,
+  igAvatar: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: '#EFE9E1',
+    borderWidth: 1.5,
+    borderColor: '#E5DDD3',
+  },
+  avatarPlusBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
     borderRadius: 12,
+    backgroundColor: '#1C1815',
+    borderWidth: 2,
+    borderColor: '#FAF7F2',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  vacAddBtnText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
-
-  sectionCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
+  rightStatsColumn: {
+    flex: 1,
+    gap: 10,
   },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: PAWTY_COLORS.charcoal },
-  sectionSub: { fontSize: 12, color: PAWTY_COLORS.slate, marginTop: 3, marginBottom: 10 },
-  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  goodChip: {
-    backgroundColor: PAWTY_COLORS.mintSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-  },
-  goodChipText: { fontSize: 12, fontWeight: '700', color: PAWTY_COLORS.mintDark },
-  cautionChip: {
-    backgroundColor: PAWTY_COLORS.amberSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-  },
-  cautionChipText: { fontSize: 12, fontWeight: '700', color: '#B45309' },
-
-  weightRow: {
+  ownerNameRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-end',
-    paddingVertical: 12,
-    backgroundColor: PAWTY_COLORS.cream,
-    borderRadius: 14,
-    marginVertical: 8,
+    alignItems: 'center',
+    gap: 8,
   },
-  weightCol: { alignItems: 'center' },
-  weightVal: { fontSize: 12, fontWeight: '800', color: PAWTY_COLORS.coral, marginBottom: 4 },
-  weightBar: { width: 26, height: 42, borderRadius: 8, backgroundColor: PAWTY_COLORS.coral },
-  weightMonth: { fontSize: 11, fontWeight: '700', color: PAWTY_COLORS.slate, marginTop: 4 },
-  vetBox: {
-    marginTop: 8,
+  igOwnerName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1C1815',
+  },
+  tierPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 99,
+  },
+  tierPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statCol: {
+    alignItems: 'flex-start',
+  },
+  statNum: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#1C1815',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#5C5046',
+    marginTop: 1,
+  },
+  bioBlock: {
+    marginTop: 10,
+    gap: 5,
+  },
+  handleAndLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  atHandlePill: {
+    backgroundColor: '#EFE9E1',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 99,
+  },
+  atHandleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2C2520',
+  },
+  locationMiniRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  locationMiniText: {
+    fontSize: 12,
+    color: '#7A6E63',
+    fontWeight: '600',
+  },
+  privateMiniTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFE9E1',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 99,
+  },
+  privateMiniText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#6C6055',
+  },
+  igBioText: {
+    fontSize: 13,
+    color: '#2C2520',
+    lineHeight: 19,
+  },
+  igActionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  igGrayActionBtn: {
+    flex: 1,
+    backgroundColor: '#EFE9E1',
+    paddingVertical: 9,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  igGrayActionBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1C1815',
+  },
+  igIconActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#EFE9E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  discoverSection: {
+    marginBottom: 16,
+  },
+  discoverHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  discoverTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1C1815',
+  },
+  discoverSeeAll: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  discoverScrollContent: {
+    gap: 10,
+  },
+  discoverPersonCard: {
+    width: 148,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: 12,
-    borderRadius: 14,
-    backgroundColor: PAWTY_COLORS.mintSoft,
+    borderWidth: 1,
+    borderColor: '#E5DDD3',
+    alignItems: 'center',
+    position: 'relative',
   },
-  vetBoxTitle: { fontSize: 13, fontWeight: '800', color: PAWTY_COLORS.mintDark },
-  vetBoxSub: { fontSize: 11, color: PAWTY_COLORS.charcoal, marginTop: 2 },
-
-  actionRowBtn: {
+  dismissPersonBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
+    zIndex: 5,
+  },
+  discoverPersonCenter: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  discoverAvatar: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#F3EFEA',
+    marginBottom: 8,
+  },
+  discoverName: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1C1815',
+    textAlign: 'center',
+  },
+  discoverMutual: {
+    fontSize: 11,
+    color: '#7A6E63',
+    textAlign: 'center',
+    marginTop: 2,
+    height: 30,
+  },
+  followPersonBtn: {
+    width: '100%',
+    paddingVertical: 8,
+    borderRadius: 9,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  followPersonBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  igTabBar: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#E5DDD3',
+    marginBottom: 10,
+  },
+  igTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 11,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  igTabBtnActive: {
+    borderBottomWidth: 2,
+  },
+  igTabText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#9C8E80',
+  },
+  igTabTextActive: {
+    color: '#1C1815',
+    fontWeight: '800',
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  gridCell: {
+    width: GRID_ITEM_SIZE,
+    height: GRID_ITEM_SIZE,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#EFE9E1',
+  },
+  gridImg: {
+    width: '100%',
+    height: '100%',
+  },
+  gridMultiBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(28, 24, 21, 0.72)',
+    padding: 4,
+    borderRadius: 6,
+  },
+  petsTabSection: {
+    gap: 12,
+  },
+  petPolicyBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: PAWTY_COLORS.cream,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
     padding: 14,
-    borderRadius: 16,
-    marginTop: 10,
     borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
+    borderColor: '#ECE6DF',
   },
-  actionEmoji: { fontSize: 24 },
-  actionTitle: { fontSize: 14, fontWeight: '800', color: PAWTY_COLORS.charcoal },
-  actionSub: { fontSize: 11, color: PAWTY_COLORS.slate, marginTop: 2, lineHeight: 16 },
-
-  privacyBtnsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  smallOutlineBtn: {
+  petPolicyTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#2C2520',
+  },
+  petPolicySub: {
+    fontSize: 11,
+    color: '#7A6E63',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  addPetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  addPetBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  inlineAddPetCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5DDD3',
+    gap: 8,
+  },
+  twoCol: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  speciesBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: '#FAF7F2',
+    borderWidth: 1,
+    borderColor: '#E5DDD3',
+    alignItems: 'center',
+  },
+  speciesBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4A3F35',
+  },
+  inlineInput: {
+    backgroundColor: '#FAF7F2',
+    borderWidth: 1,
+    borderColor: '#E5DDD3',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 12,
+    color: '#2C2520',
+  },
+  saveInlinePetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     paddingVertical: 10,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-    backgroundColor: PAWTY_COLORS.cream,
   },
-  smallOutlineText: { fontSize: 12, fontWeight: '800', color: PAWTY_COLORS.charcoal },
+  saveInlinePetBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  petManageCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#ECE6DF',
+    gap: 10,
+  },
+  petManageTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  petManageAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#F3EFEA',
+  },
+  petNameLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  petManageName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#2C2520',
+  },
+  speciesChip: {
+    backgroundColor: '#EFE9E1',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  speciesChipText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#5C5046',
+  },
+  petManageMeta: {
+    fontSize: 12,
+    color: '#7A6E63',
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  petVaccinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    backgroundColor: '#EAF7F1',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  petVaccinePillWarn: {
+    backgroundColor: '#FDF3F2',
+  },
+  petVaccinePillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#2E7D5B',
+  },
+  petBioNote: {
+    fontSize: 12,
+    color: '#4A3F35',
+    lineHeight: 18,
+    backgroundColor: '#FAF7F2',
+    padding: 10,
+    borderRadius: 12,
+  },
+  petActionsFooter: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  petEditBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  petEditBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  petDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#FDF3F2',
+  },
+  petDeleteBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#C9302C',
+  },
+  tinderSetupSection: {
+    gap: 12,
+  },
+  tinderSetupCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#ECE6DF',
+  },
+  tinderSetupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  tinderSetupTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#2C2520',
+  },
+  tinderSetupSub: {
+    fontSize: 12,
+    color: '#7A6E63',
+    marginTop: 2,
+  },
+  editTinderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  editTinderBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  tinderPreviewBox: {
+    backgroundColor: '#FAF7F2',
+    padding: 12,
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+  tinderFieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7A6E63',
+  },
+  tinderFieldBig: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#1C1815',
+    marginTop: 3,
+  },
+  tinderLifestyleGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tinderPillItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FAF7F2',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ECE6DF',
+  },
+  tinderPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2C2520',
+  },
+  tinderAttachedPetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FAF7F2',
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 6,
+  },
+  tinderAttachedPetAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+  },
+  tinderAttachedPetName: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#2C2520',
+  },
+  tinderAttachedPetVaccine: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2E7D5B',
+    marginTop: 2,
+  },
 });
-
