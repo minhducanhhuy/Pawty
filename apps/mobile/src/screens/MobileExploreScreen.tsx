@@ -1,954 +1,870 @@
-import React, { memo, useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import {
-  FlatList,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Image,
+  StyleSheet,
+  Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
-import { MobileExploreSubTab, useMobilePawty } from '../context/MobilePawtyContext';
-import { MobilePost, MobileReactionKey } from '../data/mobileSeedData';
-import { PAWTY_COLORS } from '../theme/colors';
+import { Feather } from '../components/FeatherIcon';
+import { useMobilePawty } from '../context/MobilePawtyContext';
 
-const REACTION_BUTTONS: Array<{ key: MobileReactionKey; emoji: string; label: string }> = [
-  { key: 'paw', emoji: '🐾', label: 'Paw' },
-  { key: 'heart_eyes', emoji: '😍', label: 'Mê' },
-  { key: 'laughing', emoji: '😂', label: 'Bựa' },
-  { key: 'worried', emoji: '😟', label: 'Lo' },
-  { key: 'helpful', emoji: '💡', label: 'Hữu ích' },
-];
-
-interface PostCardProps {
-  post: MobilePost;
-  onReact: (postId: string, reaction: MobileReactionKey) => void;
-  onBookmark: (postId: string) => void;
-  onAddComment: (postId: string, content: string) => void;
-  onBookSponsored: () => void;
-}
-
-const PostFeedCard = memo<PostCardProps>(
-  ({ post, onReact, onBookmark, onAddComment, onBookSponsored }) => {
-    const [commentDraft, setCommentDraft] = useState('');
-    const [showComments, setShowComments] = useState(post.comments.length > 0);
-
-    return (
-      <View style={[styles.postCard, post.isSponsored && styles.postCardSponsored]}>
-        {/* Author Header */}
-        <View style={styles.postHeader}>
-          <Image source={{ uri: post.authorAvatar }} style={styles.authorAvatar} />
-          <View style={{ flex: 1 }}>
-            <View style={styles.authorNameRow}>
-              <Text style={styles.authorName}>{post.authorName}</Text>
-              {post.authorRoleBadge === 'vip' && (
-                <Text style={styles.vipBadge}>👑 SEN VIP</Text>
-              )}
-              {post.authorRoleBadge === 'vet' && (
-                <Text style={styles.vetBadge}>🟢 CHUYÊN GIA XÁC MINH</Text>
-              )}
-              {post.authorRoleBadge === 'partner' && (
-                <Text style={styles.partnerBadge}>🎁 TÀI TRỢ NỘI KHU</Text>
-              )}
-            </View>
-            <Text style={styles.postMeta}>
-              🐾 {post.petName} ({post.petBreed}) · 📍 {post.locationDistrict} · {post.createdAt}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.bookmarkBtn}
-            onPress={() => onBookmark(post.id)}
-          >
-            <Text style={{ fontSize: 16 }}>{post.isBookmarked ? '🔖' : '🏷️'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Auto Health Disclaimer Banner */}
-        {post.hasHealthDisclaimer && (
-          <View style={styles.disclaimerBanner}>
-            <Text style={styles.disclaimerText}>
-              ⚕️ Lưu ý Y khoa: Nội dung mang tính chia sẻ kinh nghiệm cộng đồng, không thay thế chẩn đoán trực tiếp của Bác sĩ thú y.
-            </Text>
-          </View>
-        )}
-
-        {/* Content */}
-        <Text style={styles.postText}>{post.textContent}</Text>
-
-        {/* Hashtags */}
-        <View style={styles.hashtagRow}>
-          {post.hashtags.map((tag) => (
-            <Text key={tag} style={styles.hashtagText}>
-              {tag}
-            </Text>
-          ))}
-        </View>
-
-        {/* Image */}
-        <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
-
-        {/* Sponsored Native Ad Voucher CTA */}
-        {post.isSponsored && (
-          <View style={styles.sponsorBox}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.sponsorTitle}>{post.sponsorDiscountText}</Text>
-              <Text style={styles.sponsorCode}>Mã Voucher: {post.sponsorVoucherCode}</Text>
-            </View>
-            <TouchableOpacity style={styles.sponsorCta} onPress={onBookSponsored}>
-              <Text style={styles.sponsorCtaText}>Đặt lịch -35%</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* 5 Paw Reactions Bar */}
-        <View style={styles.reactionRow}>
-          {REACTION_BUTTONS.map((btn) => {
-            const count = post.reactions[btn.key] || 0;
-            const isSelected = post.userReaction === btn.key;
-            return (
-              <TouchableOpacity
-                key={btn.key}
-                style={[styles.reactionBtn, isSelected && styles.reactionBtnActive]}
-                onPress={() => onReact(post.id, btn.key)}
-              >
-                <Text style={styles.reactionEmoji}>{btn.emoji}</Text>
-                <Text style={[styles.reactionCount, isSelected && styles.reactionCountActive]}>
-                  {count}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Comments Section (Expert First) */}
-        <TouchableOpacity
-          style={styles.commentToggle}
-          onPress={() => setShowComments(!showComments)}
-        >
-          <Text style={styles.commentToggleText}>
-            💬 {post.comments.length} bình luận · PawRank {post.pawRankScore}đ
-          </Text>
-        </TouchableOpacity>
-
-        {showComments && (
-          <View style={styles.commentsBox}>
-            {post.comments.map((cmt) => (
-              <View
-                key={cmt.id}
-                style={[
-                  styles.commentItem,
-                  cmt.authorBadge === 'vet' && styles.commentItemVet,
-                ]}
-              >
-                <Text style={styles.commentAuthor}>
-                  {cmt.authorName}{' '}
-                  {cmt.authorBadge === 'vet' ? '🟢 Bác sĩ Thú Y Xác minh' : ''}
-                </Text>
-                <Text style={styles.commentText}>{cmt.content}</Text>
-              </View>
-            ))}
-
-            <View style={styles.commentInputRow}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Viết bình luận chia sẻ cùng Sen..."
-                value={commentDraft}
-                onChangeText={setCommentDraft}
-              />
-              <TouchableOpacity
-                style={styles.commentSendBtn}
-                onPress={() => {
-                  if (commentDraft.trim()) {
-                    onAddComment(post.id, commentDraft);
-                    setCommentDraft('');
-                  }
-                }}
-              >
-                <Text style={styles.commentSendText}>Gửi</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </View>
-    );
-  }
-);
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CARD_MEDIA_WIDTH = SCREEN_WIDTH - 32 - 28;
 
 export const MobileExploreScreen: React.FC = () => {
   const {
-    exploreSubTab,
-    setExploreSubTab,
+    theme,
     posts,
-    reactToPost,
-    toggleBookmarkPost,
-    addCommentToPost,
-    groups,
-    toggleJoinGroup,
-    partners,
-    places,
-    radarCandidates,
-    matchedIds,
-    latestMatchPetName,
-    swipeRadarCandidate,
-    clearMatchCelebration,
+    searchHistory,
+    trendingSuggestions,
+    isSearchPanelOpen,
+    setIsSearchPanelOpen,
+    recordSearchQuery,
+    removeSearchHistoryItem,
+    clearSearchHistory,
+    toggleReaction,
+    toggleSavePost,
+    addComment,
+    sharePost,
+    openPublicUserProfile,
+    openLightboxMedia,
     setActiveModal,
-    setActiveTab,
   } = useMobilePawty();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [safePetFilterOnly, setSafePetFilterOnly] = useState(true);
-  const [radarIndex, setRadarIndex] = useState(0);
+  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
+  const [commentInput, setCommentInput] = useState('');
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [activePhotoIndexMap, setActivePhotoIndexMap] = useState<Record<string, number>>({});
 
-  const SUB_TABS: Array<{ id: MobileExploreSubTab; label: string }> = [
-    { id: 'feed', label: '🐾 Bảng tin' },
-    { id: 'trending', label: '🔥 Xu hướng' },
-    { id: 'groups', label: '👥 Hội nhóm' },
-    { id: 'qa', label: '⚕️ Hỏi đáp' },
-    { id: 'services', label: '✂️ Dịch vụ' },
-    { id: 'places', label: '🌳 Địa điểm' },
-    { id: 'radar', label: '📡 Radar' },
-  ];
+  const filteredPosts = posts.filter((post) => {
+    const q = searchQuery.trim().toLowerCase();
+    const matchQuery =
+      !q ||
+      post.content.toLowerCase().includes(q) ||
+      post.authorName.toLowerCase().includes(q) ||
+      post.authorHandle.toLowerCase().includes(q) ||
+      post.tags.some((h) => h.toLowerCase().includes(q));
+    return matchQuery;
+  });
 
-  const handleBookSponsored = useCallback(() => {
-    setActiveModal('book_service', 'partner-1');
-  }, [setActiveModal]);
+  const handleSelectSuggestion = (keyword: string) => {
+    setSearchQuery(keyword);
+    recordSearchQuery(keyword);
+    setIsSearchPanelOpen(false);
+  };
 
-  const renderFeedItem = useCallback(
-    ({ item }: { item: MobilePost }) => (
-      <PostFeedCard
-        post={item}
-        onReact={reactToPost}
-        onBookmark={toggleBookmarkPost}
-        onAddComment={addCommentToPost}
-        onBookSponsored={handleBookSponsored}
-      />
-    ),
-    [addCommentToPost, handleBookSponsored, reactToPost, toggleBookmarkPost]
-  );
-
-  const keyExtractor = useCallback((item: MobilePost) => item.id, []);
-
-  const filteredPosts = posts.filter((p) =>
-    searchQuery.trim()
-      ? p.textContent.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.petName.toLowerCase().includes(searchQuery.toLowerCase())
-      : true
-  );
-
-  const currentRadarCandidate =
-    radarCandidates[radarIndex % radarCandidates.length] || radarCandidates[0];
+  const handlePhotoScroll = (postId: string, event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const width = event.nativeEvent.layoutMeasurement.width || CARD_MEDIA_WIDTH;
+    const index = Math.round(offsetX / width);
+    setActivePhotoIndexMap((prev) => (prev[postId] === index ? prev : { ...prev, [postId]: index }));
+  };
 
   return (
-    <View style={styles.container}>
-      {/* Search Bar & Sub-Tabs Header */}
-      <View style={styles.topHeader}>
-        <TextInput
-          style={styles.searchBar}
-          placeholder="🔍 Tìm khoảnh khắc, #GoldenRetriever, phòng khám..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.subTabsRow}
-        >
-          {SUB_TABS.map((tab) => {
-            const active = exploreSubTab === tab.id;
-            return (
-              <TouchableOpacity
-                key={tab.id}
-                style={[styles.subTabPill, active && styles.subTabPillActive]}
-                onPress={() => setExploreSubTab(tab.id)}
-              >
-                <Text style={[styles.subTabText, active && styles.subTabTextActive]}>
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      {/* Search Bar with History & Trending Dropdown */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchBar}>
+          <Feather name="search" size={16} color="#8E8074" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm bài viết, #hashtag, @tài_khoản..."
+            placeholderTextColor="#A3968A"
+            value={searchQuery}
+            onFocus={() => setIsSearchPanelOpen(true)}
+            onChangeText={setSearchQuery}
+            onSubmitEditing={() => {
+              recordSearchQuery(searchQuery);
+              setIsSearchPanelOpen(false);
+            }}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Feather name="x" size={16} color="#8E8074" />
+            </TouchableOpacity>
+          )}
+          {isSearchPanelOpen && (
+            <TouchableOpacity
+              onPress={() => setIsSearchPanelOpen(false)}
+              style={styles.closeSearchBtn}
+            >
+              <Text style={[styles.closeSearchText, { color: theme.primary }]}>Đóng</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {isSearchPanelOpen && (
+          <View style={styles.searchDropdown}>
+            {searchHistory.length > 0 && (
+              <View style={styles.dropdownGroup}>
+                <View style={styles.dropdownHeaderRow}>
+                  <View style={styles.dropdownTitleRow}>
+                    <Feather name="clock" size={13} color="#7A6E63" />
+                    <Text style={styles.dropdownGroupTitle}>Lịch sử tìm kiếm</Text>
+                  </View>
+                  <TouchableOpacity onPress={clearSearchHistory}>
+                    <Text style={styles.clearHistoryText}>Xóa hết</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.historyList}>
+                  {searchHistory.map((item) => (
+                    <View key={item} style={styles.historyChip}>
+                      <TouchableOpacity
+                        style={styles.historyChipMain}
+                        onPress={() => handleSelectSuggestion(item)}
+                      >
+                        <Text style={styles.historyChipText}>{item}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => removeSearchHistoryItem(item)}
+                        style={styles.historyRemoveBtn}
+                      >
+                        <Feather name="x" size={12} color="#8E8074" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            <View style={styles.dropdownGroup}>
+              <View style={styles.dropdownTitleRow}>
+                <Feather name="trending-up" size={13} color={theme.primary} />
+                <Text style={styles.dropdownGroupTitle}>Đề xuất & Thịnh hành</Text>
+              </View>
+              <View style={styles.trendingWrap}>
+                {trendingSuggestions.map((trend) => (
+                  <TouchableOpacity
+                    key={trend}
+                    style={[styles.trendingChip, { backgroundColor: theme.primarySoft }]}
+                    onPress={() => handleSelectSuggestion(trend)}
+                  >
+                    <Text style={[styles.trendingChipText, { color: theme.primary }]}>
+                      {trend}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        )}
       </View>
 
-      {/* 1. FEED SUB-TAB (FlatList + React.memo per mobile-performance.md) */}
-      {exploreSubTab === 'feed' && (
-        <FlatList
-          data={filteredPosts}
-          keyExtractor={keyExtractor}
-          renderItem={renderFeedItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
+      {/* Quick Composer Prompt Bar */}
+      <TouchableOpacity
+        style={styles.composerBar}
+        activeOpacity={0.85}
+        onPress={() => setActiveModal('new_moment')}
+      >
+        <View style={[styles.composerIconCircle, { backgroundColor: theme.primarySoft }]}>
+          <Feather name="camera" size={16} color={theme.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.composerTitle}>Chia sẻ ảnh hoặc video của thú cưng...</Text>
+          <Text style={styles.composerSub}>Chọn nhiều ảnh hoặc video trực tiếp từ điện thoại</Text>
+        </View>
+        <View style={[styles.composerBtn, { backgroundColor: theme.primary }]}>
+          <Feather name="plus" size={14} color="#FFFFFF" />
+          <Text style={styles.composerBtnText}>Đăng bài</Text>
+        </View>
+      </TouchableOpacity>
+
+      {searchQuery.trim().length > 0 && (
+        <View style={styles.activeFilterBanner}>
+          <Text style={styles.activeFilterText}>
+            Kết quả cho: <Text style={{ fontWeight: '800' }}>{searchQuery}</Text> ({filteredPosts.length} bài)
+          </Text>
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Text style={[styles.clearFilterLink, { color: theme.primary }]}>Bỏ lọc</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
-      {/* 2. TRENDING SUB-TAB */}
-      {exploreSubTab === 'trending' && (
-        <ScrollView contentContainerStyle={styles.listContent}>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>🔥 Hashtag Thịnh Hành Tuần Này</Text>
-            <View style={styles.chipsWrap}>
-              {[
-                '#GoldenRetriever (1.2k bài)',
-                '#MèoAnhLôngNgắn (980 bài)',
-                '#VinhomesGrandPark (640 bài)',
-                '#HẹnDạoChiềuNay (410 bài)',
-                '#MẹoChămBoss (530 bài)',
-                '#KhoảnhKhắcBựa (890 bài)',
-              ].map((tag) => (
+      {/* Instagram-style Social Feed */}
+      <View style={styles.stack}>
+        {filteredPosts.map((post) => {
+          const isCommentOpen = expandedCommentId === post.id;
+          const isPlayingVideo = playingVideoId === post.id;
+          const galleryUrls = post.mediaUrls.length > 0 ? post.mediaUrls : [];
+          const currentPhotoIdx = activePhotoIndexMap[post.id] || 0;
+          const totalLikes =
+            post.reactions.paws +
+            post.reactions.love +
+            post.reactions.haha +
+            post.reactions.wow +
+            post.reactions.helpful;
+          const isLiked = Boolean(post.userReaction);
+
+          return (
+            <View key={post.id} style={styles.postCard}>
+              <View style={styles.postHeader}>
                 <TouchableOpacity
-                  key={tag}
-                  style={styles.trendChip}
-                  onPress={() => {
-                    setExploreSubTab('feed');
-                  }}
+                  style={styles.authorTouchRow}
+                  onPress={() => openPublicUserProfile(post.authorHandle)}
                 >
-                  <Text style={styles.trendChipText}>{tag}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.expertTipCard}>
-            <Text style={styles.expertBadge}>🟢 MẸO CHUYÊN GIA HÔM NAY — BS. TRẦN MINH KHOA</Text>
-            <Text style={styles.expertTitle}>
-              Cách kiểm tra nhiệt độ mặt đường trước khi dắt cún đi dạo chiều
-            </Text>
-            <Text style={styles.expertBody}>
-              Áp mu bàn tay của bạn xuống mặt đường nhựa trong 7 giây. Nếu thấy nóng rát, đệm thịt chân của Boss cũng sẽ bị bỏng! Hãy ưu tiên dắt dạo trên thảm cỏ công viên sau 17h00.
-            </Text>
-          </View>
-        </ScrollView>
-      )}
-
-      {/* 3. GROUPS SUB-TAB */}
-      {exploreSubTab === 'groups' && (
-        <ScrollView contentContainerStyle={styles.listContent}>
-          {groups.map((grp) => (
-            <View key={grp.id} style={styles.card}>
-              <Image source={{ uri: grp.coverUrl }} style={styles.groupCover} />
-              <Text style={styles.cardTitle}>{grp.name}</Text>
-              <Text style={styles.cardSub}>
-                📍 {grp.district} · 👥 {grp.memberCount} thành viên · +{grp.postsToday} bài hôm nay
-              </Text>
-              <Text style={styles.groupDesc}>{grp.description}</Text>
-              <TouchableOpacity
-                style={[styles.primaryBtn, grp.isJoined && styles.secondaryBtn]}
-                onPress={() => toggleJoinGroup(grp.id)}
-              >
-                <Text style={[styles.primaryBtnText, grp.isJoined && styles.secondaryBtnText]}>
-                  {grp.isJoined ? '✓ Đã tham gia Nhóm (Chạm để rời)' : '+ Tham gia Nhóm Cộng đồng'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
-      )}
-
-      {/* 4. Q&A SUB-TAB */}
-      {exploreSubTab === 'qa' && (
-        <ScrollView contentContainerStyle={styles.listContent}>
-          <View style={styles.qaHeaderCard}>
-            <Text style={styles.cardTitle}>⚕️ Hỏi Đáp Cùng Chuyên Gia Xác Minh</Text>
-            <Text style={styles.cardSub}>
-              Câu trả lời từ Bác sĩ Thú y & Huấn luyện viên có huy hiệu Xanh Mint luôn được ghim lên đầu.
-            </Text>
-            <TouchableOpacity
-              style={styles.primaryBtn}
-              onPress={() => setActiveModal('new_question')}
-            >
-              <Text style={styles.primaryBtnText}>+ Đặt câu hỏi cho Bác sĩ Thú y</Text>
-            </TouchableOpacity>
-          </View>
-
-          {posts
-            .filter((p) => p.contentType === 'tip' || p.contentType === 'question' || p.hasHealthDisclaimer)
-            .map((p) => (
-              <PostFeedCard
-                key={p.id}
-                post={p}
-                onReact={reactToPost}
-                onBookmark={toggleBookmarkPost}
-                onAddComment={addCommentToPost}
-                onBookSponsored={handleBookSponsored}
-              />
-            ))}
-        </ScrollView>
-      )}
-
-      {/* 5. SERVICES SUB-TAB (Layer 4: Pawty Services) */}
-      {exploreSubTab === 'services' && (
-        <ScrollView contentContainerStyle={styles.listContent}>
-          {partners.map((partner) => (
-            <View key={partner.id} style={styles.card}>
-              <View style={styles.partnerRow}>
-                <Image source={{ uri: partner.avatarUrl }} style={styles.partnerAvatar} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.mintBadgeInline}>✓ ĐỐI TÁC XÁC MINH PAWTY PRO</Text>
-                  <Text style={styles.cardTitle}>{partner.businessName}</Text>
-                  <Text style={styles.cardSub}>
-                    ⭐ {partner.ratingAvg} ({partner.reviewCount} đánh giá) · Cách bạn {partner.distanceMeters}m
-                  </Text>
-                  <Text style={styles.cardSub}>📍 {partner.address}</Text>
-                </View>
-              </View>
-
-              <View style={styles.servicesList}>
-                {partner.services.map((srv) => (
-                  <View key={srv.id} style={styles.serviceItem}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.serviceName}>{srv.name}</Text>
-                      <Text style={styles.serviceDuration}>⏱️ {srv.durationMinutes} phút</Text>
+                  <Image source={{ uri: post.authorAvatar }} style={styles.authorAvatar} />
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.authorRow}>
+                      <Text style={styles.authorName}>{post.authorName}</Text>
+                      <Text style={styles.authorHandleText}>{post.authorHandle}</Text>
+                      <View style={[styles.badgePill, { backgroundColor: theme.primarySoft }]}>
+                        <Feather name="award" size={11} color={theme.primary} />
+                        <Text style={[styles.badgeText, { color: theme.primary }]}>
+                          {post.authorNickname}
+                        </Text>
+                      </View>
                     </View>
-                    <Text style={styles.servicePrice}>
-                      {srv.priceVnd.toLocaleString('vi-VN')}đ
-                    </Text>
+                    <Text style={styles.postMeta}>{post.createdAt}</Text>
                   </View>
-                ))}
-              </View>
-
-              <TouchableOpacity
-                style={styles.primaryBtn}
-                onPress={() => setActiveModal('book_service', partner.id)}
-              >
-                <Text style={styles.primaryBtnText}>📅 Đặt lịch hẹn ngay (4 bước)</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
-      )}
-
-      {/* 6. PLACES SUB-TAB */}
-      {exploreSubTab === 'places' && (
-        <ScrollView contentContainerStyle={styles.listContent}>
-          {places.map((pl) => (
-            <View key={pl.id} style={styles.card}>
-              <Image source={{ uri: pl.imageUrl }} style={styles.groupCover} />
-              <View style={styles.placeBadgeRow}>
-                <Text style={styles.mintBadgeInline}>🌳 PET-FRIENDLY XÁC MINH</Text>
-                <Text style={styles.placeDist}>Cách bạn {pl.distanceMeters}m</Text>
-              </View>
-              <Text style={styles.cardTitle}>{pl.name}</Text>
-              <Text style={styles.cardSub}>📍 {pl.address} · ⭐ {pl.rating}</Text>
-              <View style={styles.chipsWrap}>
-                {pl.features.map((f) => (
-                  <View key={f} style={styles.featureChip}>
-                    <Text style={styles.featureChipText}>✓ {f}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-      )}
-
-      {/* 7. RADAR SUB-TAB (PostGIS Proximity Matching) */}
-      {exploreSubTab === 'radar' && (
-        <ScrollView contentContainerStyle={styles.listContent}>
-          <View style={styles.radarFilterCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.radarFilterTitle}>🟢 Chỉ hiển thị Boss đã tiêm phòng (Safe Pet)</Text>
-              <Text style={styles.radarFilterSub}>
-                Bán kính PostGIS ST_DWithin: 500m – 3km quanh chung cư của bạn
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.togglePill, safePetFilterOnly && styles.togglePillOn]}
-              onPress={() => setSafePetFilterOnly(!safePetFilterOnly)}
-            >
-              <Text style={styles.togglePillText}>{safePetFilterOnly ? 'BẬT' : 'TẮT'}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {latestMatchPetName && (
-            <View style={styles.matchCelebrationBanner}>
-              <Text style={styles.matchEmoji}>🎉🐾💖</Text>
-              <Text style={styles.matchTitle}>TƯƠNG HỢP HẸN DẮT DẠO!</Text>
-              <Text style={styles.matchSub}>
-                Boss của bạn và {latestMatchPetName} đã sẵn sàng đi dạo cùng nhau!
-              </Text>
-              <View style={styles.matchActions}>
-                <TouchableOpacity
-                  style={styles.matchChatBtn}
-                  onPress={() => {
-                    clearMatchCelebration();
-                    setActiveModal('walk_scheduler');
-                  }}
-                >
-                  <Text style={styles.matchChatBtnText}>📍 Chọn Trung điểm Hẹn Dạo</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.matchCloseBtn}
-                  onPress={() => {
-                    clearMatchCelebration();
-                    setActiveTab('chat');
-                  }}
-                >
-                  <Text style={styles.matchCloseBtnText}>Mở Chat ngay</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          )}
 
-          {currentRadarCandidate && (
-            <View style={styles.radarCard}>
-              <Image
-                source={{ uri: currentRadarCandidate.petAvatar }}
-                style={styles.radarPhoto}
-              />
-              <View style={styles.radarOverlayBadge}>
-                <Text style={styles.radarDistanceText}>
-                  📍 Cách bạn {currentRadarCandidate.distanceMeters}m · Hợp {currentRadarCandidate.compatibilityScore}%
-                </Text>
-              </View>
+              <Text style={styles.caption}>{post.content}</Text>
 
-              <View style={styles.radarBody}>
-                <View style={styles.radarTitleRow}>
-                  <Text style={styles.radarPetName}>
-                    {currentRadarCandidate.petName} ({currentRadarCandidate.petBreed})
-                  </Text>
-                  <Text style={styles.safePetPill}>🟢 Đã tiêm đủ 7 bệnh & Dại</Text>
-                </View>
-
-                <Text style={styles.radarMeta}>
-                  👤 Chủ nuôi: {currentRadarCandidate.ownerName} · 🏢 {currentRadarCandidate.neighborhood}
-                </Text>
-                <Text style={styles.radarMeta}>
-                  ⏰ Giờ dắt dạo: {currentRadarCandidate.walkRoutineTime} · ⚖️ {currentRadarCandidate.petWeightKg}kg
-                </Text>
-
-                <Text style={styles.habitHeading}>Thói quen tốt:</Text>
-                <View style={styles.chipsWrap}>
-                  {currentRadarCandidate.goodHabits.map((h) => (
-                    <View key={h} style={styles.mintChip}>
-                      <Text style={styles.mintChipText}>✓ {h}</Text>
-                    </View>
+              {post.tags.length > 0 && (
+                <View style={styles.hashtagRow}>
+                  {post.tags.map((tag) => (
+                    <TouchableOpacity key={tag} onPress={() => handleSelectSuggestion(tag)}>
+                      <Text style={[styles.hashtagText, { color: theme.primary }]}>{tag}</Text>
+                    </TouchableOpacity>
                   ))}
                 </View>
+              )}
 
-                <Text style={styles.habitHeading}>Cần lưu ý (Phòng tránh xung đột):</Text>
-                <View style={styles.chipsWrap}>
-                  {currentRadarCandidate.cautions.map((c) => (
-                    <View key={c} style={styles.amberChip}>
-                      <Text style={styles.amberChipText}>⚠️ {c}</Text>
+              {/* Media Render: Video Player or Horizontal Swipeable Multi-Photo Carousel */}
+              {post.mediaType === 'video' && galleryUrls.length > 0 ? (
+                <TouchableOpacity
+                  activeOpacity={0.92}
+                  style={styles.mediaContainer}
+                  onPress={() => setPlayingVideoId(isPlayingVideo ? null : post.id)}
+                >
+                  <Image source={{ uri: galleryUrls[0] }} style={styles.postImage} />
+                  <View style={styles.videoBadgeTopRight}>
+                    <Feather name="video" size={12} color="#FFFFFF" />
+                    <Text style={styles.videoBadgeText}>
+                      {isPlayingVideo ? 'Đang phát Video' : `Video · ${post.videoDuration || '0:18'}`}
+                    </Text>
+                  </View>
+                  <View style={styles.videoCenterOverlay}>
+                    <View
+                      style={[
+                        styles.videoPlayCircle,
+                        isPlayingVideo && { backgroundColor: 'rgba(62, 142, 108, 0.9)' },
+                      ]}
+                    >
+                      <Feather
+                        name={isPlayingVideo ? 'pause' : 'play'}
+                        size={22}
+                        color="#FFFFFF"
+                      />
                     </View>
-                  ))}
-                </View>
-
-                <View style={styles.radarBtnRow}>
+                  </View>
                   <TouchableOpacity
-                    style={styles.passBtn}
-                    onPress={() => {
-                      swipeRadarCandidate(currentRadarCandidate.id, 'left');
-                      setRadarIndex((i) => i + 1);
-                    }}
+                    style={styles.zoomCornerBtn}
+                    onPress={() =>
+                      openLightboxMedia({
+                        postId: post.id,
+                        mediaUrls: galleryUrls,
+                        initialIndex: 0,
+                        mediaType: 'video',
+                        videoDuration: post.videoDuration,
+                        caption: post.content,
+                        authorName: post.authorName,
+                      })
+                    }
                   >
-                    <Text style={styles.passBtnText}>✕ Bỏ qua</Text>
+                    <Feather name="maximize-2" size={14} color="#FFFFFF" />
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.likeBtn}
-                    onPress={() => {
-                      swipeRadarCandidate(currentRadarCandidate.id, 'right');
-                      setRadarIndex((i) => i + 1);
-                    }}
+                </TouchableOpacity>
+              ) : galleryUrls.length > 0 ? (
+                <View style={styles.carouselWrapper}>
+                  <ScrollView
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onScroll={(e) => handlePhotoScroll(post.id, e)}
+                    scrollEventThrottle={16}
                   >
-                    <Text style={styles.likeBtnText}>
-                      {matchedIds.includes(currentRadarCandidate.id)
-                        ? '💖 Đã Match (Hẹn dạo ngay)'
-                        : '🐾 Mời Đi Dạo Chung'}
+                    {galleryUrls.map((imgUrl, idx) => (
+                      <TouchableOpacity
+                        key={`${post.id}-img-${idx}`}
+                        activeOpacity={0.95}
+                        style={{ width: CARD_MEDIA_WIDTH }}
+                        onPress={() =>
+                          openLightboxMedia({
+                            postId: post.id,
+                            mediaUrls: galleryUrls,
+                            initialIndex: idx,
+                            mediaType: 'image',
+                            caption: post.content,
+                            authorName: post.authorName,
+                          })
+                        }
+                      >
+                        <Image
+                          source={{ uri: imgUrl }}
+                          style={[styles.postImage, { width: CARD_MEDIA_WIDTH }]}
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  {galleryUrls.length > 1 && (
+                    <View style={styles.photoCountBadge}>
+                      <Text style={styles.photoCountText}>
+                        {currentPhotoIdx + 1}/{galleryUrls.length}
+                      </Text>
+                    </View>
+                  )}
+
+                  <TouchableOpacity
+                    style={styles.zoomCornerBtn}
+                    onPress={() =>
+                      openLightboxMedia({
+                        postId: post.id,
+                        mediaUrls: galleryUrls,
+                        initialIndex: currentPhotoIdx,
+                        mediaType: 'image',
+                        caption: post.content,
+                        authorName: post.authorName,
+                      })
+                    }
+                  >
+                    <Feather name="maximize-2" size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  {galleryUrls.length > 1 && (
+                    <View style={styles.dotsRow}>
+                      {galleryUrls.map((_, idx) => (
+                        <View
+                          key={`${post.id}-dot-${idx}`}
+                          style={[
+                            styles.dot,
+                            idx === currentPhotoIdx && {
+                              backgroundColor: theme.primary,
+                              width: 16,
+                            },
+                          ]}
+                        />
+                      ))}
+                    </View>
+                  )}
+                </View>
+              ) : null}
+
+              {/* Instagram-style Action Row */}
+              <View style={styles.igActionRow}>
+                <View style={styles.igActionLeft}>
+                  <TouchableOpacity
+                    style={styles.igActionBtn}
+                    onPress={() => toggleReaction(post.id)}
+                  >
+                    <Feather
+                      name="heart"
+                      size={20}
+                      color={isLiked ? '#D9534F' : '#2C2520'}
+                    />
+                    <Text
+                      style={[
+                        styles.igActionCount,
+                        isLiked && { color: '#D9534F', fontWeight: '800' },
+                      ]}
+                    >
+                      {totalLikes}
                     </Text>
                   </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.igActionBtn}
+                    onPress={() => setExpandedCommentId(isCommentOpen ? null : post.id)}
+                  >
+                    <Feather name="message-circle" size={20} color="#2C2520" />
+                    <Text style={styles.igActionCount}>{post.comments.length}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.igActionBtn}
+                    onPress={() => sharePost(post.id)}
+                  >
+                    <Feather name="share-2" size={19} color="#2C2520" />
+                    <Text style={styles.igActionCount}>{post.shareCount}</Text>
+                  </TouchableOpacity>
                 </View>
+
+                <TouchableOpacity
+                  onPress={() => toggleSavePost(post.id)}
+                  style={styles.igBookmarkBtn}
+                >
+                  <Feather
+                    name="bookmark"
+                    size={20}
+                    color={post.isSaved ? theme.primary : '#2C2520'}
+                  />
+                </TouchableOpacity>
               </View>
+
+              {isCommentOpen && (
+                <View style={styles.commentBox}>
+                  {post.comments.map((c) => (
+                    <View key={c.id} style={styles.commentItem}>
+                      <Text style={styles.commentAuthor}>
+                        {c.authorName} <Text style={styles.commentTime}>· {c.createdAt}</Text>
+                      </Text>
+                      <Text style={styles.commentBody}>{c.content}</Text>
+                    </View>
+                  ))}
+                  <View style={styles.commentInputRow}>
+                    <TextInput
+                      style={styles.commentInput}
+                      placeholder="Viết bình luận..."
+                      placeholderTextColor="#A3968A"
+                      value={commentInput}
+                      onChangeText={setCommentInput}
+                    />
+                    <TouchableOpacity
+                      style={[styles.sendBtn, { backgroundColor: theme.primary }]}
+                      onPress={() => {
+                        addComment(post.id, commentInput);
+                        setCommentInput('');
+                      }}
+                    >
+                      <Feather name="send" size={14} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
-          )}
-        </ScrollView>
-      )}
-    </View>
+          );
+        })}
+      </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PAWTY_COLORS.cream },
-  topHeader: {
-    backgroundColor: '#FFF',
-    paddingHorizontal: 14,
+  container: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: PAWTY_COLORS.border,
+    paddingBottom: 28,
+  },
+  searchSection: {
+    marginBottom: 10,
+    zIndex: 20,
   },
   searchBar: {
-    backgroundColor: PAWTY_COLORS.cream,
-    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#ECE6DF',
+  },
+  searchInput: {
+    flex: 1,
     fontSize: 13,
-    color: PAWTY_COLORS.charcoal,
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-    marginBottom: 10,
+    color: '#2C2520',
+    paddingVertical: 0,
   },
-  subTabsRow: { gap: 8 },
-  subTabPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 14,
-    backgroundColor: PAWTY_COLORS.cream,
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
+  closeSearchBtn: {
+    paddingLeft: 6,
   },
-  subTabPillActive: {
-    backgroundColor: PAWTY_COLORS.coral,
-    borderColor: PAWTY_COLORS.coral,
-  },
-  subTabText: { fontSize: 12, fontWeight: '800', color: PAWTY_COLORS.slate },
-  subTabTextActive: { color: '#FFF' },
-
-  listContent: { padding: 14, paddingBottom: 110 },
-
-  postCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 22,
-    padding: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-  },
-  postCardSponsored: {
-    borderColor: PAWTY_COLORS.gold,
-    backgroundColor: '#FFFDF7',
-  },
-  postHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  authorAvatar: { width: 42, height: 42, borderRadius: 21 },
-  authorNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  authorName: { fontSize: 14, fontWeight: '800', color: PAWTY_COLORS.charcoal },
-  vipBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#B45309',
-    backgroundColor: PAWTY_COLORS.goldSoft,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  vetBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: PAWTY_COLORS.mintDark,
-    backgroundColor: PAWTY_COLORS.mintSoft,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  partnerBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: PAWTY_COLORS.coral,
-    backgroundColor: PAWTY_COLORS.coralSoft,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  postMeta: { fontSize: 11, color: PAWTY_COLORS.slate, marginTop: 2 },
-  bookmarkBtn: { padding: 8 },
-  disclaimerBanner: {
-    backgroundColor: PAWTY_COLORS.mintSoft,
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: PAWTY_COLORS.mintDark,
-  },
-  disclaimerText: { fontSize: 11, fontWeight: '700', color: PAWTY_COLORS.mintDark, lineHeight: 16 },
-  postText: { fontSize: 14, color: PAWTY_COLORS.charcoal, lineHeight: 20, marginBottom: 8 },
-  hashtagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
-  hashtagText: { fontSize: 12, fontWeight: '700', color: PAWTY_COLORS.coral },
-  postImage: { width: '100%', height: 220, borderRadius: 16, marginBottom: 10 },
-  sponsorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: PAWTY_COLORS.coralSoft,
-    padding: 12,
-    borderRadius: 14,
-    marginBottom: 10,
-  },
-  sponsorTitle: { fontSize: 12, fontWeight: '800', color: PAWTY_COLORS.charcoal },
-  sponsorCode: { fontSize: 11, fontWeight: '700', color: PAWTY_COLORS.coral, marginTop: 2 },
-  sponsorCta: {
-    backgroundColor: PAWTY_COLORS.coral,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  sponsorCtaText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
-
-  reactionRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
-  reactionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    minHeight: 42,
-    borderRadius: 12,
-    backgroundColor: PAWTY_COLORS.cream,
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-  },
-  reactionBtnActive: {
-    backgroundColor: PAWTY_COLORS.coralSoft,
-    borderColor: PAWTY_COLORS.coral,
-  },
-  reactionEmoji: { fontSize: 14 },
-  reactionCount: { fontSize: 12, fontWeight: '700', color: PAWTY_COLORS.slate },
-  reactionCountActive: { color: PAWTY_COLORS.coral, fontWeight: '800' },
-
-  commentToggle: { marginTop: 10, paddingVertical: 4 },
-  commentToggleText: { fontSize: 12, fontWeight: '700', color: PAWTY_COLORS.slate },
-  commentsBox: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: PAWTY_COLORS.border,
-  },
-  commentItem: {
-    backgroundColor: PAWTY_COLORS.cream,
-    padding: 10,
-    borderRadius: 12,
-    marginBottom: 6,
-  },
-  commentItemVet: {
-    backgroundColor: PAWTY_COLORS.mintSoft,
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.mintDark,
-  },
-  commentAuthor: { fontSize: 11, fontWeight: '800', color: PAWTY_COLORS.charcoal },
-  commentText: { fontSize: 12, color: PAWTY_COLORS.charcoal, marginTop: 2 },
-  commentInputRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
-  commentInput: {
-    flex: 1,
-    backgroundColor: PAWTY_COLORS.cream,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  closeSearchText: {
     fontSize: 12,
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-  },
-  commentSendBtn: {
-    backgroundColor: PAWTY_COLORS.coral,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  commentSendText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
-
-  card: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-  },
-  cardTitle: { fontSize: 16, fontWeight: '800', color: PAWTY_COLORS.charcoal },
-  cardSub: { fontSize: 12, color: PAWTY_COLORS.slate, marginTop: 4 },
-  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  trendChip: {
-    backgroundColor: PAWTY_COLORS.coralSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  trendChipText: { fontSize: 12, fontWeight: '800', color: PAWTY_COLORS.coral },
-
-  expertTipCard: {
-    backgroundColor: PAWTY_COLORS.mintSoft,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: PAWTY_COLORS.mintDark,
-  },
-  expertBadge: { fontSize: 10, fontWeight: '900', color: PAWTY_COLORS.mintDark, marginBottom: 6 },
-  expertTitle: { fontSize: 16, fontWeight: '800', color: PAWTY_COLORS.charcoal, marginBottom: 6 },
-  expertBody: { fontSize: 13, color: PAWTY_COLORS.charcoal, lineHeight: 19 },
-
-  groupCover: { width: '100%', height: 140, borderRadius: 14, marginBottom: 10 },
-  groupDesc: { fontSize: 13, color: PAWTY_COLORS.charcoal, marginTop: 6, lineHeight: 18 },
-  primaryBtn: {
-    marginTop: 12,
-    minHeight: 48,
-    borderRadius: 14,
-    backgroundColor: PAWTY_COLORS.coral,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryBtnText: { color: '#FFF', fontSize: 13, fontWeight: '800' },
-  secondaryBtn: { backgroundColor: PAWTY_COLORS.mintSoft },
-  secondaryBtnText: { color: PAWTY_COLORS.mintDark },
-
-  qaHeaderCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-  },
-  partnerRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  partnerAvatar: { width: 64, height: 64, borderRadius: 16 },
-  mintBadgeInline: {
-    fontSize: 10,
     fontWeight: '800',
-    color: PAWTY_COLORS.mintDark,
-    marginBottom: 2,
   },
-  servicesList: { marginTop: 12, gap: 8 },
-  serviceItem: {
+  searchDropdown: {
+    marginTop: 6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5DDD3',
+    gap: 14,
+  },
+  dropdownGroup: {
+    gap: 8,
+  },
+  dropdownHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropdownTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: PAWTY_COLORS.cream,
-    padding: 10,
-    borderRadius: 12,
+    gap: 6,
   },
-  serviceName: { fontSize: 13, fontWeight: '700', color: PAWTY_COLORS.charcoal },
-  serviceDuration: { fontSize: 11, color: PAWTY_COLORS.slate, marginTop: 2 },
-  servicePrice: { fontSize: 13, fontWeight: '800', color: PAWTY_COLORS.coral },
-
-  placeBadgeRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  placeDist: { fontSize: 11, fontWeight: '800', color: PAWTY_COLORS.coral },
-  featureChip: {
-    backgroundColor: PAWTY_COLORS.mintSoft,
+  dropdownGroupTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#4A3F35',
+  },
+  clearHistoryText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B85D43',
+  },
+  historyList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  historyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FAF7F2',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ECE6DF',
+    overflow: 'hidden',
+  },
+  historyChipMain: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  historyChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4A3F35',
+  },
+  historyRemoveBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+  },
+  trendingWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  trendingChip: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
   },
-  featureChipText: { fontSize: 11, fontWeight: '700', color: PAWTY_COLORS.mintDark },
-
-  radarFilterCard: {
+  trendingChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  composerBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
-    padding: 14,
+    gap: 10,
+    backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    marginBottom: 12,
+    padding: 12,
     borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
+    borderColor: '#ECE6DF',
+    marginBottom: 12,
   },
-  radarFilterTitle: { fontSize: 13, fontWeight: '800', color: PAWTY_COLORS.charcoal },
-  radarFilterSub: { fontSize: 11, color: PAWTY_COLORS.slate, marginTop: 2 },
-  togglePill: {
-    paddingHorizontal: 14,
+  composerIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#2C2520',
+  },
+  composerSub: {
+    fontSize: 11,
+    color: '#8E8074',
+    marginTop: 1,
+  },
+  composerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 11,
     paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: '#E2E8F0',
   },
-  togglePillOn: { backgroundColor: PAWTY_COLORS.mintDark },
-  togglePillText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
-
-  matchCelebrationBanner: {
-    backgroundColor: PAWTY_COLORS.coral,
-    borderRadius: 22,
-    padding: 18,
-    alignItems: 'center',
-    marginBottom: 14,
+  composerBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
-  matchEmoji: { fontSize: 34, marginBottom: 6 },
-  matchTitle: { color: '#FFF', fontSize: 18, fontWeight: '900' },
-  matchSub: { color: '#FFF', fontSize: 13, textAlign: 'center', marginTop: 4 },
-  matchActions: { flexDirection: 'row', gap: 10, marginTop: 14, width: '100%' },
-  matchChatBtn: {
-    flex: 1,
-    minHeight: 46,
-    backgroundColor: '#FFF',
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  matchChatBtnText: { color: PAWTY_COLORS.coral, fontSize: 12, fontWeight: '800' },
-  matchCloseBtn: {
-    paddingHorizontal: 14,
-    minHeight: 46,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  matchCloseBtnText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
-
-  radarCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-  },
-  radarPhoto: { width: '100%', height: 250 },
-  radarOverlayBadge: {
-    position: 'absolute',
-    top: 14,
-    left: 14,
-    backgroundColor: 'rgba(44,62,80,0.85)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  radarDistanceText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
-  radarBody: { padding: 16 },
-  radarTitleRow: {
+  activeFilterBanner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FAF7F2',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#ECE6DF',
+  },
+  activeFilterText: {
+    fontSize: 12,
+    color: '#4A3F35',
+  },
+  clearFilterLink: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  stack: {
+    gap: 12,
+  },
+  postCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#ECE6DF',
+  },
+  postHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  authorTouchRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  authorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3EFEA',
+  },
+  authorRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
   },
-  radarPetName: { fontSize: 18, fontWeight: '900', color: PAWTY_COLORS.charcoal },
-  safePetPill: {
-    fontSize: 11,
+  authorName: {
+    fontSize: 14,
     fontWeight: '800',
-    color: PAWTY_COLORS.mintDark,
-    backgroundColor: PAWTY_COLORS.mintSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    color: '#2C2520',
+  },
+  authorHandleText: {
+    fontSize: 12,
+    color: '#8E8074',
+    fontWeight: '600',
+  },
+  badgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
     borderRadius: 8,
   },
-  radarMeta: { fontSize: 12, color: PAWTY_COLORS.slate, marginTop: 4 },
-  habitHeading: { fontSize: 12, fontWeight: '800', color: PAWTY_COLORS.charcoal, marginTop: 12 },
-  mintChip: {
-    backgroundColor: PAWTY_COLORS.mintSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
-  mintChipText: { fontSize: 11, fontWeight: '700', color: PAWTY_COLORS.mintDark },
-  amberChip: {
-    backgroundColor: PAWTY_COLORS.amberSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+  postMeta: {
+    fontSize: 11,
+    color: '#8E8074',
+    marginTop: 2,
   },
-  amberChipText: { fontSize: 11, fontWeight: '700', color: '#B45309' },
-  radarBtnRow: { flexDirection: 'row', gap: 10, marginTop: 18 },
-  passBtn: {
+  caption: {
+    fontSize: 14,
+    color: '#2C2520',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  hashtagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  hashtagText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  mediaContainer: {
+    position: 'relative',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  carouselWrapper: {
+    position: 'relative',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  postImage: {
+    width: '100%',
+    height: 250,
+    borderRadius: 16,
+    backgroundColor: '#F3EFEA',
+  },
+  photoCountBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(28, 24, 21, 0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 99,
+  },
+  photoCountText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  zoomCornerBtn: {
+    position: 'absolute',
+    bottom: 12,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(28, 24, 21, 0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 8,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#D8CFC5',
+  },
+  videoBadgeTopRight: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(28, 24, 21, 0.78)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 99,
+  },
+  videoBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  videoCenterOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoPlayCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: 'rgba(28, 24, 21, 0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  igActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 2,
+  },
+  igActionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+  },
+  igActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  igActionCount: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2C2520',
+  },
+  igBookmarkBtn: {
+    padding: 4,
+  },
+  commentBox: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F2ECE4',
+    gap: 8,
+  },
+  commentItem: {
+    backgroundColor: '#FAF7F2',
+    borderRadius: 12,
+    padding: 10,
+  },
+  commentAuthor: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#2C2520',
+  },
+  commentTime: {
+    fontWeight: '500',
+    color: '#9C8E80',
+  },
+  commentBody: {
+    fontSize: 13,
+    color: '#4A3F35',
+    marginTop: 2,
+  },
+  commentInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  commentInput: {
     flex: 1,
-    minHeight: 50,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: PAWTY_COLORS.border,
+    backgroundColor: '#FAF7F2',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: '#2C2520',
+    borderWidth: 1,
+    borderColor: '#ECE6DF',
+  },
+  sendBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  passBtnText: { fontSize: 14, fontWeight: '800', color: PAWTY_COLORS.slate },
-  likeBtn: {
-    flex: 2,
-    minHeight: 50,
-    borderRadius: 16,
-    backgroundColor: PAWTY_COLORS.coral,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  likeBtnText: { fontSize: 14, fontWeight: '800', color: '#FFF' },
 });
-
