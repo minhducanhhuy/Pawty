@@ -1,0 +1,28 @@
+{
+  "name": "pawty-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pawty — Hệ sinh thái số 5 lớp dành riêng cho người nuôi thú cưng tại đô thị Việt Nam",
+  "workspaces": [
+    "packages/*",
+    "apps/web",
+    "apps/partner-admin",
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm --workspace=apps/web run dev",
+    "dev:web": "npm --workspace=apps/web run dev",
+    "dev:partner": "npm --workspace=apps/partner-admin run dev",
+    "dev:server": "npm --workspace=server run start:dev",
+    "dev:mobile": "cd apps/mobile && npm run start",
+    "build": "npm --workspace=apps/web run build && npm --workspace=apps/partner-admin run build && npm --workspace=server run build",
+    "build:web": "npm --workspace=apps/web run build",
+    "build:partner": "npm --workspace=apps/partner-admin run build",
+    "build:server": "npm --workspace=server run build",
+    "typecheck": "npm --workspace=apps/web run typecheck && npm --workspace=apps/partner-admin run typecheck && npm --workspace=server run typecheck"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
+

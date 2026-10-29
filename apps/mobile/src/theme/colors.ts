@@ -1,0 +1,21 @@
+export const PAWTY_COLORS = {
+  coral: '#FF6F61',
+  coralDark: '#E55A4D',
+  coralSoft: '#FFF0EE',
+  mint: '#A3E4D7',
+  mintDark: '#1E8449',
+  mintSoft: '#E8F8F5',
+  cream: '#FDFBF7',
+  white: '#FFFFFF',
+  charcoal: '#2C3E50',
+  slate: '#64748B',
+  muted: '#94A3B8',
+  border: '#F1ECE1',
+  amber: '#F59E0B',
+  amberSoft: '#FEF3C7',
+  danger: '#EF4444',
+  dangerSoft: '#FEE2E2',
+  gold: '#EAB308',
+  goldSoft: '#FEF9C3',
+} as const;
+
