@@ -195,6 +195,51 @@
   ],
   "circleActivities": [
     {
+      "id": "act-1793267213478",
+      "householdId": "hh-mai",
+      "actorName": "Mai Nguyễn",
+      "actorAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80",
+      "actionText": "đã hoàn thành \"Cho Lu ăn sáng (200g hạt Royal Canin + ức gà luộc)\"",
+      "timestamp": "Vừa xong",
+      "type": "task_done"
+    },
+    {
+      "id": "act-1793267207060",
+      "householdId": "hh-mai",
+      "actorName": "Mai Nguyễn",
+      "actorAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80",
+      "actionText": "đã mở lại \"Cho Lu ăn sáng (200g hạt Royal Canin + ức gà luộc)\"",
+      "timestamp": "Vừa xong",
+      "type": "task_done"
+    },
+    {
+      "id": "act-1793267206186",
+      "householdId": "hh-mai",
+      "actorName": "Mai Nguyễn",
+      "actorAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80",
+      "actionText": "đã hoàn thành \"Cho Lu ăn sáng (200g hạt Royal Canin + ức gà luộc)\"",
+      "timestamp": "Vừa xong",
+      "type": "task_done"
+    },
+    {
+      "id": "act-1793267158300",
+      "householdId": "hh-mai",
+      "actorName": "Mai Nguyễn",
+      "actorAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80",
+      "actionText": "đã mở lại \"Cho Lu ăn sáng (200g hạt Royal Canin + ức gà luộc)\"",
+      "timestamp": "Vừa xong",
+      "type": "task_done"
+    },
+    {
+      "id": "act-1793267157695",
+      "householdId": "hh-mai",
+      "actorName": "Mai Nguyễn",
+      "actorAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80",
+      "actionText": "đã hoàn thành \"Cho Lu ăn sáng (200g hạt Royal Canin + ức gà luộc)\"",
+      "timestamp": "Vừa xong",
+      "type": "task_done"
+    },
+    {
       "id": "act-1793261265670",
       "householdId": "hh-mai",
       "actorName": "Mai Nguyễn",
@@ -298,10 +343,10 @@
       "dueTime": "07:30",
       "dueDate": "Hôm nay",
       "recurrence": "daily",
-      "status": "pending",
+      "status": "done",
       "completedByName": "Mai Nguyễn",
-      "completedAt": "14:53",
-      "completionNote": "Hoàn thành trên Expo Mobile"
+      "completedAt": "16:46",
+      "completionNote": "Hoàn thành"
     },
     {
       "id": "task-2",
@@ -350,6 +395,42 @@
     }
   ],
   "posts": [
+    {
+      "id": "post-1793263133312",
+      "authorId": "user-mai",
+      "authorName": "Mai Nguyễn",
+      "authorAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80",
+      "authorRoleBadge": "vip",
+      "petId": "pet-lu",
+      "petName": "Lu",
+      "petBreed": "Golden Retriever",
+      "petSpecies": "dog",
+      "contentType": "question",
+      "textContent": "Chuyện",
+      "mediaUrls": [
+        "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80"
+      ],
+      "hashtags": [
+        "#PawtyLocal",
+        "#KhoảnhKhắcBoss"
+      ],
+      "locationDistrict": "TP. Thủ Đức (Quận 9)",
+      "distanceMeters": 50,
+      "visibility": "public",
+      "hasHealthDisclaimer": true,
+      "isSponsored": false,
+      "pawRankScore": 99,
+      "createdAt": "Vừa xong",
+      "reactions": {
+        "paw": 1,
+        "heart_eyes": 0,
+        "laughing": 0,
+        "worried": 0,
+        "helpful": 0
+      },
+      "isBookmarked": false,
+      "comments": []
+    },
     {
       "id": "post-1793261669403",
       "authorId": "user-mai",
@@ -702,7 +783,7 @@
         "lat": 10.8423,
         "lng": 106.8278
       },
-      "status": "confirmed",
+      "status": "completed",
       "notes": "Nhớ mang dây dắt và túi hốt phân tự hủy sinh học nhé!"
     }
   ],
