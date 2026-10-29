@@ -1,355 +1,582 @@
 import React, { useState } from 'react';
 import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  TextInput,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
-import { PAWTY_COLORS } from '../theme/colors';
 
 export const MobileChatScreen: React.FC = () => {
   const {
-    conversations,
-    activeConversationId,
-    setActiveConversationId,
-    sendMessage,
-    walkAppointments,
-    updateWalkStatus,
-    setActiveModal,
+    theme,
+    chats,
+    activeChatId,
+    setActiveChatId,
+    sendChatMessage,
+    openPublicUserProfile,
+    setActiveTab,
   } = useMobilePawty();
 
   const [messageDraft, setMessageDraft] = useState('');
+  const [searchFriend, setSearchFriend] = useState('');
+  const [chatFilter, setChatFilter] = useState<'all' | 'unread' | 'tinder' | 'service'>('all');
 
-  const activeConversation = conversations.find((c) => c.id === activeConversationId);
+  const activeChat = chats.find((c) => c.id === activeChatId) || null;
 
-  if (!activeConversation) {
+  const filteredChats = chats.filter((room) => {
+    const q = searchFriend.trim().toLowerCase();
+    const matchName =
+      !q ||
+      room.partnerName.toLowerCase().includes(q) ||
+      room.partnerHandle.toLowerCase().includes(q) ||
+      room.petSummary.toLowerCase().includes(q);
+    if (chatFilter === 'unread') {
+      return matchName && room.unreadCount > 0;
+    }
+    if (chatFilter === 'tinder') {
+      return matchName && room.matchSource === 'tinder_match';
+    }
+    if (chatFilter === 'service') {
+      return matchName && room.matchSource === 'service';
+    }
+    return matchName;
+  });
+
+  if (activeChat) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <View style={styles.headerRow}>
-          <Text style={styles.screenTitle}>💬 Tin nhắn & Hẹn Dạo Trung Điểm</Text>
+      <KeyboardAvoidingView
+        style={[styles.chatDetailContainer, { backgroundColor: theme.bg }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={24}
+      >
+        <View style={[styles.chatHeader, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
           <TouchableOpacity
-            style={styles.midpointQuickBtn}
-            onPress={() => setActiveModal('walk_scheduler')}
+            onPress={() => setActiveChatId(null)}
+            style={[styles.backBtn, { backgroundColor: theme.bg }]}
           >
-            <Text style={styles.midpointQuickBtnText}>📍 Hẹn Dạo Trung Điểm</Text>
+            <Feather name="arrow-left" size={18} color={theme.text} />
           </TouchableOpacity>
-        </View>
 
-        {conversations.map((conv) => (
           <TouchableOpacity
-            key={conv.id}
-            style={styles.convCard}
-            onPress={() => setActiveConversationId(conv.id)}
+            style={styles.partnerTouchRow}
+            onPress={() => openPublicUserProfile(activeChat.partnerHandle)}
           >
-            <Image source={{ uri: conv.avatarUrl }} style={styles.convAvatar} />
+            <Image source={{ uri: activeChat.partnerAvatar }} style={styles.headerAvatar} />
             <View style={{ flex: 1 }}>
-              <View style={styles.convTitleRow}>
-                <Text style={styles.convTitle}>{conv.title}</Text>
-                {conv.unreadCount > 0 && (
-                  <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadText}>{conv.unreadCount}</Text>
+              <View style={styles.partnerTitleRow}>
+                <Text style={[styles.headerName, { color: theme.text }]}>
+                  {activeChat.partnerName}
+                </Text>
+                {activeChat.matchSource === 'tinder_match' && (
+                  <View style={[styles.matchTag, { backgroundColor: theme.primarySoft }]}>
+                    <Feather name="heart" size={10} color={theme.primary} />
+                    <Text style={[styles.matchTagText, { color: theme.primary }]}>Kết nối</Text>
+                  </View>
+                )}
+                {activeChat.matchSource === 'service' && (
+                  <View style={[styles.matchTag, { backgroundColor: '#EAF7F1' }]}>
+                    <Feather name="briefcase" size={10} color="#2E7D5B" />
+                    <Text style={[styles.matchTagText, { color: '#2E7D5B' }]}>Dịch vụ</Text>
                   </View>
                 )}
               </View>
-              <Text style={styles.convCategory}>
-                {conv.category === 'circle'
-                  ? '👨‍👩‍👧 Vòng chăm sóc (Circle)'
-                  : conv.category === 'match'
-                  ? '🐾 Bạn dắt dạo (Radar Match)'
-                  : '✨ Đối tác dịch vụ'}
-              </Text>
-              <Text style={styles.convSub} numberOfLines={1}>
-                {conv.subtitle}
+              <Text style={[styles.headerSub, { color: theme.textMuted }]} numberOfLines={1}>
+                {activeChat.petSummary} · {activeChat.distanceLabel}
               </Text>
             </View>
           </TouchableOpacity>
-        ))}
 
-        {/* Active Midpoint Walk Appointments Overview */}
-        <Text style={[styles.screenTitle, { marginTop: 14, marginBottom: 10 }]}>
-          📍 Kèo Hẹn Dắt Dạo Trung Điểm (Chống Bùng Kèo)
-        </Text>
-        {walkAppointments.map((walk) => (
-          <View key={walk.id} style={styles.walkBubbleCard}>
-            <Text style={styles.walkBadge}>
-              🟢 TRUNG ĐIỂM POSTGIS ST_CENTROID · {walk.status.toUpperCase()}
-            </Text>
-            <Text style={styles.walkTitle}>
-              Cùng {walk.partnerPetName} (Sen: {walk.partnerName})
-            </Text>
-            <Text style={styles.walkMeta}>⏰ {walk.proposedTime}</Text>
-            <Text style={styles.walkMeta}>📌 {walk.midpointLocationName}</Text>
-            <View style={styles.walkActions}>
-              <TouchableOpacity
-                style={styles.walkConfirmBtn}
-                onPress={() => updateWalkStatus(walk.id, 'completed')}
+          {activeChat.matchSource === 'service' ? (
+            <TouchableOpacity
+              onPress={() => {
+                setActiveChatId(null);
+                setActiveTab('services');
+              }}
+              style={[styles.profileQuickBtn, { backgroundColor: '#EAF7F1' }]}
+            >
+              <Feather name="calendar" size={13} color="#2E7D5B" />
+              <Text style={[styles.profileQuickBtnText, { color: '#2E7D5B' }]}>Đặt lịch</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => openPublicUserProfile(activeChat.partnerHandle)}
+              style={[styles.profileQuickBtn, { backgroundColor: theme.surfaceMuted }]}
+            >
+              <Feather name="user" size={14} color={theme.text} />
+              <Text style={[styles.profileQuickBtnText, { color: theme.text }]}>Trang cá nhân</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.messagesList}
+          showsVerticalScrollIndicator={false}
+        >
+          {activeChat.messages.map((msg) => {
+            const isMe = msg.sender === 'me';
+            return (
+              <View
+                key={msg.id}
+                style={[styles.msgRow, isMe ? styles.msgRowMe : styles.msgRowThem]}
               >
-                <Text style={styles.walkConfirmText}>✓ Xác nhận Đã đi dạo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.walkFlakeBtn}
-                onPress={() => updateWalkStatus(walk.id, 'no_show')}
-              >
-                <Text style={styles.walkFlakeText}>⚠️ Báo Bùng Kèo</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
+                <View
+                  style={[
+                    styles.msgBubble,
+                    isMe
+                      ? { backgroundColor: theme.primary }
+                      : { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.msgText,
+                      { color: isMe ? '#FFFFFF' : theme.text },
+                    ]}
+                  >
+                    {msg.text}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.msgTime,
+                      { color: isMe ? 'rgba(255,255,255,0.75)' : theme.textMuted },
+                    ]}
+                  >
+                    {msg.time}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+
+        <View style={[styles.inputBar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+          <TextInput
+            value={messageDraft}
+            onChangeText={setMessageDraft}
+            placeholder="Nhập tin nhắn..."
+            placeholderTextColor={theme.textMuted}
+            style={[
+              styles.msgInput,
+              { backgroundColor: theme.bg, borderColor: theme.border, color: theme.text },
+            ]}
+          />
+          <TouchableOpacity
+            onPress={() => {
+              sendChatMessage(activeChat.id, messageDraft);
+              setMessageDraft('');
+            }}
+            style={[styles.sendBtn, { backgroundColor: theme.primary }]}
+          >
+            <Feather name="send" size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Chat Room Top Bar */}
-      <View style={styles.roomTopBar}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => setActiveConversationId(null)}
-        >
-          <Text style={styles.backBtnText}>← Danh sách</Text>
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.roomTitle} numberOfLines={1}>
-            {activeConversation.title}
-          </Text>
-          <Text style={styles.roomSub}>Đang hoạt động · Đồng bộ thời gian thực</Text>
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.bg }]}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={[styles.topToolCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        {/* Search Input by Friend / User Name / Service */}
+        <View style={[styles.searchBox, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+          <Feather name="search" size={15} color={theme.textMuted} />
+          <TextInput
+            value={searchFriend}
+            onChangeText={setSearchFriend}
+            placeholder="Tìm theo tên bạn bè, @tài_khoản, phòng khám, spa..."
+            placeholderTextColor={theme.textMuted}
+            style={[styles.searchInput, { color: theme.text }]}
+          />
+          {searchFriend.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchFriend('')}>
+              <Feather name="x-circle" size={15} color={theme.textMuted} />
+            </TouchableOpacity>
+          )}
         </View>
-        <TouchableOpacity
-          style={styles.roomWalkBtn}
-          onPress={() => setActiveModal('walk_scheduler')}
-        >
-          <Text style={styles.roomWalkBtnText}>📍 Hẹn Dạo</Text>
-        </TouchableOpacity>
+
+        {/* 4 Filter Tabs: Tất cả | Chưa đọc | Kết nối | Dịch vụ */}
+        <View style={[styles.filterBar, { backgroundColor: theme.surfaceMuted }]}>
+          {(
+            [
+              { id: 'all', label: `Tất cả (${chats.length})` },
+              {
+                id: 'unread',
+                label: `Chưa đọc (${chats.filter((c) => c.unreadCount > 0).length})`,
+              },
+              {
+                id: 'tinder',
+                label: `Kết nối (${chats.filter((c) => c.matchSource === 'tinder_match').length})`,
+              },
+              {
+                id: 'service',
+                label: `Dịch vụ (${chats.filter((c) => c.matchSource === 'service').length})`,
+              },
+            ] as const
+          ).map((f) => {
+            const active = chatFilter === f.id;
+            return (
+              <TouchableOpacity
+                key={f.id}
+                onPress={() => setChatFilter(f.id)}
+                style={[
+                  styles.filterTab,
+                  active && { backgroundColor: theme.surface },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterTabText,
+                    { color: active ? theme.text : theme.textMuted },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
-      {/* Messages Scroll */}
-      <ScrollView style={styles.messagesArea} contentContainerStyle={{ padding: 14, paddingBottom: 30 }}>
-        {activeConversation.messages.map((msg) => (
-          <View
-            key={msg.id}
-            style={[
-              styles.msgBubble,
-              msg.isMe ? styles.msgBubbleMe : styles.msgBubbleOther,
-              msg.type === 'walk_invite' && styles.msgBubbleWalk,
-            ]}
-          >
-            <Text style={[styles.msgSender, msg.isMe && { color: '#FFE4E1' }]}>
-              {msg.senderName} · {msg.createdAt}
-            </Text>
-            <Text style={[styles.msgText, msg.isMe && { color: '#FFF' }]}>
-              {msg.text}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
+      {filteredChats.length === 0 ? (
+        <View style={[styles.emptyBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Feather name="message-circle" size={24} color={theme.textMuted} />
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>
+            Không tìm thấy cuộc trò chuyện nào
+          </Text>
+          <Text style={[styles.emptySub, { color: theme.textMuted }]}>
+            Hãy thử chuyển bộ lọc khác hoặc qua tab Kết nối / Dịch vụ để bắt đầu trò chuyện.
+          </Text>
+        </View>
+      ) : (
+        filteredChats.map((room) => {
+          const lastMsg = room.messages[room.messages.length - 1];
+          return (
+            <TouchableOpacity
+              key={room.id}
+              onPress={() => setActiveChatId(room.id)}
+              style={[styles.chatCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              activeOpacity={0.85}
+            >
+              <View style={styles.avatarWrap}>
+                <Image source={{ uri: room.partnerAvatar }} style={styles.chatAvatar} />
+                {room.isOnline && <View style={styles.onlineDot} />}
+              </View>
 
-      {/* Input Composer */}
-      <View style={styles.composerRow}>
-        <TouchableOpacity
-          style={styles.voiceBtn}
-          onPress={() =>
-            sendMessage(
-              activeConversation.id,
-              '🎤 [Tin nhắn thoại 0:08 — "Mình đang dắt Boss xuống sảnh chung cư nha!"]',
-              'voice'
-            )
-          }
-        >
-          <Text style={{ fontSize: 16 }}>🎤</Text>
-        </TouchableOpacity>
-        <TextInput
-          style={styles.chatInput}
-          placeholder="Nhập tin nhắn..."
-          value={messageDraft}
-          onChangeText={setMessageDraft}
-        />
-        <TouchableOpacity
-          style={styles.sendBtn}
-          onPress={() => {
-            if (messageDraft.trim()) {
-              sendMessage(activeConversation.id, messageDraft);
-              setMessageDraft('');
-            }
-          }}
-        >
-          <Text style={styles.sendBtnText}>Gửi</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.chatRowTop}>
+                  <View style={styles.partnerNameRow}>
+                    <Text style={[styles.chatName, { color: theme.text }]}>
+                      {room.partnerName}
+                    </Text>
+                    {room.matchSource === 'tinder_match' && (
+                      <View style={[styles.tinderMiniBadge, { backgroundColor: theme.primarySoft }]}>
+                        <Text style={[styles.tinderMiniText, { color: theme.primary }]}>Kết nối</Text>
+                      </View>
+                    )}
+                    {room.matchSource === 'service' && (
+                      <View style={[styles.tinderMiniBadge, { backgroundColor: '#EAF7F1' }]}>
+                        <Text style={[styles.tinderMiniText, { color: '#2E7D5B' }]}>Dịch vụ</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.chatTime, { color: theme.textMuted }]}>
+                    {lastMsg?.time || 'Hôm nay'}
+                  </Text>
+                </View>
+                <Text style={[styles.chatPetSub, { color: theme.secondary }]}>
+                  {room.petSummary} · {room.distanceLabel}
+                </Text>
+                <Text
+                  style={[
+                    styles.chatPreview,
+                    {
+                      color: room.unreadCount > 0 ? theme.text : theme.textMuted,
+                      fontWeight: room.unreadCount > 0 ? '700' : '400',
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {lastMsg?.text || 'Bắt đầu cuộc trò chuyện...'}
+                </Text>
+              </View>
+
+              {room.unreadCount > 0 && (
+                <View style={[styles.unreadBadge, { backgroundColor: theme.primary }]}>
+                  <Text style={styles.unreadText}>{room.unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })
+      )}
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PAWTY_COLORS.cream },
-  content: { padding: 16, paddingBottom: 110 },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-    flexWrap: 'wrap',
-    gap: 8,
+  container: {
+    flex: 1,
   },
-  screenTitle: { fontSize: 16, fontWeight: '800', color: PAWTY_COLORS.charcoal },
-  midpointQuickBtn: {
-    backgroundColor: PAWTY_COLORS.mintSoft,
+  content: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 28,
+  },
+  topToolCard: {
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    height: 40,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: PAWTY_COLORS.mintDark,
+    gap: 8,
   },
-  midpointQuickBtnText: { fontSize: 12, fontWeight: '800', color: PAWTY_COLORS.mintDark },
-
-  convCard: {
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+  },
+  filterBar: {
+    flexDirection: 'row',
+    padding: 4,
+    borderRadius: 12,
+    marginTop: 10,
+    gap: 4,
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    alignItems: 'center',
+  },
+  filterTabText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  emptyBox: {
+    padding: 28,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  emptySub: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  chatCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FFF',
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 10,
+    padding: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-    minHeight: 74,
+    marginBottom: 8,
   },
-  convAvatar: { width: 50, height: 50, borderRadius: 25 },
-  convTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  convTitle: { fontSize: 14, fontWeight: '800', color: PAWTY_COLORS.charcoal, flex: 1 },
-  unreadBadge: {
-    backgroundColor: PAWTY_COLORS.coral,
-    borderRadius: 10,
-    paddingHorizontal: 7,
+  avatarWrap: {
+    position: 'relative',
+  },
+  chatAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#2E9E6B',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  chatRowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  partnerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  chatName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  tinderMiniBadge: {
+    paddingHorizontal: 6,
     paddingVertical: 2,
+    borderRadius: 6,
   },
-  unreadText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
-  convCategory: { fontSize: 11, fontWeight: '700', color: PAWTY_COLORS.coral, marginTop: 2 },
-  convSub: { fontSize: 12, color: PAWTY_COLORS.slate, marginTop: 3 },
-
-  walkBubbleCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1.5,
-    borderColor: PAWTY_COLORS.mintDark,
+  tinderMiniText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
-  walkBadge: { fontSize: 10, fontWeight: '900', color: PAWTY_COLORS.mintDark, marginBottom: 4 },
-  walkTitle: { fontSize: 14, fontWeight: '800', color: PAWTY_COLORS.charcoal },
-  walkMeta: { fontSize: 12, color: PAWTY_COLORS.slate, marginTop: 3 },
-  walkActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  walkConfirmBtn: {
+  chatTime: {
+    fontSize: 11,
+  },
+  chatPetSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  chatPreview: {
+    fontSize: 12.5,
+    marginTop: 3,
+  },
+  unreadBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  chatDetailContainer: {
     flex: 1,
-    minHeight: 44,
-    backgroundColor: PAWTY_COLORS.mintSoft,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  walkConfirmText: { color: PAWTY_COLORS.mintDark, fontSize: 12, fontWeight: '800' },
-  walkFlakeBtn: {
-    paddingHorizontal: 14,
-    minHeight: 44,
-    backgroundColor: PAWTY_COLORS.amberSoft,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  walkFlakeText: { color: '#B45309', fontSize: 12, fontWeight: '800' },
-
-  roomTopBar: {
+  chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#FFF',
-    padding: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: PAWTY_COLORS.border,
   },
   backBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    width: 36,
+    height: 36,
     borderRadius: 10,
-    backgroundColor: PAWTY_COLORS.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  backBtnText: { fontSize: 12, fontWeight: '800', color: PAWTY_COLORS.charcoal },
-  roomTitle: { fontSize: 14, fontWeight: '800', color: PAWTY_COLORS.charcoal },
-  roomSub: { fontSize: 11, color: PAWTY_COLORS.mintDark, fontWeight: '600' },
-  roomWalkBtn: {
-    backgroundColor: PAWTY_COLORS.mintSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+  partnerTouchRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  partnerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headerName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  matchTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  matchTagText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+  },
+  headerSub: {
+    fontSize: 11,
+  },
+  profileQuickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
     borderRadius: 10,
   },
-  roomWalkBtnText: { fontSize: 11, fontWeight: '800', color: PAWTY_COLORS.mintDark },
-
-  messagesArea: { flex: 1 },
+  profileQuickBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  messagesList: {
+    padding: 14,
+    gap: 10,
+  },
+  msgRow: {
+    flexDirection: 'row',
+  },
+  msgRowMe: {
+    justifyContent: 'flex-end',
+  },
+  msgRowThem: {
+    justifyContent: 'flex-start',
+  },
   msgBubble: {
-    maxWidth: '84%',
-    padding: 12,
-    borderRadius: 18,
-    marginBottom: 10,
+    maxWidth: '78%',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 16,
   },
-  msgBubbleMe: {
+  msgText: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  msgTime: {
+    fontSize: 10,
+    marginTop: 4,
     alignSelf: 'flex-end',
-    backgroundColor: PAWTY_COLORS.coral,
   },
-  msgBubbleOther: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-  },
-  msgBubbleWalk: {
-    borderWidth: 2,
-    borderColor: PAWTY_COLORS.mint,
-  },
-  msgSender: { fontSize: 10, fontWeight: '700', color: PAWTY_COLORS.slate, marginBottom: 4 },
-  msgText: { fontSize: 13, color: PAWTY_COLORS.charcoal, lineHeight: 19 },
-
-  composerRow: {
+  inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    padding: 12,
-    paddingBottom: 95,
-    backgroundColor: '#FFF',
-    borderTopWidth: 1,
-    borderTopColor: PAWTY_COLORS.border,
-  },
-  voiceBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: PAWTY_COLORS.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
-  },
-  chatInput: {
-    flex: 1,
-    minHeight: 44,
-    backgroundColor: PAWTY_COLORS.cream,
-    borderRadius: 14,
     paddingHorizontal: 14,
-    fontSize: 13,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+  },
+  msgInput: {
+    flex: 1,
+    height: 42,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: PAWTY_COLORS.border,
+    paddingHorizontal: 12,
+    fontSize: 13,
   },
   sendBtn: {
-    minHeight: 44,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    backgroundColor: PAWTY_COLORS.coral,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnText: { color: '#FFF', fontSize: 13, fontWeight: '800' },
 });
-
