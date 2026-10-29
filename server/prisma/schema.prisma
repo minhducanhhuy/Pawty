@@ -1,0 +1,393 @@
+// Pawty PostgreSQL 16 + PostGIS Prisma Schema (Tầng 4 — 04_data_model_and_api.md)
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+model User {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone          String    @unique @db.VarChar(15)
+  displayName    String    @map("display_name") @db.VarChar(50)
+  avatarUrl      String?   @map("avatar_url")
+  bio            String?   @db.VarChar(200)
+  district       String?   @db.VarChar(100)
+  neighborhood   String?   @db.VarChar(200)
+  isVip          Boolean   @default(false) @map("is_vip")
+  vipExpiresAt   DateTime? @map("vip_expires_at") @db.Timestamptz(6)
+  role           String    @default("user") @db.VarChar(20)
+  status         String    @default("active") @db.VarChar(20)
+  primaryNeed    String?   @map("primary_need") @db.VarChar(50)
+  showLocation   Boolean   @default(true) @map("show_location")
+  showPhone      Boolean   @default(false) @map("show_phone")
+  allowMessages  String    @default("circle_and_matches") @map("allow_messages") @db.VarChar(20)
+  lastActiveAt   DateTime? @map("last_active_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  households     Household[]
+  pets           Pet[]
+  circleMembers  CircleMember[]
+  posts          Post[]
+  comments       Comment[]
+  reactions      Reaction[]
+  bookings       Booking[]
+  reviews        Review[]
+  reports        Report[]
+  consentRecords ConsentRecord[]
+  notifications  Notification[]
+  events         AnalyticsEvent[]
+
+  @@index([district], map: "idx_users_district")
+  @@map("users")
+}
+
+model Household {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String         @db.VarChar(100)
+  ownerId   String         @map("owner_id") @db.Uuid
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  owner     User           @relation(fields: [ownerId], references: [id])
+  pets      Pet[]
+  members   CircleMember[]
+  careTasks CareTask[]
+
+  @@map("households")
+}
+
+model Pet {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  householdId       String        @map("household_id") @db.Uuid
+  ownerId           String        @map("owner_id") @db.Uuid
+  name              String        @db.VarChar(50)
+  species           String        @db.VarChar(20)
+  breed             String?       @db.VarChar(100)
+  gender            String?       @db.VarChar(10)
+  dateOfBirth       DateTime?     @map("date_of_birth") @db.Date
+  weightKg          Decimal?      @map("weight_kg") @db.Decimal(5, 2)
+  sizeCategory      String?       @map("size_category") @db.VarChar(20)
+  energyLevel       String?       @map("energy_level") @db.VarChar(10)
+  avatarUrl         String?       @map("avatar_url")
+  coverPhotoUrl     String?       @map("cover_photo_url")
+  isNeutered        Boolean?      @map("is_neutered")
+  allergies         String?
+  medicalNotes      String?       @map("medical_notes")
+  vetName           String?       @map("vet_name") @db.VarChar(100)
+  vetContact        String?       @map("vet_contact") @db.VarChar(100)
+  vaccinationStatus String        @default("unknown") @map("vaccination_status") @db.VarChar(20)
+  lastVaccineDate   DateTime?     @map("last_vaccine_date") @db.Date
+  isPublic          Boolean       @default(true) @map("is_public")
+  followerCount     Int           @default(0) @map("follower_count")
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  household         Household     @relation(fields: [householdId], references: [id])
+  owner             User          @relation(fields: [ownerId], references: [id])
+  behaviors         PetBehavior[]
+  vaccinations      Vaccination[]
+  careTasks         CareTask[]
+  careRecords       CareRecord[]
+  bookings          Booking[]
+
+  @@index([householdId], map: "idx_pets_household")
+  @@index([species], map: "idx_pets_species")
+  @@map("pets")
+}
+
+model PetBehavior {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  petId       String   @map("pet_id") @db.Uuid
+  category    String   @db.VarChar(20)
+  label       String   @db.VarChar(100)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  pet         Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId], map: "idx_pet_behaviors_pet")
+  @@map("pet_behaviors")
+}
+
+model Vaccination {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  petId       String    @map("pet_id") @db.Uuid
+  vaccineName String    @map("vaccine_name") @db.VarChar(100)
+  dateGiven   DateTime  @map("date_given") @db.Date
+  nextDueDate DateTime? @map("next_due_date") @db.Date
+  vetName     String?   @map("vet_name") @db.VarChar(100)
+  documentUrl String?   @map("document_url")
+  verified    Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  pet         Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId], map: "idx_vaccinations_pet")
+  @@map("vaccinations")
+}
+
+model CircleMember {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  householdId String    @map("household_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  role        String    @db.VarChar(20)
+  invitedBy   String?   @map("invited_by") @db.Uuid
+  inviteCode  String?   @map("invite_code") @db.VarChar(20)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  status      String    @default("pending") @db.VarChar(20)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  household   Household @relation(fields: [householdId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@unique([householdId, userId])
+  @@map("circle_members")
+}
+
+model CareTask {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  householdId     String    @map("household_id") @db.Uuid
+  petId           String    @map("pet_id") @db.Uuid
+  createdBy       String    @map("created_by") @db.Uuid
+  assignedTo      String?   @map("assigned_to") @db.Uuid
+  title           String    @db.VarChar(200)
+  description     String?
+  category        String?   @db.VarChar(30)
+  isRecurring     Boolean   @default(false) @map("is_recurring")
+  recurrenceRule  String?   @map("recurrence_rule") @db.VarChar(100)
+  dueDate         DateTime? @map("due_date") @db.Date
+  status          String    @default("pending") @db.VarChar(20)
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz(6)
+  completedBy     String?   @map("completed_by") @db.Uuid
+  completionNote  String?   @map("completion_note")
+  completionPhoto String?   @map("completion_photo")
+  reminderEnabled Boolean   @default(true) @map("reminder_enabled")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  household       Household @relation(fields: [householdId], references: [id])
+  pet             Pet       @relation(fields: [petId], references: [id])
+
+  @@index([householdId], map: "idx_care_tasks_household")
+  @@index([petId], map: "idx_care_tasks_pet")
+  @@map("care_tasks")
+}
+
+model CareRecord {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  petId       String   @map("pet_id") @db.Uuid
+  recordedBy  String   @map("recorded_by") @db.Uuid
+  recordType  String   @map("record_type") @db.VarChar(30)
+  title       String?  @db.VarChar(200)
+  description String?
+  dataJson    Json?    @map("data_json")
+  attachments String[]
+  isPrivate   Boolean  @default(true) @map("is_private")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  pet         Pet      @relation(fields: [petId], references: [id])
+
+  @@index([petId], map: "idx_care_records_pet")
+  @@map("care_records")
+}
+
+model Post {
+  id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  authorId            String     @map("author_id") @db.Uuid
+  contentType         String     @map("content_type") @db.VarChar(20)
+  textContent         String?    @map("text_content")
+  media               Json       @default("[]")
+  hashtags            String[]   @default([])
+  petTags             String[]   @default([]) @map("pet_tags") @db.Uuid
+  speciesTags         String[]   @default([]) @map("species_tags")
+  breedTags           String[]   @default([]) @map("breed_tags")
+  topicTags           String[]   @default([]) @map("topic_tags")
+  locationName        String?    @map("location_name") @db.VarChar(200)
+  visibility          String     @default("public") @db.VarChar(20)
+  isExpertContent     Boolean    @default(false) @map("is_expert_content")
+  expertVerified      Boolean    @default(false) @map("expert_verified")
+  hasHealthDisclaimer Boolean    @default(false) @map("has_health_disclaimer")
+  isSponsored         Boolean    @default(false) @map("is_sponsored")
+  sponsorId           String?    @map("sponsor_id") @db.Uuid
+  pawCount            Int        @default(0) @map("paw_count")
+  commentCount        Int        @default(0) @map("comment_count")
+  shareCount          Int        @default(0) @map("share_count")
+  saveCount           Int        @default(0) @map("save_count")
+  moderationStatus    String     @default("approved") @map("moderation_status") @db.VarChar(20)
+  moderationNote      String?    @map("moderation_note")
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  author              User       @relation(fields: [authorId], references: [id])
+  comments            Comment[]
+  reactions           Reaction[]
+
+  @@index([authorId], map: "idx_posts_author")
+  @@index([createdAt(sort: Desc)], map: "idx_posts_created")
+  @@map("posts")
+}
+
+model Reaction {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  postId       String?  @map("post_id") @db.Uuid
+  commentId    String?  @map("comment_id") @db.Uuid
+  reactionType String   @map("reaction_type") @db.VarChar(20)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user         User     @relation(fields: [userId], references: [id])
+  post         Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("reactions")
+}
+
+model Comment {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId           String   @map("post_id") @db.Uuid
+  authorId         String   @map("author_id") @db.Uuid
+  parentId         String?  @map("parent_id") @db.Uuid
+  textContent      String   @map("text_content")
+  mentions         String[] @default([])
+  isExpert         Boolean  @default(false) @map("is_expert")
+  reactionCount    Int      @default(0) @map("reaction_count")
+  moderationStatus String   @default("approved") @map("moderation_status") @db.VarChar(20)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  post             Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author           User     @relation(fields: [authorId], references: [id])
+
+  @@index([postId], map: "idx_comments_post")
+  @@map("comments")
+}
+
+model Partner {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String    @db.VarChar(200)
+  type               String    @db.VarChar(30)
+  description        String?
+  address            String?
+  district           String?   @db.VarChar(100)
+  phone              String?   @db.VarChar(15)
+  avatarUrl          String?   @map("avatar_url")
+  coverUrl           String?   @map("cover_url")
+  operatingHours     Json?     @map("operating_hours")
+  services           Json?
+  verificationStatus String    @default("pending") @map("verification_status") @db.VarChar(20)
+  ratingAvg          Decimal   @default(0) @map("rating_avg") @db.Decimal(3, 2)
+  reviewCount        Int       @default(0) @map("review_count")
+  isActive           Boolean   @default(true) @map("is_active")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  bookings           Booking[]
+  reviews            Review[]
+
+  @@map("partners")
+}
+
+model Booking {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  partnerId     String    @map("partner_id") @db.Uuid
+  petId         String    @map("pet_id") @db.Uuid
+  serviceName   String    @map("service_name") @db.VarChar(200)
+  servicePrice  Int       @map("service_price")
+  scheduledDate DateTime  @map("scheduled_date") @db.Date
+  note          String?
+  status        String    @default("pending") @db.VarChar(20)
+  confirmedAt   DateTime? @map("confirmed_at") @db.Timestamptz(6)
+  completedAt   DateTime? @map("completed_at") @db.Timestamptz(6)
+  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason  String?   @map("cancel_reason")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user          User      @relation(fields: [userId], references: [id])
+  partner       Partner   @relation(fields: [partnerId], references: [id])
+  pet           Pet       @relation(fields: [petId], references: [id])
+  review        Review?
+
+  @@index([userId], map: "idx_bookings_user")
+  @@index([partnerId], map: "idx_bookings_partner")
+  @@map("bookings")
+}
+
+model Review {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId    String   @unique @map("booking_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  partnerId    String   @map("partner_id") @db.Uuid
+  rating       Int      @db.SmallInt
+  textContent  String?  @map("text_content")
+  photos       String[]
+  partnerReply String?  @map("partner_reply")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  booking      Booking  @relation(fields: [bookingId], references: [id])
+  user         User     @relation(fields: [userId], references: [id])
+  partner      Partner  @relation(fields: [partnerId], references: [id])
+
+  @@map("reviews")
+}
+
+model Report {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporterId  String    @map("reporter_id") @db.Uuid
+  targetType  String    @map("target_type") @db.VarChar(20)
+  targetId    String    @map("target_id") @db.Uuid
+  reason      String    @db.VarChar(50)
+  description String?
+  status      String    @default("pending") @db.VarChar(20)
+  actionTaken String?   @map("action_taken") @db.VarChar(50)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  resolvedAt  DateTime? @map("resolved_at") @db.Timestamptz(6)
+
+  reporter    User      @relation(fields: [reporterId], references: [id])
+
+  @@map("reports")
+}
+
+model ConsentRecord {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  consentType String   @map("consent_type") @db.VarChar(50)
+  granted     Boolean
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("consent_records")
+}
+
+model Notification {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  type      String   @db.VarChar(30)
+  title     String   @db.VarChar(200)
+  body      String?
+  data      Json?
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  eventType String   @map("event_type") @db.VarChar(50)
+  eventData Json?    @map("event_data")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@map("events")
+}
+

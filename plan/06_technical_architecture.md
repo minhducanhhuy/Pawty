@@ -8,44 +8,44 @@
 
 ### Phase 1: Web Demo (React + Vite)
 
-| Layer | Technology | Lý do |
-|---|---|---|
-| **Frontend** | React 19 + Vite | Nhanh iterate, dễ demo |
-| **Styling** | Tailwind CSS v4 | Rapid UI, design tokens |
-| **State** | Zustand | Lightweight, simple |
-| **Routing** | React Router v7 | Standard SPA routing |
-| **Data Fetching** | TanStack Query v5 | Caching, optimistic updates |
-| **Forms** | React Hook Form + Zod | Validation, type-safe |
-| **Animations** | Framer Motion | 60fps, gesture support |
-| **Icons** | Lucide React | Consistent, tree-shakeable |
-| **Mock Backend** | MSW (Mock Service Worker) | API mocking for demo |
+| Layer             | Technology                | Lý do                       |
+| ----------------- | ------------------------- | --------------------------- |
+| **Frontend**      | React 19 + Vite           | Nhanh iterate, dễ demo      |
+| **Styling**       | Tailwind CSS v4           | Rapid UI, design tokens     |
+| **State**         | Zustand                   | Lightweight, simple         |
+| **Routing**       | React Router v7           | Standard SPA routing        |
+| **Data Fetching** | TanStack Query v5         | Caching, optimistic updates |
+| **Forms**         | React Hook Form + Zod     | Validation, type-safe       |
+| **Animations**    | Framer Motion             | 60fps, gesture support      |
+| **Icons**         | Lucide React              | Consistent, tree-shakeable  |
+| **Mock Backend**  | MSW (Mock Service Worker) | API mocking for demo        |
 
 ### Phase 2: Full-Stack (khi đã validate)
 
-| Layer | Technology | Lý do |
-|---|---|---|
-| **Backend** | NestJS (Node.js) | TypeScript full-stack, modular |
-| **Database** | PostgreSQL 16 + PostGIS | Spatial queries, mature |
-| **ORM** | Prisma | Type-safe, migration tools |
-| **Auth** | Firebase Auth | OTP SMS, social login |
-| **Real-time** | Socket.io | Chat, notifications |
-| **File Storage** | Cloudinary (→ AWS S3 later) | Image optimization, CDN |
-| **Push Notifications** | Firebase Cloud Messaging | Cross-platform push |
-| **Search** | PostgreSQL Full-Text (→ Meilisearch later) | Simple start |
-| **Queue** | BullMQ + Redis | Background jobs |
-| **Hosting** | Railway / Render (→ AWS later) | Low cost, easy deploy |
+| Layer                  | Technology                                 | Lý do                          |
+| ---------------------- | ------------------------------------------ | ------------------------------ |
+| **Backend**            | NestJS (Node.js)                           | TypeScript full-stack, modular |
+| **Database**           | PostgreSQL 16 + PostGIS                    | Spatial queries, mature        |
+| **ORM**                | Prisma                                     | Type-safe, migration tools     |
+| **Auth**               | Firebase Auth                              | OTP SMS, social login          |
+| **Real-time**          | Socket.io                                  | Chat, notifications            |
+| **File Storage**       | Cloudinary (→ AWS S3 later)                | Image optimization, CDN        |
+| **Push Notifications** | Firebase Cloud Messaging                   | Cross-platform push            |
+| **Search**             | PostgreSQL Full-Text (→ Meilisearch later) | Simple start                   |
+| **Queue**              | BullMQ + Redis                             | Background jobs                |
+| **Hosting**            | Railway / Render (→ AWS later)             | Low cost, easy deploy          |
 
 ### Phase 3: Mobile (React Native + Expo)
 
-| Layer | Technology | Lý do |
-|---|---|---|
-| **Framework** | React Native + Expo | Code reuse from React |
-| **Navigation** | Expo Router (file-based) | Familiar pattern |
-| **Styling** | NativeWind v4 | Tailwind on mobile |
-| **Animations** | React Native Reanimated 3 | 60fps native animations |
-| **Maps** | React Native Maps + Google Maps | Location features |
-| **Camera** | Expo Camera | Photo/video capture |
-| **Notifications** | Expo Notifications + FCM | Push handling |
+| Layer             | Technology                      | Lý do                   |
+| ----------------- | ------------------------------- | ----------------------- |
+| **Framework**     | React Native + Expo (SDK 58)    | Code reuse from React   |
+| **Navigation**    | Expo Router (file-based)        | Familiar pattern        |
+| **Styling**       | NativeWind v4                   | Tailwind on mobile      |
+| **Animations**    | React Native Reanimated 3       | 60fps native animations |
+| **Maps**          | React Native Maps + Google Maps | Location features       |
+| **Camera**        | Expo Camera                     | Photo/video capture     |
+| **Notifications** | Expo Notifications + FCM        | Push handling           |
 
 ## 2. System Architecture
 
@@ -243,11 +243,11 @@ export class SocialModule {}
 ```typescript
 // chat.gateway.ts
 @WebSocketGateway({
-  namespace: '/chat',
-  cors: { origin: '*' },
+  namespace: "/chat",
+  cors: { origin: "*" },
 })
 export class ChatGateway {
-  @SubscribeMessage('chat:send')
+  @SubscribeMessage("chat:send")
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: SendMessageDto,
@@ -255,7 +255,7 @@ export class ChatGateway {
     // Validate, save to DB, broadcast to participants
   }
 
-  @SubscribeMessage('chat:typing')
+  @SubscribeMessage("chat:typing")
   async handleTyping(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: TypingDto,
@@ -333,19 +333,19 @@ export class ModerationService {
 ```typescript
 // analytics.service.ts
 const TRACKED_EVENTS = [
-  'profile_created',
-  'pet_added',
-  'task_created',
-  'task_completed',
-  'invite_sent',
-  'invite_accepted',
-  'post_created',
-  'booking_made',
-  'booking_completed',
-  'booking_cancelled',
-  'match_created',
-  'appointment_confirmed',
-  'sos_activated',
+  "profile_created",
+  "pet_added",
+  "task_created",
+  "task_completed",
+  "invite_sent",
+  "invite_accepted",
+  "post_created",
+  "booking_made",
+  "booking_completed",
+  "booking_cancelled",
+  "match_created",
+  "appointment_confirmed",
+  "sos_activated",
 ] as const;
 
 // Không gửi PII vào analytics
@@ -355,6 +355,7 @@ const TRACKED_EVENTS = [
 ## 9. Infrastructure & Deployment
 
 ### Phase 1 (Demo)
+
 ```
 Vercel / Netlify (free tier)
 └── Static React app
@@ -362,6 +363,7 @@ Vercel / Netlify (free tier)
 ```
 
 ### Phase 2 (MVP)
+
 ```
 Railway / Render
 ├── NestJS API (1 instance)
@@ -376,6 +378,7 @@ External:
 ```
 
 ### Phase 3 (Scale)
+
 ```
 AWS / GCP
 ├── ECS or Cloud Run (auto-scale)
@@ -388,18 +391,17 @@ AWS / GCP
 
 ## 10. Security Checklist
 
-| Concern | Implementation |
-|---|---|
-| Authentication | Firebase Auth (OTP), JWT tokens |
-| Authorization | NestJS Guards + RBAC |
-| Input Validation | Zod schemas, NestJS Pipes |
-| SQL Injection | Prisma (parameterized queries) |
-| XSS | React auto-escaping, CSP headers |
-| CSRF | SameSite cookies, CSRF tokens |
-| Rate Limiting | express-rate-limit, per-endpoint |
-| File Upload | Type validation, size limits, virus scan |
-| Data Encryption | TLS in transit, encryption at rest |
-| Secrets | Environment variables, no hardcoding |
-| Logging | Structured logs, no PII in logs |
-| Dependencies | npm audit, automated updates |
-
+| Concern          | Implementation                           |
+| ---------------- | ---------------------------------------- |
+| Authentication   | Firebase Auth (OTP), JWT tokens          |
+| Authorization    | NestJS Guards + RBAC                     |
+| Input Validation | Zod schemas, NestJS Pipes                |
+| SQL Injection    | Prisma (parameterized queries)           |
+| XSS              | React auto-escaping, CSP headers         |
+| CSRF             | SameSite cookies, CSRF tokens            |
+| Rate Limiting    | express-rate-limit, per-endpoint         |
+| File Upload      | Type validation, size limits, virus scan |
+| Data Encryption  | TLS in transit, encryption at rest       |
+| Secrets          | Environment variables, no hardcoding     |
+| Logging          | Structured logs, no PII in logs          |
+| Dependencies     | npm audit, automated updates             |

@@ -1,0 +1,22 @@
+{
+  "name": "@pawty/server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pawty NestJS Backend API + Socket.io Gateway + PostGIS + Prisma",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server/src/main.js",
+    "start:dev": "tsc -p tsconfig.json && node dist/server/src/main.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pawty/types": "*",
+    "@pawty/utils": "*",
+    "@pawty/validators": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "typescript": "^5.8.3"
+  }
+}
+

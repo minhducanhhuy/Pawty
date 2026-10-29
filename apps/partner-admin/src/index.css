@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+body {
+  font-family: 'Nunito', system-ui, sans-serif;
+  background-color: #FDFBF7;
+  color: #2D3436;
+}
+
+h1, h2, h3, .font-display {
+  font-family: 'Fredoka', system-ui, sans-serif;
+}
+

@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@pawty/types": ["./packages/types/src/index.ts"],
+      "@pawty/utils": ["./packages/utils/src/index.ts"],
+      "@pawty/validators": ["./packages/validators/src/index.ts"]
+    }
+  }
+}
+
