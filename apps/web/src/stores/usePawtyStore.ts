@@ -42,6 +42,7 @@ import {
   INITIAL_HANDOVER_NOTE,
   INITIAL_MATCHES,
   INITIAL_MESSAGES,
+  INITIAL_NOTIFICATIONS,
   INITIAL_PARTNERS,
   INITIAL_PETS,
   INITIAL_PLACES,
@@ -51,9 +52,20 @@ import {
   INITIAL_SOS_ALERTS,
   INITIAL_USER,
   INITIAL_WALK_APPOINTMENTS,
+  SEARCHABLE_USER_DIRECTORY,
+  type AppNotificationItem,
+  type SearchableUserTag,
+  type WebThemeId,
 } from "../mocks/seedData";
 
-export type BottomTabId = "today" | "explore" | "chat" | "profile";
+export type BottomTabId =
+  | "today"
+  | "explore"
+  | "tinder"
+  | "services"
+  | "appointments"
+  | "chat"
+  | "profile";
 export type ExploreSubTabId =
   | "feed"
   | "discover"
@@ -77,7 +89,10 @@ export type ActiveModalType =
   | "privacy_center"
   | "public_pet_profile"
   | "add_pet_wizard"
-  | "kiosk_lock";
+  | "kiosk_lock"
+  | "notifications"
+  | "edit_profile"
+  | "settings";
 
 interface ToastBanner {
   id: string;
@@ -89,6 +104,8 @@ interface ToastBanner {
 interface PawtyAppState {
   // Navigation & Viewport
   hasCompletedOnboarding: boolean;
+  hasSavedSession: boolean;
+  themeId: WebThemeId;
   activeTab: BottomTabId;
   exploreSubTab: ExploreSubTabId;
   activeModal: ActiveModalType;
@@ -121,8 +138,11 @@ interface PawtyAppState {
   reports: ContentReport[];
   analyticsEvents: AnalyticsEventRecord[];
   metrics: NorthStarDashboardMetrics;
+  notifications: AppNotificationItem[];
+  searchableUsers: SearchableUserTag[];
 
   // Actions
+  setThemeId: (themeId: WebThemeId) => void;
   setActiveTab: (tab: BottomTabId) => void;
   setExploreSubTab: (subTab: ExploreSubTabId) => void;
   setActiveModal: (modal: ActiveModalType, partnerId?: string | null) => void;
@@ -161,7 +181,32 @@ interface PawtyAppState {
     primaryNeeds: PrimaryNeed[];
   }) => void;
   restartOnboardingDemo: () => void;
+  loginWithSavedSession: () => void;
+  loginWithPhone: (phone: string) => void;
+  logoutSession: () => void;
   setActivePetId: (petId: string) => void;
+  updateOwnerAndPetProfile: (payload: {
+    ownerName: string;
+    ownerBio: string;
+    neighborhood: string;
+    petId: string;
+    petName: string;
+    species: "dog" | "cat";
+    breed: string;
+    weightKg: number;
+    ageDisplay: string;
+  }) => void;
+  addNewPetObject: (payload: {
+    name: string;
+    species: "dog" | "cat";
+    breed: string;
+    weightKg: number;
+    ageDisplay: string;
+  }) => void;
+  sendCareInviteByTag: (userTag: string, petId: string) => void;
+  respondToCareInvite: (notificationId: string, accept: boolean) => void;
+  markAllNotificationsRead: () => void;
+  startChatWithUserTag: (userTag: string) => void;
   addVaccinationRecord: (
     petId: string,
     vaccineName: string,
@@ -286,8 +331,10 @@ interface PawtyAppState {
 export const usePawtyStore = create<PawtyAppState>()(
   persist(
     (set, get) => ({
-      hasCompletedOnboarding: true,
-      activeTab: "today",
+      hasCompletedOnboarding: false,
+      hasSavedSession: true,
+      themeId: "coral",
+      activeTab: "explore",
       exploreSubTab: "feed",
       activeModal: null,
       selectedPartnerIdForBooking: null,
@@ -318,7 +365,13 @@ export const usePawtyStore = create<PawtyAppState>()(
       reports: INITIAL_REPORTS,
       analyticsEvents: [],
       metrics: INITIAL_DASHBOARD_METRICS,
+      notifications: INITIAL_NOTIFICATIONS,
+      searchableUsers: SEARCHABLE_USER_DIRECTORY,
 
+      setThemeId: (themeId) => {
+        set({ themeId });
+        get().showToast("Đã đổi giao diện", "Màu sắc ứng dụng đã được cập nhật.");
+      },
       setActiveTab: (tab) =>
         set({ activeTab: tab, activeConversationId: null }),
       setExploreSubTab: (subTab) => set({ exploreSubTab: subTab }),
@@ -435,7 +488,7 @@ export const usePawtyStore = create<PawtyAppState>()(
 
         set((state) => ({
           hasCompletedOnboarding: true,
-          activeTab: "today",
+          activeTab: "explore",
           activeModal: null,
           user: {
             ...state.user,
@@ -452,15 +505,357 @@ export const usePawtyStore = create<PawtyAppState>()(
         get().trackEvent("signup_completed", { has_pet: true });
         get().trackEvent("pet_profile_created", { species: payload.species });
         get().showToast(
-          `Chào mừng ${newPet.name} đến Pawty! 🐾`,
-          "Hồ sơ Boss và sổ tiêm điện tử đã sẵn sàng.",
+          `Chào mừng ${newPet.name} đến Pawty`,
+          "Hồ sơ thú cưng và sổ tiêm điện tử đã sẵn sàng.",
           "success",
         );
       },
 
       restartOnboardingDemo: () => set({ hasCompletedOnboarding: false }),
 
+      loginWithSavedSession: () => {
+        set({ hasCompletedOnboarding: true, hasSavedSession: true, activeTab: "explore" });
+        get().showToast("Chào mừng trở lại", `Đang mở phiên của ${get().user.displayName}.`);
+      },
+
+      loginWithPhone: (phone) => {
+        set((state) => ({
+          hasCompletedOnboarding: true,
+          hasSavedSession: true,
+          activeTab: "explore",
+          user: {
+            ...state.user,
+            phone: phone.trim() || state.user.phone,
+          },
+        }));
+        get().showToast("Đăng nhập thành công", `Chào mừng ${get().user.displayName} quay lại.`);
+      },
+
+      logoutSession: () => {
+        set({ hasCompletedOnboarding: false, activeModal: null });
+        get().showToast("Đã đăng xuất", "Bạn có thể vào lại nhanh bất cứ lúc nào.", "info");
+      },
+
       setActivePetId: (petId) => set({ activePetId: petId }),
+
+      updateOwnerAndPetProfile: (payload) => {
+        set((state) => ({
+          user: {
+            ...state.user,
+            displayName: payload.ownerName.trim() || state.user.displayName,
+            bio: payload.ownerBio.trim() || state.user.bio,
+            neighborhood: payload.neighborhood.trim() || state.user.neighborhood,
+          },
+          pets: state.pets.map((p) =>
+            p.id === payload.petId
+              ? {
+                  ...p,
+                  name: payload.petName.trim() || p.name,
+                  species: payload.species,
+                  breed: payload.breed.trim() || p.breed,
+                  weightKg: payload.weightKg || p.weightKg,
+                  ageDisplay: payload.ageDisplay.trim() || p.ageDisplay,
+                }
+              : p,
+          ),
+          activeModal: null,
+        }));
+        get().showToast("Đã lưu hồ sơ", "Thông tin cá nhân và thú cưng đã được cập nhật.");
+      },
+
+      addNewPetObject: (payload) => {
+        const newId = `pet-${Date.now()}`;
+        const newPet: PetProfile = {
+          id: newId,
+          householdId: "hh-mai",
+          ownerId: get().user.id,
+          name: payload.name.trim() || "Bé mới",
+          species: payload.species,
+          breed:
+            payload.breed.trim() ||
+            (payload.species === "dog" ? "Corgi" : "Mèo Anh Lông Ngắn"),
+          gender: "female",
+          dateOfBirth: "2025-05-01",
+          ageDisplay: payload.ageDisplay.trim() || "1 tuổi",
+          weightKg: payload.weightKg || 5,
+          sizeCategory: classifyPetSizeByWeight(payload.weightKg || 5),
+          energyLevel: "medium",
+          avatarUrl:
+            payload.species === "dog"
+              ? "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=600&q=80"
+              : "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=600&q=80",
+          coverPhotoUrl:
+            "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=900&q=80",
+          isNeutered: true,
+          allergies: "Không có",
+          medicalNotes: "Khoẻ mạnh",
+          vetName: "Phòng khám PetCare Q9",
+          vetContact: "0909 112 233",
+          vaccinationStatus: "full",
+          lastVaccineDate: "2026-10-15",
+          isPublic: true,
+          followerCount: 1,
+          behaviors: [
+            { id: `bh-${Date.now()}-1`, petId: newId, category: "personality", label: "Thân thiện" },
+            { id: `bh-${Date.now()}-2`, petId: newId, category: "good_habit", label: "Ngoan ngoãn" },
+          ],
+          vaccinations: [
+            {
+              id: `vac-${Date.now()}`,
+              petId: newId,
+              vaccineName:
+                payload.species === "dog"
+                  ? "Vắc-xin 7 bệnh & Phòng dại"
+                  : "Vắc-xin 4 bệnh Mèo",
+              dateGiven: "2026-10-15",
+              nextDueDate: "2027-10-15",
+              vetName: "Phòng khám PetCare Q9",
+              verified: true,
+            },
+          ],
+          weightHistory: [{ date: "10/2026", weightKg: payload.weightKg || 5 }],
+        };
+        set((state) => ({
+          pets: [...state.pets, newPet],
+          activePetId: newId,
+          activeModal: null,
+        }));
+        get().showToast(
+          `Đã thêm hồ sơ ${newPet.name}`,
+          `Phân loại: ${newPet.species === "dog" ? "Chó" : "Mèo"} · ${newPet.breed}`,
+        );
+      },
+
+      sendCareInviteByTag: (userTag, petId) => {
+        const state = get();
+        const normalized = userTag.trim().startsWith("@")
+          ? userTag.trim().toLowerCase()
+          : `@${userTag.trim().toLowerCase()}`;
+        const found = state.searchableUsers.find(
+          (u) => u.tag.toLowerCase() === normalized,
+        );
+        const pet = state.pets.find((p) => p.id === petId) ?? state.pets[0];
+        if (!found) {
+          get().showToast(
+            "Không tìm thấy tài khoản",
+            "Hãy chọn một tài khoản trong danh sách gợi ý bên dưới.",
+            "warning",
+          );
+          return;
+        }
+        const already = state.circleMembers.some(
+          (m) =>
+            m.relationLabel.toLowerCase() === found.tag.toLowerCase() ||
+            m.displayName.toLowerCase().includes(found.displayName.toLowerCase()),
+        );
+        if (already) {
+          get().showToast(
+            "Đã gửi lời mời trước đó",
+            `${found.displayName} (${found.tag}) đã có trong danh sách chăm cùng.`,
+            "info",
+          );
+          return;
+        }
+        const newMember: CircleMember = {
+          id: `cm-${Date.now()}`,
+          householdId: "hh-mai",
+          userId: found.id,
+          displayName: found.displayName,
+          avatarUrl: found.avatarUrl,
+          relationLabel: found.tag,
+          role: "caretaker",
+          inviteCode: `TAG-${found.tag.replace("@", "").toUpperCase()}`,
+          status: "pending",
+          joinedAt: "Đã gửi lời mời",
+        };
+        set((prev) => ({
+          circleMembers: [...prev.circleMembers, newMember],
+          circleActivities: [
+            {
+              id: `act-${Date.now()}`,
+              householdId: "hh-mai",
+              actorId: prev.user.id,
+              actorName: prev.user.displayName,
+              actorAvatar: prev.user.avatarUrl,
+              actionText: `đã gửi lời mời chăm cùng bé ${pet.name} tới ${found.displayName} (${found.tag})`,
+              detailText: "Đang chờ người nhận bấm Chấp nhận trong thông báo.",
+              createdAt: "Vừa xong",
+            },
+            ...prev.circleActivities,
+          ],
+          activeModal: null,
+        }));
+        get().showToast(
+          "Đã gửi lời mời chăm cùng",
+          `${found.displayName} (${found.tag}) sẽ nhận được thông báo để xác nhận chăm bé ${pet.name}.`,
+        );
+      },
+
+      respondToCareInvite: (notificationId, accept) => {
+        const state = get();
+        const target = state.notifications.find((n) => n.id === notificationId);
+        if (!target || !target.invitePayload) return;
+        const payload = target.invitePayload;
+
+        set((prev) => ({
+          notifications: prev.notifications.map((n) =>
+            n.id === notificationId && n.invitePayload
+              ? {
+                  ...n,
+                  isRead: true,
+                  invitePayload: {
+                    ...n.invitePayload,
+                    status: accept ? "accepted" : "declined",
+                  },
+                }
+              : n,
+          ),
+        }));
+
+        if (accept) {
+          const exists = state.pets.some((p) => p.id === payload.petId);
+          if (!exists) {
+            const sharedPet: PetProfile = {
+              id: payload.petId,
+              householdId: "hh-shared",
+              ownerId: "user-minh",
+              name: payload.petName,
+              species: payload.petSpecies,
+              breed: payload.petBreed,
+              gender: "male",
+              dateOfBirth: "2025-03-10",
+              ageDisplay: payload.petAgeLabel,
+              weightKg: payload.petWeightKg,
+              sizeCategory: classifyPetSizeByWeight(payload.petWeightKg),
+              energyLevel: "high",
+              avatarUrl: payload.petAvatarUrl,
+              coverPhotoUrl: payload.petAvatarUrl,
+              isNeutered: true,
+              allergies: "Không có",
+              medicalNotes: `Thú cưng chăm cùng với ${payload.fromUserName} (${payload.fromUserTag})`,
+              vetName: "Phòng khám PetCare Q9",
+              vetContact: "0909 112 233",
+              vaccinationStatus: "full",
+              lastVaccineDate: "2026-09-10",
+              isPublic: true,
+              followerCount: 45,
+              behaviors: [
+                {
+                  id: `sh-b-1`,
+                  petId: payload.petId,
+                  category: "personality",
+                  label: "Hoạt bát",
+                },
+                {
+                  id: `sh-b-2`,
+                  petId: payload.petId,
+                  category: "good_habit",
+                  label: `Chăm cùng ${payload.fromUserTag}`,
+                },
+              ],
+              vaccinations: [
+                {
+                  id: `sh-vac-1`,
+                  petId: payload.petId,
+                  vaccineName: "Vắc-xin 7 bệnh & Phòng dại",
+                  dateGiven: "2026-09-10",
+                  nextDueDate: "2027-09-10",
+                  vetName: "Phòng khám PetCare Q9",
+                  verified: true,
+                },
+              ],
+              weightHistory: [{ date: "10/2026", weightKg: payload.petWeightKg }],
+            };
+            const sharedTask: CareTask = {
+              id: `task-shared-${Date.now()}`,
+              householdId: "hh-shared",
+              petId: payload.petId,
+              createdBy: "user-minh",
+              assignedTo: state.user.id,
+              assignedToName: state.user.displayName,
+              title: `Cho bé ${payload.petName} ăn chiều & đi dạo 20 phút`,
+              description: `Chăm cùng với ${payload.fromUserName} (${payload.fromUserTag})`,
+              category: "walk",
+              isRecurring: false,
+              dueDate: "2026-10-29",
+              dueTime: "17:30",
+              status: "pending",
+              reminderEnabled: true,
+            };
+            set((prev) => ({
+              pets: [...prev.pets, sharedPet],
+              activePetId: sharedPet.id,
+              careTasks: [sharedTask, ...prev.careTasks],
+            }));
+          }
+          get().showToast(
+            `Đã nhận chăm cùng bé ${payload.petName}`,
+            `Hồ sơ của ${payload.petName} đã được thêm vào danh sách thú cưng của bạn.`,
+          );
+        } else {
+          get().showToast(
+            "Đã từ chối lời mời",
+            `Bạn đã bỏ qua lời mời từ ${payload.fromUserTag}.`,
+            "info",
+          );
+        }
+      },
+
+      markAllNotificationsRead: () => {
+        set((state) => ({
+          notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
+        }));
+      },
+
+      startChatWithUserTag: (userTag) => {
+        const state = get();
+        const found = state.searchableUsers.find(
+          (u) => u.tag.toLowerCase() === userTag.toLowerCase(),
+        );
+        if (!found) return;
+        const existing = state.conversations.find((c) =>
+          c.subtitle.toLowerCase().includes(found.tag.toLowerCase()),
+        );
+        if (existing) {
+          set({ activeConversationId: existing.id, activeTab: "chat" });
+          return;
+        }
+        const newConvId = `conv-tag-${Date.now()}`;
+        const newConv: Conversation = {
+          id: newConvId,
+          type: "direct",
+          title: found.displayName,
+          subtitle: `${found.tag} · ${found.area}`,
+          avatarUrl: found.avatarUrl,
+          partnerUserId: found.id,
+          partnerLocation: state.user.location,
+          isOnline: true,
+          unreadCount: 0,
+          lastMessageText: "Bắt đầu cuộc trò chuyện mới",
+          lastMessageAt: "Vừa xong",
+        };
+        set((prev) => ({
+          conversations: [newConv, ...prev.conversations],
+          messagesByConversation: {
+            ...prev.messagesByConversation,
+            [newConvId]: [
+              {
+                id: `msg-${Date.now()}`,
+                conversationId: newConvId,
+                senderId: prev.user.id,
+                senderName: prev.user.displayName,
+                senderAvatar: prev.user.avatarUrl,
+                messageType: "text",
+                textContent: `Chào ${found.displayName}, mình kết nối qua Pawty nhé.`,
+                isRead: true,
+                createdAt: "Vừa xong",
+              },
+            ],
+          },
+          activeConversationId: newConvId,
+          activeTab: "chat",
+        }));
+      },
 
       addVaccinationRecord: (petId, vaccineName, dateGiven, vetName) => {
         set((state) => ({
@@ -487,7 +882,7 @@ export const usePawtyStore = create<PawtyAppState>()(
           ),
         }));
         get().showToast(
-          "Đã cập nhật Sổ tiêm điện tử 🟢",
+          "Đã cập nhật sổ tiêm điện tử",
           `Mũi tiêm "${vaccineName}" đã được lưu.`,
         );
       },
@@ -572,8 +967,8 @@ export const usePawtyStore = create<PawtyAppState>()(
             assigned: target.assignedTo !== get().user.id,
           });
           get().showToast(
-            "Hoàn thành công việc! 🎉",
-            `Cả Vòng chăm sóc (Circle) đã nhận cập nhật "${target.title}".`,
+            "Đã hoàn thành công việc",
+            `Các thành viên chăm cùng đã nhận cập nhật "${target.title}".`,
           );
         }
       },
@@ -607,7 +1002,7 @@ export const usePawtyStore = create<PawtyAppState>()(
         }));
         get().trackEvent("first_care_task_created", {});
         get().showToast(
-          "Đã tạo việc chăm sóc 📋",
+          "Đã tạo việc chăm sóc",
           `Đã giao cho ${newTask.assignedToName} lúc ${newTask.dueTime}.`,
         );
       },
@@ -782,11 +1177,11 @@ export const usePawtyStore = create<PawtyAppState>()(
 
         get().showToast(
           moderation.hasHealthDisclaimer
-            ? "Đã đăng kèm Lưu ý Y khoa ⚕️"
-            : "Đã đăng lên Bảng tin Pawty! 🐾",
+            ? "Đã đăng kèm lưu ý y khoa"
+            : "Đã đăng bài viết mới",
           moderation.hasHealthDisclaimer
-            ? "Hệ thống tự động đính kèm khuyến cáo tham khảo Bác sĩ thú y."
-            : `Khoảnh khắc của ${activePet.name} đã hiển thị cho cộng đồng.`,
+            ? "Đã đính kèm khuyến cáo tham khảo bác sĩ thú y."
+            : `Bài viết của ${activePet.name} đã hiển thị trên bảng tin.`,
         );
 
         return { ok: true };
@@ -895,8 +1290,8 @@ export const usePawtyStore = create<PawtyAppState>()(
           }),
         }));
         get().showToast(
-          "Đã cập nhật Bộ sưu tập 📌",
-          `Đã lưu vào thư mục "${folderName}".`,
+          "Đã lưu bài viết",
+          `Đã lưu vào mục "${folderName}".`,
           "info",
         );
       },
@@ -1089,7 +1484,7 @@ export const usePawtyStore = create<PawtyAppState>()(
         }));
 
         get().showToast(
-          "Đã gửi lời hẹn dắt dạo trung điểm! 📍",
+          "Đã gửi lời hẹn đi dạo",
           `Địa điểm: ${payload.locationName}`,
         );
       },
@@ -1230,8 +1625,8 @@ export const usePawtyStore = create<PawtyAppState>()(
 
         get().trackEvent("first_booking_made", { service_type: partner.type });
         get().showToast(
-          "✅ Đã gửi yêu cầu đặt lịch!",
-          `${partner.name} sẽ xác nhận lịch cho bé ${pet.name} trong vòng 2 giờ.`,
+          "Đã gửi yêu cầu đặt lịch",
+          `${partner.name} sẽ xác nhận lịch cho bé ${pet.name} sớm nhất.`,
         );
       },
 
@@ -1334,8 +1729,8 @@ export const usePawtyStore = create<PawtyAppState>()(
         }));
         get().trackEvent("vip_subscription_started", { plan });
         get().showToast(
-          "Chúc mừng lên hạng Sen VIP! 👑",
-          "Đã mở khóa không giới hạn Hồ sơ Boss, Circle, Kho ảnh & Ưu tiên Radar x3!",
+          "Đã nâng cấp gói VIP",
+          "Đã mở khóa toàn bộ tính năng nâng cao cho tài khoản của bạn.",
         );
       },
 
@@ -1387,8 +1782,8 @@ export const usePawtyStore = create<PawtyAppState>()(
 
         get().trackEvent("sos_activated", {});
         get().showToast(
-          "🚨 ĐÃ PHÁT BÁO ĐỘNG SOS BÁN KÍNH 3KM!",
-          `Tất cả chủ nuôi quanh ${payload.lastSeenLocation} đã nhận Push Notification khẩn cấp.`,
+          "Đã phát thông báo tìm thú lạc 3km",
+          `Các chủ nuôi quanh ${payload.lastSeenLocation} đã nhận được thông báo hỗ trợ.`,
           "danger",
         );
       },
@@ -1495,12 +1890,12 @@ export const usePawtyStore = create<PawtyAppState>()(
       },
 
       resetAllDemoData: () => {
-        localStorage.removeItem("pawty-super-app-storage");
+        localStorage.removeItem("pawty-super-app-storage-v2");
         window.location.reload();
       },
     }),
     {
-      name: "pawty-super-app-storage",
+      name: "pawty-super-app-storage-v2",
     },
   ),
 );
