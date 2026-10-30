@@ -33,7 +33,7 @@
 ### 1.4 Social Feed, Posts, Reactions, Comments & Groups (Layer 3: Local)
 - `GET /api/posts/feed` — Bảng tin sắp xếp theo thuật toán **PawRank** (Circle 40%, Local 25%, Discovery 20%, Expert 10%, Partner 5%).
 - `GET /api/posts/explore` — Khám phá theo loài, hashtag, gần bạn, mẹo chuyên gia.
-- `POST /api/posts` — Đăng bài mới qua `ModerationService` (tự động chặn nội dung vi phạm và gắn `has_health_disclaimer` khi có từ khóa sức khỏe).
+- `POST /api/posts` — Đăng bài mới qua `ModerationService` (tự động chặn nội dung vi phạm, gắn `has_health_disclaimer`, đồng thời kích hoạt `PetTracingService` quét ảnh/văn bản so khớp với các tin SOS đang mở).
 - `POST /api/posts/:id/reactions` (`paw | heart_eyes | laughing | worried | helpful`) & `DELETE /api/posts/:id/reactions`.
 - `GET /api/posts/:id/comments`, `POST /api/posts/:id/comments` (hỗ trợ reply 1 cấp & highlight Expert).
 - `POST /api/posts/:id/bookmark`, `DELETE /api/posts/:id/bookmark`, `GET /api/bookmarks`.
@@ -50,12 +50,14 @@
 - `POST /api/bookings`, `GET /api/bookings`, `PUT /api/bookings/:id/status`, `PUT /api/bookings/:id/cancel`.
 - `POST /api/bookings/:id/review` — Đánh giá đối tác từ giao dịch hoàn tất.
 
-### 1.7 Monetization, SOS, Moderation & Analytics
+### 1.7 Monetization, SOS, AI Tracing, Moderation & Analytics
 - `POST /api/sos` & `POST /api/sos/:id/sighting` — Phát tín hiệu SOS 3km (39.000đ VietQR) và báo nhìn thấy Boss.
+- `GET /api/sos/:id/trajectory` — Lấy chuỗi vết tích lộ trình phỏng đoán (`{ sosId, startPoint, trajectoryPoints, matchedPosts, totalDistanceMeters }`).
+- `POST /api/sos/:id/match-decision` — Chủ nuôi xác nhận manh mối AI (`{ matchId, decision: 'verified' | 'dismissed' }`).
+- `POST /api/ai/trace-pet` — Quét đặc trưng nhận diện ảnh và trích xuất Landmark văn bản theo tọa độ.
 - `POST /api/vip/subscribe` — Nâng cấp gói Cơ bản (29k), Sen VIP (49k/tháng), Sen VIP Năm (399k/năm).
 - `POST /api/reports`, `POST /api/users/:id/block`, `GET /api/admin/metrics` (North Star & KPI Dashboard).
 
 ## 2. WebSocket Events (Socket.io)
 - **Client → Server:** `chat:send`, `chat:typing`, `chat:read`.
-- **Server → Client:** `chat:new_message`, `chat:typing`, `chat:read_receipt`, `notification:new`, `task:completed`, `task:reminder`, `booking:update`, `match:new`, `circle:activity`, `post:new`, `post:reaction`, `post:comment`, `sos:alert`.
-
+- **Server → Client:** `chat:new_message`, `chat:typing`, `chat:read_receipt`, `notification:new`, `task:completed`, `task:reminder`, `booking:update`, `match:new`, `circle:activity`, `post:new`, `post:reaction`, `post:comment`, `sos:alert`, `sos:ai_sighting_detected`.
