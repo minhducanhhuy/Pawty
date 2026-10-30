@@ -503,16 +503,59 @@ export interface ServiceBooking {
   createdAt: string;
 }
 
-// SOS Alert
+// SOS Alert & AI Spatiotemporal Tracing
 export interface SosSighting {
   id: string;
   reporterId: string;
   reporterName: string;
   reporterPhone: string;
   locationName: string;
+  coords?: GeoPoint;
   note: string;
   photoUrl?: string;
   createdAt: string;
+}
+
+export interface PetVisualSignature {
+  species: Species;
+  breed: string;
+  primaryColor: string;
+  secondaryColor?: string;
+  hasCollar: boolean;
+  collarColor?: string;
+  distinctiveFeatures: string[];
+}
+
+export interface SightingTrajectoryPoint {
+  id: string;
+  sosAlertId: string;
+  timestamp: string;
+  lat: number;
+  lng: number;
+  locationName: string;
+  source: 'initial_lost' | 'community_sighting' | 'ai_feed_match';
+  confidenceScore: number;
+  photoUrl?: string;
+  postId?: string;
+  reporterName?: string;
+  note?: string;
+}
+
+export interface SosMatchedPost {
+  id: string;
+  sosAlertId: string;
+  postId: string;
+  postAuthorName: string;
+  postText: string;
+  postPhotoUrl?: string;
+  matchScore: number;
+  visualSimilarity: number;
+  textSimilarity: number;
+  kinematicPlausibility: number;
+  detectedLocationName: string;
+  detectedCoords: GeoPoint;
+  detectedAt: string;
+  status: 'pending_review' | 'verified_by_owner' | 'dismissed';
 }
 
 export interface SosAlert {
@@ -525,12 +568,16 @@ export interface SosAlert {
   petBreed: string;
   petAvatar: string;
   lastSeenLocation: string;
+  lastSeenCoords?: GeoPoint;
   radiusKm: number;
   description: string;
   rewardText: string;
   feePaidVnd: number;
   status: 'active' | 'found' | 'expired';
   sightings: SosSighting[];
+  visualSignatures?: PetVisualSignature;
+  matchedPosts?: SosMatchedPost[];
+  trajectoryPoints?: SightingTrajectoryPoint[];
   createdAt: string;
 }
 
