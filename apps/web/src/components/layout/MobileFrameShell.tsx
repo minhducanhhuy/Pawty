@@ -265,8 +265,8 @@ export const MobileFrameShell: React.FC<MobileFrameShellProps> = ({
                 toast.tone === 'danger'
                   ? '#C94A4A'
                   : toast.tone === 'warning'
-                    ? '#C88A2E'
-                    : theme.primary,
+                  ? '#C88A2E'
+                  : theme.primary,
             }}
             className="mx-3 mt-2.5 p-3 rounded-2xl shadow-md border border-l-4 cursor-pointer z-50 transition-all flex items-start gap-2.5"
           >
@@ -276,14 +276,14 @@ export const MobileFrameShell: React.FC<MobileFrameShellProps> = ({
                   toast.tone === 'danger'
                     ? '#FDECEC'
                     : toast.tone === 'warning'
-                      ? '#FDF5E6'
-                      : theme.primarySoft,
+                    ? '#FDF5E6'
+                    : theme.primarySoft,
                 color:
                   toast.tone === 'danger'
                     ? '#C94A4A'
                     : toast.tone === 'warning'
-                      ? '#C88A2E'
-                      : theme.primary,
+                    ? '#C88A2E'
+                    : theme.primary,
               }}
               className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
             >
