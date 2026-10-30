@@ -42,3 +42,8 @@ pawty/
   - Layer 2: AI Classification (Pet-relevance score, tự động gắn Health Disclaimer `⚕️` khi có từ khóa sức khỏe).
   - Layer 3 & 4: Community Report (3 reports auto-hide) & Moderator Review trên `apps/partner-admin`.
 
+- **AI Spatiotemporal Sighting Tracing (`PetTracingService` + Google Gemini 2.5 Flash):**
+  - Trích xuất đặc trưng thị giác từ ảnh (loài, giống, màu lông, phụ kiện vòng cổ/chuông, đặc điểm nhận dạng dị biệt).
+  - Geocoding địa danh đô thị tiếng Việt (Vinhomes Grand Park, Vinhomes Central Park, Masteri, Times City...).
+  - Đánh giá động học di chuyển ($\le 8\text{ km/h}$, bán kính 3km).
+  - Tự động quét và phát hiện nghi vấn khi có bài đăng mới trên Pet Feed, cập nhật lộ trình di chuyển và bắn Socket event `sos:ai_sighting_detected`.
