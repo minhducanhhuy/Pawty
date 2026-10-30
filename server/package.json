@@ -7,16 +7,22 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server/src/main.js",
     "start:dev": "tsc -p tsconfig.json && node dist/server/src/main.js",
+    "db:push": "prisma db push",
+    "db:seed": "tsc -p tsconfig.json && node dist/server/src/data/seed-db.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@pawty/types": "*",
     "@pawty/utils": "*",
-    "@pawty/validators": "*"
+    "@pawty/validators": "*",
+    "@prisma/client": "^6.19.3",
+    "dotenv": "^18.0.9",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/node": "^22.15.21",
+    "@types/pg": "^8.23.1",
+    "prisma": "^6.19.3",
     "typescript": "^5.8.3"
   }
 }
-
