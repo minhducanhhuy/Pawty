@@ -43,6 +43,7 @@ export const GlobalModals: React.FC = () => {
   const {
     activeModal,
     setActiveModal,
+    sosAlerts,
     user,
     pets,
     activePetId,
@@ -1814,12 +1815,41 @@ export const GlobalModals: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-[#C94A4A]" />
-              <h3 className="text-base font-bold">Báo tìm thú lạc bán kính 3km</h3>
+              <h3 className="text-base font-bold">Trung tâm SOS & AI Radar Truy Vết</h3>
             </div>
             <button onClick={() => setActiveModal(null)} style={{ color: theme.textSoft }}>
               <X className="w-4 h-4" />
             </button>
           </div>
+
+          {/* AI Radar Trajectory Preview Banner */}
+          {sosAlerts.length > 0 && (
+            <div className="p-3.5 rounded-2xl bg-stone-900 text-white space-y-2.5 shadow-md">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-extrabold text-[#FF6F61]">
+                  🛰️ AI SPATIOTEMPORAL RADAR
+                </span>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                  {sosAlerts[0]?.trajectoryPoints?.length || 3} Mốc Lộ Trình
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-300">
+                Đang truy vết: <strong className="text-white">{sosAlerts[0]?.petName}</strong> (Bán kính 3km)
+              </p>
+              <div className="space-y-2 pt-2 border-t border-stone-800">
+                {(sosAlerts[0]?.trajectoryPoints || []).map((pt, idx) => (
+                  <div key={pt.id || idx} className="flex items-start gap-2.5 text-[11px]">
+                    <span className="shrink-0 mt-0.5">{idx === 0 ? '🔴' : pt.source === 'ai_feed_match' ? '🟢' : '🟡'}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-stone-200 truncate">{pt.locationName}</p>
+                      <p className="text-[10px] text-stone-400 font-medium">{pt.note || pt.timestamp}</p>
+                    </div>
+                    <span className="text-[10px] text-stone-400 shrink-0 font-medium">{pt.timestamp}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2.5">
             <div>
