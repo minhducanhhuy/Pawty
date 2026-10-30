@@ -43,6 +43,7 @@ model User {
   consentRecords ConsentRecord[]
   notifications  Notification[]
   events         AnalyticsEvent[]
+  sosAlerts      SosAlert[]
 
   @@index([district], map: "idx_users_district")
   @@map("users")
@@ -92,6 +93,7 @@ model Pet {
   owner             User          @relation(fields: [ownerId], references: [id])
   behaviors         PetBehavior[]
   vaccinations      Vaccination[]
+  sosAlerts         SosAlert[]
   careTasks         CareTask[]
   careRecords       CareRecord[]
   bookings          Booking[]
@@ -227,6 +229,7 @@ model Post {
   author              User       @relation(fields: [authorId], references: [id])
   comments            Comment[]
   reactions           Reaction[]
+  sightingMatches     PetSightingMatch[]
 
   @@index([authorId], map: "idx_posts_author")
   @@index([createdAt(sort: Desc)], map: "idx_posts_created")
@@ -391,3 +394,62 @@ model AnalyticsEvent {
   @@map("events")
 }
 
+
+model SosAlert {
+  id               String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String               @map("user_id") @db.Uuid
+  petId            String               @map("pet_id") @db.Uuid
+  lastSeenLocation String               @map("last_seen_location") @db.VarChar(255)
+  radiusKm         Int                  @default(3) @map("radius_km")
+  description      String
+  rewardText       String?              @map("reward_text") @db.VarChar(255)
+  feePaidVnd       Int                  @default(39000) @map("fee_paid_vnd")
+  status           String               @default("active") @db.VarChar(20)
+  sightings        Json                 @default("[]")
+  visualSignatures Json?                @map("visual_signatures")
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user             User                 @relation(fields: [userId], references: [id])
+  pet              Pet                  @relation(fields: [petId], references: [id])
+  matchedPosts     PetSightingMatch[]
+  trajectories     SightingTrajectory[]
+
+  @@index([userId], map: "idx_sos_alerts_user")
+  @@index([status], map: "idx_sos_alerts_status")
+  @@map("sos_alerts")
+}
+
+model PetSightingMatch {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sosAlertId            String    @map("sos_alert_id") @db.Uuid
+  postId                String    @map("post_id") @db.Uuid
+  matchScore            Int       @map("match_score")
+  visualSimilarity      Int       @map("visual_similarity")
+  textSimilarity        Int       @map("text_similarity")
+  kinematicPlausibility Int       @map("kinematic_plausibility")
+  detectedLocationName  String    @map("detected_location_name") @db.VarChar(255)
+  detectedCoords        Json      @map("detected_coords")
+  status                String    @default("pending_review") @db.VarChar(30)
+  detectedAt            DateTime  @default(now()) @map("detected_at") @db.Timestamptz(6)
+
+  sosAlert              SosAlert  @relation(fields: [sosAlertId], references: [id], onDelete: Cascade)
+  post                  Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([sosAlertId], map: "idx_sighting_matches_sos")
+  @@index([postId], map: "idx_sighting_matches_post")
+  @@map("pet_sighting_matches")
+}
+
+model SightingTrajectory {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sosAlertId          String   @map("sos_alert_id") @db.Uuid
+  points              Json     @default("[]")
+  totalDistanceMeters Int      @default(0) @map("total_distance_meters")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sosAlert            SosAlert @relation(fields: [sosAlertId], references: [id], onDelete: Cascade)
+
+  @@index([sosAlertId], map: "idx_sighting_trajectories_sos")
+  @@map("sighting_trajectories")
+}

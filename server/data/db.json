@@ -960,6 +960,7 @@
       "petName": "Coca (Poodle Nâu Đỏ)",
       "petAvatar": "https://images.unsplash.com/photo-1591769225440-811ad7d6eab3?auto=format&fit=crop&w=400&q=80",
       "lastSeenAddress": "Gần cổng S1.02 Vinhomes Grand Park (đeo vòng cổ chuông xanh mint)",
+      "lastSeenLocation": "Gần cổng S1.02 Vinhomes Grand Park",
       "lastSeenCoords": {
         "lat": 10.8418,
         "lng": 106.8289
@@ -967,8 +968,84 @@
       "radiusKm": 3,
       "rewardText": "Hậu tạ 2.000.000đ cho người tìm thấy hoặc giữ giúp bé",
       "status": "active",
-      "createdAt": "15 phút trước",
-      "sightingCount": 2
+      "createdAt": "45 phút trước",
+      "sightingCount": 2,
+      "visualSignatures": {
+        "species": "dog",
+        "breed": "Poodle",
+        "primaryColor": "Nâu đỏ",
+        "hasCollar": true,
+        "collarColor": "Xanh mint",
+        "distinctiveFeatures": [
+          "Đeo chuông xanh mint",
+          "Tai cụp",
+          "Lông xoăn nâu đỏ"
+        ]
+      },
+      "matchedPosts": [
+        {
+          "id": "match-sos-1-post-ai-1",
+          "sosAlertId": "sos-1",
+          "postId": "post-sighting-s2",
+          "postAuthorName": "Lê Thùy Chi (S2.03)",
+          "postText": "Vừa thấy bé Poodle nâu đỏ đeo chuông xanh ngồi nép ở sảnh tòa S2.03 lúc 10h15, bạn nào lạc Boss ra đón nhé!",
+          "postPhotoUrl": "https://images.unsplash.com/photo-1591769225440-811ad7d6eab3?auto=format&fit=crop&w=600&q=80",
+          "matchScore": 88,
+          "visualSimilarity": 92,
+          "textSimilarity": 85,
+          "kinematicPlausibility": 90,
+          "detectedLocationName": "Sảnh tòa S2.03 - Vinhomes Grand Park",
+          "detectedCoords": {
+            "lat": 10.8438,
+            "lng": 106.8324
+          },
+          "detectedAt": "10 phút trước",
+          "status": "pending_review"
+        }
+      ],
+      "trajectoryPoints": [
+        {
+          "id": "point-start-sos-1",
+          "sosAlertId": "sos-1",
+          "timestamp": "45 phút trước",
+          "lat": 10.8418,
+          "lng": 106.8289,
+          "locationName": "Cổng tòa S1.02 (Điểm thất lạc ban đầu)",
+          "source": "initial_lost",
+          "confidenceScore": 1,
+          "photoUrl": "https://images.unsplash.com/photo-1591769225440-811ad7d6eab3?auto=format&fit=crop&w=400&q=80",
+          "note": "Bé tuột xích chạy về hướng công viên"
+        },
+        {
+          "id": "point-sighting-1",
+          "sosAlertId": "sos-1",
+          "timestamp": "30 phút trước",
+          "lat": 10.8425,
+          "lng": 106.8295,
+          "locationName": "Gần sân chơi trẻ em S1.03",
+          "source": "community_sighting",
+          "confidenceScore": 0.9,
+          "photoUrl": "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=400&q=80",
+          "reporterName": "Bác bảo vệ tổ 2",
+          "note": "Thấy bé chạy ngang qua đài phun nước"
+        },
+        {
+          "id": "point-match-1",
+          "sosAlertId": "sos-1",
+          "timestamp": "10 phút trước",
+          "lat": 10.8438,
+          "lng": 106.8324,
+          "locationName": "Sảnh tòa S2.03 - Vinhomes Grand Park",
+          "source": "ai_feed_match",
+          "confidenceScore": 0.88,
+          "photoUrl": "https://images.unsplash.com/photo-1591769225440-811ad7d6eab3?auto=format&fit=crop&w=600&q=80",
+          "postId": "post-sighting-s2",
+          "reporterName": "Lê Thùy Chi (S2.03)",
+          "note": "AI phát hiện khớp 88% qua bài đăng Feed"
+        }
+      ],
+      "totalDistanceMeters": 480,
+      "estimatedMovementSpeedKmH": 1.2
     }
   ],
   "reports": [],
