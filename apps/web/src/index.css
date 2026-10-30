@@ -62,3 +62,144 @@ h1, h2, h3, .font-display {
   animation: pawBounce 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* ==========================================================================
+   PAWTY HERO ANIMATED LOGO KEYFRAMES (CSS WATERCOLOR BLOOM & JOYFUL WAG)
+   ========================================================================== */
+
+/* 1. Organic Watercolor Brush Reveal */
+@keyframes pawtyWatercolorReveal {
+  0% {
+    opacity: 0;
+    clip-path: circle(0% at 35% 55%);
+    filter: blur(14px) brightness(1.25);
+    transform: scale(0.84);
+  }
+  30% {
+    opacity: 0.85;
+    clip-path: ellipse(45% 65% at 46% 52%);
+    filter: blur(5px) brightness(1.1);
+    transform: scale(0.93);
+  }
+  65% {
+    opacity: 0.98;
+    clip-path: ellipse(80% 90% at 52% 50%);
+    filter: blur(1.5px) brightness(1.02);
+    transform: scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    clip-path: ellipse(140% 140% at 50% 50%);
+    filter: blur(0px) brightness(1);
+    transform: scale(1);
+  }
+}
+
+/* 2. Playful Dog Tail Wagging around natural pivot (66.4% X, 67.4% Y) */
+@keyframes pawtyTailWag {
+  0% {
+    transform: rotate(-8deg);
+  }
+  24% {
+    transform: rotate(2deg) scale(1.018);
+  }
+  50% {
+    transform: rotate(11deg);
+  }
+  74% {
+    transform: rotate(2deg) scale(0.988);
+  }
+  100% {
+    transform: rotate(-8deg);
+  }
+}
+
+/* 3. Left Mint Wave Arcs Vibration */
+@keyframes pawtyWavesLeft {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1.04) translate(-2px, -1px);
+  }
+  32% {
+    opacity: 0.35;
+    transform: scale(0.98) translate(0px, 0px);
+  }
+  50% {
+    opacity: 0.05;
+    transform: scale(0.92) translate(1px, 1px);
+  }
+  78% {
+    opacity: 0.45;
+    transform: scale(0.99) translate(-1px, 0px);
+  }
+}
+
+/* 4. Right Mint Wave Arcs Vibration */
+@keyframes pawtyWavesRight {
+  0%, 100% {
+    opacity: 0.05;
+    transform: scale(0.92) translate(-1px, 1px);
+  }
+  30% {
+    opacity: 0.35;
+    transform: scale(0.98) translate(0px, 0px);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04) translate(2px, -1px);
+  }
+  76% {
+    opacity: 0.45;
+    transform: scale(0.99) translate(1px, 0px);
+  }
+}
+
+/* 5. Gentle Floating & Breathing of the whole Logo */
+@keyframes pawtyGentleFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* 6. Watercolor Aura Background Glow */
+@keyframes pawtyWatercolorAura {
+  0%, 100% {
+    transform: scale(0.92);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.75;
+  }
+}
+
+/* Utility classes for Animated Logo */
+.animate-pawty-reveal {
+  animation: pawtyWatercolorReveal 1200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pawty-tail {
+  transform-origin: 66.4% 67.4%;
+  animation: pawtyTailWag 750ms cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  will-change: transform;
+}
+
+.animate-pawty-waves-left {
+  animation: pawtyWavesLeft 750ms cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  will-change: opacity, transform;
+}
+
+.animate-pawty-waves-right {
+  animation: pawtyWavesRight 750ms cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  will-change: opacity, transform;
+}
+
+.animate-pawty-float {
+  animation: pawtyGentleFloat 3000ms ease-in-out infinite;
+}
+
+.animate-pawty-aura {
+  animation: pawtyWatercolorAura 3600ms ease-in-out infinite;
+}

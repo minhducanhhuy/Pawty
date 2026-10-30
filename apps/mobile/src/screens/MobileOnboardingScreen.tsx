@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
+import { MobileAnimatedLogo } from '../components/MobileAnimatedLogo';
 
 const PAWTY_LOGO_FULL = require('../../assets/pawty-logo-full.png');
 const PAWTY_ICON = require('../../assets/pawty-icon.png');
@@ -77,7 +78,7 @@ export const MobileOnboardingScreen: React.FC = () => {
         {/* Brand Header */}
         <View style={styles.brandSection}>
           <View style={styles.logoCard}>
-            <Image source={PAWTY_LOGO_FULL} style={styles.logoFull} resizeMode="contain" />
+            <MobileAnimatedLogo width={160} />
           </View>
           <View style={[styles.badgeRow, { backgroundColor: theme.primarySoft }]}>
             <Image source={PAWTY_ICON} style={styles.smallIcon} resizeMode="contain" />

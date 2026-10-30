@@ -11,6 +11,7 @@ import {
   User,
 } from 'lucide-react';
 import { usePawtyStore } from '../../stores/usePawtyStore';
+import { PawtyAnimatedLogo } from '../../components/common/PawtyAnimatedLogo';
 import { WEB_THEMES } from '../../mocks/seedData';
 
 export const OnboardingFlow: React.FC = () => {
@@ -77,11 +78,7 @@ export const OnboardingFlow: React.FC = () => {
             style={{ backgroundColor: theme.surface, borderColor: theme.border }}
             className="w-full py-5 px-4 rounded-3xl border shadow-xs flex flex-col items-center"
           >
-            <img
-              src="/assets/pawty-logo-full.png"
-              alt="Pawty"
-              className="h-20 object-contain"
-            />
+            <PawtyAnimatedLogo size="lg" withFloat />
             <p
               style={{ color: theme.primary }}
               className="text-sm font-extrabold mt-2"

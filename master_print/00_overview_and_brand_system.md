@@ -61,7 +61,16 @@
 }
 ```
 
-### 3.4 Asset Map
+### 3.4 Asset Map & Animation Layers
 - `/assets/pawty-icon.png`: Icon chữ **P** đội nón tiệc màu xanh mint với dấu chân thú cưng.
-- `/assets/pawty-logo-full.png`: Full Wordmark **Pawty** với chữ 'y' cách điệu đuôi cún vẫy mừng.
+- `/assets/pawty-logo-full.png`: Full Wordmark **Pawty** với chữ 'y' cách điệu đuôi cún vẫy mừng (1024x764 transparent).
+- `/assets/pawty-logo-body.png`: Thân chữ "Pawt" và bầu đáy 'y' đã bóc tách lớp đuôi & sóng chuyển động.
+- `/assets/pawty-logo-tail.png`: Đuôi cún độc lập với tâm xoay tự nhiên tại `(X: 66.4%, Y: 67.4%)`.
+- `/assets/pawty-logo-waves-left.png`: Sóng chuyển động mint bên trái `((`.
+- `/assets/pawty-logo-waves-right.png`: Sóng chuyển động mint bên phải `))`.
 
+### 3.5 Brand Motion System (Hiệu Ứng Mở Đầu & Hoạt Cảnh Sống Động)
+- **Watercolor Bloom Reveal (Mở màn loang màu nước):** Logo mở ra từ tâm với hiệu ứng loang cọ màu nước hữu cơ, độ bão hòa tăng dần kết hợp độ phóng nhẹ `0.88 → 1.0` trong 1.2s.
+- **Tail Wagging (Đuôi cún vẫy mừng):** Đuôi chữ 'y' lắc nhịp nhàng từ `-7deg` đến `+10deg` (chu kỳ `0.75s` lặp vô tận `ease-in-out`).
+- **Motion Waves Vibration (Sóng mint rung rinh):** Hai vòng cung sóng mint bên trái `((` và phải `))` nhấp nháy phát sáng đồng điệu theo từng nhịp quẫy đuôi.
+- **Màn hình chào (`AppSplashScreen`):** Chạy hoạt cảnh mở đầu trong 2.2 giây khi người dùng vừa mở app, đem lại trải nghiệm thân thiện, giàu cảm xúc.

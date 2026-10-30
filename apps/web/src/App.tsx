@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MobileFrameShell } from './components/layout/MobileFrameShell';
 import { GlobalModals } from './components/modals/GlobalModals';
 import { ProAndAdminPortal } from './pages/admin/ProAndAdminPortal';
@@ -8,8 +8,11 @@ import { OnboardingFlow } from './pages/onboarding/OnboardingFlow';
 import { ProfileScreen } from './pages/profile/ProfileScreen';
 import { TodayScreen } from './pages/today/TodayScreen';
 import { usePawtyStore } from './stores/usePawtyStore';
+import { AppSplashScreen } from './components/common/AppSplashScreen';
 
 export const App: React.FC = () => {
+  const [showSplash, setShowSplash] = useState(true);
+
   const {
     hasCompletedOnboarding,
     activeTab,
@@ -59,6 +62,9 @@ export const App: React.FC = () => {
   return (
     <>
       <MobileFrameShell proPortalView={<ProAndAdminPortal />}>
+        {showSplash && (
+          <AppSplashScreen onFinish={() => setShowSplash(false)} />
+        )}
         {renderActiveScreen()}
       </MobileFrameShell>
       <GlobalModals />

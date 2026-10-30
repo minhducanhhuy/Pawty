@@ -6,13 +6,15 @@
 
 ## 1. Quy Chuẩn Giao Diện, Đăng Nhập 1 Thiết Bị & Header Động
 
-1. **Màn hình Mở đầu (Load / Đăng nhập / Tạo tài khoản mới):**
-   - Hiển thị 1 Logo chính thức (`/assets/pawty-logo-full.png`) cùng khẩu hiệu hệ sinh thái: **"Những bàn chân nhỏ đang tới"**.
+1. **Màn hình Mở đầu (Splash Screen & Launch Animation):**
+   - **Màn hình Chào (`AppSplashScreen`):** Xuất hiện ngay khi vừa mở app trong 2.2 giây.
+   - **Logo Động CSS (`PawtyAnimatedLogo`):** Hiệu ứng loang cọ màu nước (Watercolor Bloom) mở ra từ tâm, kèm đuôi cún vẫy nhịp nhàng và sóng chuyển động Mint rung rinh hai bên.
+   - **Khẩu hiệu hệ sinh thái:** Hiển thị slogan *"Những bàn chân nhỏ đang tới"* cùng phụ đề *"Mạng xã hội và kết nối người nuôi thú cưng"*.
    - **Chống bàn phím che ô nhập:** Tự động đẩy khung nhập liệu lên trên bàn phím (`KeyboardAvoidingView` + tự động cuộn `ScrollView` khi mở bàn phím) để người dùng bấm vào các ô cuối ở mục *Tạo tài khoản mới* không bị che khuất.
    - **Chỉ đăng nhập trên 1 thiết bị duy nhất (`Single-Device Login`):** Mỗi tài khoản chỉ có 1 phiên thiết bị hoạt động (`activeDeviceSessionId`). Khi đăng nhập trên thiết bị mới, phiên thiết bị cũ tự động bị thu hồi.
 2. **Header Động theo từng Nhánh chính (`Dynamic Contextual Header`):**
    - **Không cố định cứng 1 Header cho mọi trang**, mà biến đổi theo từng nhánh chính:
-     - **Nhánh `Khám phá`:** Trái: Nút `+` (Đăng bài) · Giữa: 1 Logo `Pawty` duy nhất · Phải: Nút `SOS` (mở trang SOS toàn màn hình) + Nút `Thông báo`.
+     - **Nhánh `Khám phá`:** Trái: Nút `+` (Đăng bài) · Giữa: 1 Logo `Pawty` động (`PawtyAnimatedLogo` size nhỏ) · Phải: Nút `SOS` (mở trang SOS toàn màn hình) + Nút `Thông báo`.
      - **Nhánh `Kết nối` (Tinder):** Trái: Tiêu đề `Kết nối` & chọn Mong muốn · Phải: Nút `Hoàn tác`, `Đã thích`, `Đổi vị trí`.
      - **Nhánh `Dịch vụ`:** Trái: Tiêu đề `Dịch vụ Thú cưng` · Phải: Nút chuyển nhanh qua `Lịch hẹn`.
      - **Nhánh `Lịch hẹn`:** Trái: Tiêu đề `Quản lý Lịch hẹn` · Phải: Nút `+ Đặt lịch mới`.

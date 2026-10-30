@@ -24,6 +24,7 @@ import { MobileProfileScreen } from './src/screens/MobileProfileScreen';
 import { MobileSosScreen } from './src/screens/MobileSosScreen';
 import { MobileOnboardingScreen } from './src/screens/MobileOnboardingScreen';
 import { MobileModals } from './src/components/MobileModals';
+import { MobileAnimatedLogo } from './src/components/MobileAnimatedLogo';
 
 const PAWTY_LOGO_FULL = require('./assets/pawty-logo-full.png');
 
@@ -38,7 +39,7 @@ const BOTTOM_TABS: { id: Exclude<MobileMainTab, 'sos'>; label: string; icon: str
 
 const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
   useEffect(() => {
-    const timer = setTimeout(onFinish, 950);
+    const timer = setTimeout(onFinish, 2200);
     return () => clearTimeout(timer);
   }, [onFinish]);
 
@@ -47,11 +48,7 @@ const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
       <StatusBar barStyle="dark-content" />
       <View style={styles.splashCenter}>
         <View style={styles.splashLogoBox}>
-          <Image
-            source={PAWTY_LOGO_FULL}
-            style={styles.splashLogo}
-            resizeMode="contain"
-          />
+          <MobileAnimatedLogo width={210} withReveal />
         </View>
         <Text style={styles.splashTagline}>Những bàn chân nhỏ đang tới</Text>
         <Text style={styles.splashSub}>
