@@ -4,10 +4,12 @@ import path from 'path';
 import { URL } from 'url';
 import { ModerationService } from './modules/moderation/moderation.service';
 import { PawRankAndSpatialService } from './modules/social/pawrank.service';
+import { PetTracingService } from './modules/sos/pet-tracing.service';
 import { INITIAL_SERVER_DB, ServerDatabaseState } from './data/seed';
 
 const moderationService = new ModerationService();
 const spatialService = new PawRankAndSpatialService();
+const petTracingService = new PetTracingService();
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE_PATH = path.join(DATA_DIR, 'db.json');
@@ -386,6 +388,44 @@ const server = http.createServer(async (req, res) => {
       };
       dbState.posts.unshift(newPost);
       saveDatabase(dbState);
+
+      // AI Multimodal Sighting Scanner (Google Gemini 2.5 Flash)
+      try {
+        const socialPostFormat = {
+          id: newPost.id,
+          authorId: newPost.authorName,
+          textContent: newPost.textContent,
+          media: newPost.mediaUrls.map((url) => ({ id: 'm-' + Date.now(), type: 'image' as const, url })),
+          locationName: newPost.locationDistrict,
+          locationCoords: { lat: 10.8428, lng: 106.8305 },
+          createdAt: new Date().toISOString(),
+          likesCount: 0,
+          commentsCount: 0,
+          sharesCount: 0,
+          pawRankScore: newPost.pawRankScore,
+        };
+
+        const activeSos = (dbState.sosAlerts || []).filter((s) => s.status === 'active');
+        const matches = await petTracingService.scanPostForSosMatchesAsync(socialPostFormat as any, activeSos as any);
+
+        if (matches.length > 0) {
+          console.log('[Pawty AI Scanner] Phat hien ' + matches.length + ' manh moi tu bai dang ' + newPost.id);
+          for (const m of matches) {
+            const targetSos = (dbState.sosAlerts || []).find((s: any) => s.id === m.sosAlertId) as any;
+            if (targetSos) {
+              targetSos.matchedPosts = targetSos.matchedPosts || [];
+              targetSos.matchedPosts.unshift(m);
+              const trajectory = petTracingService.buildTrajectory(targetSos as any);
+              targetSos.trajectoryPoints = trajectory.trajectoryPoints;
+              targetSos.totalDistanceMeters = trajectory.totalDistanceMeters;
+            }
+          }
+          saveDatabase(dbState);
+        }
+      } catch (scanErr: any) {
+        console.warn('[Pawty AI Scanner] Quet bai dang that bai:', scanErr.message);
+      }
+
       sendJson(res, 201, { post: newPost });
       return;
     }
@@ -580,6 +620,54 @@ const server = http.createServer(async (req, res) => {
     // 8. SOS, Sen VIP & Admin Metrics (3.9)
     if (pathname === '/api/sos' && method === 'GET') {
       sendJson(res, 200, { sosAlerts: dbState.sosAlerts });
+      return;
+    }
+
+    const sosTrajectoryMatch = pathname.match(/^\/api\/sos\/([^/]+)\/trajectory$/);
+    if (sosTrajectoryMatch && method === 'GET') {
+      const sosId = sosTrajectoryMatch[1];
+      const sos = dbState.sosAlerts.find((s) => s.id === sosId);
+      if (!sos) {
+        sendJson(res, 404, { error: 'SOS alert not found' });
+        return;
+      }
+      const trajectory = petTracingService.buildTrajectory(sos as any);
+      sendJson(res, 200, { trajectory });
+      return;
+    }
+
+    const sosMatchDecision = pathname.match(/^\/api\/sos\/([^/]+)\/match-decision$/);
+    if (sosMatchDecision && method === 'POST') {
+      const sosId = sosMatchDecision[1];
+      const body = await parseJsonBody(req);
+      const { matchId, decision } = body;
+      const sos = (dbState.sosAlerts || []).find((s: any) => s.id === sosId) as any;
+      if (!sos) {
+        sendJson(res, 404, { error: 'SOS alert not found' });
+        return;
+      }
+      const match = (sos.matchedPosts || []).find((m: any) => m.id === matchId);
+      if (match) {
+        match.status = decision;
+        const trajectory = petTracingService.buildTrajectory(sos as any);
+        sos.trajectoryPoints = trajectory.trajectoryPoints;
+        sos.totalDistanceMeters = trajectory.totalDistanceMeters;
+        saveDatabase(dbState);
+      }
+      sendJson(res, 200, { success: true, sos });
+      return;
+    }
+
+    if (pathname === '/api/ai/trace-pet' && method === 'POST') {
+      const body = await parseJsonBody(req);
+      const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl : undefined;
+      const text = typeof body.text === 'string' ? body.text : '';
+      const visualSignatures = await petTracingService.extractVisualSignatureWithAI(imageUrl, text);
+      const detectedLocation = petTracingService.geocodeLocationFromText(text, body.coords as any);
+      sendJson(res, 200, {
+        visualSignatures,
+        detectedLocation,
+      });
       return;
     }
 
