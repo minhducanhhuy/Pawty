@@ -163,3 +163,38 @@ export function buildVietQrUrl(params: {
   return `https://img.vietqr.io/image/${bankBin}-${accountNumber}-compact2.png?amount=${params.amountVnd}&addInfo=${addInfo}&accountName=${accountName}`;
 }
 
+
+/**
+ * Calculates pet movement speed in km/h between two spatiotemporal sighting points.
+ */
+export function calculateKinematicSpeedKmH(
+  pointA: GeoPoint,
+  timeAStr: string,
+  pointB: GeoPoint,
+  timeBStr: string
+): number {
+  const distanceMeters = calculateDistanceMeters(pointA, pointB);
+  const timeA = new Date(timeAStr).getTime();
+  const timeB = new Date(timeBStr).getTime();
+  const elapsedHours = Math.max(0.05, Math.abs(timeB - timeA) / (1000 * 60 * 60));
+  return Number(((distanceMeters / 1000) / elapsedHours).toFixed(2));
+}
+
+/**
+ * Checks if pet travel speed is physically plausible for a lost animal without vehicular transport.
+ * Standard urban lost pet limit is <= 8 km/h.
+ */
+export function isKinematicallyPlausible(speedKmH: number, maxSpeedKmH = 8): boolean {
+  return speedKmH <= maxSpeedKmH;
+}
+
+/**
+ * Calculates cumulative distance in meters along a sequential trajectory path.
+ */
+export function calculateCumulativeTrajectoryDistance(points: GeoPoint[]): number {
+  let totalMeters = 0;
+  for (let i = 1; i < points.length; i++) {
+    totalMeters += calculateDistanceMeters(points[i - 1], points[i]);
+  }
+  return totalMeters;
+}

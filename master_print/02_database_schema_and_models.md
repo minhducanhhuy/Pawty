@@ -22,6 +22,7 @@
 14. **`matches`** & **`walk_appointments`**: Ghép đôi Radar (`match_reason`, `status`) và lịch hẹn dắt dạo trung điểm (`initiator_id`, `invitee_id`, `pet_ids`, `scheduled_date`, `scheduled_time`, `location_name`, `status`: `pending | confirmed | completed | cancelled | no_show`).
 15. **`conversations`**, **`conversation_participants`**, **`messages`**: Tin nhắn real-time (`direct | group | circle`, `message_type`: `text | image | voice | walk_invite | care_handover | system`).
 16. **`partners`**, **`bookings`**, **`reviews`**: Đối tác dịch vụ (`grooming | vet | cafe | hotel | walker | sitter`), đặt lịch dịch vụ và đánh giá xác thực từ booking thật.
-17. **`sos_alerts`**: Báo động tìm Boss lạc bán kính 3km (`user_id`, `pet_id`, `last_seen_location`, `description`, `reward_note`, `payment_status`, `status`: `active | found | expired`, `sightings` JSONB).
-18. **`reports`**, **`blocks`**, **`events`**, **`consent_records`**, **`notifications`**: Kiểm duyệt, chặn, tracking North Star KPI (không chứa PII) và tuân thủ Luật BVDLCN.
-
+17. **`sos_alerts`**: Báo động tìm Boss lạc bán kính 3km (`user_id`, `pet_id`, `last_seen_location`, `last_seen_coords` Point, `radius_km`, `description`, `reward_note`, `payment_status`, `status`: `active | found | expired`, `sightings` JSONB, `visual_signatures` JSONB, `matched_post_ids` JSONB).
+18. **`pet_sighting_matches`**: Khớp lệnh manh mối AI từ bài đăng Feed (`id`, `sos_alert_id`, `post_id`, `match_score`, `visual_similarity`, `text_similarity`, `kinematic_plausibility`, `estimated_location` Point, `detected_time`, `status`: `pending_review | verified_by_owner | dismissed`).
+19. **`sighting_trajectories`**: Lộ trình di chuyển phỏng đoán (`sos_alert_id`, `points` JSONB mảng `[{ lat, lng, location_name, timestamp, source, confidence }]`, `total_distance_meters`, `updated_at`).
+20. **`reports`**, **`blocks`**, **`events`**, **`consent_records`**, **`notifications`**: Kiểm duyệt, chặn, tracking North Star KPI (không chứa PII) và tuân thủ Luật BVDLCN.

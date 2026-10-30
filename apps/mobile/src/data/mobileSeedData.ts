@@ -42,6 +42,12 @@ export interface MobilePost {
   userReaction?: 'paws' | 'love' | 'haha' | 'wow' | 'helpful' | null;
   shareCount: number;
   isSaved: boolean;
+  aiSosMatch?: {
+    sosAlertId: string;
+    petName: string;
+    matchScore: number;
+    detectedLocationName: string;
+  };
   comments: {
     id: string;
     authorName: string;
@@ -205,6 +211,38 @@ export interface MobileSosAlert {
   priorityScore: number;
   imageUrl: string;
   description: string;
+  visualSignatures?: {
+    species: string;
+    breed: string;
+    primaryColor: string;
+    hasCollar: boolean;
+    collarColor?: string;
+    distinctiveFeatures: string[];
+  };
+  matchedPosts?: {
+    id: string;
+    postId: string;
+    authorName: string;
+    text: string;
+    photoUrl?: string;
+    matchScore: number;
+    detectedLocationName: string;
+    detectedAt: string;
+    status: 'pending_review' | 'verified_by_owner' | 'dismissed';
+  }[];
+  trajectoryPoints?: {
+    id: string;
+    timestamp: string;
+    lat: number;
+    lng: number;
+    locationName: string;
+    source: 'initial_lost' | 'community_sighting' | 'ai_feed_match';
+    confidenceScore: number;
+    photoUrl?: string;
+    reporterName?: string;
+    note?: string;
+  }[];
+  totalDistanceMeters?: number;
   sightingReports: {
     id: string;
     reporterName: string;
@@ -559,6 +597,12 @@ export const INITIAL_MOBILE_POSTS: MobilePost[] = [
   },
   {
     id: 'post-2',
+    aiSosMatch: {
+      sosAlertId: 'sos-1',
+      petName: 'Mochi',
+      matchScore: 88,
+      detectedLocationName: 'Sảnh tòa S2.03 - Vinhomes Grand Park',
+    },
     authorName: 'BS. Trần Minh Khoa',
     authorHandle: '@bskhoa',
     authorAvatar:

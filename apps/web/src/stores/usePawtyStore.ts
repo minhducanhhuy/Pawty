@@ -316,6 +316,11 @@ interface PawtyAppState {
     note: string,
   ) => void;
   markSosFound: (alertId: string) => void;
+  confirmSosMatchDecision: (
+    alertId: string,
+    matchId: string,
+    decision: 'verified' | 'dismissed'
+  ) => void;
   submitContentReport: (
     targetType: ContentReport["targetType"],
     targetId: string,
@@ -1825,6 +1830,29 @@ export const usePawtyStore = create<PawtyAppState>()(
         get().showToast(
           "Mừng Boss đã về nhà an toàn! 🎉",
           "Đã đóng cảnh báo SOS và cảm ơn cộng đồng.",
+        );
+      },
+
+      confirmSosMatchDecision: (alertId, matchId, decision) => {
+        set((state) => ({
+          sosAlerts: state.sosAlerts.map((alert) => {
+            if (alert.id !== alertId) return alert;
+            const updatedMatchedPosts = (alert.matchedPosts || []).map((m: any) =>
+              m.id === matchId
+                ? { ...m, status: decision === "verified" ? ("verified_by_owner" as const) : ("dismissed" as const) }
+                : m,
+            );
+            return {
+              ...alert,
+              matchedPosts: updatedMatchedPosts,
+            };
+          }),
+        }));
+        get().showToast(
+          decision === "verified" ? "Đã xác nhận manh mối! 🐕" : "Đã bỏ qua manh mối.",
+          decision === "verified"
+            ? "Hệ thống AI đã cập nhật thêm tọa độ vào lộ trình di chuyển."
+            : "Đã loại trừ tin này khỏi danh sách đối soát.",
         );
       },
 
