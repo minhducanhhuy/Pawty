@@ -160,6 +160,9 @@ interface MobilePawtyContextType {
   ownerOccupation: string;
   ownerCoverUrl: string;
   setOwnerCoverUrl: (url: string) => void;
+  ownerAvatarUrl: string;
+  setOwnerAvatarUrl: (url: string) => void;
+  togglePetLike: (petId: string) => void;
   ownerPrivacySettings: Record<string, boolean>;
   updateOwnerProfile: (params: {
     name?: string;
@@ -174,6 +177,7 @@ interface MobilePawtyContextType {
     occupation?: string;
     bio?: string;
     coverUrl?: string;
+    avatarUrl?: string;
     privacySettings?: Record<string, boolean>;
   }) => void;
   updatePetProfile: (petId: string, updates: Partial<MobilePet>) => void;
@@ -369,6 +373,9 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [ownerEducation, setOwnerEducation] = useState('Đại học Quốc gia TP.HCM');
   const [ownerMajor, setOwnerMajor] = useState('Truyền thông đa phương tiện');
   const [ownerOccupation, setOwnerOccupation] = useState('UI/UX Designer');
+  const [ownerAvatarUrl, setOwnerAvatarUrl] = useState(
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
+  );
   const [ownerCoverUrl, setOwnerCoverUrl] = useState(
     'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80'
   );
@@ -640,6 +647,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     occupation?: string;
     bio?: string;
     coverUrl?: string;
+    avatarUrl?: string;
     privacySettings?: Record<string, boolean>;
   }) => {
     if (params.name !== undefined) setOwnerName(params.name);
@@ -654,9 +662,25 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (params.occupation !== undefined) setOwnerOccupation(params.occupation);
     if (params.bio !== undefined) setOwnerBio(params.bio);
     if (params.coverUrl !== undefined) setOwnerCoverUrl(params.coverUrl);
+    if (params.avatarUrl !== undefined) setOwnerAvatarUrl(params.avatarUrl);
     if (params.privacySettings !== undefined) setOwnerPrivacySettings(params.privacySettings);
     showToast('Da luu thong tin ho so con sen');
   }, [showToast]);
+
+  const togglePetLike = useCallback((petId: string) => {
+    setPets((prev) =>
+      prev.map((pet) => {
+        if (pet.id !== petId) return pet;
+        const wasLiked = pet.isLiked || false;
+        const currentCount = pet.likesCount !== undefined ? pet.likesCount : 148;
+        return {
+          ...pet,
+          isLiked: !wasLiked,
+          likesCount: wasLiked ? Math.max(0, currentCount - 1) : currentCount + 1,
+        };
+      })
+    );
+  }, []);
 
   const updatePetProfile = useCallback((petId: string, updates: Partial<MobilePet>) => {
     setPets((prev) =>
@@ -1363,6 +1387,9 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         ownerOccupation,
         ownerCoverUrl,
         setOwnerCoverUrl,
+        ownerAvatarUrl,
+        setOwnerAvatarUrl,
+        togglePetLike,
         ownerPrivacySettings,
         updateOwnerProfile,
         updatePetProfile,

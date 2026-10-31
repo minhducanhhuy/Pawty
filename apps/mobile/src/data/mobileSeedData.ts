@@ -1,4 +1,4 @@
-export interface PetVaccineRecord {
+﻿export interface PetVaccineRecord {
   id: string;
   vaccineName: string;
   date: string;
@@ -34,6 +34,10 @@ export interface MobilePet {
   galleryUrls?: string[];
   weightHistory?: PetWeightEntry[];
   vaccineRecords?: PetVaccineRecord[];
+  dewormingHistory?: string;
+  medicalHistory?: string;
+  likesCount?: number;
+  isLiked?: boolean;
 }
 
 export interface MobilePost {
