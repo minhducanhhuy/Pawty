@@ -44,6 +44,7 @@ export const MobileProfileScreen: React.FC = () => {
   selectedProfileHandle,
   setSelectedProfileHandle,
   publicProfiles,
+  resolvePublicProfile,
   toggleFriendStatus,
   toggleFollowUser,
   startDirectChatWithUser,
@@ -70,10 +71,12 @@ export const MobileProfileScreen: React.FC = () => {
   // Xác định đang xem trang của Mai Nguyễn hay xem trang của người khác
   const isViewingOther = Boolean(
     selectedProfileHandle &&
-      selectedProfileHandle !== ownerHandle &&
-      publicProfiles[selectedProfileHandle]
+      selectedProfileHandle.toLowerCase() !== ownerHandle.toLowerCase() &&
+      selectedProfileHandle.replace(/_/g, '').toLowerCase() !== ownerHandle.replace(/_/g, '').toLowerCase()
   );
-  const otherProfile = isViewingOther ? publicProfiles[selectedProfileHandle!] : null;
+  const otherProfile = isViewingOther
+    ? (publicProfiles[selectedProfileHandle!] || resolvePublicProfile(selectedProfileHandle!))
+    : null;
 
   const displayName = isViewingOther ? otherProfile!.name : ownerName;
   const displayHandle = isViewingOther ? otherProfile!.handle : ownerHandle;

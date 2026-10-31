@@ -263,6 +263,7 @@ interface MobilePawtyContextType {
   selectedProfileHandle: string | null;
   setSelectedProfileHandle: (handle: string | null) => void;
   openUserProfileInTab: (handle: string) => void;
+  resolvePublicProfile: (handle: string) => PublicUserProfile;
   openPublicUserProfile: (handle: string) => void;
   closePublicUserProfile: () => void;
   toggleFriendStatus: (handle: string) => void;
@@ -1154,12 +1155,160 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setLightboxMedia(null);
   };
 
+  const resolvePublicProfile = useCallback((handle: string): PublicUserProfile => {
+    if (!handle) {
+      return {
+        handle: '@cudan',
+        name: 'Cư dân Pawty',
+        nickname: 'Thành viên',
+        avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
+        bio: 'Yêu thương thú cưng và kết nối bạn bè dắt dạo.',
+        area: 'Vinhomes Central Park',
+        isPrivate: false,
+        isFriend: false,
+        friendStatus: 'none',
+        isFollowing: false,
+        isMatchedOnTinder: false,
+        followersCount: 142,
+        friendsCount: 56,
+        pets: [
+          {
+            name: 'Bé cưng',
+            species: 'Chó',
+            breed: 'Poodle',
+            ageLabel: '1 tuổi',
+            weightKg: 4.5,
+            isVaccinatedAndRabies: true,
+          },
+        ],
+        galleryUrls: [],
+      };
+    }
+
+    if (publicProfiles[handle]) return publicProfiles[handle];
+
+    const cleanHandle = handle.replace(/^@/, '');
+    const withAt = `@${cleanHandle}`;
+    const noUnderscore = withAt.replace(/_/g, '');
+
+    const matchKey = Object.keys(publicProfiles).find(
+      (k) =>
+        k.toLowerCase() === withAt.toLowerCase() ||
+        k.toLowerCase() === cleanHandle.toLowerCase() ||
+        k.replace(/_/g, '').toLowerCase() === noUnderscore.toLowerCase()
+    );
+    if (matchKey && publicProfiles[matchKey]) {
+      return publicProfiles[matchKey];
+    }
+
+    const candidate = tinderCandidates.find(
+      (c) =>
+        c.ownerHandle.toLowerCase() === withAt.toLowerCase() ||
+        c.ownerHandle.replace(/_/g, '').toLowerCase() === noUnderscore.toLowerCase()
+    );
+
+    const authorPost = posts.find(
+      (p) =>
+        p.authorHandle.toLowerCase() === withAt.toLowerCase() ||
+        p.authorHandle.replace(/_/g, '').toLowerCase() === noUnderscore.toLowerCase()
+    );
+
+    const chatPartner = chats.find(
+      (c) =>
+        c.partnerHandle.toLowerCase() === withAt.toLowerCase() ||
+        c.partnerHandle.replace(/_/g, '').toLowerCase() === noUnderscore.toLowerCase()
+    );
+
+    const fallbackName =
+      candidate?.ownerName ||
+      authorPost?.authorName ||
+      chatPartner?.partnerName ||
+      cleanHandle
+        .split('_')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+
+    const fallbackAvatar =
+      candidate?.avatarUrl ||
+      authorPost?.authorAvatar ||
+      chatPartner?.partnerAvatar ||
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80';
+
+    const fallbackBio =
+      candidate?.bio ||
+      authorPost?.content ||
+      'Thành viên cộng đồng thú cưng Pawty. Thích dắt cún dạo mát và giao lưu bạn mới.';
+
+    const fallbackArea =
+      (candidate?.tags && candidate.tags[0]) ||
+      authorPost?.authorNickname ||
+      'Vinhomes Central Park';
+
+    const gallery = posts
+      .filter(
+        (p) =>
+          p.authorHandle.toLowerCase() === withAt.toLowerCase() ||
+          p.authorHandle.replace(/_/g, '').toLowerCase() === noUnderscore.toLowerCase()
+      )
+      .flatMap((p) => p.mediaUrls);
+
+    const candidatePets = candidate?.pets?.map((pet) => ({
+      name: pet.name,
+      species: pet.species,
+      breed: pet.breed,
+      ageLabel: pet.ageLabel,
+      weightKg: pet.weightKg,
+      isVaccinatedAndRabies: pet.isVaccinatedAndRabies,
+    }));
+
+    const newProfile: PublicUserProfile = {
+      handle: withAt,
+      name: fallbackName,
+      nickname: authorPost?.authorNickname || 'Cư dân Pawty',
+      avatarUrl: fallbackAvatar,
+      bio: fallbackBio,
+      area: fallbackArea,
+      isPrivate: false,
+      isFriend: false,
+      friendStatus: 'none',
+      isFollowing: false,
+      isMatchedOnTinder: false,
+      followersCount: 218,
+      friendsCount: 75,
+      pets:
+        candidatePets && candidatePets.length > 0
+          ? candidatePets
+          : [
+              {
+                name: 'Bông',
+                species: 'Chó',
+                breed: 'Poodle',
+                ageLabel: '1.5 tuổi',
+                weightKg: 4.0,
+                isVaccinatedAndRabies: true,
+              },
+            ],
+      galleryUrls: gallery.length > 0 ? gallery : [fallbackAvatar],
+    };
+
+    return newProfile;
+  }, [publicProfiles, tinderCandidates, posts, chats]);
+
   const openPublicUserProfile = (handle: string) => {
-    if (handle === ownerHandle) {
+    const isOwner =
+      handle.toLowerCase() === ownerHandle.toLowerCase() ||
+      handle.replace(/_/g, '').toLowerCase() === ownerHandle.replace(/_/g, '').toLowerCase();
+
+    if (isOwner) {
+      showToast('Đang mở trang cá nhân của bạn');
+      setSelectedProfileHandle(null);
       setActiveTab('profile');
       return;
     }
-    setViewedUserHandle(handle);
+
+    const prof = resolvePublicProfile(handle);
+    setPublicProfiles((prev) => ({ ...prev, [handle]: prof, [prof.handle]: prof }));
+    setViewedUserHandle(prof.handle);
   };
 
   const closePublicUserProfile = () => {
@@ -1167,10 +1316,17 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const openUserProfileInTab = (handle: string) => {
-    if (handle === ownerHandle) {
+    const isOwner =
+      handle.toLowerCase() === ownerHandle.toLowerCase() ||
+      handle.replace(/_/g, '').toLowerCase() === ownerHandle.replace(/_/g, '').toLowerCase();
+
+    if (isOwner) {
+      showToast('Đang mở trang cá nhân của bạn');
       setSelectedProfileHandle(null);
     } else {
-      setSelectedProfileHandle(handle);
+      const prof = resolvePublicProfile(handle);
+      setPublicProfiles((prev) => ({ ...prev, [handle]: prof, [prof.handle]: prof }));
+      setSelectedProfileHandle(prof.handle);
     }
     setViewedUserHandle(null);
     setActiveTab('profile');
@@ -1900,6 +2056,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         selectedProfileHandle,
         setSelectedProfileHandle,
         openUserProfileInTab,
+        resolvePublicProfile,
         openPublicUserProfile,
         closePublicUserProfile,
         toggleFriendStatus,

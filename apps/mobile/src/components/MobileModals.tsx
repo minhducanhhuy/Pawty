@@ -63,6 +63,7 @@ export const MobileModals: React.FC = () => {
     userTinderSetup,
     updateUserTinderSetup,
     publicProfiles,
+    resolvePublicProfile,
     viewedUserHandle,
     closePublicUserProfile,
     openUserProfileInTab,
@@ -484,8 +485,8 @@ export const MobileModals: React.FC = () => {
   }
 
   // 4. PUBLIC USER PROFILE MODAL — FULLSCREEN INSTAGRAM STYLE
-  if (viewedUserHandle && publicProfiles[viewedUserHandle]) {
-    const profile = publicProfiles[viewedUserHandle];
+  if (viewedUserHandle) {
+    const profile = publicProfiles[viewedUserHandle] || resolvePublicProfile(viewedUserHandle);
     const userPosts = posts ? posts.filter((p) => p.authorHandle === profile.handle) : [];
     const galleryItems =
       userPosts.length > 0
