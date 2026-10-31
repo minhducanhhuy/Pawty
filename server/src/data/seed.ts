@@ -8,10 +8,7 @@ export interface ServerDatabaseState {
   groups: Array<Record<string, unknown>>;
   radarCandidates: Array<Record<string, unknown>>;
   matches: string[];
-  walkAppointments: Array<Record<string, unknown>>;
-  partners: Array<Record<string, unknown>>;
   places: Array<Record<string, unknown>>;
-  bookings: Array<Record<string, unknown>>;
   sosAlerts: Array<Record<string, unknown>>;
   reports: Array<Record<string, unknown>>;
   metrics: Record<string, unknown>;
@@ -443,78 +440,6 @@ export const INITIAL_SERVER_DB: ServerDatabaseState = {
     },
   ],
   matches: ['radar-bo'],
-  walkAppointments: [
-    {
-      id: 'walk-1',
-      matchId: 'match-bo',
-      partnerName: 'Minh Phạm',
-      partnerPetName: 'Bơ (Corgi)',
-      partnerAvatar: 'https://images.unsplash.com/photo-1612536057832-2ff7ead58194?auto=format&fit=crop&w=200&q=80',
-      proposedTime: 'Hôm nay, 17:45',
-      midpointLocationName: 'Bãi cỏ Trung tâm Công viên Ánh Sáng (Cách mỗi bên 180m)',
-      midpointCoords: { lat: 10.8423, lng: 106.8278 },
-      status: 'confirmed',
-      notes: 'Nhớ mang dây dắt và túi hốt phân tự hủy sinh học nhé!',
-    },
-  ],
-  partners: [
-    {
-      id: 'partner-1',
-      businessName: 'PetSpa Bubble & Paws Nội Khu',
-      businessType: 'grooming',
-      address: 'Shophouse S2.05 Vinhomes Grand Park, TP. Thủ Đức',
-      district: 'TP. Thủ Đức (Quận 9)',
-      distanceMeters: 350,
-      phone: '0909 888 777',
-      avatarUrl: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=500&q=80',
-      verified: true,
-      ratingAvg: 4.9,
-      reviewCount: 128,
-      operatingHours: '08:30 – 20:30 (T2 - CN)',
-      subscriptionTier: 'pro',
-      services: [
-        {
-          id: 'srv-1',
-          partnerId: 'partner-1',
-          name: 'Combo Tắm Spa Sục Ozone 8 Bước & Vệ Sinh Tai/Móng',
-          category: 'grooming',
-          priceMin: 180000,
-          priceMax: 350000,
-          durationMinutes: 60,
-          petSpecies: ['dog', 'cat'],
-          description: 'Sục bồn khoáng Ozone khử mùi hôi lông, vắt tuyến hôi, cắt mài móng.',
-        },
-      ],
-    },
-    {
-      id: 'partner-2',
-      businessName: 'Phòng Khám Thú Y Dr. Paw Clinic',
-      businessType: 'vet',
-      address: 'Số 42 Nguyễn Văn Hưởng, Thảo Điền, TP. Thủ Đức',
-      district: 'Thảo Điền, TP. Thủ Đức',
-      distanceMeters: 2400,
-      phone: '028 3899 1122',
-      avatarUrl: 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&w=500&q=80',
-      verified: true,
-      ratingAvg: 4.95,
-      reviewCount: 215,
-      operatingHours: '08:00 – 21:00 (Cấp cứu 24/7)',
-      subscriptionTier: 'featured',
-      services: [
-        {
-          id: 'srv-3',
-          partnerId: 'partner-2',
-          name: 'Tiêm Vắc-xin 7 Bệnh Chó / 4 Bệnh Mèo + Cấp Sổ Điện Tử',
-          category: 'vaccination',
-          priceMin: 250000,
-          priceMax: 320000,
-          durationMinutes: 30,
-          petSpecies: ['dog', 'cat'],
-          description: 'Khám lâm sàng đo thân nhiệt trước tiêm, đồng bộ trực tiếp vào Sổ tiêm Pawty Care.',
-        },
-      ],
-    },
-  ],
   places: [
     {
       id: 'place-1',
@@ -559,25 +484,6 @@ export const INITIAL_SERVER_DB: ServerDatabaseState = {
       imageUrl: 'https://images.unsplash.com/photo-1507146426996-ef05306b995a?auto=format&fit=crop&w=500&q=80',
     },
   ],
-  bookings: [
-    {
-      id: 'bk-1',
-      partnerId: 'partner-1',
-      partnerName: 'PetSpa Bubble & Paws Nội Khu',
-      serviceId: 'srv-1',
-      serviceName: 'Combo Tắm Spa Sục Ozone 8 Bước & Vệ Sinh Tai/Móng',
-      petId: 'pet-lu',
-      petName: 'Lu (Golden Retriever - 28.4kg)',
-      bookingDate: 'Thứ Bảy tuần này',
-      bookingTime: '10:00',
-      status: 'confirmed',
-      notes: 'Lu hơi nhột ở bàn chân trước, nhờ kỹ thuật viên cắt móng nhẹ tay giúp mẹ Mai nhé!',
-      servicePrice: 320000,
-      commissionRate: 0.12,
-      commissionVnd: 38400,
-      hasReviewed: false,
-    },
-  ],
   sosAlerts: [
     {
       id: 'sos-1',
@@ -601,6 +507,5 @@ export const INITIAL_SERVER_DB: ServerDatabaseState = {
     activeHouseholdsMonthly: 128,
     northStarQualifiedHouseholds: 46,
     mrrVnd: 3129000,
-    bookingCompletionRate: 88,
   },
 };

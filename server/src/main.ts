@@ -364,33 +364,12 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 7. Partners & Bookings
-    if (pathname === '/api/partners' && method === 'GET') {
-      const partners = await dbService.getPartners();
-      sendJson(res, 200, { partners });
-      return;
-    }
-
-    if (pathname === '/api/bookings' && method === 'GET') {
-      const bookings = await dbService.getBookings();
-      sendJson(res, 200, { bookings });
-      return;
-    }
-
-    if (pathname === '/api/bookings' && method === 'POST') {
-      const body = await parseJsonBody(req);
-      const booking = await dbService.createBooking(body);
-      sendJson(res, 201, { booking });
-      return;
-    }
-
-    // 8. Admin Metrics from PostgreSQL
+    // 7. Admin Metrics from PostgreSQL
     if (pathname === '/api/admin/metrics' && method === 'GET') {
-      const [totalUsers, totalPets, totalPosts, totalBookings, activeSos] = await Promise.all([
+      const [totalUsers, totalPets, totalPosts, activeSos] = await Promise.all([
         prisma.user.count(),
         prisma.pet.count(),
         prisma.post.count(),
-        prisma.booking.count(),
         prisma.sosAlert.count({ where: { status: 'active' } }),
       ]);
       sendJson(res, 200, {
@@ -398,7 +377,6 @@ const server = http.createServer(async (req, res) => {
           totalUsers,
           totalPets,
           totalPosts,
-          totalBookings,
           activeSos,
         },
       });
