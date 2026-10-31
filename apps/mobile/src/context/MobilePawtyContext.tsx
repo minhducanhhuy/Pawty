@@ -50,7 +50,9 @@ export type MobileModalType =
   | 'notifications'
   | 'edit_profile'
   | 'my_settings'
-  | 'tinder_setup';
+  | 'tinder_setup'
+  | 'tinder_filter'
+  | 'tinder_menu';
 
 export type ThemePresetId = 'warm_cream' | 'calm_sage' | 'cozy_blush' | 'minimal_slate';
 
@@ -276,6 +278,9 @@ interface MobilePawtyContextType {
   // Kết nối (Tinder) Tab
   tinderIntent: TinderIntent;
   setTinderIntent: (intent: TinderIntent) => void;
+  tinderFilterGoal: TinderIntent | 'all';
+  setTinderFilterGoal: (goal: TinderIntent | 'all') => void;
+  setPassportArea: (area: string) => void;
   tinderCandidates: TinderCandidate[];
   swipedCandidateHistory: TinderCandidate[];
   matchedCandidateModal: TinderCandidate | null;
@@ -388,6 +393,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Kết nối (Tinder)
   const [tinderIntent, setTinderIntent] = useState<TinderIntent>('dating');
+  const [tinderFilterGoal, setTinderFilterGoal] = useState<TinderIntent | 'all'>('all');
   const [tinderCandidates, setTinderCandidates] = useState<TinderCandidate[]>(
     INITIAL_TINDER_CANDIDATES
   );
@@ -1056,6 +1062,16 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     showToast(`Đã hoàn tác thẻ của ${lastCandidate.ownerName}`);
   };
 
+  const setPassportArea = (area: string) => {
+    if (!isVip) {
+      setActiveModal('vip_upgrade');
+      showToast('Đổi khu vực tìm kiếm (Passport) là đặc quyền gói Pawty Plus');
+      return;
+    }
+    setActivePassportArea(area);
+    showToast(`Đã chuyển khu vực Kết nối sang: ${area}`);
+  };
+
   const cyclePassportArea = () => {
     if (!isVip) {
       setActiveModal('vip_upgrade');
@@ -1318,6 +1334,9 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         cancelAppointment,
         tinderIntent,
         setTinderIntent,
+        tinderFilterGoal,
+        setTinderFilterGoal,
+        setPassportArea,
         tinderCandidates,
         swipedCandidateHistory,
         matchedCandidateModal,

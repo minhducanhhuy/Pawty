@@ -355,10 +355,11 @@ export const MobileModals: React.FC = () => {
                   Bạn và {matchedCandidateModal.ownerName} đã thích nhau!
                 </Text>
                 <Text style={styles.subHintText}>
-                  {matchedCandidateModal.pets
-                    .map((p) => `${p.name} (${p.breed})`)
-                    .join(' & ')}{' '}
-                  đã tiêm chủng đầy đủ, sẵn sàng hẹn đi dạo.
+                  {matchedCandidateModal.pets.length > 0
+                    ? matchedCandidateModal.pets.every((p) => p.isVaccinatedAndRabies)
+                      ? `Chủ nuôi đã khai báo tiêm ngừa cho ${matchedCandidateModal.pets.map((p) => p.name).join(' & ')}, sẵn sàng hẹn đi dạo.`
+                      : `Các bé ${matchedCandidateModal.pets.map((p) => p.name).join(' & ')} đang chờ làm quen cùng bé nhà bạn.`
+                    : 'Cả hai bạn đã sẵn sàng trò chuyện và làm quen!'}
                 </Text>
                 <TouchableOpacity
                   style={[styles.primaryBtn, { backgroundColor: theme.primary, width: '100%' }]}
