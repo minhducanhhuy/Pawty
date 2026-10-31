@@ -142,6 +142,15 @@ export interface SuggestedPersonCard {
   isFollowing: boolean;
 }
 
+export interface MobileChatMessage {
+  id: string;
+  sender: 'me' | 'them';
+  text: string;
+  time: string;
+  isRead?: boolean;
+  createdAt?: string | Date;
+}
+
 export interface MobileChatRoom {
   id: string;
   partnerName: string;
@@ -153,12 +162,7 @@ export interface MobileChatRoom {
   isOnline: boolean;
   unreadCount: number;
   matchSource: 'friend' | 'tinder_match' | 'service';
-  messages: {
-    id: string;
-    sender: 'me' | 'them';
-    text: string;
-    time: string;
-  }[];
+  messages: MobileChatMessage[];
 }
 
 export interface MobileSosAlert {
@@ -443,7 +447,7 @@ export const PUBLIC_USER_PROFILES: Record<string, PublicUserProfile> = {
     area: 'Vinhomes Grand Park · TP. Thủ Đức',
     isPrivate: false,
     isFriend: true,
-    isMatchedOnTinder: true,
+    isMatchedOnTinder: false,
     followersCount: 342,
     friendsCount: 128,
     pets: [
@@ -671,7 +675,7 @@ export const INITIAL_TINDER_CANDIDATES: TinderCandidate[] = [
       },
     ],
     tags: ['Độc thân', 'Nuôi 2 bé', 'Hay đi cafe pet'],
-    hasLikedMe: true,
+    hasLikedMe: false,
   },
   {
     id: 'tinder-2',
@@ -736,7 +740,7 @@ export const INITIAL_TINDER_CANDIDATES: TinderCandidate[] = [
       },
     ],
     tags: ['Đi dạo 17h30', 'Sân cỏ nội khu', 'Nuôi 3 bé'],
-    hasLikedMe: true,
+    hasLikedMe: false,
   },
   {
     id: 'tinder-3',
@@ -789,7 +793,202 @@ export const INITIAL_TINDER_CANDIDATES: TinderCandidate[] = [
       },
     ],
     tags: ['Hội Samoyed', 'Cafe cuối tuần', 'Chăm lông'],
-    hasLikedMe: true,
+    hasLikedMe: false,
+  },
+  {
+    id: 'tinder-4',
+    ownerName: 'Thu Hà',
+    ownerHandle: '@thuha',
+    ownerAge: 24,
+    gender: 'Nữ',
+    ownerNickname: 'Mẹ của Poodle Coca',
+    avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
+    photoUrls: [
+      'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=900&q=80',
+    ],
+    distanceKm: 4.2,
+    intent: 'playdate',
+    intentLabel: 'Tìm bạn chơi chung cho thú cưng',
+    lookingFor: 'Tìm bạn cún dạo mát buổi chiều quanh khu Sala',
+    bio: 'Bé Coca rất hiền và thích kết bạn với các bạn cún nhỏ khác.',
+    lifestyle: {
+      smoking: 'Không hút thuốc',
+      workout: 'Yoga cuối tuần',
+      drinking: 'Không uống',
+      petSummary: '1 Bé Poodle nâu đỏ',
+      zodiac: 'Kim Ngưu',
+      chatStyle: 'Thân thiện',
+    },
+    pets: [
+      {
+        id: 'cp-4a',
+        name: 'Coca',
+        species: 'Chó',
+        breed: 'Poodle Nâu',
+        ageLabel: '1 tuổi',
+        weightKg: 4.5,
+        imageUrl: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=600&q=80',
+        isVaccinatedAndRabies: true,
+      },
+    ],
+    tags: ['Sala Q2', 'Poodle thân thiện', 'Dạo chiều'],
+    hasLikedMe: false,
+  },
+  {
+    id: 'tinder-5',
+    ownerName: 'Đức Huy',
+    ownerHandle: '@duchuy',
+    ownerAge: 28,
+    gender: 'Nam',
+    ownerNickname: 'Sen của ngáo Husky',
+    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=80',
+    photoUrls: [
+      'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=900&q=80',
+    ],
+    distanceKm: 8.5,
+    intent: 'dating',
+    intentLabel: 'Hẹn hò & Cùng dắt thú cưng',
+    lookingFor: 'Tìm bạn cùng dắt cún đi dạo công viên Landmark cuối tuần',
+    bio: 'Nuôi 1 chú Husky cực ngáo nhưng biết nghe lời. Rất vui được làm quen với bạn.',
+    lifestyle: {
+      smoking: 'Không hút thuốc',
+      workout: 'Chạy bộ 3 buổi/tuần',
+      drinking: 'Thỉnh thoảng',
+      petSummary: '1 Chú Husky mắt xanh',
+      zodiac: 'Thiên Bình',
+      chatStyle: 'Chủ động',
+    },
+    pets: [
+      {
+        id: 'cp-5a',
+        name: 'Milo',
+        species: 'Chó',
+        breed: 'Siberian Husky',
+        ageLabel: '2 tuổi',
+        weightKg: 24.0,
+        imageUrl: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=600&q=80',
+        isVaccinatedAndRabies: true,
+      },
+    ],
+    tags: ['Husky ngáo', 'Landmark', 'Cuối tuần'],
+    hasLikedMe: false,
+  },
+  {
+    id: 'tinder-6',
+    ownerName: 'Bảo Ngọc',
+    ownerHandle: '@baongoc',
+    ownerAge: 25,
+    gender: 'Nữ',
+    ownerNickname: 'Mê Shiba Inu cười duyên',
+    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80',
+    photoUrls: [
+      'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=900&q=80',
+    ],
+    distanceKm: 18.0,
+    intent: 'community',
+    intentLabel: 'Giao lưu kinh nghiệm nuôi thú',
+    lookingFor: 'Giao lưu cộng đồng nuôi Shiba và chia sẻ chế độ ăn BARF',
+    bio: 'Bé Kiki nhà mình rất thân thiện, thích chụp ảnh và chạy nhảy.',
+    lifestyle: {
+      smoking: 'Không',
+      workout: 'Đi bộ mỗi ngày',
+      drinking: 'Không uống',
+      petSummary: '1 Shiba Inu',
+      zodiac: 'Cự Giải',
+      chatStyle: 'Ấm áp',
+    },
+    pets: [
+      {
+        id: 'cp-6a',
+        name: 'Kiki',
+        species: 'Chó',
+        breed: 'Shiba Inu',
+        ageLabel: '1.5 tuổi',
+        weightKg: 10.0,
+        imageUrl: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=600&q=80',
+        isVaccinatedAndRabies: true,
+      },
+    ],
+    tags: ['Hội Shiba', 'Dinh dưỡng BARF', 'Thân thiện'],
+    hasLikedMe: false,
+  },
+  {
+    id: 'tinder-7',
+    ownerName: 'Quốc Tuấn',
+    ownerHandle: '@quoctuan',
+    ownerAge: 30,
+    gender: 'Nam',
+    ownerNickname: 'Ba của Pom Bông',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80',
+    photoUrls: [
+      'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=900&q=80',
+    ],
+    distanceKm: 28.5,
+    intent: 'dating',
+    intentLabel: 'Hẹn hò & Cùng dắt thú cưng',
+    lookingFor: 'Tìm bạn cùng gu hẹn hò ăn uống và dắt thú cưng dạo chơi',
+    bio: 'Thích cún nhỏ lông xù. Cuối tuần thường đưa bé đi dạo khu đô thị.',
+    lifestyle: {
+      smoking: 'Không',
+      workout: 'Bơi lội',
+      drinking: 'Giao lưu',
+      petSummary: '1 Phốc sóc trắng',
+      zodiac: 'Bọ Cạp',
+      chatStyle: 'Trầm tính',
+    },
+    pets: [
+      {
+        id: 'cp-7a',
+        name: 'Bông',
+        species: 'Chó',
+        breed: 'Pomeranian (Phốc sóc)',
+        ageLabel: '2 tuổi',
+        weightKg: 3.5,
+        imageUrl: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=600&q=80',
+        isVaccinatedAndRabies: true,
+      },
+    ],
+    tags: ['Phốc sóc', 'Gặp gỡ', 'Bán kính 30km'],
+    hasLikedMe: false,
+  },
+  {
+    id: 'tinder-8',
+    ownerName: 'Phương Linh',
+    ownerHandle: '@phuonglinh',
+    ownerAge: 23,
+    gender: 'Nữ',
+    ownerNickname: 'Sen của Bánh Bao',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=80',
+    photoUrls: [
+      'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=900&q=80',
+    ],
+    distanceKm: 34.0,
+    intent: 'playdate',
+    intentLabel: 'Tìm bạn chơi chung cho thú cưng',
+    lookingFor: 'Giao lưu tìm bạn dắt cún khu vực ngoại ô',
+    bio: 'Bé Bánh Bao rất nghịch ngợm, thích bơi lội và đuổi bướm.',
+    lifestyle: {
+      smoking: 'Không',
+      workout: 'Đạp xe',
+      drinking: 'Không uống',
+      petSummary: '1 Corgi',
+      zodiac: 'Song Tử',
+      chatStyle: 'Vui vẻ',
+    },
+    pets: [
+      {
+        id: 'cp-8a',
+        name: 'Bánh Bao',
+        species: 'Chó',
+        breed: 'Corgi',
+        ageLabel: '1 tuổi',
+        weightKg: 10.5,
+        imageUrl: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=600&q=80',
+        isVaccinatedAndRabies: true,
+      },
+    ],
+    tags: ['Ngoại ô', 'Corgi mông to', 'Bơi lội'],
+    hasLikedMe: false,
   },
 ];
 

@@ -76,6 +76,7 @@ const MainMobileShell: React.FC = () => {
     activeChatId,
     tinderCandidates,
     tinderFilterGoal,
+    tinderDistanceLimit,
     rewindLastSwipe,
     setShowLikesYouDrawer,
     cyclePassportArea,
@@ -119,7 +120,11 @@ const MainMobileShell: React.FC = () => {
   return (
     <SafeAreaView
       style={[styles.safeRoot, { backgroundColor: theme.bg }]}
-      edges={['top', 'bottom', 'left', 'right']}
+      edges={
+        activeTab === 'chat' && activeChatId
+          ? ['top']
+          : ['top', 'bottom', 'left', 'right']
+      }
     >
       <StatusBar barStyle="dark-content" />
 
@@ -361,14 +366,6 @@ const MainMobileShell: React.FC = () => {
         {activeTab === 'sos' && <MobileSosScreen />}
       </View>
 
-      {/* Clean Minimalist Toast Banner */}
-      {toastMessage && (
-        <View style={[styles.toastBar, styles.toastInfo]}>
-          <Feather name="info" size={15} color="#FFFFFF" />
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </View>
-      )}
-
       {/* 6-Tab Bottom Navigation Bar (Ẩn khi đang trong chi tiết phòng chat) */}
       {!(activeTab === 'chat' && activeChatId) && (
         <View style={styles.bottomBar}>
@@ -413,6 +410,14 @@ const MainMobileShell: React.FC = () => {
             </TouchableOpacity>
           );
         })}
+        </View>
+      )}
+
+      {/* Clean Minimalist Toast Banner (Floating on Top, No bottom clash) */}
+      {toastMessage && (
+        <View style={[styles.toastBar, styles.toastInfo]} pointerEvents="none">
+          <Feather name="check-circle" size={16} color="#48BB78" />
+          <Text style={styles.toastText}>{toastMessage}</Text>
         </View>
       )}
 
@@ -605,24 +610,31 @@ const styles = StyleSheet.create({
   },
   toastBar: {
     position: 'absolute',
-    bottom: 72,
-    left: 16,
-    right: 16,
+    top: 64,
+    left: 20,
+    right: 20,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 22,
+    zIndex: 9999,
+    elevation: 25,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
   },
   toastInfo: {
-    backgroundColor: '#2C2520',
+    backgroundColor: '#26221F',
   },
   toastText: {
-    flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+    textAlign: 'center',
   },
   bottomBar: {
     flexDirection: 'row',
