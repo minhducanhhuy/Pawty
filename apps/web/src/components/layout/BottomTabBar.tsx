@@ -1,5 +1,5 @@
 import React from 'react';
-import { Briefcase, Calendar, Compass, Heart, MessageCircle, User } from 'lucide-react';
+import { Compass, Heart, MessageCircle, User } from 'lucide-react';
 import { usePawtyStore, type BottomTabId } from '../../stores/usePawtyStore';
 import { WEB_THEMES } from '../../mocks/seedData';
 
@@ -9,13 +9,11 @@ export const BottomTabBar: React.FC = () => {
     setActiveTab,
     setExploreSubTab,
     conversations,
-    bookings,
     themeId,
   } = usePawtyStore();
 
   const theme = WEB_THEMES[themeId] ?? WEB_THEMES.coral;
   const unreadMessages = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
-  const upcomingBookings = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending').length;
 
   const navItems: {
     id: BottomTabId;
@@ -32,17 +30,6 @@ export const BottomTabBar: React.FC = () => {
       id: 'tinder',
       label: 'Kết nối',
       icon: <Heart className="w-5 h-5" />,
-    },
-    {
-      id: 'services',
-      label: 'Dịch vụ',
-      icon: <Briefcase className="w-5 h-5" />,
-    },
-    {
-      id: 'appointments',
-      label: 'Lịch hẹn',
-      icon: <Calendar className="w-5 h-5" />,
-      badge: upcomingBookings > 0 ? upcomingBookings : undefined,
     },
     {
       id: 'chat',
@@ -62,8 +49,6 @@ export const BottomTabBar: React.FC = () => {
       setExploreSubTab('feed');
     } else if (id === 'tinder') {
       setExploreSubTab('radar');
-    } else if (id === 'services') {
-      setExploreSubTab('services');
     }
     setActiveTab(id);
   };

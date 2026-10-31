@@ -49,15 +49,12 @@ export const GlobalModals: React.FC = () => {
     activePetId,
     circleMembers,
     places,
-    partners,
-    selectedPartnerIdForBooking,
     selectedPublicPet,
     handoverNote,
     toggleHandoverChecklistItem,
     createSocialPost,
     createCareTask,
     revokeCircleMember,
-    createServiceBooking,
     createWalkAppointment,
     upgradeToVipPlan,
     activateSosAlert,
@@ -122,16 +119,6 @@ export const GlobalModals: React.FC = () => {
   const [newPetBreed, setNewPetBreed] = useState('Corgi');
   const [newPetWeight, setNewPetWeight] = useState(10);
   const [newPetAge, setNewPetAge] = useState('1 tuổi');
-
-  // Service Booking State
-  const activePartner =
-    partners.find((p) => p.id === selectedPartnerIdForBooking) ?? partners[0];
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([
-    activePartner.services[0]?.id || 'srv-1',
-  ]);
-  const [bookingDate, setBookingDate] = useState('Thứ 7, 08/11/2026');
-  const [bookingSlot, setBookingSlot] = useState('10:00');
-  const [bookingNote, setBookingNote] = useState('Nhờ nhân viên sấy nhẹ nhàng cho bé.');
 
   // Walk Scheduler State
   const partnerGeo = { lat: 10.8435, lng: 106.8271 };
@@ -1477,135 +1464,6 @@ export const GlobalModals: React.FC = () => {
             className="w-full py-2.5 rounded-xl text-white text-xs font-bold"
           >
             Đóng
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // 10. BOOK SERVICE MODAL
-  if (activeModal === 'book_service') {
-    const toggleService = (id: string) => {
-      if (selectedServiceIds.includes(id)) {
-        if (selectedServiceIds.length > 1) {
-          setSelectedServiceIds(selectedServiceIds.filter((s) => s !== id));
-        }
-      } else {
-        setSelectedServiceIds([...selectedServiceIds, id]);
-      }
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-        <div
-          style={{ backgroundColor: theme.surface, color: theme.text }}
-          className="w-full max-w-md rounded-3xl p-5 space-y-3.5 shadow-xl max-h-[90vh] overflow-y-auto"
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold">Đặt lịch: {activePartner.name}</h3>
-            <button onClick={() => setActiveModal(null)} style={{ color: theme.textSoft }}>
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {activePartner.services.map((srv) => {
-              const checked = selectedServiceIds.includes(srv.id);
-              return (
-                <button
-                  key={srv.id}
-                  type="button"
-                  onClick={() => toggleService(srv.id)}
-                  style={{
-                    backgroundColor: checked ? theme.primarySoft : theme.bg,
-                    borderColor: checked ? theme.primary : theme.border,
-                  }}
-                  className="w-full p-3 rounded-xl border flex items-center justify-between text-left text-xs"
-                >
-                  <div>
-                    <p style={{ color: theme.text }} className="font-bold">
-                      {srv.name}
-                    </p>
-                    <p style={{ color: theme.textSoft }} className="text-[11px]">
-                      Thời lượng: {srv.durationMin} phút
-                    </p>
-                  </div>
-                  <span style={{ color: theme.primary }} className="font-bold">
-                    {formatVndCurrency(srv.priceVnd)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label style={{ color: theme.textSoft }} className="block text-xs mb-1">
-                Ngày hẹn
-              </label>
-              <input
-                type="text"
-                value={bookingDate}
-                onChange={(e) => setBookingDate(e.target.value)}
-                style={{
-                  backgroundColor: theme.bg,
-                  borderColor: theme.border,
-                  color: theme.text,
-                }}
-                className="w-full px-3 py-2 rounded-xl border text-xs font-semibold"
-              />
-            </div>
-            <div>
-              <label style={{ color: theme.textSoft }} className="block text-xs mb-1">
-                Khung giờ
-              </label>
-              <select
-                value={bookingSlot}
-                onChange={(e) => setBookingSlot(e.target.value)}
-                style={{
-                  backgroundColor: theme.bg,
-                  borderColor: theme.border,
-                  color: theme.text,
-                }}
-                className="w-full px-3 py-2 rounded-xl border text-xs font-semibold"
-              >
-                {activePartner.availableSlots.map((sl) => (
-                  <option key={sl} value={sl}>
-                    {sl}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <input
-            type="text"
-            value={bookingNote}
-            onChange={(e) => setBookingNote(e.target.value)}
-            placeholder="Ghi chú cho cửa hàng..."
-            style={{
-              backgroundColor: theme.bg,
-              borderColor: theme.border,
-              color: theme.text,
-            }}
-            className="w-full px-3 py-2 rounded-xl border text-xs"
-          />
-
-          <button
-            onClick={() =>
-              createServiceBooking({
-                partnerId: activePartner.id,
-                petId: activePet.id,
-                serviceIds: selectedServiceIds,
-                scheduledDate: bookingDate,
-                scheduledTime: bookingSlot,
-                note: bookingNote,
-              })
-            }
-            style={{ backgroundColor: theme.primary }}
-            className="w-full py-3 rounded-xl text-white text-xs font-bold"
-          >
-            Xác nhận đặt lịch cho {activePet.name}
           </button>
         </div>
       </div>

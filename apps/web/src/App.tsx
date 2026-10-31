@@ -6,7 +6,6 @@ import { ChatScreen } from './pages/chat/ChatScreen';
 import { ExploreScreen } from './pages/explore/ExploreScreen';
 import { OnboardingFlow } from './pages/onboarding/OnboardingFlow';
 import { ProfileScreen } from './pages/profile/ProfileScreen';
-import { TodayScreen } from './pages/today/TodayScreen';
 import { usePawtyStore } from './stores/usePawtyStore';
 
 export const App: React.FC = () => {
@@ -42,11 +41,7 @@ export const App: React.FC = () => {
     switch (activeTab) {
       case 'explore':
       case 'tinder':
-      case 'services':
         return <ExploreScreen />;
-      case 'appointments':
-      case 'today':
-        return <TodayScreen />;
       case 'chat':
         return <ChatScreen />;
       case 'profile':

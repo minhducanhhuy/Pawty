@@ -59,11 +59,8 @@ import {
 } from "../mocks/seedData";
 
 export type BottomTabId =
-  | "today"
   | "explore"
   | "tinder"
-  | "services"
-  | "appointments"
   | "chat"
   | "profile";
 export type ExploreSubTabId =
@@ -72,8 +69,7 @@ export type ExploreSubTabId =
   | "groups"
   | "places"
   | "qa"
-  | "radar"
-  | "services";
+  | "radar";
 export type ActiveModalType =
   | null
   | "create_sheet"
@@ -82,7 +78,6 @@ export type ActiveModalType =
   | "new_question"
   | "invite_circle"
   | "handover_note"
-  | "book_service"
   | "walk_scheduler"
   | "vip_upgrade"
   | "sos_alert"
@@ -109,7 +104,6 @@ interface PawtyAppState {
   activeTab: BottomTabId;
   exploreSubTab: ExploreSubTabId;
   activeModal: ActiveModalType;
-  selectedPartnerIdForBooking: string | null;
   selectedPublicPet: PetProfile | null;
   activeConversationId: string | null;
   desktopFrameMode: "iphone" | "pro_portal";
@@ -129,11 +123,8 @@ interface PawtyAppState {
   radarCandidates: RadarCandidate[];
   matches: MatchRecord[];
   latestMatchCelebration: MatchRecord | null;
-  walkAppointments: WalkAppointment[];
   conversations: Conversation[];
   messagesByConversation: Record<string, ChatMessage[]>;
-  partners: PartnerProfile[];
-  bookings: ServiceBooking[];
   sosAlerts: SosAlert[];
   reports: ContentReport[];
   analyticsEvents: AnalyticsEventRecord[];
@@ -145,7 +136,7 @@ interface PawtyAppState {
   setThemeId: (themeId: WebThemeId) => void;
   setActiveTab: (tab: BottomTabId) => void;
   setExploreSubTab: (subTab: ExploreSubTabId) => void;
-  setActiveModal: (modal: ActiveModalType, partnerId?: string | null) => void;
+  setActiveModal: (modal: ActiveModalType) => void;
   openPublicPetProfile: (pet: PetProfile) => void;
   setActiveConversationId: (conversationId: string | null) => void;
   setDesktopFrameMode: (mode: "iphone" | "pro_portal") => void;
@@ -272,10 +263,7 @@ interface PawtyAppState {
     distanceFromMidpointMeters: number;
     note: string;
   }) => void;
-  updateWalkAppointmentStatus: (
-    appointmentId: string,
-    status: "confirmed" | "completed" | "cancelled" | "no_show",
-  ) => void;
+
 
   // Messaging Actions
   sendChatMessage: (
@@ -283,22 +271,6 @@ interface PawtyAppState {
     textContent: string,
     messageType?: ChatMessage["messageType"],
     extra?: { mediaUrl?: string; voiceDurationSec?: number },
-  ) => void;
-
-  // Layer 4 & 5: Services, Bookings & Reviews
-  createServiceBooking: (payload: {
-    partnerId: string;
-    petId: string;
-    serviceIds: string[];
-    scheduledDate: string;
-    scheduledTime: string;
-    note: string;
-  }) => void;
-  updateBookingStatus: (bookingId: string, status: BookingStatus) => void;
-  submitPartnerReview: (
-    bookingId: string,
-    rating: number,
-    textContent: string,
   ) => void;
 
   // Monetization, SOS, Privacy & Moderation
@@ -342,7 +314,6 @@ export const usePawtyStore = create<PawtyAppState>()(
       activeTab: "explore",
       exploreSubTab: "feed",
       activeModal: null,
-      selectedPartnerIdForBooking: null,
       selectedPublicPet: null,
       activeConversationId: null,
       desktopFrameMode: "iphone",
@@ -361,11 +332,8 @@ export const usePawtyStore = create<PawtyAppState>()(
       radarCandidates: INITIAL_RADAR_CANDIDATES,
       matches: INITIAL_MATCHES,
       latestMatchCelebration: null,
-      walkAppointments: INITIAL_WALK_APPOINTMENTS,
       conversations: INITIAL_CONVERSATIONS,
       messagesByConversation: INITIAL_MESSAGES,
-      partners: INITIAL_PARTNERS,
-      bookings: INITIAL_BOOKINGS,
       sosAlerts: INITIAL_SOS_ALERTS,
       reports: INITIAL_REPORTS,
       analyticsEvents: [],
@@ -380,12 +348,7 @@ export const usePawtyStore = create<PawtyAppState>()(
       setActiveTab: (tab) =>
         set({ activeTab: tab, activeConversationId: null }),
       setExploreSubTab: (subTab) => set({ exploreSubTab: subTab }),
-      setActiveModal: (modal, partnerId = null) =>
-        set({
-          activeModal: modal,
-          selectedPartnerIdForBooking:
-            partnerId ?? get().selectedPartnerIdForBooking,
-        }),
+      setActiveModal: (modal) => set({ activeModal: modal }),
       openPublicPetProfile: (pet) =>
         set({ selectedPublicPet: pet, activeModal: "public_pet_profile" }),
       setActiveConversationId: (conversationId) =>
@@ -1468,7 +1431,6 @@ export const usePawtyStore = create<PawtyAppState>()(
         };
 
         set((prev) => ({
-          walkAppointments: [newAppointment, ...prev.walkAppointments],
           activeModal: null,
           messagesByConversation: {
             ...prev.messagesByConversation,
@@ -1492,49 +1454,6 @@ export const usePawtyStore = create<PawtyAppState>()(
           "Đã gửi lời hẹn đi dạo",
           `Địa điểm: ${payload.locationName}`,
         );
-      },
-
-      updateWalkAppointmentStatus: (appointmentId, status) => {
-        const state = get();
-        const nextNoShowCount =
-          status === "no_show"
-            ? state.user.noShowCount + 1
-            : state.user.noShowCount;
-        const lockedUntil =
-          nextNoShowCount >= 2
-            ? new Date(Date.now() + 3 * 24 * 3600 * 1000).toLocaleDateString(
-                "vi-VN",
-              )
-            : state.user.radarLockedUntil;
-
-        set((prev) => ({
-          walkAppointments: prev.walkAppointments.map((apt) =>
-            apt.id === appointmentId ? { ...apt, status } : apt,
-          ),
-          user: {
-            ...prev.user,
-            noShowCount: nextNoShowCount,
-            radarLockedUntil: lockedUntil,
-          },
-        }));
-
-        if (status === "confirmed") {
-          get().trackEvent("appointment_confirmed", {});
-          get().showToast(
-            "Đã chấp nhận kèo hẹn dắt dạo! 🐕",
-            "Hệ thống sẽ nhắc lịch trước 1 giờ.",
-          );
-        } else if (status === "no_show") {
-          get().showToast(
-            nextNoShowCount >= 2
-              ? "Ghi nhận bùng kèo lần 2 — Khóa Radar 3 ngày! 🚨"
-              : "Đã ghi nhận báo cáo bùng kèo (No-Show lần 1) ⚠️",
-            nextNoShowCount >= 2
-              ? "Theo cơ chế Anti-Flake (Tầng 5), tài khoản bùng hẹn 2 lần/tuần bị khóa Radar 3 ngày."
-              : "Vi phạm lần 1: Cảnh báo và giảm ưu tiên hiển thị Radar 24h.",
-            "warning",
-          );
-        }
       },
 
       sendChatMessage: (
@@ -1583,131 +1502,6 @@ export const usePawtyStore = create<PawtyAppState>()(
               : c,
           ),
         }));
-      },
-
-      createServiceBooking: (payload) => {
-        const state = get();
-        const partner =
-          state.partners.find((p) => p.id === payload.partnerId) ??
-          state.partners[0];
-        const pet =
-          state.pets.find((p) => p.id === payload.petId) ?? state.pets[0];
-        const chosenServices = partner.services.filter((s) =>
-          payload.serviceIds.includes(s.id),
-        );
-        const totalVnd =
-          chosenServices.reduce((sum, s) => sum + s.priceVnd, 0) || 150000;
-        const commissionVnd = Math.round(
-          (totalVnd * partner.commissionRatePercent) / 100,
-        );
-
-        const newBooking: ServiceBooking = {
-          id: `bk-${Date.now()}`,
-          userId: state.user.id,
-          userName: state.user.displayName,
-          partnerId: partner.id,
-          partnerName: partner.name,
-          partnerType: partner.type,
-          partnerAvatar: partner.avatarUrl,
-          petId: pet.id,
-          petName: pet.name,
-          serviceNames: chosenServices.map((s) => s.name),
-          totalPriceVnd: totalVnd,
-          commissionVnd,
-          scheduledDate: payload.scheduledDate,
-          scheduledTime: payload.scheduledTime,
-          note: payload.note,
-          status: "pending",
-          hasReviewed: false,
-          opsMinutesSpent: 5,
-          createdAt: new Date().toISOString(),
-        };
-
-        set((prev) => ({
-          bookings: [newBooking, ...prev.bookings],
-          activeModal: null,
-        }));
-
-        get().trackEvent("first_booking_made", { service_type: partner.type });
-        get().showToast(
-          "Đã gửi yêu cầu đặt lịch",
-          `${partner.name} sẽ xác nhận lịch cho bé ${pet.name} sớm nhất.`,
-        );
-      },
-
-      updateBookingStatus: (bookingId, status) => {
-        const target = get().bookings.find((b) => b.id === bookingId);
-        if (!target) return;
-
-        set((state) => ({
-          bookings: state.bookings.map((bk) =>
-            bk.id === bookingId ? { ...bk, status } : bk,
-          ),
-          metrics:
-            status === "completed"
-              ? {
-                  ...state.metrics,
-                  bookingCommissionRevenueVnd:
-                    state.metrics.bookingCommissionRevenueVnd +
-                    target.commissionVnd,
-                  mrrVnd: state.metrics.mrrVnd + target.commissionVnd,
-                  northStarQualifiedHouseholds:
-                    state.metrics.northStarQualifiedHouseholds + 1,
-                }
-              : state.metrics,
-        }));
-
-        if (status === "completed") {
-          get().trackEvent("booking_completed", {});
-          get().showToast(
-            "Dịch vụ đã hoàn tất! 🌟",
-            `Hoa hồng đối tác (+${target.commissionVnd.toLocaleString("vi-VN")}đ) đã được ghi nhận.`,
-          );
-        } else {
-          get().showToast(
-            "Đã cập nhật trạng thái Booking",
-            `Trạng thái mới: ${status.toUpperCase()}`,
-          );
-        }
-      },
-
-      submitPartnerReview: (bookingId, rating, textContent) => {
-        const state = get();
-        const booking = state.bookings.find((b) => b.id === bookingId);
-        if (!booking) return;
-
-        set((prev) => ({
-          bookings: prev.bookings.map((b) =>
-            b.id === bookingId ? { ...b, hasReviewed: true } : b,
-          ),
-          partners: prev.partners.map((partner) =>
-            partner.id === booking.partnerId
-              ? {
-                  ...partner,
-                  reviewCount: partner.reviewCount + 1,
-                  reviews: [
-                    {
-                      id: `rev-${Date.now()}`,
-                      bookingId,
-                      userId: prev.user.id,
-                      userName: prev.user.displayName,
-                      userAvatar: prev.user.avatarUrl,
-                      petName: booking.petName,
-                      rating,
-                      textContent,
-                      photos: [],
-                      createdAt: "Vừa xong",
-                    },
-                    ...partner.reviews,
-                  ],
-                }
-              : partner,
-          ),
-        }));
-        get().showToast(
-          "Cảm ơn đánh giá từ giao dịch thật! ⭐",
-          "Đánh giá đã gắn vào hồ sơ Đối tác.",
-        );
       },
 
       upgradeToVipPlan: (plan) => {
