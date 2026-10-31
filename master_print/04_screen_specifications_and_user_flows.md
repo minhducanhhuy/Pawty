@@ -73,8 +73,15 @@
 
 ### 2.5 Tab 4: Tôi (`Profile` — Kiến Trúc Paging Vuốt Ngang Liên Tiếp: Con Sen & Từng Bé Thú Cưng)
 - **Triết lý Cấu trúc Paging Ngang (`Horizontal ScrollView pagingEnabled`):**
+  - **Menu Hamburger Tinh Gọn (Top Header Action):**
+    - Nhấn nút Hamburger trên góc phải mở Bottom Sheet Menu tinh giản, loại bỏ chữ rườm rà:
+      1. Cài đặt tài khoản & Quyền riêng tư (mở chỉnh sửa & ẩn/hiện profile).
+      2. Thiết lập hồ sơ kết nối (cấu hình radar dắt dạo & ghép đôi).
+      3. Gói hội viên Sen VIP (nâng cấp quẹt không giới hạn).
+      4. Giao diện ứng dụng (chuyển đổi chủ đề màu sắc tức thì).
+      5. Đăng xuất tài khoản (kèm hộp thoại xác nhận an toàn).
   - **Trang 0: Hồ sơ Con sen (Owner Profile Page):**
-    - **Ảnh nền Background / Bìa:** Đã kích hoạt hoạt động trực tiếp (sửa lỗi z-index), cho phép người dùng đổi ảnh bìa từ thư viện máy hoặc chọn từ danh mục ảnh phong cảnh mẫu.
+    - **Ảnh nền Background / Bìa:** Nút "Đổi ảnh bìa" đặt tại góc trên bên phải (`top: 14, right: 14`, `zIndex: 99`, `elevation: 10`) tách biệt hoàn toàn khỏi avatar overlap, đảm bảo nhận chạm 100% mở modal chọn ảnh từ thiết bị hoặc ảnh mẫu phong cảnh.
     - **Avatar Chủ nuôi & Ghi chú (Note):** Avatar tròn lớn ở trung tâm. Góc avatar có dấu cộng nhỏ `+` chạm vào để mở Popup ghi chú ngắn gọn (không có chữ 24h, thuần ô nhập text, không có icon mẫu rườm rà).
     - **Nút Chỉnh sửa Tinh Gọn:** Mở riêng **Popup Chỉnh sửa Hồ sơ Con sen Đầy Đủ**:
       - Giới tính, Họ và tên, Địa chỉ / Khu vực sinh sống, Độ tuổi & Ngày sinh.
@@ -96,23 +103,21 @@
         - Thả react tim cho từng bình luận.
         - Nút "Trả lời" (Reply) trực tiếp từng người xem.
         - Khung nhập bình luận mới ở đáy màn hình.
-  - **Trang 1, 2, ...: Hồ sơ Từng Bé Thú Cưng (Full-Screen Pet Screen):**
-    - Mỗi thú cưng là một trang toàn màn hình riêng biệt khi vuốt sang ngang.
-    - **Thư viện Nhiều Ảnh của Pet & Đổi Avatar Bé:**
-      - Cho phép chủ nuôi thêm nhiều ảnh cho từng bé thú cưng (`galleryUrls`), hỗ trợ lướt xem ảnh bé hoặc chọn ảnh yêu thích làm ảnh đại diện chính.
-    - **Ảnh Thú Cưng Tràn Màn Hình & Thẻ Kính Mờ Siêu Nhạt:**
-      - Màu thẻ thông tin đáy siêu nhạt (`rgba(20, 16, 14, 0.28)` hoặc `rgba(255, 255, 255, 0.18)`), không che mất hình dáng của bé cưng.
-      - Có nút **`[ Hiện thêm chi tiết ⌄ ]` / `[ Thu gọn ⌃ ]`** để người dùng mở rộng đọc thông tin hoặc thu nhỏ để ngắm trọn vẹn ảnh của bé.
-    - **Thông Tin Sức Khỏe & Thể Trạng Chuyên Sâu:**
-      - Giống loài (Chó, Mèo, hoặc loài khác tự nhập), Giống thuần (không bị cắt chữ), Tuổi & Ngày sinh, Giới tính, Cân nặng.
-      - **Biểu đồ Cân nặng theo tháng (Monthly Weight Tracking):** Bảng/biểu đồ cột trực quan hiển thị đà tăng trưởng cân nặng của bé theo từng tháng (VD: T1: 5.0kg, T2: 5.8kg, T3: 6.5kg...).
-      - **Sổ Tiêm Chủng Điện Tử Chi Tiết (Vaccination Passport):**
-        - Không dùng nút gạt sơ sài, mà lưu trữ danh sách mũi tiêm thực tế: Tên vắc-xin/bệnh phòng ngừa, Ngày tiêm, Số mũi đã tiêm (Mũi 1, Mũi 2, Nhắc lại), Cơ sở thú y/Bác sĩ xác nhận.
-      - Tính cách, thói quen tốt và các lưu ý an toàn khi đi dạo chung.
-    - **Bố Trí Tương Tác:**
-      - Nút Thả tim & đếm tim đặt ở thanh nổi phía trên.
-      - Nút Bút chỉnh sửa mở riêng **Popup Chỉnh sửa Thú Cưng Chi Tiết**.
-      - Nút CTA chính **`[ Hẹn dạo cùng bé ]`** chiếm trọn đáy thẻ.
-  - **Popup Thêm Bé Mới & Chỉnh Sửa Bé Mới (Hình 3 & Hình 5):**
-    - Cung cấp đầy đủ toàn bộ các trường thông tin trên: Tên bé, Loài (Chó, Mèo, Loài khác tự nhập), Giống, Giới tính, Ngày sinh, Cân nặng hiện tại, Bảng cân nặng theo tháng, Danh sách mũi tiêm chủng chi tiết (Tên mũi, ngày tiêm, số mũi), Tính cách và Lưu ý.
-    - Trong Popup Chỉnh sửa thú cưng có nút "Xóa hồ sơ bé này" ở đáy (kèm bước xác nhận an toàn).
+  - **Trang 1, 2, ...: Hồ sơ Từng Bé Thú Cưng (Scrollable Downward Pet Screen):**
+    - Mỗi thú cưng là một trang dọc độc lập nằm trong khối paging ngang (`nestedScrollEnabled={true}`).
+    - **Hero Photo Bé Cưng Nổi Bật & An Toàn Fallback:**
+      - Khung ảnh chiếm vị trí trang trọng ở nửa trên màn hình (`height: 58%`), có cơ chế fallback URL đa tầng (chó/mèo) đảm bảo không bao giờ bị đen màn hình.
+      - 2 Nút chuyển ảnh `<` và `>` mờ nhạt đặt tại hai bên hông ảnh để người dùng lướt album ảnh của bé.
+      - Chạm đúp (Double-tap) vào ảnh để thả tim kèm hoạt cảnh nổ tim hồng lộng lẫy.
+    - **Thẻ Kính Mờ Mở Rộng Cuộn Xuống Dưới (Downward Expandable Frosted Card):**
+      - Thẻ kính mờ (`rgba(28, 22, 20, 0.65)`) nằm gối nhẹ lên đáy ảnh (`marginTop: -32px`).
+      - Khi người dùng nhấn **`[ Hiện thêm chi tiết sức khỏe & sổ tiêm ⌄ ]`**, toàn bộ nội dung chi tiết mở rộng **CUỘN XUÔI XUỐNG DƯỚI (SCROLL DOWN)** theo trục dọc của trang, tuyệt đối không bị đẩy ngược lên che mất ảnh khuôn mặt bé cưng.
+      - Khi cuộn xuống, người dùng đọc được:
+        1. Tính cách & Giới thiệu chi tiết.
+        2. Thói quen tốt & Lưu ý an toàn khi đi dạo chung (tránh xung đột).
+        3. Sở thích ăn uống (thức ăn yêu thích, pate, bánh thưởng).
+        4. Lịch sử tẩy giun định kỳ.
+        5. Tiền sử bệnh lý / thể trạng.
+        6. **Biểu đồ Cân nặng theo tháng:** Cột thanh bar rõ ràng, chữ và số cân cách biệt, không đè chữ.
+        7. **Sổ Tiêm Chủng Điện Tử:** Thẻ chứng nhận mũi tiêm có icon khiên bảo vệ.
+      - Nút CTA lớn **`[ Hẹn dạo cùng bé ]`** nằm ở chân thẻ.
