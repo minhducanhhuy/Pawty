@@ -423,7 +423,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 petName: row.pet?.name || 'Thú cưng',
                 species: (row.pet?.species === 'Mèo' ? 'Mèo' : 'Chó') as 'Chó' | 'Mèo',
                 breed: row.pet?.breed || 'Chưa rõ',
-                lastSeenLocation: row.lastSeenLocation,
+                lastSeenLocation: (row.lastSeenLocation || "Quanh khu vực chung cư").replace(/^(Quanh khu vực\s*)+/gi, "Quanh khu vực ").trim(),
                 lastSeenTime: 'Hôm nay',
                 distanceKm: 0.2,
                 rewardAmount: row.rewardText || '1.000.000đ',
@@ -1184,7 +1184,18 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const reportSosSighting = (sosId: string, locationText: string, noteText?: string) => {
-    const cleanLoc = locationText.trim() || 'Gần công viên nội khu';
+    const targetAlert = sosAlerts.find((s) => s.id === sosId);
+    if (
+      targetAlert &&
+      (targetAlert.ownerHandle === ownerHandle ||
+        (Boolean(targetAlert.ownerName) && targetAlert.ownerName === ownerName))
+    ) {
+      showToast('Bạn là người tạo bài đăng này, chỉ người khác mới có thể báo vị trí nhìn thấy.');
+      return;
+    }
+
+    let cleanLoc = (locationText || '').trim();
+    cleanLoc = cleanLoc.replace(/^(Quanh khu vực\s*)+/gi, 'Quanh khu vực ').trim() || 'Gần công viên nội khu';
     setSosAlerts((prev) =>
       prev
         .map((s) => {
@@ -1208,7 +1219,6 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         .sort((a, b) => b.priorityScore - a.priorityScore)
     );
 
-    const targetAlert = sosAlerts.find((s) => s.id === sosId);
     if (targetAlert) {
       const newNotif: MobileNotificationItem = {
         id: `notif-sos-${Date.now()}`,

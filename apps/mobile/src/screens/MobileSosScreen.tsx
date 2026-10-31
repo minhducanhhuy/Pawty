@@ -20,6 +20,7 @@ export const MobileSosScreen: React.FC = () => {
   const {
     theme,
     ownerHandle,
+    ownerName,
     sosAlerts,
     reportSosSighting,
     confirmSosPetFound,
@@ -439,7 +440,7 @@ export const MobileSosScreen: React.FC = () => {
       {/* SOS Feed List */}
       <View style={styles.listStack}>
         {filteredSosAlerts.map((sos) => {
-          const isAuthor = sos.ownerHandle === ownerHandle;
+          const isAuthor = sos.ownerHandle === ownerHandle || (Boolean(sos.ownerName) && sos.ownerName === ownerName);
           const isFound = sos.status === 'found';
 
           return (
@@ -500,7 +501,7 @@ export const MobileSosScreen: React.FC = () => {
               <View style={styles.locationBox}>
                 <Feather name="map-pin" size={13} color="#B85D43" />
                 <Text style={styles.locationBoxText}>
-                  Vị trí cuối: {sos.lastSeenLocation}
+                  Vị trí cuối: {(sos.lastSeenLocation || "").replace(/^(Quanh khu vực\s*)+/gi, "Quanh khu vực ").trim()}
                 </Text>
               </View>
 
@@ -509,38 +510,52 @@ export const MobileSosScreen: React.FC = () => {
               {/* Action Buttons: ONLY the post creator can press "Đã đón về"! */}
               {!isFound ? (
                 <View style={styles.sosActionRow}>
-                  <TouchableOpacity
-                    style={styles.sightingBtn}
-                    onPress={() =>
-                      reportSosSighting(
-                        sos.id,
-                        `Quanh khu vực ${sos.lastSeenLocation}`,
-                        'Vừa nhìn thấy bé cách đây ít phút'
-                      )
-                    }
-                  >
-                    <Feather name="map-pin" size={14} color="#FFFFFF" />
-                    <Text style={styles.sightingBtnText}>
-                      Báo vừa nhìn thấy ({sos.sightingsCount})
-                    </Text>
-                  </TouchableOpacity>
-
                   {isAuthor ? (
-                    <TouchableOpacity
-                      style={styles.foundBtnAuthorOnly}
-                      onPress={() => confirmSosPetFound(sos.id)}
-                    >
-                      <Feather name="check-circle" size={14} color="#FFFFFF" />
-                      <Text style={styles.foundBtnAuthorText}>Đã đón về</Text>
-                    </TouchableOpacity>
+                    <>
+                      {sos.sightingsCount > 0 && (
+                        <View style={styles.authorCluesBox}>
+                          <Feather name="eye" size={14} color="#B85D43" />
+                          <Text style={styles.authorCluesText}>
+                            {sos.sightingsCount} manh mối báo về
+                          </Text>
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        style={[styles.foundBtnAuthorOnly, sos.sightingsCount === 0 && { flex: 1 }]}
+                        onPress={() => confirmSosPetFound(sos.id)}
+                      >
+                        <Feather name="check-circle" size={16} color="#FFFFFF" />
+                        <Text style={styles.foundBtnAuthorText}>
+                          {sos.sightingsCount === 0 ? '✓ Xác nhận đã đón bé về nhà' : 'Đã đón về'}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
                   ) : (
-                    <TouchableOpacity
-                      style={styles.contactOwnerBtn}
-                      onPress={() => openPublicUserProfile(sos.ownerHandle)}
-                    >
-                      <Feather name="message-circle" size={14} color="#4A3F35" />
-                      <Text style={styles.contactOwnerBtnText}>Liên hệ chủ</Text>
-                    </TouchableOpacity>
+                    <>
+                      <TouchableOpacity
+                        style={styles.sightingBtn}
+                        onPress={() =>
+                          reportSosSighting(
+                            sos.id,
+                            sos.lastSeenLocation,
+                            'Vừa nhìn thấy bé quanh đây cách đây ít phút'
+                          )
+                        }
+                      >
+                        <Feather name="map-pin" size={14} color="#FFFFFF" />
+                        <Text style={styles.sightingBtnText}>
+                          Báo vừa nhìn thấy ({sos.sightingsCount})
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.contactOwnerBtn}
+                        onPress={() => openPublicUserProfile(sos.ownerHandle)}
+                      >
+                        <Feather name="message-circle" size={14} color="#4A3F35" />
+                        <Text style={styles.contactOwnerBtnText}>Liên hệ chủ</Text>
+                      </TouchableOpacity>
+                    </>
                   )}
                 </View>
               ) : (
@@ -877,6 +892,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  authorCluesBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FFF5F2',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+  },
+  authorCluesText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B85D43',
   },
   foundBtnAuthorOnly: {
     flex: 1,
