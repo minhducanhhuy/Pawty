@@ -3,11 +3,13 @@ import { URL } from 'url';
 import { ModerationService } from './modules/moderation/moderation.service';
 import { PawRankAndSpatialService } from './modules/social/pawrank.service';
 import { PetTracingService } from './modules/sos/pet-tracing.service';
+import { GeminiVisionService } from './modules/sos/gemini-vision.service';
 import { dbService, prisma } from './data/db-service';
 
 const moderationService = new ModerationService();
 const spatialService = new PawRankAndSpatialService();
 const petTracingService = new PetTracingService();
+const geminiVisionService = new GeminiVisionService();
 
 function sendJson(res: http.ServerResponse, statusCode: number, data: unknown) {
   res.writeHead(statusCode, {
@@ -267,78 +269,7 @@ const server = http.createServer(async (req, res) => {
         locationDistrict: body.locationDistrict || 'TP. Thủ Đức (Quận 9)',
       });
 
-      // AI Multimodal Sighting Scanner (Google Gemini 2.5 Flash)
-      try {
-        const socialPostFormat = {
-          id: newPost.id,
-          authorId: newPost.authorId,
-          textContent: newPost.textContent || '',
-          media: (newPost.media as any[]) || [],
-          locationName: newPost.locationName || 'Vinhomes Grand Park',
-          locationCoords: { lat: 10.8428, lng: 106.8286 },
-          createdAt: newPost.createdAt.toISOString(),
-          likesCount: newPost.pawCount,
-          commentsCount: newPost.commentCount,
-          sharesCount: newPost.shareCount,
-          pawRankScore: 99,
-        };
 
-        const activeSos = await prisma.sosAlert.findMany({
-          where: { status: 'active' },
-          include: { matchedPosts: true, trajectories: true },
-        });
-
-        const matches = await petTracingService.scanPostForSosMatchesAsync(
-          socialPostFormat as any,
-          activeSos as any
-        );
-
-        if (matches.length > 0) {
-          console.log(
-            `[Pawty AI Scanner] Phát hiện ${matches.length} manh mối nghi vấn trong PostgreSQL từ bài đăng ${newPost.id}!`
-          );
-          for (const m of matches) {
-            await prisma.petSightingMatch.create({
-              data: {
-                id: m.id,
-                sosAlertId: m.sosAlertId,
-                postId: newPost.id,
-                matchScore: m.matchScore,
-                visualSimilarity: m.visualSimilarity,
-                textSimilarity: m.textSimilarity,
-                kinematicPlausibility: m.kinematicPlausibility,
-                detectedLocationName: m.detectedLocationName,
-                detectedCoords: m.detectedCoords as any,
-                status: 'pending_review',
-              },
-            });
-
-            // Tự động tính toán & cập nhật lộ trình di chuyển thời gian thực vào PostgreSQL
-            const targetSos = await prisma.sosAlert.findUnique({
-              where: { id: m.sosAlertId },
-              include: { matchedPosts: true },
-            });
-            if (targetSos) {
-              const trajectory = petTracingService.buildTrajectory(targetSos as any);
-              await prisma.sightingTrajectory.upsert({
-                where: { id: `traj-${targetSos.id}` },
-                create: {
-                  id: `traj-${targetSos.id}`,
-                  sosAlertId: targetSos.id,
-                  points: trajectory.trajectoryPoints as any,
-                  totalDistanceMeters: trajectory.totalDistanceMeters,
-                },
-                update: {
-                  points: trajectory.trajectoryPoints as any,
-                  totalDistanceMeters: trajectory.totalDistanceMeters,
-                },
-              });
-            }
-          }
-        }
-      } catch (scanErr: any) {
-        console.warn('[Pawty AI Scanner] Quét bài đăng thất bại:', scanErr.message);
-      }
 
       sendJson(res, 201, { post: newPost });
       return;
@@ -390,6 +321,33 @@ const server = http.createServer(async (req, res) => {
         include: { matchedPosts: true, trajectories: true },
       });
       sendJson(res, 200, { success: true, sos });
+      return;
+    }
+
+        if (pathname === '/api/ai/describe-pet' && method === 'POST') {
+      const body = await parseJsonBody(req);
+      const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl : undefined;
+      if (!imageUrl) {
+        sendJson(res, 400, { error: 'Vui lòng cung cấp imageUrl để AI phân tích' });
+        return;
+      }
+      const aiResult = await geminiVisionService.generateSosPetDescription(imageUrl);
+      if (!aiResult) {
+        sendJson(res, 200, {
+          success: true,
+          species: 'Chó',
+          breed: 'Chưa rõ giống',
+          primaryColor: 'Nâu',
+          hasCollar: false,
+          distinctiveFeatures: [],
+          description: 'Bé cún/mèo thân thiện cần tìm chủ. Vui lòng liên hệ nếu nhìn thấy bé.',
+        });
+        return;
+      }
+      sendJson(res, 200, {
+        success: true,
+        ...aiResult,
+      });
       return;
     }
 
