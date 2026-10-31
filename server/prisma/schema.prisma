@@ -12,6 +12,8 @@ datasource db {
 model User {
   id             String    @id @default(uuid())
   phone          String    @unique @db.VarChar(15)
+  username       String?   @unique @db.VarChar(50)
+  password       String?   @db.VarChar(255)
   displayName    String    @map("display_name") @db.VarChar(50)
   avatarUrl      String?   @map("avatar_url")
   bio            String?   @db.VarChar(200)
@@ -382,4 +384,49 @@ model SightingTrajectory {
 
   @@index([sosAlertId], map: "idx_sighting_trajectories_sos")
   @@map("sighting_trajectories")
+}
+
+model Match {
+  id        String   @id @default(uuid())
+  userAId   String   @map("user_a_id")
+  userBId   String   @map("user_b_id")
+  status    String   @default("pending") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([userAId, userBId], map: "uq_user_a_user_b")
+  @@index([userAId], map: "idx_matches_user_a")
+  @@index([userBId], map: "idx_matches_user_b")
+  @@map("matches")
+}
+
+model Conversation {
+  id              String    @id @default(uuid())
+  type            String    @default("direct") @db.VarChar(20)
+  participantIds  String[]  @map("participant_ids")
+  lastMessageText String?   @map("last_message_text")
+  lastMessageAt   DateTime? @map("last_message_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  messages        Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String       @map("conversation_id")
+  senderId       String       @map("sender_id")
+  text           String
+  mediaUrl       String?      @map("media_url")
+  messageType    String       @default("text") @map("message_type") @db.VarChar(20)
+  isRead         Boolean      @default(false) @map("is_read")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId], map: "idx_messages_conversation")
+  @@index([senderId], map: "idx_messages_sender")
+  @@map("messages")
 }

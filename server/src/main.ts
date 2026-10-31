@@ -61,12 +61,101 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname === '/api/bootstrap' && method === 'GET') {
-      const data = await dbService.getBootstrapData();
+      const userId = parsedUrl.searchParams.get('userId') || undefined;
+      const data = await dbService.getBootstrapData(userId);
       sendJson(res, 200, data);
       return;
     }
 
     // 1. Auth Endpoints
+    // 1. Auth Endpoints: Đăng nhập bằng SĐT / Username + Password
+    if (pathname === '/api/auth/login' && method === 'POST') {
+      const body = await parseJsonBody(req);
+      const identifier = String(body.identifier || body.phone || body.username || '').trim();
+      const password = String(body.password || '').trim();
+
+      if (!identifier) {
+        sendJson(res, 400, {
+          success: false,
+          error: 'Vui lòng nhập Số điện thoại hoặc Tên đăng nhập.',
+        });
+        return;
+      }
+
+      const user = await dbService.authenticateUser(identifier, password);
+      if (!user) {
+        sendJson(res, 401, {
+          success: false,
+          error: 'Số điện thoại / tên đăng nhập hoặc mật khẩu không chính xác.',
+        });
+        return;
+      }
+
+      sendJson(res, 200, {
+        success: true,
+        token: 'jwt-pawty-access-token',
+        refresh_token: 'jwt-pawty-refresh-token',
+        user,
+        message: `Chào mừng ${user.displayName} đăng nhập thành công.`,
+      });
+      return;
+    }
+
+    if (pathname === '/api/auth/register' && method === 'POST') {
+      const body = await parseJsonBody(req);
+      const phone = String(body.phone || '').trim();
+      const username = body.username ? String(body.username).trim() : undefined;
+      const password = String(body.password || 'password123').trim();
+      const displayName = String(body.displayName || body.name || `Người dùng ${phone.slice(-4)}`).trim();
+
+      if (!phone) {
+        sendJson(res, 400, {
+          success: false,
+          error: 'Vui lòng cung cấp số điện thoại đăng ký.',
+        });
+        return;
+      }
+
+      // Kiểm tra trùng lặp
+      const existing = await dbService.findUserByIdentifier(username || phone);
+      if (existing) {
+        sendJson(res, 409, {
+          success: false,
+          error: 'Số điện thoại hoặc tên đăng nhập này đã được sử dụng.',
+        });
+        return;
+      }
+
+      const user = await dbService.createUser({
+        phone,
+        username,
+        password,
+        displayName,
+        district: String(body.district || 'TP. Thủ Đức'),
+        neighborhood: String(body.neighborhood || 'Vinhomes Grand Park'),
+      });
+
+      // Tạo thú cưng nếu có thông tin đính kèm
+      if (body.petName && typeof body.petName === 'string' && body.petName.trim()) {
+        await dbService.createPet({
+          ownerId: user.id,
+          name: body.petName.trim(),
+          species: String(body.petSpecies || 'Chó'),
+          breed: String(body.petBreed || 'Golden Retriever'),
+          weightKg: Number(body.petWeightKg || 10),
+        });
+      }
+
+      sendJson(res, 201, {
+        success: true,
+        token: 'jwt-pawty-access-token',
+        refresh_token: 'jwt-pawty-refresh-token',
+        user,
+        message: 'Đăng ký tài khoản thành công.',
+      });
+      return;
+    }
+
     if (pathname === '/api/auth/send-otp' && method === 'POST') {
       const body = await parseJsonBody(req);
       sendJson(res, 200, {
@@ -107,7 +196,8 @@ const server = http.createServer(async (req, res) => {
 
     // 2. Users & Privacy Endpoints (Luật BVDLCN 91/2025/QH15)
     if (pathname === '/api/users/me' && method === 'GET') {
-      const user = await dbService.getPrimaryUser();
+      const userId = parsedUrl.searchParams.get('userId') || undefined;
+      const user = await dbService.getPrimaryUser(userId);
       sendJson(res, 200, { user });
       return;
     }
@@ -175,7 +265,8 @@ const server = http.createServer(async (req, res) => {
 
     // 3. Pets & Vaccinations
     if (pathname === '/api/pets' && method === 'GET') {
-      const pets = await dbService.getPets();
+      const userId = parsedUrl.searchParams.get('userId') || undefined;
+      const pets = userId ? await dbService.getUserPets(userId) : await dbService.getPets();
       sendJson(res, 200, { pets });
       return;
     }
@@ -364,7 +455,93 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 7. Admin Metrics from PostgreSQL
+
+    // 7. Tinder Candidates & Matches
+    if (pathname === '/api/tinder/candidates' && method === 'GET') {
+      const userId = parsedUrl.searchParams.get('userId') || 'user-mai';
+      const intent = parsedUrl.searchParams.get('intent') || undefined;
+      const candidates = await dbService.getTinderCandidates(userId, intent);
+      sendJson(res, 200, { candidates });
+      return;
+    }
+
+    if (pathname === '/api/matches/swipe' && method === 'POST') {
+      const body = await parseJsonBody(req);
+      const userId = String(body.userId || 'user-mai');
+      const candidateId = String(body.candidateId || body.targetUserId || '');
+      const direction = (body.direction || 'right') as 'left' | 'right';
+      if (!candidateId) {
+        sendJson(res, 400, { error: 'candidateId is required' });
+        return;
+      }
+      const result = await dbService.recordSwipe(userId, candidateId, direction);
+      sendJson(res, 200, result);
+      return;
+    }
+
+    if ((pathname === '/api/matches/rewind' || pathname === '/api/tinder/rewind') && method === 'POST') {
+      const body = await parseJsonBody(req);
+      const userId = String(body.userId || 'user-mai');
+      const candidateId = String(body.candidateId || body.targetUserId || '');
+      if (!candidateId) {
+        sendJson(res, 400, { error: 'candidateId is required' });
+        return;
+      }
+      const result = await dbService.rewindSwipe(userId, candidateId);
+      sendJson(res, 200, result);
+      return;
+    }
+
+    // 8. Chats & Messages
+    if (pathname === '/api/chats' && method === 'GET') {
+      const userId = parsedUrl.searchParams.get('userId') || 'user-mai';
+      const chats = await dbService.getChats(userId);
+      sendJson(res, 200, { chats });
+      return;
+    }
+
+    const chatMsgMatch = pathname.match(/^\/api\/chats\/([^/]+)\/messages$/);
+    if (chatMsgMatch && method === 'GET') {
+      const conversationId = chatMsgMatch[1];
+      const messages = await dbService.getChatMessages(conversationId);
+      sendJson(res, 200, { messages });
+      return;
+    }
+
+    if (chatMsgMatch && method === 'POST') {
+      const conversationId = chatMsgMatch[1];
+      const body = await parseJsonBody(req);
+      const senderId = String(body.senderId || 'user-mai');
+      const text = String(body.text || '');
+      const mediaUrl = body.mediaUrl ? String(body.mediaUrl) : undefined;
+      if (!text && !mediaUrl) {
+        sendJson(res, 400, { error: 'Text or media is required' });
+        return;
+      }
+      const message = await dbService.sendChatMessage(conversationId, senderId, text, mediaUrl);
+      sendJson(res, 201, { message });
+      return;
+    }
+
+    const chatReadMatch = pathname.match(/^\/api\/chats\/([^/]+)\/read$/);
+    if (chatReadMatch && (method === 'POST' || method === 'PUT')) {
+      const conversationId = chatReadMatch[1];
+      const body = await parseJsonBody(req);
+      const userId = String(body.userId || parsedUrl.searchParams.get('userId') || 'user-mai');
+      const result = await dbService.markConversationAsRead(conversationId, userId);
+      sendJson(res, 200, result);
+      return;
+    }
+
+    // 9. Notifications
+    if (pathname === '/api/notifications' && method === 'GET') {
+      const userId = parsedUrl.searchParams.get('userId') || 'user-mai';
+      const notifications = await dbService.getNotifications(userId);
+      sendJson(res, 200, { notifications });
+      return;
+    }
+
+    // 10. Admin Metrics from PostgreSQL
     if (pathname === '/api/admin/metrics' && method === 'GET') {
       const [totalUsers, totalPets, totalPosts, activeSos] = await Promise.all([
         prisma.user.count(),
