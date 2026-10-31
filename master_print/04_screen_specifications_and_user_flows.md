@@ -61,7 +61,8 @@
     - Điểm $T_2$ (Xanh mint): Manh mối AI tự động quét ra từ bài đăng Feed có ảnh tương đồng $\ge 70\%$.
   - Hiển thị độ dài quãng đường di chuyển khả dĩ, vận tốc di chuyển ước tính và thẻ thông tin chi tiết từng điểm dừng.
 - **Quyền xác nhận "Đã đón về":**
-  - **Chỉ chính người đăng bài (`sos.ownerHandle === ownerHandle`) mới được phép nhìn thấy và bấm nút "Đã đón về"**. Người dùng khác chỉ thấy nút *"Báo vừa nhìn thấy"* và *"Liên hệ chủ nuôi"*.
+  - **Phân quyền nghiệp vụ trên thẻ SOS:** Chỉ chính người đăng bài (`sos.ownerHandle === ownerHandle`) mới thấy và bấm nút "Xác nhận đã đón về" (chiếm toàn chiều rộng thẻ). Người đăng KHÔNG được phép thấy hoặc bấm "Báo vừa nhìn thấy" trên tin của chính mình. Người dùng khác (hàng xóm, người qua đường) thấy cặp nút *"Báo vừa nhìn thấy"* và *"Liên hệ chủ nuôi"*.
+- **Thao tác thoát Lightbox ảnh:** Cho phép chạm 1 lần vào ảnh/nền backdrop hoặc bấm nút mũi tên trái (Back) và nút [X] ở góc trên để đóng thoát Lightbox ngay lập tức trở về bảng tin.
 
 ### 2.4 Tab 3: Tin nhắn (`Chat`)
 - Nhắn tin trực tiếp giữa người dùng với các bộ lọc tiện lợi: `Tất cả`, `Chưa đọc`, `Kết nối`.

@@ -38,7 +38,7 @@
 
 ### 1.6 Monetization, SOS, AI Smart Description, Moderation & Analytics
 - `POST /api/sos` & `POST /api/sos/:id/sighting` — Phát tín hiệu SOS 3km (39.000đ VietQR) và gửi manh mối nhìn thấy Boss.
-- `POST /api/ai/describe-pet` — Gửi ảnh thú cưng để Gemini 2.5 Flash Vision tự động phân tích và sinh đoạn mô tả nhận dạng chi tiết (`{ species, breed, primaryColor, description, distinctiveFeatures }`) phục vụ form đăng tin SOS.
+- `POST /api/ai/describe-pet` (`{ imageUrl?: string, imageBase64?: string, mimeType?: string }`) — Phân tích ảnh đa phương thức qua Gemini 2.5 Flash Vision (hỗ trợ cả Base64 từ thiết bị di động và URL từ xa) để tự động sinh thông số nhận diện `{ success, species, breed, primaryColor, description, distinctiveFeatures }` cho form đăng tin SOS.
 - `POST /api/vip/subscribe` — Nâng cấp gói Cơ bản (29k), Sen VIP (49k/tháng), Sen VIP Năm (399k/năm).
 - `POST /api/reports`, `POST /api/users/:id/block`, `GET /api/admin/metrics` (North Star & KPI Dashboard).
 
