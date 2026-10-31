@@ -105,6 +105,19 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (pathname === '/api/auth/register-or-sync' && method === 'POST') {
+      const body = await parseJsonBody(req);
+      const synced = await dbService.findOrCreateUserAndPet({
+        phone: typeof body.phone === 'string' ? body.phone : undefined,
+        displayName: typeof body.name === 'string' ? body.name : typeof body.displayName === 'string' ? body.displayName : undefined,
+        petName: typeof body.petName === 'string' ? body.petName : undefined,
+        species: typeof body.petSpecies === 'string' ? body.petSpecies : typeof body.species === 'string' ? body.species : undefined,
+        breed: typeof body.petBreed === 'string' ? body.petBreed : typeof body.breed === 'string' ? body.breed : undefined,
+      });
+      sendJson(res, 200, { success: true, user: synced.user, pet: synced.pet });
+      return;
+    }
+
     // 2. Users & Privacy Endpoints (Luật BVDLCN 91/2025/QH15)
     if (pathname === '/api/users/me' && method === 'GET') {
       const user = await dbService.getPrimaryUser();
