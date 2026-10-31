@@ -17,7 +17,10 @@
      - **Nhánh `Khám phá`:** Trái: Nút `+` (Đăng bài) · Giữa: 1 Logo `Pawty` động (`PawtyAnimatedLogo` size nhỏ) · Phải: Nút `SOS` (mở trang SOS toàn màn hình) + Nút `Thông báo`.
      - **Nhánh `Kết nối` (Tinder):** Trái: Tiêu đề `Kết nối` · Phải: Nút `Hoàn tác`, `Đã thích`, `Đổi vị trí`.
      - **Nhánh `Tin nhắn`:** Trái: Tiêu đề `Tin nhắn` · Phải: Nút `Kết nối` + Nút `SOS`.
-     - **Nhánh `Tôi` (Pet & Owner Paging Profile):** Trái: Nút `+` (Đăng khoảnh khắc mới) · Giữa: Dải chấm chỉ báo chuyển trang (Pagination Dots `● ○ ○`) hiển thị vị trí giữa Chủ nuôi và các bé Pet · Phải: Nút Hamburger `☰` duy nhất mở toàn bộ Menu Cài đặt & Quyền riêng tư.
+     - **Nhánh `Tôi` (Header Chuyển Đổi Profile Paging Tích Hợp):**
+       - Bỏ nút `+` và chữ tên cố định.
+       - Thay bằng dải chuyển đổi phân trang ngay trên Top Bar: **`[Con sen]` · `[Lu]` · `[Miu]` ... `[+]`**.
+       - Phải: Nút Hamburger `☰` duy nhất mở toàn bộ Menu Cài đặt, Quyền riêng tư & Thiết lập kết nối.
      - **Nhánh `SOS` (Toàn màn hình khi bấm từ góc trên phải):** Trái: Nút `← Quay lại` + Tiêu đề `Bảng tin SOS Thú Lạc` · Phải: Nút `Thông báo`.
 3. **Thanh Điều Hướng Dưới Đáy (`Bottom Tab Bar` — 4 tab chính, không có nút `+` nổi):**
    - Tab 1: **`Khám phá`** (Trang chính mặc định — Bảng tin MXH thú cưng).
@@ -68,26 +71,48 @@
 ### 2.4 Tab 3: Tin nhắn (`Chat`)
 - Nhắn tin trực tiếp giữa người dùng với các bộ lọc tiện lợi: `Tất cả`, `Chưa đọc`, `Kết nối`.
 
-### 2.5 Tab 4: Tôi (`Profile` — Kiến Trúc Paging Vuốt Ngang Liên Tiếp: Chủ Nuôi & Từng Bé Thú Cưng)
-- **Triết lý Cấu trúc Paging Ngang (`Horizontal ScrollView pagingEnabled`):** Tách bạch rõ ràng, không dồn nén cả chủ và thú cưng vào 1 màn hình cuộn dọc rối rắm.
-  - **Trang 0: Hồ sơ Chủ nuôi (Owner Profile Page):**
-    - **Ảnh nền Background / Cover:** Ảnh phong cảnh đẹp mắt tràn viền phía trên.
-    - **Avatar Chủ nuôi:** Bo tròn mềm mại ở trung tâm với viền nổi bật đè lên giữa ảnh bìa và thẻ nội dung.
-    - **Nút Chỉnh sửa:** Nút pill `[ Chỉnh sửa hồ sơ ]` gọn gàng ở góc phải dưới ảnh bìa.
-    - **Thông tin Sen:** Tên chủ nuôi (`ownerName`), Nghề nghiệp / Châm ngôn (`UI/UX Designer` hoặc câu chào), Vị trí địa lý (`ownerArea` kèm chấm đỏ ghim vị trí).
-    - **Thẻ 3 Con số Thống kê Cân xứng:**
-      `{followersCount} người theo dõi` · `{followingCount} đang theo dõi` · `{likesCount} yêu thích`.
-    - **Các Bài Đăng Khoảnh Khắc (Moments Grid):** Lưới các ảnh kỷ niệm bo tròn góc mềm mại (`borderRadius: 16`), chạm để xem phóng to Lightbox.
-  - **Trang 1, 2, ...: Hồ sơ Từng Bé Thú Cưng (Full-Bleed Pet Passport Pages):**
+### 2.5 Tab 4: Tôi (`Profile` — Kiến Trúc Paging Vuốt Ngang Liên Tiếp: Con Sen & Từng Bé Thú Cưng)
+- **Triết lý Cấu trúc Paging Ngang (`Horizontal ScrollView pagingEnabled`):**
+  - **Trang 0: Hồ sơ Con sen (Owner Profile Page):**
+    - **Ảnh nền Background / Bìa:** Đã kích hoạt hoạt động trực tiếp (sửa lỗi z-index), cho phép người dùng đổi ảnh bìa từ thư viện máy hoặc chọn từ danh mục ảnh phong cảnh mẫu.
+    - **Avatar Chủ nuôi & Ghi chú (Note):** Avatar tròn lớn ở trung tâm. Góc avatar có dấu cộng nhỏ `+` chạm vào để mở Popup ghi chú ngắn gọn (không có chữ 24h, thuần ô nhập text, không có icon mẫu rườm rà).
+    - **Nút Chỉnh sửa Tinh Gọn:** Mở riêng **Popup Chỉnh sửa Hồ sơ Con sen Đầy Đủ**:
+      - Giới tính, Họ và tên, Địa chỉ / Khu vực sinh sống, Độ tuổi & Ngày sinh.
+      - Cung hoàng đạo (12 chòm sao), MBTI (16 nhóm tính cách).
+      - Học vấn: Tốt nghiệp ở đâu, Chuyên ngành học gì.
+      - Công việc: Đang làm gì, Nghề nghiệp hiện tại.
+      - Câu giới thiệu bản thân / Châm ngôn nuôi pet.
+      - **Cơ chế Ẩn/Hiện (Public / Private toggle):** Người dùng có quyền bật/tắt hiển thị công khai cho từng trường thông tin nhạy cảm.
+    - **Thẻ Thống kê Cân xứng & Khoảnh khắc:**
+      - Thống kê: Số người theo dõi, Đang theo dõi, Lượt thích.
+      - Nút `+ Đăng bài` trực tiếp mở khung đăng khoảnh khắc.
+    - **Xem trước & Chi tiết Bài viết (Post Detail Modal):**
+      - Bỏ dòng nhạc nền không liên quan.
+      - Caption hiển thị trọn vẹn bên dưới ảnh (không chèn đè lên ảnh làm che nội dung).
+      - Menu thao tác: Nút "Xóa khỏi bảng tin", Nút Thả tim (Hiển thị số lượt like thực tế).
+      - Nút **"Xem chi tiết bài viết"**: Mở màn hình bài viết hoàn chỉnh với:
+        - Bảng tương tác đa cảm xúc (Love, Paws, Haha, Wow...).
+        - Danh sách bình luận chi tiết: Hiển thị avatar, tên, nội dung, thời gian.
+        - Thả react tim cho từng bình luận.
+        - Nút "Trả lời" (Reply) trực tiếp từng người xem.
+        - Khung nhập bình luận mới ở đáy màn hình.
+  - **Trang 1, 2, ...: Hồ sơ Từng Bé Thú Cưng (Full-Screen Pet Screen):**
     - Mỗi thú cưng là một trang toàn màn hình riêng biệt khi vuốt sang ngang.
-    - **Ảnh Chân Dung Boss Bao Trọn Màn Hình:** Hình ảnh độ phân giải cao của bé bao trọn không gian, tạo cảm xúc ấn tượng sâu sắc.
-    - **Thẻ Lớp Phủ Kính Mờ (Frosted Overlay Card):**
-      - Tên bé, khoảng cách (`Cách bạn 1.5 km`), Giống loài (`Poodle`, `Golden`, `Mèo Anh Lông Ngắn`).
-      - **3 Viên Thuốc Thông Số:** `Giới tính (Sex)` · `Tuổi (Age)` · `Cân nặng (Weight)`.
-      - **Sổ Tiêm Chủng Safe Pet (Xanh Mint):** Xác nhận tiêm phòng 7 bệnh & phòng dại, chạm trực tiếp để cập nhật.
-      - **Về Bé (About):** Đoạn miêu tả tính nết, thói quen khi dắt dạo (Good habits / Caution habits).
-      - **Tương Tác Yêu Thích:** Nút Thả tim (Like) cho người xem và hiển thị số lượt yêu thích của bé.
-  - **Chỉ Báo Trang (Pagination Indicator Dots `● ○ ○`):**
-    - Dải chấm tròn tinh tế ở đỉnh hoặc đáy màn hình giúp người dùng trực quan biết mình đang ở trang Chủ nuôi hay trang của Bé nào, kèm nút gạt tiện lợi.
-  - **Menu Hamburger (`☰`):**
-    - Mọi cài đặt hệ thống, quyền riêng tư và thiết lập kết nối được gom gọn gàng trong nút Hamburger ở góc trên phải.
+    - **Thư viện Nhiều Ảnh của Pet & Đổi Avatar Bé:**
+      - Cho phép chủ nuôi thêm nhiều ảnh cho từng bé thú cưng (`galleryUrls`), hỗ trợ lướt xem ảnh bé hoặc chọn ảnh yêu thích làm ảnh đại diện chính.
+    - **Ảnh Thú Cưng Tràn Màn Hình & Thẻ Kính Mờ Siêu Nhạt:**
+      - Màu thẻ thông tin đáy siêu nhạt (`rgba(20, 16, 14, 0.28)` hoặc `rgba(255, 255, 255, 0.18)`), không che mất hình dáng của bé cưng.
+      - Có nút **`[ Hiện thêm chi tiết ⌄ ]` / `[ Thu gọn ⌃ ]`** để người dùng mở rộng đọc thông tin hoặc thu nhỏ để ngắm trọn vẹn ảnh của bé.
+    - **Thông Tin Sức Khỏe & Thể Trạng Chuyên Sâu:**
+      - Giống loài (Chó, Mèo, hoặc loài khác tự nhập), Giống thuần (không bị cắt chữ), Tuổi & Ngày sinh, Giới tính, Cân nặng.
+      - **Biểu đồ Cân nặng theo tháng (Monthly Weight Tracking):** Bảng/biểu đồ cột trực quan hiển thị đà tăng trưởng cân nặng của bé theo từng tháng (VD: T1: 5.0kg, T2: 5.8kg, T3: 6.5kg...).
+      - **Sổ Tiêm Chủng Điện Tử Chi Tiết (Vaccination Passport):**
+        - Không dùng nút gạt sơ sài, mà lưu trữ danh sách mũi tiêm thực tế: Tên vắc-xin/bệnh phòng ngừa, Ngày tiêm, Số mũi đã tiêm (Mũi 1, Mũi 2, Nhắc lại), Cơ sở thú y/Bác sĩ xác nhận.
+      - Tính cách, thói quen tốt và các lưu ý an toàn khi đi dạo chung.
+    - **Bố Trí Tương Tác:**
+      - Nút Thả tim & đếm tim đặt ở thanh nổi phía trên.
+      - Nút Bút chỉnh sửa mở riêng **Popup Chỉnh sửa Thú Cưng Chi Tiết**.
+      - Nút CTA chính **`[ Hẹn dạo cùng bé ]`** chiếm trọn đáy thẻ.
+  - **Popup Thêm Bé Mới & Chỉnh Sửa Bé Mới (Hình 3 & Hình 5):**
+    - Cung cấp đầy đủ toàn bộ các trường thông tin trên: Tên bé, Loài (Chó, Mèo, Loài khác tự nhập), Giống, Giới tính, Ngày sinh, Cân nặng hiện tại, Bảng cân nặng theo tháng, Danh sách mũi tiêm chủng chi tiết (Tên mũi, ngày tiêm, số mũi), Tính cách và Lưu ý.
+    - Trong Popup Chỉnh sửa thú cưng có nút "Xóa hồ sơ bé này" ở đáy (kèm bước xác nhận an toàn).

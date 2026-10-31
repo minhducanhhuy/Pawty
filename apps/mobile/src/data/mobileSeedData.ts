@@ -1,7 +1,21 @@
+export interface PetVaccineRecord {
+  id: string;
+  vaccineName: string;
+  date: string;
+  doseNumber: string;
+  clinicName?: string;
+}
+
+export interface PetWeightEntry {
+  month: string;
+  weightKg: number;
+}
+
 export interface MobilePet {
   id: string;
   name: string;
   species: 'Chó' | 'Mèo';
+  customSpecies?: string;
   breed: string;
   gender: 'Đực' | 'Cái';
   birthDate: string;
@@ -17,6 +31,9 @@ export interface MobilePet {
   isVaccinatedAndRabies: boolean;
   goodHabits: string[];
   cautionHabits: string[];
+  galleryUrls?: string[];
+  weightHistory?: PetWeightEntry[];
+  vaccineRecords?: PetVaccineRecord[];
 }
 
 export interface MobilePost {
@@ -54,6 +71,19 @@ export interface MobilePost {
     authorHandle: string;
     content: string;
     createdAt: string;
+    authorAvatar?: string;
+    likesCount?: number;
+    isLiked?: boolean;
+    replies?: {
+      id: string;
+      authorName: string;
+      authorHandle: string;
+      authorAvatar?: string;
+      content: string;
+      createdAt: string;
+      likesCount?: number;
+      isLiked?: boolean;
+    }[];
   }[];
   createdAt: string;
 }
@@ -73,6 +103,7 @@ export interface PublicUserProfile {
   pets: {
     name: string;
     species: 'Chó' | 'Mèo';
+  customSpecies?: string;
     breed: string;
     ageLabel: string;
     weightKg: number;
@@ -87,6 +118,7 @@ export interface CandidatePetItem {
   id: string;
   name: string;
   species: 'Chó' | 'Mèo';
+  customSpecies?: string;
   breed: string;
   ageLabel: string;
   weightKg: number;
@@ -165,6 +197,7 @@ export interface MobileSosAlert {
   id: string;
   petName: string;
   species: 'Chó' | 'Mèo';
+  customSpecies?: string;
   breed: string;
   lastSeenLocation: string;
   lastSeenTime: string;
@@ -407,6 +440,34 @@ export const INITIAL_MOBILE_PETS: MobilePet[] = [
     isVaccinatedAndRabies: true,
     goodHabits: ['Thân thiện với trẻ nhỏ', 'Biết ngồi chờ hiệu lệnh', 'Không sủa bậy trong thang máy'],
     cautionHabits: ['Hơi phấn khích khi gặp giống Corgi', 'Sợ tiếng sấm lớn'],
+    galleryUrls: [
+      'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=800&q=80',
+    ],
+    weightHistory: [
+      { month: 'T10', weightKg: 25.0 },
+      { month: 'T11', weightKg: 26.2 },
+      { month: 'T12', weightKg: 27.1 },
+      { month: 'T01', weightKg: 27.9 },
+      { month: 'T02', weightKg: 28.4 },
+    ],
+    vaccineRecords: [
+      {
+        id: 'vac-1',
+        vaccineName: 'Vắc-xin 7 bệnh DHPPI-L',
+        date: '15/01/2025',
+        doseNumber: 'Mũi 3',
+        clinicName: 'PetCare Thảo Điền',
+      },
+      {
+        id: 'vac-2',
+        vaccineName: 'Vắc-xin Phòng Dại Rabies',
+        date: '20/02/2025',
+        doseNumber: 'Nhắc lại hàng năm',
+        clinicName: 'BV Thú Y PetSG',
+      },
+    ],
   },
   {
     id: 'pet-miu',
@@ -429,6 +490,34 @@ export const INITIAL_MOBILE_PETS: MobilePet[] = [
     isVaccinatedAndRabies: true,
     goodHabits: ['Đi vệ sinh đúng khay cát', 'Không cào sofa', 'Thích được chải lông'],
     cautionHabits: ['Ngại người lạ trong 10 phút đầu'],
+    galleryUrls: [
+      'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1513360382564-850126167794?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&w=800&q=80',
+    ],
+    weightHistory: [
+      { month: 'T10', weightKg: 3.6 },
+      { month: 'T11', weightKg: 3.8 },
+      { month: 'T12', weightKg: 4.0 },
+      { month: 'T01', weightKg: 4.1 },
+      { month: 'T02', weightKg: 4.2 },
+    ],
+    vaccineRecords: [
+      {
+        id: 'vac-miu-1',
+        vaccineName: 'Vắc-xin 4 bệnh Mèo (Purevax RCP)',
+        date: '10/12/2024',
+        doseNumber: 'Mũi 2',
+        clinicName: 'Phòng khám Thú Y Vinmec Pet',
+      },
+      {
+        id: 'vac-miu-2',
+        vaccineName: 'Vắc-xin Phòng Dại Nobivac Rabies',
+        date: '05/01/2025',
+        doseNumber: 'Mũi nhắc lại',
+        clinicName: 'PetCare Thảo Điền',
+      },
+    ],
   },
 ];
 

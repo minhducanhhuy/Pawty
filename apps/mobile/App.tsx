@@ -120,7 +120,8 @@ const MainMobileShell: React.FC = () => {
       <StatusBar barStyle="dark-content" />
 
       {/* DYNAMIC CONTEXTUAL HEADER PER ACTIVE TAB */}
-      <View style={styles.header}>
+      {activeTab !== 'profile' ? (
+        <View style={styles.header}>
         {/* 1. EXPLORE HEADER: Left '+' | Center Single Pawty Logo | Right SOS (Opens Fullscreen SOS Tab) + Notifications */}
         {activeTab === 'explore' && (
           <>
@@ -284,8 +285,8 @@ const MainMobileShell: React.FC = () => {
           </>
         )}
 
-        {/* 7. TÔI (INSTAGRAM PROFILE HEADER): Left '+' | Center 🔒 @handle ⌄ | Right Plus + Hamburger ☰ */}
-        {activeTab === 'profile' && (
+        {/* 7. TÔI: Managed inside MobileProfileScreen */}
+        {false && (
           <>
             <TouchableOpacity
               style={styles.iconSquareBtn}
@@ -319,6 +320,8 @@ const MainMobileShell: React.FC = () => {
           </>
         )}
       </View>
+
+      ) : null}
 
       {/* Main Content Body */}
       <View style={styles.body}>

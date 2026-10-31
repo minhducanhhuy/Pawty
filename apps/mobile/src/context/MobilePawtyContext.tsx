@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   MobilePet,
+  PetWeightEntry,
+  PetVaccineRecord,
   MobilePost,
   MobileChatRoom,
   MobileSosAlert,
@@ -148,6 +150,36 @@ interface MobilePawtyContextType {
   ownerPhone: string;
   ownerBio: string;
   ownerArea: string;
+  ownerGender: string;
+  ownerAge: number;
+  ownerBirthDate: string;
+  ownerZodiac: string;
+  ownerMbti: string;
+  ownerEducation: string;
+  ownerMajor: string;
+  ownerOccupation: string;
+  ownerCoverUrl: string;
+  setOwnerCoverUrl: (url: string) => void;
+  ownerPrivacySettings: Record<string, boolean>;
+  updateOwnerProfile: (params: {
+    name?: string;
+    gender?: string;
+    area?: string;
+    age?: number;
+    birthDate?: string;
+    zodiac?: string;
+    mbti?: string;
+    education?: string;
+    major?: string;
+    occupation?: string;
+    bio?: string;
+    coverUrl?: string;
+    privacySettings?: Record<string, boolean>;
+  }) => void;
+  updatePetProfile: (petId: string, updates: Partial<MobilePet>) => void;
+  deletePost: (postId: string) => void;
+  toggleCommentLike: (postId: string, commentId: string) => void;
+  addCommentReply: (postId: string, commentId: string, content: string) => void;
   ownerNoteBubble: string;
   setOwnerNoteBubble: (note: string) => void;
   isPrivateProfile: boolean;
@@ -329,6 +361,29 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [ownerArea, setOwnerArea] = useState('Vinhomes Grand Park, TP. Thủ Đức');
   const [ownerNoteBubble, setOwnerNoteBubble] = useState('Chiều nay ai ra công viên không?');
   const [isPrivateProfile, setIsPrivateProfile] = useState(false);
+  const [ownerGender, setOwnerGender] = useState('Nữ');
+  const [ownerAge, setOwnerAge] = useState(24);
+  const [ownerBirthDate, setOwnerBirthDate] = useState('15/08/2000');
+  const [ownerZodiac, setOwnerZodiac] = useState('Sư Tử');
+  const [ownerMbti, setOwnerMbti] = useState('ENFP');
+  const [ownerEducation, setOwnerEducation] = useState('Đại học Quốc gia TP.HCM');
+  const [ownerMajor, setOwnerMajor] = useState('Truyền thông đa phương tiện');
+  const [ownerOccupation, setOwnerOccupation] = useState('UI/UX Designer');
+  const [ownerCoverUrl, setOwnerCoverUrl] = useState(
+    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80'
+  );
+  const [ownerPrivacySettings, setOwnerPrivacySettings] = useState<Record<string, boolean>>({
+    gender: true,
+    age: true,
+    birthDate: false,
+    zodiac: true,
+    mbti: true,
+    education: true,
+    major: true,
+    occupation: true,
+    bio: true,
+    area: true,
+  });
 
   const [userTinderSetup, setUserTinderSetup] = useState<UserTinderSetupProfile>(
     INITIAL_USER_TINDER_SETUP
@@ -571,6 +626,102 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.warn('Không thể xóa phiên đăng nhập:', err);
     }
   };
+
+  const updateOwnerProfile = useCallback((params: {
+    name?: string;
+    gender?: string;
+    area?: string;
+    age?: number;
+    birthDate?: string;
+    zodiac?: string;
+    mbti?: string;
+    education?: string;
+    major?: string;
+    occupation?: string;
+    bio?: string;
+    coverUrl?: string;
+    privacySettings?: Record<string, boolean>;
+  }) => {
+    if (params.name !== undefined) setOwnerName(params.name);
+    if (params.gender !== undefined) setOwnerGender(params.gender);
+    if (params.area !== undefined) setOwnerArea(params.area);
+    if (params.age !== undefined) setOwnerAge(params.age);
+    if (params.birthDate !== undefined) setOwnerBirthDate(params.birthDate);
+    if (params.zodiac !== undefined) setOwnerZodiac(params.zodiac);
+    if (params.mbti !== undefined) setOwnerMbti(params.mbti);
+    if (params.education !== undefined) setOwnerEducation(params.education);
+    if (params.major !== undefined) setOwnerMajor(params.major);
+    if (params.occupation !== undefined) setOwnerOccupation(params.occupation);
+    if (params.bio !== undefined) setOwnerBio(params.bio);
+    if (params.coverUrl !== undefined) setOwnerCoverUrl(params.coverUrl);
+    if (params.privacySettings !== undefined) setOwnerPrivacySettings(params.privacySettings);
+    showToast('Da luu thong tin ho so con sen');
+  }, [showToast]);
+
+  const updatePetProfile = useCallback((petId: string, updates: Partial<MobilePet>) => {
+    setPets((prev) =>
+      prev.map((pet) => (pet.id === petId ? { ...pet, ...updates } : pet))
+    );
+    showToast('Da cap nhat ho so be cung');
+  }, [showToast]);
+
+  const deletePost = useCallback((postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+    showToast('Da xoa bai viet khoi bang tin');
+  }, [showToast]);
+
+  const toggleCommentLike = useCallback((postId: string, commentId: string) => {
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id !== postId) return post;
+        return {
+          ...post,
+          comments: post.comments.map((c) => {
+            if (c.id !== commentId) return c;
+            const wasLiked = c.isLiked || false;
+            const currentCount = c.likesCount || 0;
+            return {
+              ...c,
+              isLiked: !wasLiked,
+              likesCount: wasLiked ? Math.max(0, currentCount - 1) : currentCount + 1,
+            };
+          }),
+        };
+      })
+    );
+  }, []);
+
+  const addCommentReply = useCallback((postId: string, commentId: string, content: string) => {
+    if (!content.trim()) return;
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id !== postId) return post;
+        return {
+          ...post,
+          comments: post.comments.map((c) => {
+            if (c.id !== commentId) return c;
+            const currentReplies = c.replies || [];
+            return {
+              ...c,
+              replies: [
+                ...currentReplies,
+                {
+                  id: "reply-" + Date.now(),
+                  authorName: ownerName,
+                  authorHandle: ownerHandle,
+                  authorAvatar: pets[0]?.avatarUrl,
+                  createdAt: 'Vừa xong',
+                  likesCount: 0,
+                  isLiked: false,
+                },
+              ],
+            };
+          }),
+        };
+      })
+    );
+    showToast('Đã gửi phản hồi bình luận');
+  }, [ownerName, ownerHandle, pets, showToast]);
 
   const activePet = pets.find((p) => p.id === activePetId) || pets[0];
   const unreadNotificationCount = notifications.filter((n) => !n.isRead).length;
@@ -1202,6 +1353,22 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         togglePetVaccinationAndRabies,
         addNewPetProfile,
         deletePetProfile,
+        ownerGender,
+        ownerAge,
+        ownerBirthDate,
+        ownerZodiac,
+        ownerMbti,
+        ownerEducation,
+        ownerMajor,
+        ownerOccupation,
+        ownerCoverUrl,
+        setOwnerCoverUrl,
+        ownerPrivacySettings,
+        updateOwnerProfile,
+        updatePetProfile,
+        deletePost,
+        toggleCommentLike,
+        addCommentReply,
         userTinderSetup,
         updateUserTinderSetup,
         suggestedPeople,
