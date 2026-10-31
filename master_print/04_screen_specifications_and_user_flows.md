@@ -17,13 +17,13 @@
      - **Nhánh `Khám phá`:** Trái: Nút `+` (Đăng bài) · Giữa: 1 Logo `Pawty` động (`PawtyAnimatedLogo` size nhỏ) · Phải: Nút `SOS` (mở trang SOS toàn màn hình) + Nút `Thông báo`.
      - **Nhánh `Kết nối` (Tinder):** Trái: Tiêu đề `Kết nối` · Phải: Nút `Hoàn tác`, `Đã thích`, `Đổi vị trí`.
      - **Nhánh `Tin nhắn`:** Trái: Tiêu đề `Tin nhắn` · Phải: Nút `Kết nối` + Nút `SOS`.
-     - **Nhánh `Tôi` (Pet-Centric Profile):** Trái: Biểu tượng nón tiệc Pawty hoặc Tên gia đình · Giữa: Tên chủ nuôi & Huy hiệu VIP · Phải: Nút Hamburger `☰` duy nhất mở toàn bộ Menu Cài đặt, Quyền riêng tư & Thiết lập kết nối.
+     - **Nhánh `Tôi` (Pet & Owner Paging Profile):** Trái: Nút `+` (Đăng khoảnh khắc mới) · Giữa: Dải chấm chỉ báo chuyển trang (Pagination Dots `● ○ ○`) hiển thị vị trí giữa Chủ nuôi và các bé Pet · Phải: Nút Hamburger `☰` duy nhất mở toàn bộ Menu Cài đặt & Quyền riêng tư.
      - **Nhánh `SOS` (Toàn màn hình khi bấm từ góc trên phải):** Trái: Nút `← Quay lại` + Tiêu đề `Bảng tin SOS Thú Lạc` · Phải: Nút `Thông báo`.
 3. **Thanh Điều Hướng Dưới Đáy (`Bottom Tab Bar` — 4 tab chính, không có nút `+` nổi):**
    - Tab 1: **`Khám phá`** (Trang chính mặc định — Bảng tin MXH thú cưng).
    - Tab 2: **`Kết nối`** (Giao diện chuẩn Tinder quẹt thẻ tìm bạn dắt dạo).
    - Tab 3: **`Tin nhắn`** (Nhắn tin với bộ lọc: `Tất cả | Chưa đọc | Kết nối`).
-   - Tab 4: **`Tôi`** (Hồ sơ Gia đình Boss & Sen: Hộ chiếu thú cưng chuyên sâu, nhật ký khoảnh khắc, không sao chép rập khuôn Instagram).
+   - Tab 4: **`Tôi`** (Hồ sơ Paging liên tiếp: Trang Chủ nuôi với ảnh bìa & khoảnh khắc → Vuốt ngang xem từng trang Hộ chiếu Thú cưng toàn màn hình).
 
 ---
 
@@ -68,29 +68,26 @@
 ### 2.4 Tab 3: Tin nhắn (`Chat`)
 - Nhắn tin trực tiếp giữa người dùng với các bộ lọc tiện lợi: `Tất cả`, `Chưa đọc`, `Kết nối`.
 
-### 2.5 Tab 4: Tôi (`Profile` — Thiết Kế Độc Bản "Pet Family Identity", Khác Biệt Hoàn Toàn Instagram/Facebook)
-- **Triết lý Thiết kế:** Không rập khuôn mạng xã hội truyền thống (không 3 cột số follow, không khối gợi ý kết bạn). Tôn vinh danh thiếp gia đình Sen & Boss tại đô thị:
-  1. **Thẻ Căn Cước Sen (Pet Parent Identity Card):**
-     - Avatar tròn bo viền đôi sang trọng với ảnh Sen / Boss đại diện.
-     - Tên Sen, @handle, Khu căn hộ / Chung cư (VD: *Masteri Thảo Điền*), và Huy hiệu Yêu Thú Cưng / Gói thành viên VIP.
-     - Châm ngôn / Lời nhắn nuôi cưng hôm nay (*"Cùng Lu dạo mát mỗi chiều"*).
-     - Duy nhất 1 nút hành động tinh gọn: **`[ Chỉnh sửa thông tin ]`** với typography căn giữa hoàn hảo.
-  2. **Toàn Bộ Cài Đặt, Quyền Riêng Tư & Kết Nối Trong Hamburger (☰):**
-     - Tuyệt đối không để nút bấm rườm rà trên màn hình chính.
-     - Nút `☰` ở góc phải mở Menu Bottom Sheet:
-       - **Công tắc Quyền riêng tư (`🔒`):** Bật/Tắt chế độ chỉ bạn bè mới xem được Boss.
-       - **Thiết lập Hồ sơ Kết nối (Tinder Setup):** Tuổi, Giới tính, Đang tìm kiếm, Gu dắt dạo.
-       - **Gói thành viên Pawty Plus & Gold:** Quyền lợi VIP.
-       - **Tài khoản & Thiết bị đăng nhập:** Quản lý Single-Device Login, Đăng xuất.
-  3. **Bỏ hoàn toàn phần "Khám phá mọi người":**
-     - Không hiển thị bất kỳ danh sách gợi ý người dùng nào trên trang này.
-  4. **Phân Hệ Hộ Chiếu Thú Cưng Chuyên Sâu (Pet Passport Interactive Showcase):**
-     - **Thanh Chọn Boss Sinh Động (Pet Selector Bar):** Dải avatar các bé thú cưng tròn đáng yêu với viền active màu San Hô, kèm nút `[ + Thêm bé ]` (tối đa 3 bé miễn phí).
-     - **Thẻ Hộ Chiếu Boss Đang Chọn (Active Pet Passport):**
-       - Ảnh chân dung Boss kích thước lớn, sắc nét, có nút chỉnh sửa ảnh.
-       - Tên Boss, Loài (Chó/Mèo), Giống lai, Cân nặng chuẩn, Tuổi.
-       - **Thẻ Sổ Tiêm Chủng Điện Tử Safe Pet (Màu Mint `#A3E4D7`):** Chứng nhận tiêm phòng 7 bệnh và vắc-xin phòng dại, chạm trực tiếp để cập nhật mũi tiêm.
-       - **Thói quen & Lưu ý khi gặp gỡ:** Minh bạch hành vi để dắt dạo an toàn (VD: *Thân thiện với cún nhỏ, Hay đuổi bồ câu, Thích chia sẻ đồ ăn*), triệt tiêu nguy cơ cắn nhau ngoài công viên.
-       - Thao tác: Chỉnh sửa hồ sơ bé · Xóa thú cưng có hộp thoại xác nhận.
-  5. **Bộ Sưu Tập Khoảnh Khắc Của Gia Đình Boss (Furry Family Moments):**
-     - Nhật ký hình ảnh kỷ niệm của các bé do Sen chia sẻ, hiển thị đẹp mắt, trực quan và tối ưu cho màn hình cảm ứng di động.
+### 2.5 Tab 4: Tôi (`Profile` — Kiến Trúc Paging Vuốt Ngang Liên Tiếp: Chủ Nuôi & Từng Bé Thú Cưng)
+- **Triết lý Cấu trúc Paging Ngang (`Horizontal ScrollView pagingEnabled`):** Tách bạch rõ ràng, không dồn nén cả chủ và thú cưng vào 1 màn hình cuộn dọc rối rắm.
+  - **Trang 0: Hồ sơ Chủ nuôi (Owner Profile Page):**
+    - **Ảnh nền Background / Cover:** Ảnh phong cảnh đẹp mắt tràn viền phía trên.
+    - **Avatar Chủ nuôi:** Bo tròn mềm mại ở trung tâm với viền nổi bật đè lên giữa ảnh bìa và thẻ nội dung.
+    - **Nút Chỉnh sửa:** Nút pill `[ Chỉnh sửa hồ sơ ]` gọn gàng ở góc phải dưới ảnh bìa.
+    - **Thông tin Sen:** Tên chủ nuôi (`ownerName`), Nghề nghiệp / Châm ngôn (`UI/UX Designer` hoặc câu chào), Vị trí địa lý (`ownerArea` kèm chấm đỏ ghim vị trí).
+    - **Thẻ 3 Con số Thống kê Cân xứng:**
+      `{followersCount} người theo dõi` · `{followingCount} đang theo dõi` · `{likesCount} yêu thích`.
+    - **Các Bài Đăng Khoảnh Khắc (Moments Grid):** Lưới các ảnh kỷ niệm bo tròn góc mềm mại (`borderRadius: 16`), chạm để xem phóng to Lightbox.
+  - **Trang 1, 2, ...: Hồ sơ Từng Bé Thú Cưng (Full-Bleed Pet Passport Pages):**
+    - Mỗi thú cưng là một trang toàn màn hình riêng biệt khi vuốt sang ngang.
+    - **Ảnh Chân Dung Boss Bao Trọn Màn Hình:** Hình ảnh độ phân giải cao của bé bao trọn không gian, tạo cảm xúc ấn tượng sâu sắc.
+    - **Thẻ Lớp Phủ Kính Mờ (Frosted Overlay Card):**
+      - Tên bé, khoảng cách (`Cách bạn 1.5 km`), Giống loài (`Poodle`, `Golden`, `Mèo Anh Lông Ngắn`).
+      - **3 Viên Thuốc Thông Số:** `Giới tính (Sex)` · `Tuổi (Age)` · `Cân nặng (Weight)`.
+      - **Sổ Tiêm Chủng Safe Pet (Xanh Mint):** Xác nhận tiêm phòng 7 bệnh & phòng dại, chạm trực tiếp để cập nhật.
+      - **Về Bé (About):** Đoạn miêu tả tính nết, thói quen khi dắt dạo (Good habits / Caution habits).
+      - **Tương Tác Yêu Thích:** Nút Thả tim (Like) cho người xem và hiển thị số lượt yêu thích của bé.
+  - **Chỉ Báo Trang (Pagination Indicator Dots `● ○ ○`):**
+    - Dải chấm tròn tinh tế ở đỉnh hoặc đáy màn hình giúp người dùng trực quan biết mình đang ở trang Chủ nuôi hay trang của Bé nào, kèm nút gạt tiện lợi.
+  - **Menu Hamburger (`☰`):**
+    - Mọi cài đặt hệ thống, quyền riêng tư và thiết lập kết nối được gom gọn gàng trong nút Hamburger ở góc trên phải.
