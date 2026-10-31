@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import Constants from 'expo-constants';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
 
@@ -19,6 +20,7 @@ export const MobileSosScreen: React.FC = () => {
   const {
     theme,
     ownerHandle,
+    ownerName,
     sosAlerts,
     reportSosSighting,
     confirmSosPetFound,
@@ -44,15 +46,43 @@ export const MobileSosScreen: React.FC = () => {
     'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80'
   );
 
+  const [sosPhotoBase64, setSosPhotoBase64] = useState<string | null>(null);
+
+  const convertUriToBase64 = async (uri: string): Promise<string | null> => {
+    try {
+      const res = await fetch(uri);
+      const blob = await res.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const dataUrl = (reader.result as string) || '';
+          const b64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+          resolve(b64);
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
   const pickSosPhotoFromPhone = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 0.85,
+        quality: 0.35,
+        base64: true,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSosPhotoUri(result.assets[0].uri);
+        const asset = result.assets[0];
+        setSosPhotoUri(asset.uri);
+        if (asset.base64) {
+          setSosPhotoBase64(asset.base64);
+        } else {
+          setSosPhotoBase64(null);
+        }
         showToast('Đã tải ảnh thú cưng từ điện thoại lên.');
       }
     } catch {
@@ -70,41 +100,67 @@ export const MobileSosScreen: React.FC = () => {
     showToast('✨ AI đang phân tích ảnh và trích xuất đặc điểm nhận dạng...');
 
     try {
-      const response = await fetch('http://127.0.0.1:3000/api/ai/describe-pet', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ imageUrl: sosPhotoUri }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server returned status ${response.status}`);
+      let b64 = sosPhotoBase64;
+      if (!b64 && sosPhotoUri) {
+        b64 = await convertUriToBase64(sosPhotoUri);
       }
 
-      const data = await response.json();
-      if (data.success) {
-        if (data.species) {
-          setSosSpecies(data.species === 'Mèo' ? 'Mèo' : 'Chó');
+      let aiData: any = null;
+      let errorMsg = '';
+
+      const hostIp = Constants.expoConfig?.hostUri
+        ? Constants.expoConfig.hostUri.split(':')[0]
+        : '192.168.2.7';
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+        const response = await fetch(`http://${hostIp}:3000/api/ai/describe-pet`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            imageUrl: sosPhotoUri,
+            imageBase64: b64 || undefined,
+            mimeType: 'image/jpeg',
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        const resJson = await response.json();
+        if (response.ok && resJson.success && resJson.description) {
+          aiData = resJson;
+        } else {
+          errorMsg = resJson.error || 'Server không thể phân tích ảnh.';
         }
-        if (data.breed) {
-          setSosBreed(data.breed);
+      } catch (backendErr: any) {
+        console.warn('[MobileSos] Backend describe error:', backendErr?.message || backendErr);
+        errorMsg = `Không thể kết nối đến máy chủ server (${hostIp}:3000). Vui lòng đảm bảo server đang chạy!`;
+      }
+
+      if (aiData) {
+        const rawSpecies = String(aiData.species || '').toLowerCase();
+        if (rawSpecies.includes('mèo') || rawSpecies.includes('cat')) {
+          setSosSpecies('Mèo');
+        } else {
+          setSosSpecies('Chó');
         }
-        if (data.description) {
-          setSosDesc(data.description);
+        if (aiData.breed) {
+          setSosBreed(String(aiData.breed));
+        }
+        if (aiData.description) {
+          setSosDesc(String(aiData.description));
         }
         showToast('✨ AI đã nhận diện và điền chi tiết nhận dạng giúp bạn!');
       } else {
-        throw new Error(data.message || 'AI analysis failed');
+        showToast(errorMsg || 'Không thể kết nối AI nhận diện. Vui lòng thử lại sau.');
       }
-    } catch (err) {
-      console.warn('AI describe-pet error or offline fallback:', err);
-      // Fallback helpful template if backend server is unreachable
-      setSosBreed((prev) => prev || (sosSpecies === 'Mèo' ? 'Mèo Anh Lông Ngắn' : 'Chó Beagle'));
-      setSosDesc(
-        'Bé lông màu vàng trắng phối đen, dáng người vừa vặn, có đeo vòng cổ đỏ. Đang thất lạc quanh khu vực chung cư, tính cách dạn người nhưng có thể hoảng loạn khi thấy xe máy.'
-      );
-      showToast('✨ AI đã điền mô tả nhận dạng gợi ý cho bài đăng.');
+    } catch (err: any) {
+      console.warn('AI describe-pet error:', err);
+      showToast('Đã xảy ra lỗi khi AI phân tích ảnh. Vui lòng thử lại.');
     } finally {
       setIsAiDescribing(false);
     }
@@ -384,7 +440,7 @@ export const MobileSosScreen: React.FC = () => {
       {/* SOS Feed List */}
       <View style={styles.listStack}>
         {filteredSosAlerts.map((sos) => {
-          const isAuthor = sos.ownerHandle === ownerHandle;
+          const isAuthor = sos.ownerHandle === ownerHandle || (Boolean(sos.ownerName) && sos.ownerName === ownerName);
           const isFound = sos.status === 'found';
 
           return (
@@ -445,7 +501,7 @@ export const MobileSosScreen: React.FC = () => {
               <View style={styles.locationBox}>
                 <Feather name="map-pin" size={13} color="#B85D43" />
                 <Text style={styles.locationBoxText}>
-                  Vị trí cuối: {sos.lastSeenLocation}
+                  Vị trí cuối: {(sos.lastSeenLocation || "").replace(/^(Quanh khu vực\s*)+/gi, "Quanh khu vực ").trim()}
                 </Text>
               </View>
 
@@ -454,38 +510,52 @@ export const MobileSosScreen: React.FC = () => {
               {/* Action Buttons: ONLY the post creator can press "Đã đón về"! */}
               {!isFound ? (
                 <View style={styles.sosActionRow}>
-                  <TouchableOpacity
-                    style={styles.sightingBtn}
-                    onPress={() =>
-                      reportSosSighting(
-                        sos.id,
-                        `Quanh khu vực ${sos.lastSeenLocation}`,
-                        'Vừa nhìn thấy bé cách đây ít phút'
-                      )
-                    }
-                  >
-                    <Feather name="map-pin" size={14} color="#FFFFFF" />
-                    <Text style={styles.sightingBtnText}>
-                      Báo vừa nhìn thấy ({sos.sightingsCount})
-                    </Text>
-                  </TouchableOpacity>
-
                   {isAuthor ? (
-                    <TouchableOpacity
-                      style={styles.foundBtnAuthorOnly}
-                      onPress={() => confirmSosPetFound(sos.id)}
-                    >
-                      <Feather name="check-circle" size={14} color="#FFFFFF" />
-                      <Text style={styles.foundBtnAuthorText}>Đã đón về</Text>
-                    </TouchableOpacity>
+                    <>
+                      {sos.sightingsCount > 0 && (
+                        <View style={styles.authorCluesBox}>
+                          <Feather name="eye" size={14} color="#B85D43" />
+                          <Text style={styles.authorCluesText}>
+                            {sos.sightingsCount} manh mối báo về
+                          </Text>
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        style={[styles.foundBtnAuthorOnly, sos.sightingsCount === 0 && { flex: 1 }]}
+                        onPress={() => confirmSosPetFound(sos.id)}
+                      >
+                        <Feather name="check-circle" size={16} color="#FFFFFF" />
+                        <Text style={styles.foundBtnAuthorText}>
+                          {sos.sightingsCount === 0 ? '✓ Xác nhận đã đón bé về nhà' : 'Đã đón về'}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
                   ) : (
-                    <TouchableOpacity
-                      style={styles.contactOwnerBtn}
-                      onPress={() => openPublicUserProfile(sos.ownerHandle)}
-                    >
-                      <Feather name="message-circle" size={14} color="#4A3F35" />
-                      <Text style={styles.contactOwnerBtnText}>Liên hệ chủ</Text>
-                    </TouchableOpacity>
+                    <>
+                      <TouchableOpacity
+                        style={styles.sightingBtn}
+                        onPress={() =>
+                          reportSosSighting(
+                            sos.id,
+                            sos.lastSeenLocation,
+                            'Vừa nhìn thấy bé quanh đây cách đây ít phút'
+                          )
+                        }
+                      >
+                        <Feather name="map-pin" size={14} color="#FFFFFF" />
+                        <Text style={styles.sightingBtnText}>
+                          Báo vừa nhìn thấy ({sos.sightingsCount})
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.contactOwnerBtn}
+                        onPress={() => openPublicUserProfile(sos.ownerHandle)}
+                      >
+                        <Feather name="message-circle" size={14} color="#4A3F35" />
+                        <Text style={styles.contactOwnerBtnText}>Liên hệ chủ</Text>
+                      </TouchableOpacity>
+                    </>
                   )}
                 </View>
               ) : (
@@ -823,15 +893,34 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
   },
-  foundBtnAuthorOnly: {
+  authorCluesBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 6,
+    backgroundColor: '#FFF5F2',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+  },
+  authorCluesText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B85D43',
+  },
+  foundBtnAuthorOnly: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: '#2E7D5B',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
   },
   foundBtnAuthorText: {
     fontSize: 12,

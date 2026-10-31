@@ -220,30 +220,122 @@ export class DatabaseService {
     });
   }
 
+  // --- User & Pet Sync Helper ---
+  public async findOrCreateUserAndPet(params: {
+    phone?: string;
+    displayName?: string;
+    petName?: string;
+    species?: string;
+    breed?: string;
+    avatarUrl?: string;
+  }) {
+    const rawPhone = params.phone || '0909123456';
+    const cleanPhone = rawPhone.replace(/[^0-9]/g, '') || '0909123456';
+
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [{ phone: cleanPhone }, { phone: rawPhone }],
+      },
+    });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          phone: cleanPhone.slice(0, 15),
+          displayName: params.displayName || 'Chủ nuôi Pawty',
+          bio: 'Thành viên cộng đồng Pawty',
+          district: 'Hồ Chí Minh',
+          neighborhood: 'Khu đô thị',
+        },
+      });
+    }
+
+    let household = await prisma.household.findFirst({
+      where: { ownerId: user.id },
+    });
+    if (!household) {
+      household = await prisma.household.create({
+        data: {
+          name: `Nhà của ${user.displayName}`,
+          ownerId: user.id,
+        },
+      });
+    }
+
+    const petName = (params.petName || 'Boss').trim();
+    let pet = await prisma.pet.findFirst({
+      where: {
+        ownerId: user.id,
+        name: petName,
+      },
+    });
+
+    if (!pet) {
+      pet = await prisma.pet.create({
+        data: {
+          name: petName,
+          species: params.species || 'Chó',
+          breed: params.breed || 'Chưa rõ',
+          ownerId: user.id,
+          householdId: household.id,
+          avatarUrl: params.avatarUrl,
+        },
+      });
+    }
+
+    return { user, pet };
+  }
+
   // --- SOS Alerts ---
   public async getSosAlerts() {
     return prisma.sosAlert.findMany({
-      include: { user: true, pet: true, matchedPosts: true, trajectories: true },
+      include: {
+        user: true,
+        pet: true,
+        matchedPosts: true,
+        trajectories: true,
+      },
+
       orderBy: { createdAt: 'desc' },
     });
   }
 
   public async createSosAlert(data: any) {
-    const defaultUser = await prisma.user.findFirst();
-    const defaultPet = await prisma.pet.findFirst();
+    let userId = data.userId;
+    let petId = data.petId;
+
+    if (!userId || !petId) {
+      const synced = await this.findOrCreateUserAndPet({
+        phone: data.userPhone || data.contactPhone,
+        displayName: data.userName || data.ownerName,
+        petName: data.petName,
+        species: data.species,
+        breed: data.breed,
+        avatarUrl: data.imageUrl,
+      });
+      userId = synced.user.id;
+      petId = synced.pet.id;
+    }
+
     return prisma.sosAlert.create({
       data: {
-        userId: data.userId || defaultUser?.id || '',
-        petId: data.petId || defaultPet?.id || '',
+        id: data.id || `sos-${Date.now()}`,
+        userId,
+        petId,
         lastSeenLocation: data.lastSeenLocation || 'Khu vực nội khu',
         radiusKm: data.radiusKm || 3,
         description: data.description || 'Thất lạc thú cưng',
-        rewardText: data.rewardText || '1.000.000đ',
-        status: 'active',
+        rewardText: data.rewardText || data.rewardAmount || '1.000.000đ',
+        status: data.status || 'active',
         visualSignatures: data.visualSignatures || null,
         sightings: [],
       },
-      include: { matchedPosts: true, trajectories: true },
+      include: {
+        user: true,
+        pet: true,
+        matchedPosts: true,
+        trajectories: true,
+      },
     });
   }
 

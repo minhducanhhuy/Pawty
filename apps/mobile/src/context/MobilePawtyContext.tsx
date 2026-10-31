@@ -1,6 +1,7 @@
 import { apiClient } from '../services/apiClient';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   MobilePet,
@@ -259,9 +260,16 @@ interface MobilePawtyContextType {
   // Public User Profile (Instagram Style)
   publicProfiles: Record<string, PublicUserProfile>;
   viewedUserHandle: string | null;
+  selectedProfileHandle: string | null;
+  setSelectedProfileHandle: (handle: string | null) => void;
+  openUserProfileInTab: (handle: string) => void;
   openPublicUserProfile: (handle: string) => void;
   closePublicUserProfile: () => void;
   toggleFriendStatus: (handle: string) => void;
+  sendFriendRequest: (handle: string) => void;
+  acceptFriendRequest: (handle: string, notifId?: string) => void;
+  declineFriendRequest: (handle: string, notifId?: string) => void;
+  toggleFollowUser: (handle: string) => void;
   startDirectChatWithUser: (handle: string) => void;
 
   // Kết nối (Tinder) Tab
@@ -320,6 +328,13 @@ interface MobilePawtyContextType {
   showToast: (msg: string) => void;
 }
 
+const getApiBaseUrl = () => {
+  const hostIp = Constants.expoConfig?.hostUri
+    ? Constants.expoConfig.hostUri.split(':')[0]
+    : '192.168.2.7';
+  return `http://${hostIp}:3000`;
+};
+
 const STORAGE_KEY_AUTH = '@pawty_auth_single_device_v4';
 const STORAGE_KEY_THEME = '@pawty_theme_v4';
 
@@ -377,6 +392,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [publicProfiles, setPublicProfiles] =
     useState<Record<string, PublicUserProfile>>(PUBLIC_USER_PROFILES);
   const [viewedUserHandle, setViewedUserHandle] = useState<string | null>(null);
+  const [selectedProfileHandle, setSelectedProfileHandle] = useState<string | null>(null);
 
   // Kết nối (Tinder)
   const [tinderIntent, setTinderIntent] = useState<TinderIntent>('dating');
@@ -573,6 +589,38 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
             if (parsed.ownerAvatar) setOwnerAvatar(parsed.ownerAvatar);
             refreshData(parsed.userId).catch(() => {});
           }
+        }
+
+        // Tự động kéo danh sách tin SOS thật từ database PostgreSQL
+        try {
+          const resp = await fetch(`${getApiBaseUrl()}/api/sos`);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (Array.isArray(data.sosAlerts) && data.sosAlerts.length > 0) {
+              const mappedAlerts: MobileSosAlert[] = data.sosAlerts.map((row: any) => ({
+                id: row.id,
+                petName: row.pet?.name || 'Thú cưng',
+                species: (row.pet?.species === 'Mèo' ? 'Mèo' : 'Chó') as 'Chó' | 'Mèo',
+                breed: row.pet?.breed || 'Chưa rõ',
+                lastSeenLocation: (row.lastSeenLocation || "Quanh khu vực chung cư").replace(/^(Quanh khu vực\s*)+/gi, "Quanh khu vực ").trim(),
+                lastSeenTime: 'Hôm nay',
+                distanceKm: 0.2,
+                rewardAmount: row.rewardText || '1.000.000đ',
+                contactPhone: row.user?.phone || '0909 123 456',
+                ownerName: row.user?.displayName || 'Chủ nuôi',
+                ownerHandle: `@${(row.user?.displayName || 'user').toLowerCase().replace(/\s+/g, '')}`,
+                status: row.status === 'resolved' ? 'found' : 'searching',
+                sightingsCount: Array.isArray(row.sightings) ? row.sightings.length : 0,
+                priorityScore: 160,
+                imageUrl: row.pet?.avatarUrl || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80',
+                description: row.description,
+                sightingReports: [],
+              }));
+              setSosAlerts(mappedAlerts);
+            }
+          }
+        } catch {
+          // Giữ seed data nếu server chưa bật
         }
       } catch (err) {
         console.warn('Không thể đọc phiên đăng nhập:', err);
@@ -772,6 +820,19 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.warn('Không thể lưu phiên đăng nhập:', err);
     }
     showToast(`Đăng nhập thành công trên 1 thiết bị duy nhất (${newDeviceSessionId})`);
+
+    // Đồng bộ tài khoản và thú cưng vào database PostgreSQL
+    fetch(`${getApiBaseUrl()}/api/auth/register-or-sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: cleanName,
+        phone: cleanPhone,
+        petName: params.petName,
+        petSpecies: params.petSpecies,
+        petBreed: params.petBreed,
+      }),
+    }).catch((e) => console.log('[MobileContext] Sync user to DB skipped:', e.message));
   };
 
   const forceRevokeOtherDevices = () => {
@@ -1105,24 +1166,195 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setViewedUserHandle(null);
   };
 
+  const openUserProfileInTab = (handle: string) => {
+    if (handle === ownerHandle) {
+      setSelectedProfileHandle(null);
+    } else {
+      setSelectedProfileHandle(handle);
+    }
+    setViewedUserHandle(null);
+    setActiveTab('profile');
+  };
+
   const toggleFriendStatus = (handle: string) => {
     setPublicProfiles((prev) => {
       const current = prev[handle];
       if (!current) return prev;
-      const nextFriend = !current.isFriend;
-      showToast(
-        nextFriend
-          ? `Đã kết bạn với ${current.name}! Giờ bạn có thể xem toàn bộ nhật ký và nhắn tin.`
-          : `Đã hủy kết bạn với ${current.name}`
-      );
+
+      if (current.friendStatus === 'accepted' || current.isFriend) {
+        // Hủy kết bạn
+        showToast(`Đã hủy kết bạn với ${current.name}`);
+        return {
+          ...prev,
+          [handle]: {
+            ...current,
+            isFriend: false,
+            friendStatus: 'none',
+            friendsCount: Math.max(0, current.friendsCount - 1),
+          },
+        };
+      } else if (current.friendStatus === 'pending') {
+        // Hủy lời mời kết bạn đã gửi
+        showToast(`Đã thu hồi lời mời kết bạn với ${current.name}`);
+        return {
+          ...prev,
+          [handle]: {
+            ...current,
+            friendStatus: 'none',
+          },
+        };
+      } else {
+        // Gửi lời mời kết bạn
+        showToast(
+          `Đã gửi lời mời kết bạn đến ${current.name}! Cần người ấy chấp nhận để có thể nhắn tin.`
+        );
+        // Bắn thông báo đến hệ thống (mô phỏng nhận được lời mời kết bạn)
+        const friendRequestNotif: MobileNotificationItem = {
+          id: `notif-fr-${Date.now()}`,
+          title: 'Lời mời kết bạn đã gửi',
+          body: `Bạn đã gửi lời mời kết bạn đến ${current.name} (${current.handle}). Khi đối phương chấp nhận, hai bạn có thể nhắn tin.`,
+          timeLabel: 'Vừa xong',
+          type: 'friend_request',
+          isRead: false,
+          actionPayload: {
+            senderHandle: current.handle,
+            senderName: current.name,
+            status: 'pending',
+          },
+        };
+        setNotifications((nPrev) => [friendRequestNotif, ...nPrev]);
+
+        return {
+          ...prev,
+          [handle]: {
+            ...current,
+            friendStatus: 'pending',
+          },
+        };
+      }
+    });
+  };
+
+  const sendFriendRequest = (handle: string) => {
+    toggleFriendStatus(handle);
+  };
+
+  const acceptFriendRequest = (handle: string, notifId?: string) => {
+    setPublicProfiles((prev) => {
+      const current = prev[handle];
+      if (!current) return prev;
       return {
         ...prev,
         [handle]: {
           ...current,
-          isFriend: nextFriend,
-          friendsCount: nextFriend
-            ? current.friendsCount + 1
-            : Math.max(0, current.friendsCount - 1),
+          isFriend: true,
+          friendStatus: 'accepted',
+          friendsCount: current.friendsCount + 1,
+        },
+      };
+    });
+
+    setNotifications((prev) =>
+      prev.map((n) => {
+        if (n.id === notifId || (n.actionPayload && n.actionPayload.senderHandle === handle)) {
+          return {
+            ...n,
+            isRead: true,
+            title: '✓ Đã trở thành bạn bè',
+            body: `Bạn và ${n.actionPayload?.senderName || handle} đã kết bạn thành công! Giờ hai bạn có thể nhắn tin cho nhau.`,
+            actionPayload: {
+              ...n.actionPayload,
+              status: 'accepted',
+            },
+          };
+        }
+        return n;
+      })
+    );
+
+    showToast('🎉 Đã chấp nhận lời mời kết bạn! Giờ hai bạn đã có thể nhắn tin.');
+  };
+
+  const declineFriendRequest = (handle: string, notifId?: string) => {
+    setPublicProfiles((prev) => {
+      const current = prev[handle];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [handle]: {
+          ...current,
+          friendStatus: 'none',
+          isFriend: false,
+        },
+      };
+    });
+
+    setNotifications((prev) =>
+      prev.map((n) => {
+        if (n.id === notifId || (n.actionPayload && n.actionPayload.senderHandle === handle)) {
+          return {
+            ...n,
+            isRead: true,
+            title: 'Đã từ chối lời mời',
+            body: `Bạn đã từ chối lời mời kết bạn từ ${n.actionPayload?.senderName || handle}.`,
+            actionPayload: {
+              ...n.actionPayload,
+              status: 'declined',
+            },
+          };
+        }
+        return n;
+      })
+    );
+
+    showToast('Đã từ chối lời mời kết bạn.');
+  };
+
+  const toggleFollowUser = (handle: string) => {
+    setPublicProfiles((prev) => {
+      const current = prev[handle];
+      if (!current) return prev;
+      const nextFollowing = !current.isFollowing;
+
+      if (nextFollowing) {
+        showToast(
+          `Đã theo dõi ${current.name}! Bạn sẽ nhận được thông báo khi người này đăng bài mới.`
+        );
+        // Tự động bắn thông báo xác nhận theo dõi và nhận tin bài mới
+        const followNotif: MobileNotificationItem = {
+          id: `notif-follow-${Date.now()}`,
+          title: `Đang theo dõi ${current.name}`,
+          body: `Bạn sẽ nhận được thông báo ngay khi ${current.name} (${current.handle}) đăng tải bài viết mới trên Khám phá.`,
+          timeLabel: 'Vừa xong',
+          type: 'social',
+          isRead: false,
+        };
+        // Giả lập thông báo bài đăng mới từ người vừa theo dõi sau 2.5s để user trải nghiệm
+        setTimeout(() => {
+          const newPostNotif: MobileNotificationItem = {
+            id: `notif-newpost-${Date.now()}`,
+            title: `Bài viết mới từ ${current.name}`,
+            body: `${current.name} (${current.handle}) vừa đăng một khoảnh khắc mới trên trang Khám phá! Nhấn để xem ngay.`,
+            timeLabel: 'Vừa xong',
+            type: 'new_post',
+            isRead: false,
+          };
+          setNotifications((nPrev) => [newPostNotif, ...nPrev]);
+        }, 2500);
+
+        setNotifications((nPrev) => [followNotif, ...nPrev]);
+      } else {
+        showToast(`Đã hủy theo dõi ${current.name}`);
+      }
+
+      return {
+        ...prev,
+        [handle]: {
+          ...current,
+          isFollowing: nextFollowing,
+          followersCount: nextFollowing
+            ? current.followersCount + 1
+            : Math.max(0, current.followersCount - 1),
         },
       };
     });
@@ -1130,6 +1362,15 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const startDirectChatWithUser = (handle: string) => {
     const profile = publicProfiles[handle];
+
+    // KIỂM TRA RÀNG BUỘC KẾT BẠN: Chưa là bạn bè thì CHẶN nhắn tin
+    if (profile && !profile.isFriend) {
+      showToast(
+        `⚠️ Bạn và ${profile.name} cần kết bạn và được chấp nhận trước mới có thể nhắn tin!`
+      );
+      return;
+    }
+
     const existingChat = chats.find((c) => c.partnerHandle === handle);
     setViewedUserHandle(null);
     setActiveTab('chat');
@@ -1160,7 +1401,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         {
           id: `m-${Date.now()}`,
           sender: 'me',
-          text: `Chào ${profile ? profile.name : 'bạn'}, mình vừa ghé thăm trang cá nhân của bạn trên Pawty!`,
+          text: `Chào ${profile ? profile.name : 'bạn'}, rất vui được kết bạn cùng bạn trên Pawty!`,
           time: 'Vừa xong',
         },
       ],
@@ -1472,12 +1713,52 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         params.description.trim() || 'Bé có đeo vòng cổ ghi số điện thoại của gia đình.',
       sightingReports: [],
     };
+
+    // Cập nhật UI ngay lập tức
     setSosAlerts((prev) => [newSos, ...prev]);
-    showToast('Đã xác thực phí chống spam (19.000đ) & đẩy tin SOS lên đầu khu vực!');
+    showToast('Đã xác thực phí chống spam (39.000đ) & đẩy tin SOS lên đầu khu vực!');
+
+    // Gửi lưu trực tiếp vào cơ sở dữ liệu PostgreSQL qua Server API
+    fetch(`${getApiBaseUrl()}/api/sos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: newSos.id,
+        petName: newSos.petName,
+        species: newSos.species,
+        breed: newSos.breed,
+        lastSeenLocation: newSos.lastSeenLocation,
+        description: newSos.description,
+        rewardText: newSos.rewardAmount,
+        imageUrl: newSos.imageUrl,
+        userPhone: ownerPhone,
+        userName: ownerName,
+        userHandle: ownerHandle,
+      }),
+    })
+      .then((res) => {
+        if (res.ok) {
+          console.log('[MobileContext] Đã lưu bài đăng SOS vào PostgreSQL thành công!');
+        }
+      })
+      .catch((err) => {
+        console.warn('[MobileContext] Không thể kết nối server để lưu SOS vào PostgreSQL:', err.message);
+      });
   };
 
   const reportSosSighting = (sosId: string, locationText: string, noteText?: string) => {
-    const cleanLoc = locationText.trim() || 'Gần công viên nội khu';
+    const targetAlert = sosAlerts.find((s) => s.id === sosId);
+    if (
+      targetAlert &&
+      (targetAlert.ownerHandle === ownerHandle ||
+        (Boolean(targetAlert.ownerName) && targetAlert.ownerName === ownerName))
+    ) {
+      showToast('Bạn là người tạo bài đăng này, chỉ người khác mới có thể báo vị trí nhìn thấy.');
+      return;
+    }
+
+    let cleanLoc = (locationText || '').trim();
+    cleanLoc = cleanLoc.replace(/^(Quanh khu vực\s*)+/gi, 'Quanh khu vực ').trim() || 'Gần công viên nội khu';
     setSosAlerts((prev) =>
       prev
         .map((s) => {
@@ -1501,7 +1782,6 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         .sort((a, b) => b.priorityScore - a.priorityScore)
     );
 
-    const targetAlert = sosAlerts.find((s) => s.id === sosId);
     if (targetAlert) {
       const newNotif: MobileNotificationItem = {
         id: `notif-sos-${Date.now()}`,
@@ -1617,9 +1897,16 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         closeLightboxMedia,
         publicProfiles,
         viewedUserHandle,
+        selectedProfileHandle,
+        setSelectedProfileHandle,
+        openUserProfileInTab,
         openPublicUserProfile,
         closePublicUserProfile,
         toggleFriendStatus,
+        sendFriendRequest,
+        acceptFriendRequest,
+        declineFriendRequest,
+        toggleFollowUser,
         startDirectChatWithUser,
         tinderIntent,
         setTinderIntent,

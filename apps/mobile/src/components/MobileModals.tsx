@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -64,9 +65,17 @@ export const MobileModals: React.FC = () => {
     publicProfiles,
     viewedUserHandle,
     closePublicUserProfile,
+    openUserProfileInTab,
     toggleFriendStatus,
+    sendFriendRequest,
+    acceptFriendRequest,
+    declineFriendRequest,
+    toggleFollowUser,
     startDirectChatWithUser,
+    setActiveTab,
     tinderCandidates,
+    posts,
+    openLightboxMedia,
     showLikesYouDrawer,
     setShowLikesYouDrawer,
     matchedCandidateModal,
@@ -250,17 +259,30 @@ export const MobileModals: React.FC = () => {
       <Modal visible transparent animationType="fade" onRequestClose={closeLightboxMedia}>
         <View style={styles.lightboxBackdrop}>
           <View style={styles.lightboxHeader}>
-            <View style={{ flex: 1 }}>
+            <TouchableOpacity
+              onPress={closeLightboxMedia}
+              style={styles.lightboxBackBtn}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
+              <Feather name="arrow-left" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={{ flex: 1, marginHorizontal: 8 }}>
               <Text style={styles.lightboxAuthor}>
                 {lightboxMedia.authorName || 'Xem phương tiện'}
               </Text>
               <Text style={styles.lightboxCounter}>
                 {lightboxMedia.mediaType === 'video'
                   ? 'Đang phát Video ngắn'
-                  : `Ảnh ${lightboxIdx + 1} / ${urls.length} (Gạt ngang để chuyển ảnh)`}
+                  : `Ảnh ${lightboxIdx + 1} / ${urls.length} (Chạm để đóng · Gạt xem tiếp)`}
               </Text>
             </View>
-            <TouchableOpacity onPress={closeLightboxMedia} style={styles.lightboxCloseBtn}>
+
+            <TouchableOpacity
+              onPress={closeLightboxMedia}
+              style={styles.lightboxCloseBtn}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
               <Feather name="x" size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -275,13 +297,18 @@ export const MobileModals: React.FC = () => {
               contentOffset={{ x: lightboxIdx * SCREEN_WIDTH, y: 0 }}
             >
               {urls.map((imgUri, idx) => (
-                <View key={`lb-${idx}`} style={styles.lightboxSlide}>
+                <TouchableOpacity
+                  key={`lb-${idx}`}
+                  style={styles.lightboxSlide}
+                  activeOpacity={1}
+                  onPress={closeLightboxMedia}
+                >
                   <Image
                     source={{ uri: imgUri }}
                     style={styles.lightboxMainImage}
                     resizeMode="contain"
                   />
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
 
@@ -313,12 +340,17 @@ export const MobileModals: React.FC = () => {
           )}
 
           {lightboxMedia.caption ? (
-            <View style={styles.lightboxFooter}>
+            <TouchableOpacity activeOpacity={1} onPress={closeLightboxMedia} style={styles.lightboxFooter}>
               <Text style={styles.lightboxCaption} numberOfLines={3}>
                 {lightboxMedia.caption}
               </Text>
-            </View>
-          ) : null}
+              <Text style={styles.lightboxDismissHint}>Chạm vào màn hình để quay lại bảng tin</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity activeOpacity={1} onPress={closeLightboxMedia} style={{ alignItems: 'center', paddingBottom: 12 }}>
+              <Text style={styles.lightboxDismissHint}>Chạm vào màn hình để quay lại bảng tin</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </Modal>
     );
@@ -451,104 +483,273 @@ export const MobileModals: React.FC = () => {
     );
   }
 
-  // 4. PUBLIC USER PROFILE MODAL
+  // 4. PUBLIC USER PROFILE MODAL — FULLSCREEN INSTAGRAM STYLE
   if (viewedUserHandle && publicProfiles[viewedUserHandle]) {
     const profile = publicProfiles[viewedUserHandle];
+    const userPosts = posts ? posts.filter((p) => p.authorHandle === profile.handle) : [];
+    const galleryItems =
+      userPosts.length > 0
+        ? userPosts
+        : profile.galleryUrls.map((url, idx) => ({
+            id: `gal-${idx}`,
+            mediaUrls: [url],
+            mediaType: 'image' as const,
+            authorName: profile.name,
+            content: '',
+          }));
+
     return (
       <Modal
         visible
-        transparent
         animationType="slide"
         onRequestClose={closePublicUserProfile}
       >
-        <View style={styles.backdrop}>
-          <View style={[styles.sheet, { paddingBottom: bottomInset + 18 }]}>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Trang cá nhân: {profile.handle}</Text>
+        <SafeAreaView style={styles.igFullScreenContainer} edges={['top', 'bottom']}>
+          {/* TOP INSTAGRAM APP BAR */}
+          <View style={styles.igTopAppBar}>
+            <TouchableOpacity
+              onPress={closePublicUserProfile}
+              style={styles.igBackBtn}
+              activeOpacity={0.7}
+            >
+              <Feather name="arrow-left" size={22} color="#1C1815" />
+            </TouchableOpacity>
+
+            <View style={styles.igHeaderUserRow}>
+              {profile.isPrivate && (
+                <View style={{ marginRight: 5 }}><Feather name="lock" size={13} color="#1C1815" /></View>
+              )}
+              <Text style={styles.igHeaderUsername}>{profile.handle}</Text>
+            </View>
+
+            <View style={styles.igHeaderRightActions}>
               <TouchableOpacity
-                onPress={closePublicUserProfile}
-                style={styles.closeBtn}
+                style={styles.igHeaderActionBtn}
+                onPress={() => toggleFollowUser(profile.handle)}
+                activeOpacity={0.7}
               >
-                <Feather name="x" size={18} color="#5C5046" />
+                <Feather
+                  name={profile.isFollowing ? 'bell-off' : 'bell'}
+                  size={19}
+                  color={profile.isFollowing ? theme.primary : '#1C1815'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.igHeaderActionBtn}
+                onPress={() => showToast(`Chia sẻ trang cá nhân của ${profile.name}`)}
+                activeOpacity={0.7}
+              >
+                <Feather name="share-2" size={19} color="#1C1815" />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={styles.sheetBody}>
-              <View style={styles.publicTopRow}>
-                <Image source={{ uri: profile.avatarUrl }} style={styles.publicAvatar} />
-                <View style={styles.publicStatsRow}>
-                  <View style={styles.publicStatItem}>
-                    <Text style={styles.publicStatValue}>{profile.galleryUrls.length}</Text>
-                    <Text style={styles.publicStatLabel}>bài viết</Text>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+            {/* INSTAGRAM AVATAR + STATS ROW */}
+            <View style={styles.igProfileHeaderSection}>
+              <View style={styles.igAvatarRow}>
+                {/* Avatar with Instagram Ring */}
+                <View style={[styles.igAvatarRing, { borderColor: theme.primary }]}>
+                  <Image source={{ uri: profile.avatarUrl }} style={styles.igProfileAvatarImg} />
+                </View>
+
+                {/* 3 Stats Columns */}
+                <View style={styles.igStatsColumnsWrap}>
+                  <View style={styles.igStatCol}>
+                    <Text style={styles.igStatNumber}>{galleryItems.length}</Text>
+                    <Text style={styles.igStatText}>bài viết</Text>
                   </View>
-                  <View style={styles.publicStatItem}>
-                    <Text style={styles.publicStatValue}>{profile.followersCount}</Text>
-                    <Text style={styles.publicStatLabel}>người theo dõi</Text>
+                  <View style={styles.igStatCol}>
+                    <Text style={styles.igStatNumber}>{profile.followersCount}</Text>
+                    <Text style={styles.igStatText}>người theo dõi</Text>
                   </View>
-                  <View style={styles.publicStatItem}>
-                    <Text style={styles.publicStatValue}>{profile.friendsCount}</Text>
-                    <Text style={styles.publicStatLabel}>bạn bè</Text>
+                  <View style={styles.igStatCol}>
+                    <Text style={styles.igStatNumber}>{profile.friendsCount}</Text>
+                    <Text style={styles.igStatText}>đang theo dõi</Text>
                   </View>
                 </View>
               </View>
 
-              <Text style={styles.publicName}>{profile.name}</Text>
-              <Text style={styles.publicHandle}>
-                {profile.handle} · {profile.area}
-              </Text>
-              <Text style={styles.publicBio}>{profile.bio}</Text>
-
-              {/* Multi-pet list with per-pet vaccination badge */}
-              <View style={{ marginTop: 10, gap: 6 }}>
-                {profile.pets.map((p, idx) => (
-                  <View key={`${p.name}-${idx}`} style={styles.publicPetBadge}>
-                    <Feather
-                      name={p.isVaccinatedAndRabies ? 'check-circle' : 'info'}
-                      size={14}
-                      color="#2E7D5B"
-                    />
-                    <Text style={styles.publicPetBadgeText}>
-                      {p.name} ({p.species} · {p.breed} · {p.weightKg}kg) —{' '}
-                      {p.isVaccinatedAndRabies
-                        ? 'Đã tiêm chủng & Phòng dại'
-                        : 'Đang cập nhật'}
-                    </Text>
-                  </View>
-                ))}
+              {/* Name & Title Badge */}
+              <View style={styles.igNameBadgeRow}>
+                <Text style={styles.igFullNameText}>{profile.name}</Text>
+                <View style={[styles.igNicknameBadge, { backgroundColor: theme.primarySoft }]}>
+                  <Feather name="award" size={11} color={theme.primary} />
+                  <Text style={[styles.igNicknameText, { color: theme.primary }]}>
+                    {profile.nickname}
+                  </Text>
+                </View>
               </View>
 
-              <View style={styles.publicActionsRow}>
+              {/* Location Mini Tag */}
+              <View style={styles.igLocationRow}>
+                <Feather name="map-pin" size={12} color="#7A6E63" />
+                <Text style={styles.igLocationText}>{profile.area}</Text>
+              </View>
+
+              {/* Bio */}
+              <Text style={styles.igBioTextContent}>{profile.bio}</Text>
+
+              {/* INSTAGRAM ACTION BUTTONS ROW */}
+              <View style={styles.igActionBtnsRow}>
+                {/* Nút 1: Theo dõi */}
                 <TouchableOpacity
                   style={[
-                    styles.publicActionBtn,
-                    {
-                      backgroundColor: profile.isFriend ? '#EAF7F1' : theme.primary,
-                    },
+                    styles.igMainBtn,
+                    profile.isFollowing
+                      ? styles.igBtnFollowing
+                      : [styles.igBtnFollow, { backgroundColor: theme.primary }],
                   ]}
-                  onPress={() => toggleFriendStatus(profile.handle)}
+                  onPress={() => toggleFollowUser(profile.handle)}
+                  activeOpacity={0.8}
                 >
+                  <Feather
+                    name={profile.isFollowing ? 'check' : 'bell'}
+                    size={14}
+                    color={profile.isFollowing ? '#1C1815' : '#FFFFFF'}
+                  />
                   <Text
                     style={[
-                      styles.publicActionText,
-                      { color: profile.isFriend ? '#2E7D5B' : '#FFFFFF' },
+                      styles.igMainBtnText,
+                      { color: profile.isFollowing ? '#1C1815' : '#FFFFFF' },
                     ]}
                   >
-                    {profile.isFriend ? 'Bạn bè' : 'Kết bạn'}
+                    {profile.isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
                   </Text>
                 </TouchableOpacity>
 
+                {/* Nút 2: Kết bạn */}
                 <TouchableOpacity
-                  style={[styles.publicActionBtn, { backgroundColor: '#2C2520' }]}
-                  onPress={() => startDirectChatWithUser(profile.handle)}
+                  style={[
+                    styles.igMainBtn,
+                    profile.friendStatus === 'accepted' || profile.isFriend
+                      ? styles.igBtnFriendAccepted
+                      : profile.friendStatus === 'pending'
+                      ? styles.igBtnFriendPending
+                      : styles.igBtnFriendDefault,
+                  ]}
+                  onPress={() => toggleFriendStatus(profile.handle)}
+                  activeOpacity={0.8}
                 >
-                  <Feather name="message-circle" size={13} color="#FFFFFF" />
-                  <Text style={[styles.publicActionText, { color: '#FFFFFF' }]}>
-                    Nhắn tin
+                  <Feather
+                    name={
+                      profile.friendStatus === 'accepted' || profile.isFriend
+                        ? 'check'
+                        : profile.friendStatus === 'pending'
+                        ? 'clock'
+                        : 'user-plus'
+                    }
+                    size={14}
+                    color={
+                      profile.friendStatus === 'accepted' || profile.isFriend
+                        ? '#2E7D5B'
+                        : profile.friendStatus === 'pending'
+                        ? '#856404'
+                        : '#1C1815'
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.igMainBtnText,
+                      {
+                        color:
+                          profile.friendStatus === 'accepted' || profile.isFriend
+                            ? '#2E7D5B'
+                            : profile.friendStatus === 'pending'
+                            ? '#856404'
+                            : '#1C1815',
+                      },
+                    ]}
+                  >
+                    {profile.friendStatus === 'accepted' || profile.isFriend
+                      ? 'Bạn bè'
+                      : profile.friendStatus === 'pending'
+                      ? 'Đã gửi lời mời'
+                      : 'Kết bạn'}
                   </Text>
                 </TouchableOpacity>
+
+                {/* Nút 3: Nhắn tin (nếu là bạn bè) */}
+                {(profile.friendStatus === 'accepted' || profile.isFriend) && (
+                  <TouchableOpacity
+                    style={styles.igDirectChatBtn}
+                    onPress={() => {
+                      closePublicUserProfile();
+                      startDirectChatWithUser(profile.handle);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="message-circle" size={16} color="#1C1815" />
+                  </TouchableOpacity>
+                )}
               </View>
-            </ScrollView>
-          </View>
-        </View>
+            </View>
+
+            {/* INSTAGRAM PET HIGHLIGHTS (Khoanh Tròn Thú Cưng) */}
+            {profile.pets && profile.pets.length > 0 && (
+              <View style={styles.igHighlightsSection}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
+                  {profile.pets.map((p, idx) => (
+                    <View key={`${p.name}-${idx}`} style={styles.igHighlightItem}>
+                      <View style={[styles.igHighlightRing, { borderColor: p.isVaccinatedAndRabies ? '#2E7D5B' : '#E8DED1' }]}>
+                        <View style={styles.igHighlightCircle}>
+                          <Feather name="award" size={24} color={theme.primary} />
+                        </View>
+                        {p.isVaccinatedAndRabies && (
+                          <View style={styles.igVaccineVerifiedBadge}>
+                            <Feather name="check" size={9} color="#FFFFFF" />
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.igHighlightName} numberOfLines={1}>
+                        {p.name}
+                      </Text>
+                      <Text style={styles.igHighlightMeta} numberOfLines={1}>
+                        {p.species} · {p.weightKg}kg
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* INSTAGRAM GRID TAB BAR (Biểu tượng Lưới bài viết) */}
+            <View style={styles.igMediaTabBar}>
+              <View style={[styles.igMediaTabItem, styles.igMediaTabActive]}>
+                <Feather name="grid" size={20} color="#1C1815" />
+              </View>
+              <View style={styles.igMediaTabItem}>
+                <Feather name="user" size={20} color="#9C8E80" />
+              </View>
+            </View>
+
+            {/* INSTAGRAM 3-COLUMN PHOTO GRID */}
+            <View style={styles.igGridPhotoContainer}>
+              {galleryItems.map((item, idx) => {
+                const urls = item.mediaUrls || [item];
+                return (
+                  <TouchableOpacity
+                    key={`ig-feed-${idx}`}
+                    style={styles.igGridCell}
+                    activeOpacity={0.9}
+                    onPress={() =>
+                      openLightboxMedia({
+                        postId: item.id || `lightbox-${idx}`,
+                        mediaUrls: urls,
+                        initialIndex: 0,
+                        mediaType: item.mediaType || 'image',
+                        authorName: profile.name,
+                        caption: item.content || `Khoảnh khắc của ${profile.name}`,
+                      })
+                    }
+                  >
+                    <Image source={{ uri: urls[0] }} style={styles.igGridCellImage} />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
     );
   }
@@ -1975,6 +2176,21 @@ const styles = StyleSheet.create({
     color: '#C5B8AC',
     marginTop: 2,
   },
+  lightboxBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  lightboxDismissHint: {
+    fontSize: 11,
+    color: '#A89F95',
+    textAlign: 'center',
+    marginTop: 6,
+  },
   lightboxCloseBtn: {
     width: 38,
     height: 38,
@@ -2036,5 +2252,293 @@ const styles = StyleSheet.create({
     color: '#ECE6DF',
     lineHeight: 19,
     textAlign: 'center',
+  },
+  viewFullProfileBtn: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: '#F5EFE6',
+    borderWidth: 1,
+    borderColor: '#E8DED1',
+  },
+  viewFullProfileBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#3D342C',
+  },
+  notifActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  notifActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  notifSmallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  igFullScreenContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  igTopAppBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.8,
+    borderBottomColor: '#F0EBE3',
+    backgroundColor: '#FFFFFF',
+  },
+  igBackBtn: {
+    padding: 6,
+    marginLeft: -6,
+  },
+  igHeaderUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  igHeaderUsername: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1C1815',
+  },
+  igHeaderRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  igHeaderActionBtn: {
+    padding: 4,
+  },
+  igProfileHeaderSection: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  igAvatarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  igAvatarRing: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    borderWidth: 2.5,
+    padding: 2.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  igProfileAvatarImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
+  },
+  igStatsColumnsWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginLeft: 20,
+  },
+  igStatCol: {
+    alignItems: 'center',
+  },
+  igStatNumber: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#1C1815',
+  },
+  igStatText: {
+    fontSize: 12,
+    color: '#6B5E52',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  igNameBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  igFullNameText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1C1815',
+  },
+  igNicknameBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  igNicknameText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  igLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  igLocationText: {
+    fontSize: 12,
+    color: '#7A6E63',
+    fontWeight: '500',
+  },
+  igBioTextContent: {
+    fontSize: 13,
+    color: '#382F27',
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  igActionBtnsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+  },
+  igMainBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  igBtnFollow: {
+    backgroundColor: '#1C1815',
+  },
+  igBtnFollowing: {
+    backgroundColor: '#EFEAE2',
+    borderWidth: 1,
+    borderColor: '#DDD5CA',
+  },
+  igBtnFriendDefault: {
+    backgroundColor: '#EFEAE2',
+    borderWidth: 1,
+    borderColor: '#DDD5CA',
+  },
+  igBtnFriendPending: {
+    backgroundColor: '#FFF3CD',
+    borderWidth: 1,
+    borderColor: '#FFE69C',
+  },
+  igBtnFriendAccepted: {
+    backgroundColor: '#EAF7F1',
+    borderWidth: 1,
+    borderColor: '#C7EED8',
+  },
+  igMainBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  igDirectChatBtn: {
+    width: 40,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#EFEAE2',
+    borderWidth: 1,
+    borderColor: '#DDD5CA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  igHighlightsSection: {
+    paddingVertical: 14,
+    borderBottomWidth: 0.8,
+    borderBottomColor: '#F0EBE3',
+  },
+  igHighlightItem: {
+    alignItems: 'center',
+    width: 72,
+  },
+  igHighlightRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    padding: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  igHighlightCircle: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 30,
+    backgroundColor: '#FDFBF7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  igVaccineVerifiedBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#2E7D5B',
+    width: 17,
+    height: 17,
+    borderRadius: 8.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  igHighlightName: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1C1815',
+    marginTop: 6,
+  },
+  igHighlightMeta: {
+    fontSize: 10,
+    color: '#8A7A6E',
+    marginTop: 1,
+  },
+  igMediaTabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0EBE3',
+  },
+  igMediaTabItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  igMediaTabActive: {
+    borderBottomWidth: 1.8,
+    borderBottomColor: '#1C1815',
+  },
+  igGridPhotoContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  igGridCell: {
+    width: SCREEN_WIDTH / 3,
+    height: SCREEN_WIDTH / 3,
+    padding: 0.75,
+  },
+  igGridCellImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F5EFE6',
   },
 });

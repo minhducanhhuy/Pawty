@@ -584,6 +584,8 @@ export const ExploreScreen: React.FC = () => {
                   </p>
                 </div>
               </div>
+
+              
             </div>
 
             {/* Post Body */}

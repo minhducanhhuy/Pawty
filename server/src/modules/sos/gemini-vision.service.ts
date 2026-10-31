@@ -147,6 +147,7 @@ BẮT BUỘC chỉ trả về 1 đối tượng JSON duy nhất (không bọc ma
               if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
                 resolve(body);
               } else {
+                console.error(`[GeminiVisionService] ❌ Google Gemini API Error HTTP ${res.statusCode}: ${body}`);
                 reject(new Error(`Gemini API error (HTTP ${res.statusCode}): ${body}`));
               }
             });
@@ -190,7 +191,9 @@ BẮT BUỘC chỉ trả về 1 đối tượng JSON duy nhất (không bọc ma
    * giúp chủ nuôi không phải tự tay gõ mô tả khi đăng tin SOS khẩn cấp.
    */
   public async generateSosPetDescription(
-    imageUrl: string
+    imageUrl?: string,
+    imageBase64?: string,
+    inputMimeType: string = 'image/jpeg'
   ): Promise<{
     species: 'Chó' | 'Mèo';
     breed: string;
@@ -202,11 +205,23 @@ BẮT BUỘC chỉ trả về 1 đối tượng JSON duy nhất (không bọc ma
   } | null> {
     if (!this.apiKey) {
       console.warn('[GeminiVisionService] Không tìm thấy GEMINI_API_KEY.');
-      return null;
+      throw new Error('Chưa cấu hình GEMINI_API_KEY trong server/.env. Vui lòng thêm API key của bạn!');
     }
 
     try {
-      const { base64, mimeType } = await this.fetchImageAsBase64(imageUrl);
+      let base64 = imageBase64;
+      let mimeType = inputMimeType;
+
+      if (!base64 && imageUrl) {
+        const fetched = await this.fetchImageAsBase64(imageUrl);
+        base64 = fetched.base64;
+        mimeType = fetched.mimeType;
+      }
+
+      if (!base64) {
+        console.warn('[GeminiVisionService] Không có dữ liệu ảnh hợp lệ (cần imageUrl hoặc imageBase64).');
+        return null;
+      }
 
       const prompt = `Bạn là Trợ lý AI nhận dạng thú cưng của Pawty Super App.
 Nhiệm vụ: Người dùng đang cần đăng tin tìm thú cưng thất lạc. Hãy nhìn kỹ bức ảnh này và tự động viết một đoạn mô tả nhận diện cực kỳ chi tiết, súc tích, dễ nhận biết nhất bằng tiếng Việt (giúp người đi đường dễ dàng nhận ra bé).
@@ -292,8 +307,8 @@ BẮT BUỘC trả về ĐÚNG 1 JSON hợp lệ (không markdown, không thêm 
         description: String(aiData.description || 'Bé cún/mèo thân thiện cần tìm chủ.'),
       };
     } catch (err: any) {
-      console.warn('[GeminiVisionService] Lỗi khi tạo mô tả SOS:', err.message);
-      return null;
+      console.warn('[GeminiVisionService] Lỗi khi tạo mô tả SOS:', err?.message || err);
+      throw err;
     }
   }
 }

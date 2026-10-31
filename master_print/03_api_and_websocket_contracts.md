@@ -40,19 +40,19 @@
 - POST /api/matches/rewind (candidateId, userId) — Hoàn tác lượt quẹt gần nhất, xóa bản ghi match trong database PostgreSQL, đảo ngược trạng thái nếu đối phương từng match về pending, xóa conversation rỗng nếu có.
 
 ### 1.6 Chat & Realtime Messaging
-- GET /api/chats?userId= — Lấy danh sách các phòng chat hiện có của người dùng kèm tin nhắn mới nhất, định dạng sender ('me' | 'them'), trạng thái đã đọc `isRead` của từng tin nhắn và số lượng tin nhắn chưa đọc `unreadCount`.
-- GET /api/chats/:id/messages — Lấy lịch sử tin nhắn trong phòng chat.
-- POST /api/chats/:id/messages (senderId, text, mediaUrl) — Gửi tin nhắn mới vào database PostgreSQL, tự động liên kết hoặc khởi tạo conversation nếu chưa tồn tại.
-- POST /api/chats/:id/read & PUT /api/chats/:id/read (userId) — Đánh dấu đã đọc toàn bộ tin nhắn nhận được trong cuộc trò chuyện, cập nhật `isRead = true` trong database PostgreSQL và reset `unreadCount = 0`.
+- `GET /api/chats?userId=` — Lấy danh sách các phòng chat hiện có của người dùng kèm tin nhắn mới nhất, định dạng sender ('me' | 'them'), trạng thái đã đọc `isRead` của từng tin nhắn và số lượng tin nhắn chưa đọc `unreadCount`.
+- `GET /api/chats/:id/messages` — Lấy lịch sử tin nhắn trong phòng chat.
+- `POST /api/chats/:id/messages` (senderId, text, mediaUrl) — Gửi tin nhắn mới vào database PostgreSQL, tự động liên kết hoặc khởi tạo conversation nếu chưa tồn tại.
+- `POST /api/chats/:id/read` & `PUT /api/chats/:id/read` (userId) — Đánh dấu đã đọc toàn bộ tin nhắn nhận được trong cuộc trò chuyện, cập nhật `isRead = true` trong database PostgreSQL và reset `unreadCount = 0`.
 
 ### 1.7 Monetization, SOS, AI Smart Description, Moderation & Analytics
-- POST /api/sos & POST /api/sos/:id/sighting — Phát tín hiệu SOS 3km (39.000đ VietQR) và gửi manh mối nhìn thấy Boss.
-- POST /api/ai/describe-pet — Gửi ảnh thú cưng để Gemini 2.5 Flash Vision tự động phân tích và sinh đoạn mô tả nhận dạng chi tiết ({ species, breed, primaryColor, description, distinctiveFeatures }) phục vụ form đăng tin SOS.
-- POST /api/vip/subscribe — Nâng cấp gói Cơ bản (29k), Sen VIP (49k/tháng), Sen VIP Năm (399k/năm).
-- POST /api/reports, POST /api/users/:id/block, GET /api/admin/metrics (North Star & KPI Dashboard).
+- `POST /api/sos` & `POST /api/sos/:id/sighting` — Phát tín hiệu SOS 3km (39.000đ VietQR) và gửi manh mối nhìn thấy Boss.
+- `POST /api/ai/describe-pet` (`{ imageUrl?: string, imageBase64?: string, mimeType?: string }`) — Phân tích ảnh đa phương thức qua Gemini 2.5 Flash Vision (hỗ trợ cả Base64 từ thiết bị di động và URL từ xa) để tự động sinh thông số nhận diện `{ success, species, breed, primaryColor, description, distinctiveFeatures }` cho form đăng tin SOS.
+- `POST /api/vip/subscribe` — Nâng cấp gói Cơ bản (29k), Sen VIP (49k/tháng), Sen VIP Năm (399k/năm).
+- `POST /api/reports`, `POST /api/users/:id/block`, `GET /api/admin/metrics` (North Star & KPI Dashboard).
 
 ### 1.8 Bootstrap & Data Sync
-- GET /api/bootstrap — Tải toàn bộ dữ liệu khởi tạo thực tế từ PostgreSQL cho Mobile và Web Client (User, Pets, Feed Posts, Tinder Candidates, Chats, SOS Alerts, Notifications).
+- `GET /api/bootstrap` — Tải toàn bộ dữ liệu khởi tạo thực tế từ PostgreSQL cho Mobile và Web Client (User, Pets, Feed Posts, Tinder Candidates, Chats, SOS Alerts, Notifications).
 
 ## 2. WebSocket Events (Socket.io)
 - **Client → Server:** `chat:send`, `chat:typing`, `chat:read`.

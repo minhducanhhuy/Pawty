@@ -68,6 +68,7 @@ const MainMobileShell: React.FC = () => {
     activeVipPlanId,
     activeTab,
     setActiveTab,
+    setSelectedProfileHandle,
     setActiveModal,
     handleHardwareBack,
     unreadNotificationCount,
@@ -375,7 +376,12 @@ const MainMobileShell: React.FC = () => {
             <TouchableOpacity
               key={tab.id}
               style={styles.tabItem}
-              onPress={() => setActiveTab(tab.id)}
+              onPress={() => {
+                if (tab.id === 'profile') {
+                  setSelectedProfileHandle(null);
+                }
+                setActiveTab(tab.id);
+              }}
               activeOpacity={0.8}
             >
               <View style={styles.tabIconWrap}>

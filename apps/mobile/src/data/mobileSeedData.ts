@@ -67,6 +67,8 @@ export interface PublicUserProfile {
   area: string;
   isPrivate: boolean;
   isFriend: boolean;
+  friendStatus: 'none' | 'pending' | 'accepted';
+  isFollowing: boolean;
   isMatchedOnTinder: boolean;
   followersCount: number;
   friendsCount: number;
@@ -228,8 +230,14 @@ export interface MobileNotificationItem {
   title: string;
   body: string;
   timeLabel: string;
-  type: 'social' | 'appointment' | 'sos' | 'tinder';
+  type: 'social' | 'appointment' | 'sos' | 'tinder' | 'friend_request' | 'new_post';
   isRead: boolean;
+  actionPayload?: {
+    senderHandle?: string;
+    senderName?: string;
+    status?: 'pending' | 'accepted' | 'declined';
+    postId?: string;
+  };
 }
 
 export interface VipPlanOption {
@@ -447,6 +455,8 @@ export const PUBLIC_USER_PROFILES: Record<string, PublicUserProfile> = {
     area: 'Vinhomes Grand Park · TP. Thủ Đức',
     isPrivate: false,
     isFriend: true,
+    friendStatus: 'accepted',
+    isFollowing: true,
     isMatchedOnTinder: false,
     followersCount: 342,
     friendsCount: 128,
@@ -484,6 +494,8 @@ export const PUBLIC_USER_PROFILES: Record<string, PublicUserProfile> = {
     area: 'Thảo Điền · TP. Thủ Đức',
     isPrivate: false,
     isFriend: false,
+    friendStatus: 'none',
+    isFollowing: false,
     isMatchedOnTinder: false,
     followersCount: 1850,
     friendsCount: 410,
@@ -512,6 +524,8 @@ export const PUBLIC_USER_PROFILES: Record<string, PublicUserProfile> = {
     area: 'Masteri Thảo Điền · Quận 2',
     isPrivate: true,
     isFriend: false,
+    friendStatus: 'none',
+    isFollowing: false,
     isMatchedOnTinder: false,
     followersCount: 215,
     friendsCount: 64,
@@ -1159,6 +1173,19 @@ export const INITIAL_MOBILE_SOS: MobileSosAlert[] = [
 ];
 
 export const INITIAL_MOBILE_NOTIFICATIONS: MobileNotificationItem[] = [
+  {
+    id: 'notif-fr-1',
+    title: 'Lời mời kết bạn mới',
+    body: 'BS. Trần Minh Khoa (@bskhoa) đã gửi lời mời kết bạn cho bạn. Chấp nhận để có thể nhắn tin nhé!',
+    timeLabel: '10 phút trước',
+    type: 'friend_request',
+    isRead: false,
+    actionPayload: {
+      senderHandle: '@bskhoa',
+      senderName: 'BS. Trần Minh Khoa',
+      status: 'pending',
+    },
+  },
   {
     id: 'notif-1',
     title: 'Tương hợp mới trên Kết nối!',

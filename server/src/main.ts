@@ -194,6 +194,19 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (pathname === '/api/auth/register-or-sync' && method === 'POST') {
+      const body = await parseJsonBody(req);
+      const synced = await dbService.findOrCreateUserAndPet({
+        phone: typeof body.phone === 'string' ? body.phone : undefined,
+        displayName: typeof body.name === 'string' ? body.name : typeof body.displayName === 'string' ? body.displayName : undefined,
+        petName: typeof body.petName === 'string' ? body.petName : undefined,
+        species: typeof body.petSpecies === 'string' ? body.petSpecies : typeof body.species === 'string' ? body.species : undefined,
+        breed: typeof body.petBreed === 'string' ? body.petBreed : typeof body.breed === 'string' ? body.breed : undefined,
+      });
+      sendJson(res, 200, { success: true, user: synced.user, pet: synced.pet });
+      return;
+    }
+
     // 2. Users & Privacy Endpoints (Luật BVDLCN 91/2025/QH15)
     if (pathname === '/api/users/me' && method === 'GET') {
       const userId = parsedUrl.searchParams.get('userId') || undefined;
@@ -418,29 +431,41 @@ const server = http.createServer(async (req, res) => {
         if (pathname === '/api/ai/describe-pet' && method === 'POST') {
       const body = await parseJsonBody(req);
       const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl : undefined;
-      if (!imageUrl) {
-        sendJson(res, 400, { error: 'Vui lòng cung cấp imageUrl để AI phân tích' });
+      const imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64 : undefined;
+      const mimeType = typeof body.mimeType === 'string' ? body.mimeType : 'image/jpeg';
+
+      if (!imageUrl && !imageBase64) {
+        sendJson(res, 400, { error: 'Vui lòng cung cấp imageUrl hoặc imageBase64 để AI phân tích' });
         return;
       }
-      const aiResult = await geminiVisionService.generateSosPetDescription(imageUrl);
-      if (!aiResult) {
+
+      try {
+        console.log('[Pawty Server] 🧠 Đang phân tích ảnh qua Gemini Vision...');
+        const aiResult = await geminiVisionService.generateSosPetDescription(imageUrl, imageBase64, mimeType);
+        if (!aiResult) {
+          sendJson(res, 500, {
+            success: false,
+            error: 'Khóa GEMINI_API_KEY không khả dụng hoặc bị lỗi. Vui lòng kiểm tra server/.env!',
+          });
+          return;
+        }
+        console.log(`[Pawty Server] ✅ Phân tích thành công: ${aiResult.species} - ${aiResult.breed}`);
         sendJson(res, 200, {
           success: true,
-          species: 'Chó',
-          breed: 'Chưa rõ giống',
-          primaryColor: 'Nâu',
-          hasCollar: false,
-          distinctiveFeatures: [],
-          description: 'Bé cún/mèo thân thiện cần tìm chủ. Vui lòng liên hệ nếu nhìn thấy bé.',
+          ...aiResult,
+        });
+        return;
+      } catch (err: any) {
+        const message = err && err.message ? err.message : String(err);
+        console.error('[Pawty Server] ❌ Lỗi Gemini:', message);
+        sendJson(res, 500, {
+          success: false,
+          error: message || 'Lỗi khi kết nối Google Gemini API',
         });
         return;
       }
-      sendJson(res, 200, {
-        success: true,
-        ...aiResult,
-      });
-      return;
     }
+
 
     if (pathname === '/api/ai/trace-pet' && method === 'POST') {
       const body = await parseJsonBody(req);
