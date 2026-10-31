@@ -1,6 +1,6 @@
 # MASTER PRINT — TẦNG 4: SCREEN SPECIFICATIONS & USER FLOWS (INSTAGRAM + TINDER ARCHITECTURE)
 
-> **Single Source of Truth (SSOT)** — Đồng bộ với `.agents/rules/01_product_concept_and_design.md` và `plan/03_user_flows_and_screens.md`.
+> **Single Source of Truth (SSOT)** — Đồng bộ với các màn hình thực tế của Pawty Super App.
 
 ---
 
@@ -13,19 +13,15 @@
 2. **Header Động theo từng Nhánh chính (`Dynamic Contextual Header`):**
    - **Không cố định cứng 1 Header cho mọi trang**, mà biến đổi theo từng nhánh chính:
      - **Nhánh `Khám phá`:** Trái: Nút `+` (Đăng bài) · Giữa: 1 Logo `Pawty` duy nhất · Phải: Nút `SOS` (mở trang SOS toàn màn hình) + Nút `Thông báo`.
-     - **Nhánh `Kết nối` (Tinder):** Trái: Tiêu đề `Kết nối` & chọn Mong muốn · Phải: Nút `Hoàn tác`, `Đã thích`, `Đổi vị trí`.
-     - **Nhánh `Dịch vụ`:** Trái: Tiêu đề `Dịch vụ Thú cưng` · Phải: Nút chuyển nhanh qua `Lịch hẹn`.
-     - **Nhánh `Lịch hẹn`:** Trái: Tiêu đề `Quản lý Lịch hẹn` · Phải: Nút `+ Đặt lịch mới`.
-     - **Nhánh `Tin nhắn`:** Trái: Tiêu đề `Tin nhắn` · Phải: Nút lọc nhanh.
+     - **Nhánh `Kết nối` (Tinder):** Trái: Tiêu đề `Kết nối` · Phải: Nút `Hoàn tác`, `Đã thích`, `Đổi vị trí`.
+     - **Nhánh `Tin nhắn`:** Trái: Tiêu đề `Tin nhắn` · Phải: Nút `Kết nối` + Nút `SOS`.
      - **Nhánh `Tôi` (Chuẩn Instagram):** Trái: Nút `+` · Giữa: Biểu tượng khóa `🔒` (nếu bật chế độ riêng tư) + `@username` + `⌄` · Phải: Nút `Plus` tinh gọn + Nút Menu `☰` (mở trang **Cài đặt của tôi**).
-     - **Nhánh `SOS` (Toàn màn hình khi bấm từ góc trên phải):** Trái: Nút `← Quay lại` + Tiêu đề `Trung tâm SOS Thú Lạc` · Phải: Nút `+ Đăng tin SOS`.
-3. **Thanh Điều Hướng Dưới Đáy (`Bottom Tab Bar` — 6 tab chính, không có nút `+` nổi):**
+     - **Nhánh `SOS` (Toàn màn hình khi bấm từ góc trên phải):** Trái: Nút `← Quay lại` + Tiêu đề `Bảng tin SOS Thú Lạc` · Phải: Nút `Thông báo`.
+3. **Thanh Điều Hướng Dưới Đáy (`Bottom Tab Bar` — 4 tab chính, không có nút `+` nổi):**
    - Tab 1: **`Khám phá`** (Trang chính mặc định — Bảng tin MXH kiểu Instagram).
-   - Tab 2: **`Kết nối`** (Đổi tên từ *Hẹn hò* — Giao diện chuẩn ứng dụng Tinder).
-   - Tab 3: **`Dịch vụ`** (Đặt lịch Spa, Thú y, Khách sạn thú cưng).
-   - Tab 4: **`Lịch hẹn`** (Quản lý lịch hẹn Spa, Thú y đã đặt).
-   - Tab 5: **`Tin nhắn`** (Nhắn tin với bộ lọc: `Tất cả | Chưa đọc | Kết nối | Dịch vụ`).
-   - Tab 6: **`Tôi`** (Trang cá nhân chuẩn Instagram, Khám phá mọi người, Quản lý tối đa 3 thú cưng miễn phí có nút xóa, Thiết lập Hồ sơ Kết nối).
+   - Tab 2: **`Kết nối`** (Giao diện chuẩn ứng dụng Tinder quẹt thẻ tìm bạn dắt dạo).
+   - Tab 3: **`Tin nhắn`** (Nhắn tin với bộ lọc: `Tất cả | Chưa đọc | Kết nối`).
+   - Tab 4: **`Tôi`** (Trang cá nhân chuẩn Instagram, Khám phá mọi người, Quản lý tối đa 3 thú cưng miễn phí có nút xóa, Thiết lập Hồ sơ Kết nối).
 
 ---
 
@@ -39,7 +35,6 @@
   - Khi AI quét bài viết và phát hiện ảnh/đặc điểm khớp với một tin SOS đang mở: Hiển thị thanh Banner cảnh báo màu San Hô (`#FF6F61`): *"🔍 AI phát hiện: Khớp 85% với tin SOS của bé Coca lúc 09:30 tại Công viên Bờ Sông"*.
   - Nhấp vào banner mở rộng bản đồ lộ trình truy vết và thông tin liên hệ chủ nuôi.
 - **Khung Đăng bài mới (`new_moment`):**
-  - **Bỏ phần phân loại bài viết** và **bỏ phần chọn định dạng phương tiện** (lấy chung cả ảnh và video trong một thao tác).
   - **Tải ảnh & video thật từ điện thoại (`expo-image-picker`):** Cho phép bấm chọn nhiều ảnh hoặc video trực tiếp từ thư viện máy hoặc mở Camera, kèm thao tác gạt ngang xem trước và xóa từng mục.
   - **Hashtag tự do + Gợi ý:** Có ô nhập để người dùng **tự gõ hashtag bất kỳ** và bấm thêm, kết hợp chạm nhanh vào các hashtag gợi ý.
 
@@ -68,20 +63,14 @@
 - **Quyền xác nhận "Đã đón về":**
   - **Chỉ chính người đăng bài (`sos.ownerHandle === ownerHandle`) mới được phép nhìn thấy và bấm nút "Đã đón về"**. Người dùng khác chỉ thấy nút *"Báo vừa nhìn thấy"* và *"Liên hệ chủ nuôi"*.
 
-### 2.4 Tab 5: Tin nhắn (`Chat`)
-- Bổ sung bộ lọc **`Dịch vụ`** bên cạnh `Tất cả`, `Chưa đọc`, `Kết nối`, giúp lọc riêng các cuộc trò chuyện tư vấn/đặt lịch với Spa, Phòng khám thú y, Khách sạn thú cưng.
+### 2.4 Tab 3: Tin nhắn (`Chat`)
+- Nhắn tin trực tiếp giữa người dùng với các bộ lọc tiện lợi: `Tất cả`, `Chưa đọc`, `Kết nối`.
 
-### 2.5 Tab 6: Tôi (`Profile` Chuẩn Instagram, Tối đa 3 Pet Miễn phí & Cài đặt)
+### 2.5 Tab 4: Tôi (`Profile` Chuẩn Instagram, Tối đa 3 Pet Miễn phí & Cài đặt)
 - **Thiết kế trang `Tôi` giống hệt Instagram:**
   - Header riêng của trang `Tôi`: Trái `+` · Giữa `🔒 username ⌄` · Phải `Plus` & Menu `☰`.
   - Cụm thông tin đầu trang: Avatar tròn (có dấu `+` và bong bóng ghi chú *"Hỏi bạn bè bất cứ điều gì..."*) + Tên và 3 cột thống kê (`bài viết`, `người theo dõi`, `đang theo dõi`).
   - Hàng nút hành động: **`[Chỉnh sửa trang cá nhân]`** · **`[Thiết lập Kết nối]`** · **`[+👤]`**.
   - Khối **"Khám phá mọi người" (`Xem tất cả`)**: Dải thẻ ngang gợi ý kết bạn với nút `Theo dõi / Kết bạn` và nút `✕`.
 - **Quản lý Hồ sơ Thú cưng (Tối đa 3 con miễn phí + Có nút Xóa):**
-  - Cho phép tạo và quản lý **tối đa 3 hồ sơ thú cưng hoàn toàn miễn phí** (không khóa theo gói Plus).
-  - Mỗi hồ sơ thú cưng có nút **Xóa thú cưng** và dấu tích **`✓ Đã tiêm chủng & Phòng dại`** riêng cho từng bé.
-- **Thiết lập Hồ sơ Kết nối (Tinder Setup Profile):**
-  - Cho phép người dùng cài đặt thông tin cá nhân phục vụ riêng cho tab `Kết nối`: Tuổi, Giới tính, Đang tìm kiếm, Phong cách sống (Tập luyện, Cuối tuần, Hút thuốc, Bia rượu, Gu nhắn tin).
-- **Chế độ Riêng tư & Gói Plus trong Cài đặt (`☰`):**
-  - Công tắc bật/tắt **Chế độ Riêng tư** được đặt gọn bên trong trang **Cài đặt của tôi** (bấm nút `☰` ở góc trên phải trang `Tôi`).
-  - Các gói **Pawty Plus** được thiết kế lại dạng thẻ trượt ngang sang trọng, rõ ràng.
+  - Hiển thị danh sách thú cưng của tôi kèm nút thêm bé mới (tối đa 3 bé). Có nút xóa bé với popup xác nhận an toàn.

@@ -8,7 +8,7 @@
 
 - **Quy tắc hiển thị Quản lý VIP:** Dù người dùng **đang là thành viên VIP rồi** thì khi mở mục Quản lý Gói VIP **vẫn luôn hiển thị đầy đủ danh sách thông tin tất cả các gói**, quyền lợi chi tiết từng gói, trạng thái gói hiện tại (`Đang sử dụng`), và cho phép chuyển đổi gói.
 - **Phân tích khóa tính năng Premium riêng cho phân hệ Hẹn hò (Tinder) mà không ảnh hưởng tính năng mạng xã hội cơ bản:**
-  - Mạng xã hội (`Khám phá`, `Hồ sơ`, `Tin nhắn`, `Đặt dịch vụ`) hoàn toàn mở tự do, không gắn nhãn VIP gây phân biệt trên bài đăng.
+  - Mạng xã hội (`Khám phá`, `Hồ sơ`, `Tin nhắn`) hoàn toàn mở tự do, không gắn nhãn VIP gây phân biệt trên bài đăng.
   - **Các quyền lợi khóa riêng cho Gói Hẹn Hò Premium (`Pawty Plus` — 49.000đ/tháng):**
     1. **Xem ai đã thích bạn (`Likes You`):** Xem danh sách những người đã quẹt phải hồ sơ của bạn để Match ngay lập tức.
     2. **Hoàn tác lượt quẹt (`Rewind`):** Quay lại thẻ vừa vô tình kéo lướt qua.
