@@ -9,6 +9,9 @@ import {
   Phone,
   ShieldCheck,
   User,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { usePawtyStore } from '../../stores/usePawtyStore';
 import { WEB_THEMES } from '../../mocks/seedData';
@@ -20,6 +23,7 @@ export const OnboardingFlow: React.FC = () => {
     hasSavedSession,
     loginWithSavedSession,
     loginWithPhone,
+    loginWithCredentials,
     completeOnboardingWizard,
     themeId,
   } = usePawtyStore();
@@ -27,9 +31,11 @@ export const OnboardingFlow: React.FC = () => {
   const theme = WEB_THEMES[themeId] ?? WEB_THEMES.coral;
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [identifier, setIdentifier] = useState('mai_nguyen');
+  const [password, setPassword] = useState('password123');
+  const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState('mai_nguyen');
   const [phone, setPhone] = useState(user.phone || '0912345678');
-  const [otp, setOtp] = useState('6868');
-  const [otpSent, setOtpSent] = useState(false);
 
   const [ownerName, setOwnerName] = useState('Mai Nguyễn');
   const [neighborhood, setNeighborhood] = useState('Vinhomes Grand Park - Quận 9');
@@ -41,7 +47,7 @@ export const OnboardingFlow: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (mode === 'login') {
-      loginWithPhone(phone);
+      loginWithCredentials(identifier, password);
     } else {
       completeOnboardingWizard({
         phone,
@@ -174,68 +180,154 @@ export const OnboardingFlow: React.FC = () => {
           style={{ backgroundColor: theme.surface, borderColor: theme.border }}
           className="p-4 rounded-2xl border space-y-3.5"
         >
-          <div>
-            <label
-              style={{ color: theme.textSoft }}
-              className="block text-xs font-semibold mb-1.5"
-            >
-              Số điện thoại
-            </label>
-            <div
-              style={{ backgroundColor: theme.bg, borderColor: theme.border }}
-              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border"
-            >
-              <Phone style={{ color: theme.textSoft }} className="w-4 h-4 shrink-0" />
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Nhập số điện thoại"
-                style={{ color: theme.text }}
-                className="w-full bg-transparent text-sm font-medium focus:outline-none"
-              />
-            </div>
-          </div>
-
           {mode === 'login' ? (
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
+            <>
+              <div>
                 <label
                   style={{ color: theme.textSoft }}
-                  className="block text-xs font-semibold"
+                  className="block text-xs font-semibold mb-1.5"
                 >
-                  Mã xác thực (OTP)
+                  Số điện thoại hoặc Tên đăng nhập (Username)
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setOtpSent(true)}
-                  style={{ color: theme.primary }}
-                  className="text-xs font-bold"
+                <div
+                  style={{ backgroundColor: theme.bg, borderColor: theme.border }}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border"
                 >
-                  {otpSent ? 'Đã gửi mã' : 'Nhận mã xác thực'}
-                </button>
+                  <User style={{ color: theme.textSoft }} className="w-4 h-4 shrink-0" />
+                  <input
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="VD: 0912345678 hoặc mai_nguyen"
+                    style={{ color: theme.text }}
+                    className="w-full bg-transparent text-sm font-medium focus:outline-none"
+                  />
+                </div>
               </div>
-              <div
-                style={{ backgroundColor: theme.bg, borderColor: theme.border }}
-                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border"
-              >
-                <ShieldCheck
+
+              <div>
+                <label
                   style={{ color: theme.textSoft }}
-                  className="w-4 h-4 shrink-0"
-                />
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="Nhập 4 chữ số"
-                  style={{ color: theme.text }}
-                  className="w-full bg-transparent text-sm font-medium focus:outline-none"
-                />
+                  className="block text-xs font-semibold mb-1.5"
+                >
+                  Mật khẩu
+                </label>
+                <div
+                  style={{ backgroundColor: theme.bg, borderColor: theme.border }}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border"
+                >
+                  <Lock style={{ color: theme.textSoft }} className="w-4 h-4 shrink-0" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Nhập mật khẩu..."
+                    style={{ color: theme.text }}
+                    className="w-full bg-transparent text-sm font-medium focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ color: theme.textSoft }}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
+
+              <div
+                style={{ backgroundColor: theme.primarySoft }}
+                className="p-3 rounded-xl text-xs space-y-1"
+              >
+                <p style={{ color: theme.primary }} className="font-extrabold">
+                  💡 Tài khoản kiểm thử có sẵn:
+                </p>
+                <p style={{ color: theme.textSoft }}>
+                  • SĐT: <strong>0912345678</strong> hoặc Username: <strong>mai_nguyen</strong>
+                </p>
+                <p style={{ color: theme.textSoft }}>
+                  • Mật khẩu: <strong>password123</strong>
+                </p>
+              </div>
+            </>
           ) : (
             <>
+              <div>
+                <label
+                  style={{ color: theme.textSoft }}
+                  className="block text-xs font-semibold mb-1.5"
+                >
+                  Số điện thoại đăng ký
+                </label>
+                <div
+                  style={{ backgroundColor: theme.bg, borderColor: theme.border }}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border"
+                >
+                  <Phone style={{ color: theme.textSoft }} className="w-4 h-4 shrink-0" />
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Nhập số điện thoại"
+                    style={{ color: theme.text }}
+                    className="w-full bg-transparent text-sm font-medium focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  style={{ color: theme.textSoft }}
+                  className="block text-xs font-semibold mb-1.5"
+                >
+                  Tên đăng nhập (Username)
+                </label>
+                <div
+                  style={{ backgroundColor: theme.bg, borderColor: theme.border }}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border"
+                >
+                  <User style={{ color: theme.textSoft }} className="w-4 h-4 shrink-0" />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="VD: mai_nguyen"
+                    style={{ color: theme.text }}
+                    className="w-full bg-transparent text-sm font-medium focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  style={{ color: theme.textSoft }}
+                  className="block text-xs font-semibold mb-1.5"
+                >
+                  Mật khẩu
+                </label>
+                <div
+                  style={{ backgroundColor: theme.bg, borderColor: theme.border }}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border"
+                >
+                  <Lock style={{ color: theme.textSoft }} className="w-4 h-4 shrink-0" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Nhập mật khẩu..."
+                    style={{ color: theme.text }}
+                    className="w-full bg-transparent text-sm font-medium focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ color: theme.textSoft }}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label
                   style={{ color: theme.textSoft }}

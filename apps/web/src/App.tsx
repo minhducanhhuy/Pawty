@@ -17,7 +17,12 @@ export const App: React.FC = () => {
     activeConversationId,
     setActiveConversationId,
     setActiveTab,
+    hydrateFromServer,
   } = usePawtyStore();
+
+  useEffect(() => {
+    hydrateFromServer();
+  }, [hydrateFromServer]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -52,12 +57,11 @@ export const App: React.FC = () => {
   };
 
   return (
-    <>
-      <MobileFrameShell proPortalView={<ProAndAdminPortal />}>
-        {renderActiveScreen()}
-      </MobileFrameShell>
+    <MobileFrameShell>
+      {renderActiveScreen()}
       <GlobalModals />
-    </>
+      <ProAndAdminPortal />
+    </MobileFrameShell>
   );
 };
 
