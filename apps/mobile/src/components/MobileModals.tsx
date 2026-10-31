@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -234,7 +234,17 @@ export const MobileModals: React.FC = () => {
 
   // 1. FULLSCREEN SWIPEABLE MEDIA LIGHTBOX MODAL
   if (lightboxMedia) {
-    const urls = lightboxMedia.mediaUrls;
+    const urls: string[] = Array.isArray(lightboxMedia.mediaUrls)
+      ? lightboxMedia.mediaUrls
+      : Array.isArray(lightboxMedia)
+      ? (lightboxMedia as any)
+      : typeof (lightboxMedia as any).url === 'string'
+      ? [(lightboxMedia as any).url]
+      : [];
+
+    if (urls.length === 0) {
+      return null;
+    }
     const handleLightboxScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
       if (idx >= 0 && idx < urls.length && idx !== lightboxIdx) {
