@@ -5,7 +5,7 @@ export const prisma = new PrismaClient();
 
 export class DatabaseService {
   public async getBootstrapData(currentUserId = 'user-mai') {
-    const [primaryUser, pets, posts, sosAlerts, candidates, chats, notifications] =
+    const [primaryUser, pets, posts, sosAlerts, candidates, chats, notifications, publicProfiles] =
       await Promise.all([
         this.getPrimaryUser(currentUserId),
         this.getUserPets(currentUserId),
@@ -14,6 +14,7 @@ export class DatabaseService {
         this.getTinderCandidates(currentUserId),
         this.getChats(currentUserId),
         this.getNotifications(currentUserId),
+        this.getAllPublicProfiles(currentUserId),
       ]);
 
     return {
@@ -24,6 +25,7 @@ export class DatabaseService {
       candidates,
       chats,
       notifications,
+      publicProfiles,
       metrics: {
         totalUsers: await prisma.user.count(),
         totalPets: await prisma.pet.count(),
@@ -33,7 +35,149 @@ export class DatabaseService {
     };
   }
 
-  // --- Users ---
+  public async getAllPublicProfiles(currentUserId = 'user-mai'): Promise<Record<string, any>> {
+    const users = await prisma.user.findMany({
+      include: {
+        pets: {
+          include: {
+            vaccinations: true,
+            behaviors: true,
+          },
+        },
+        posts: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    const matches = await prisma.match.findMany({
+      where: {
+        OR: [
+          { userAId: currentUserId, status: 'matched' },
+          { userBId: currentUserId, status: 'matched' },
+        ],
+      },
+    });
+    const matchedUserIds = new Set(
+      matches.map((m) => (m.userAId === currentUserId ? m.userBId : m.userAId))
+    );
+
+    const profilesMap: Record<string, any> = {};
+
+    for (const u of users) {
+      const handle = u.username ? `@${u.username}` : `@${(u.displayName || 'user').toLowerCase().replace(/\s+/g, '')}`;
+      const cleanHandle = handle.replace(/^@/, '');
+      const galleryUrls = u.posts
+        .flatMap((p) => {
+          const mArr = Array.isArray(p.media) ? (p.media as any[]) : [];
+          return mArr.map((m: any) => (typeof m === 'string' ? m : m?.url)).filter(Boolean);
+        });
+
+      const isFriend = matchedUserIds.has(u.id);
+
+      const profile = {
+        id: u.id,
+        handle,
+        name: u.displayName || cleanHandle,
+        nickname: u.displayName || 'Cư dân Pawty',
+        avatarUrl: u.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
+        bio: u.bio || 'Yêu thương thú cưng và gắn kết cộng đồng cư dân Pawty.',
+        area: u.neighborhood || 'Vinhomes Central Park',
+        isPrivate: false,
+        isFriend,
+        friendStatus: isFriend ? 'accepted' : 'none',
+        isFollowing: isFriend,
+        isMatchedOnTinder: isFriend,
+        followersCount: 150 + u.posts.length * 15,
+        friendsCount: 45 + (isFriend ? 1 : 0),
+        pets: u.pets.map((p) => ({
+          name: p.name,
+          species: p.species === 'cat' || p.species === 'Mèo' ? 'Mèo' : 'Chó',
+          breed: p.breed || 'Chưa rõ',
+          ageLabel: '2 tuổi',
+          weightKg: Number(p.weightKg || 5),
+          isVaccinatedAndRabies: p.vaccinationStatus === 'verified' || p.vaccinations.length > 0,
+        })),
+        galleryUrls: galleryUrls.length > 0 ? galleryUrls : [u.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80'],
+      };
+
+      profilesMap[handle] = profile;
+      profilesMap[cleanHandle] = profile;
+      profilesMap[`@${cleanHandle.replace(/_/g, '')}`] = profile;
+    }
+
+    return profilesMap;
+  }
+
+  public async getPublicUserProfileByHandle(handle: string, currentUserId = 'user-mai') {
+    const cleanHandle = handle.replace(/^@/, '').toLowerCase();
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: { equals: cleanHandle, mode: 'insensitive' } },
+          { username: { equals: cleanHandle.replace(/_/g, ''), mode: 'insensitive' } },
+          { id: cleanHandle },
+        ],
+      },
+      include: {
+        pets: {
+          include: {
+            vaccinations: true,
+            behaviors: true,
+          },
+        },
+        posts: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!user) return null;
+
+    const match = await prisma.match.findFirst({
+      where: {
+        OR: [
+          { userAId: currentUserId, userBId: user.id, status: 'matched' },
+          { userAId: user.id, userBId: currentUserId, status: 'matched' },
+        ],
+      },
+    });
+
+    const isFriend = Boolean(match);
+    const galleryUrls = user.posts
+      .flatMap((p) => {
+        const mArr = Array.isArray(p.media) ? (p.media as any[]) : [];
+        return mArr.map((m: any) => (typeof m === 'string' ? m : m?.url)).filter(Boolean);
+      });
+
+    return {
+      id: user.id,
+      handle: user.username ? `@${user.username}` : `@${cleanHandle}`,
+      name: user.displayName || cleanHandle,
+      nickname: user.displayName || 'Cư dân Pawty',
+      avatarUrl: user.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
+      bio: user.bio || 'Yêu thương thú cưng và gắn kết cộng đồng cư dân Pawty.',
+      area: user.neighborhood || 'Vinhomes Central Park',
+      isPrivate: false,
+      isFriend,
+      friendStatus: isFriend ? 'accepted' : 'none',
+      isFollowing: isFriend,
+      isMatchedOnTinder: isFriend,
+      followersCount: 150 + user.posts.length * 15,
+      friendsCount: 45 + (isFriend ? 1 : 0),
+      pets: user.pets.map((p) => ({
+        name: p.name,
+        species: p.species === 'cat' || p.species === 'Mèo' ? 'Mèo' : 'Chó',
+        breed: p.breed || 'Chưa rõ',
+        ageLabel: '2 tuổi',
+        weightKg: Number(p.weightKg || 5),
+        isVaccinatedAndRabies: p.vaccinationStatus === 'verified' || p.vaccinations.length > 0,
+      })),
+      galleryUrls: galleryUrls.length > 0 ? galleryUrls : [user.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80'],
+    };
+  }
+
+    // --- Users ---
   public async getPrimaryUser(userId = 'user-mai') {
     const user = await prisma.user.findUnique({
       where: { id: userId },

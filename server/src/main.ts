@@ -207,6 +207,19 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Public user profile endpoint (Instagram style from PostgreSQL)
+    if (pathname.startsWith('/api/users/profile/') && method === 'GET') {
+      const handleParam = decodeURIComponent(pathname.replace('/api/users/profile/', ''));
+      const currentUserId = parsedUrl.searchParams.get('currentUserId') || undefined;
+      const profile = await dbService.getPublicUserProfileByHandle(handleParam, currentUserId);
+      if (!profile) {
+        sendJson(res, 404, { success: false, message: 'User profile not found' });
+        return;
+      }
+      sendJson(res, 200, { success: true, profile });
+      return;
+    }
+
     // 2. Users & Privacy Endpoints (Luật BVDLCN 91/2025/QH15)
     if (pathname === '/api/users/me' && method === 'GET') {
       const userId = parsedUrl.searchParams.get('userId') || undefined;
