@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   MobilePet,
@@ -302,6 +303,13 @@ interface MobilePawtyContextType {
   showToast: (msg: string) => void;
 }
 
+const getApiBaseUrl = () => {
+  const hostIp = Constants.expoConfig?.hostUri
+    ? Constants.expoConfig.hostUri.split(':')[0]
+    : '192.168.2.7';
+  return `http://${hostIp}:3000`;
+};
+
 const STORAGE_KEY_AUTH = '@pawty_auth_single_device_v4';
 const STORAGE_KEY_THEME = '@pawty_theme_v4';
 
@@ -402,6 +410,38 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
             if (parsed.ownerPhone) setOwnerPhone(parsed.ownerPhone);
             if (parsed.ownerNickname) setOwnerNickname(parsed.ownerNickname);
           }
+        }
+
+        // Tự động kéo danh sách tin SOS thật từ database PostgreSQL
+        try {
+          const resp = await fetch(`${getApiBaseUrl()}/api/sos`);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (Array.isArray(data.sosAlerts) && data.sosAlerts.length > 0) {
+              const mappedAlerts: MobileSosAlert[] = data.sosAlerts.map((row: any) => ({
+                id: row.id,
+                petName: row.pet?.name || 'Thú cưng',
+                species: (row.pet?.species === 'Mèo' ? 'Mèo' : 'Chó') as 'Chó' | 'Mèo',
+                breed: row.pet?.breed || 'Chưa rõ',
+                lastSeenLocation: row.lastSeenLocation,
+                lastSeenTime: 'Hôm nay',
+                distanceKm: 0.2,
+                rewardAmount: row.rewardText || '1.000.000đ',
+                contactPhone: row.user?.phone || '0909 123 456',
+                ownerName: row.user?.displayName || 'Chủ nuôi',
+                ownerHandle: `@${(row.user?.displayName || 'user').toLowerCase().replace(/\s+/g, '')}`,
+                status: row.status === 'resolved' ? 'found' : 'searching',
+                sightingsCount: Array.isArray(row.sightings) ? row.sightings.length : 0,
+                priorityScore: 160,
+                imageUrl: row.pet?.avatarUrl || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80',
+                description: row.description,
+                sightingReports: [],
+              }));
+              setSosAlerts(mappedAlerts);
+            }
+          }
+        } catch {
+          // Giữ seed data nếu server chưa bật
         }
       } catch (err) {
         console.warn('Không thể đọc phiên đăng nhập:', err);
@@ -554,6 +594,19 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.warn('Không thể lưu phiên đăng nhập:', err);
     }
     showToast(`Đăng nhập thành công trên 1 thiết bị duy nhất (${newDeviceSessionId})`);
+
+    // Đồng bộ tài khoản và thú cưng vào database PostgreSQL
+    fetch(`${getApiBaseUrl()}/api/auth/register-or-sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: cleanName,
+        phone: cleanPhone,
+        petName: params.petName,
+        petSpecies: params.petSpecies,
+        petBreed: params.petBreed,
+      }),
+    }).catch((e) => console.log('[MobileContext] Sync user to DB skipped:', e.message));
   };
 
   const forceRevokeOtherDevices = () => {
@@ -1097,8 +1150,37 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         params.description.trim() || 'Bé có đeo vòng cổ ghi số điện thoại của gia đình.',
       sightingReports: [],
     };
+
+    // Cập nhật UI ngay lập tức
     setSosAlerts((prev) => [newSos, ...prev]);
-    showToast('Đã xác thực phí chống spam (19.000đ) & đẩy tin SOS lên đầu khu vực!');
+    showToast('Đã xác thực phí chống spam (39.000đ) & đẩy tin SOS lên đầu khu vực!');
+
+    // Gửi lưu trực tiếp vào cơ sở dữ liệu PostgreSQL qua Server API
+    fetch(`${getApiBaseUrl()}/api/sos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: newSos.id,
+        petName: newSos.petName,
+        species: newSos.species,
+        breed: newSos.breed,
+        lastSeenLocation: newSos.lastSeenLocation,
+        description: newSos.description,
+        rewardText: newSos.rewardAmount,
+        imageUrl: newSos.imageUrl,
+        userPhone: ownerPhone,
+        userName: ownerName,
+        userHandle: ownerHandle,
+      }),
+    })
+      .then((res) => {
+        if (res.ok) {
+          console.log('[MobileContext] Đã lưu bài đăng SOS vào PostgreSQL thành công!');
+        }
+      })
+      .catch((err) => {
+        console.warn('[MobileContext] Không thể kết nối server để lưu SOS vào PostgreSQL:', err.message);
+      });
   };
 
   const reportSosSighting = (sosId: string, locationText: string, noteText?: string) => {
