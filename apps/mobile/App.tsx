@@ -59,6 +59,7 @@ const MainMobileShell: React.FC = () => {
   const {
     theme,
     isAuthenticated,
+    ownerName,
     ownerHandle,
     isPrivateProfile,
     isVip,
@@ -293,42 +294,21 @@ const MainMobileShell: React.FC = () => {
               <Feather name="plus" size={20} color="#1C1815" />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.igProfileHeaderCenter}
-              onPress={() => setActiveModal('edit_profile')}
-            >
-              {isPrivateProfile && (
-                <Feather name="lock" size={15} color="#1C1815" />
-              )}
+            <View style={styles.igProfileHeaderCenter}>
               <Text style={styles.igProfileHandleTitle}>
-                {ownerHandle.replace('@', '')}
+                {ownerName || ownerHandle.replace('@', '')}
               </Text>
-              <Feather name="chevron-down" size={16} color="#1C1815" />
-            </TouchableOpacity>
+              {isVip && (
+                <View style={[styles.tierPill, { backgroundColor: theme.primarySoft }]}>
+                  <Feather name="award" size={11} color={theme.primary} />
+                  <Text style={[styles.tierPillText, { color: theme.primary }]}>
+                    {activeVipPlanId === 'vip_gold' ? 'GOLD' : 'PLUS'}
+                  </Text>
+                </View>
+              )}
+            </View>
 
             <View style={styles.headerRightActions}>
-              <TouchableOpacity
-                style={[
-                  styles.plusHeaderBadge,
-                  { backgroundColor: theme.primarySoft },
-                ]}
-                onPress={() => setActiveModal('vip_upgrade')}
-              >
-                <Feather name="award" size={13} color={theme.primary} />
-                <Text
-                  style={[
-                    styles.plusHeaderBadgeText,
-                    { color: theme.primary },
-                  ]}
-                >
-                  {isVip
-                    ? activeVipPlanId === 'vip_gold'
-                      ? 'GOLD'
-                      : 'PLUS'
-                    : 'Plus'}
-                </Text>
-              </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.iconSquareBtn}
                 onPress={() => setActiveModal('my_settings')}
@@ -348,15 +328,6 @@ const MainMobileShell: React.FC = () => {
         {activeTab === 'profile' && <MobileProfileScreen />}
         {activeTab === 'sos' && <MobileSosScreen />}
       </View>
-
-      {/* Clean Minimalist Toast Banner */}
-      {toastMessage && (
-        <View style={[styles.toastBar, styles.toastInfo]}>
-          <Feather name="info" size={15} color="#FFFFFF" />
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </View>
-      )}
-
       {/* 6-Tab Bottom Navigation Bar */}
       <View style={styles.bottomBar}>
         {BOTTOM_TABS.map((tab) => {
@@ -510,6 +481,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     color: '#1C1815',
+  },
+  tierPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 99,
+  },
+  tierPillText: {
+    fontSize: 10,
+    fontWeight: '800',
   },
   headerRightActions: {
     flexDirection: 'row',

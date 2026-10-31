@@ -1,4 +1,4 @@
-# MASTER PRINT — TẦNG 4: SCREEN SPECIFICATIONS & USER FLOWS (INSTAGRAM + TINDER ARCHITECTURE)
+# MASTER PRINT — TẦNG 4: SCREEN SPECIFICATIONS & USER FLOWS (PET-CENTRIC ARCHITECTURE)
 
 > **Single Source of Truth (SSOT)** — Đồng bộ với các màn hình thực tế của Pawty Super App.
 
@@ -17,13 +17,13 @@
      - **Nhánh `Khám phá`:** Trái: Nút `+` (Đăng bài) · Giữa: 1 Logo `Pawty` động (`PawtyAnimatedLogo` size nhỏ) · Phải: Nút `SOS` (mở trang SOS toàn màn hình) + Nút `Thông báo`.
      - **Nhánh `Kết nối` (Tinder):** Trái: Tiêu đề `Kết nối` · Phải: Nút `Hoàn tác`, `Đã thích`, `Đổi vị trí`.
      - **Nhánh `Tin nhắn`:** Trái: Tiêu đề `Tin nhắn` · Phải: Nút `Kết nối` + Nút `SOS`.
-     - **Nhánh `Tôi` (Chuẩn Instagram):** Trái: Nút `+` · Giữa: Biểu tượng khóa `🔒` (nếu bật chế độ riêng tư) + `@username` + `⌄` · Phải: Nút `Plus` tinh gọn + Nút Menu `☰` (mở trang **Cài đặt của tôi**).
+     - **Nhánh `Tôi` (Pet-Centric Profile):** Trái: Biểu tượng nón tiệc Pawty hoặc Tên gia đình · Giữa: Tên chủ nuôi & Huy hiệu VIP · Phải: Nút Hamburger `☰` duy nhất mở toàn bộ Menu Cài đặt, Quyền riêng tư & Thiết lập kết nối.
      - **Nhánh `SOS` (Toàn màn hình khi bấm từ góc trên phải):** Trái: Nút `← Quay lại` + Tiêu đề `Bảng tin SOS Thú Lạc` · Phải: Nút `Thông báo`.
 3. **Thanh Điều Hướng Dưới Đáy (`Bottom Tab Bar` — 4 tab chính, không có nút `+` nổi):**
-   - Tab 1: **`Khám phá`** (Trang chính mặc định — Bảng tin MXH kiểu Instagram).
-   - Tab 2: **`Kết nối`** (Giao diện chuẩn ứng dụng Tinder quẹt thẻ tìm bạn dắt dạo).
+   - Tab 1: **`Khám phá`** (Trang chính mặc định — Bảng tin MXH thú cưng).
+   - Tab 2: **`Kết nối`** (Giao diện chuẩn Tinder quẹt thẻ tìm bạn dắt dạo).
    - Tab 3: **`Tin nhắn`** (Nhắn tin với bộ lọc: `Tất cả | Chưa đọc | Kết nối`).
-   - Tab 4: **`Tôi`** (Trang cá nhân chuẩn Instagram, Khám phá mọi người, Quản lý tối đa 3 thú cưng miễn phí có nút xóa, Thiết lập Hồ sơ Kết nối).
+   - Tab 4: **`Tôi`** (Hồ sơ Gia đình Boss & Sen: Hộ chiếu thú cưng chuyên sâu, nhật ký khoảnh khắc, không sao chép rập khuôn Instagram).
 
 ---
 
@@ -68,11 +68,29 @@
 ### 2.4 Tab 3: Tin nhắn (`Chat`)
 - Nhắn tin trực tiếp giữa người dùng với các bộ lọc tiện lợi: `Tất cả`, `Chưa đọc`, `Kết nối`.
 
-### 2.5 Tab 4: Tôi (`Profile` Chuẩn Instagram, Tối đa 3 Pet Miễn phí & Cài đặt)
-- **Thiết kế trang `Tôi` giống hệt Instagram:**
-  - Header riêng của trang `Tôi`: Trái `+` · Giữa `🔒 username ⌄` · Phải `Plus` & Menu `☰`.
-  - Cụm thông tin đầu trang: Avatar tròn (có dấu `+` và bong bóng ghi chú *"Hỏi bạn bè bất cứ điều gì..."*) + Tên và 3 cột thống kê (`bài viết`, `người theo dõi`, `đang theo dõi`).
-  - Hàng nút hành động: **`[Chỉnh sửa trang cá nhân]`** · **`[Thiết lập Kết nối]`** · **`[+👤]`**.
-  - Khối **"Khám phá mọi người" (`Xem tất cả`)**: Dải thẻ ngang gợi ý kết bạn với nút `Theo dõi / Kết bạn` và nút `✕`.
-- **Quản lý Hồ sơ Thú cưng (Tối đa 3 con miễn phí + Có nút Xóa):**
-  - Hiển thị danh sách thú cưng của tôi kèm nút thêm bé mới (tối đa 3 bé). Có nút xóa bé với popup xác nhận an toàn.
+### 2.5 Tab 4: Tôi (`Profile` — Thiết Kế Độc Bản "Pet Family Identity", Khác Biệt Hoàn Toàn Instagram/Facebook)
+- **Triết lý Thiết kế:** Không rập khuôn mạng xã hội truyền thống (không 3 cột số follow, không khối gợi ý kết bạn). Tôn vinh danh thiếp gia đình Sen & Boss tại đô thị:
+  1. **Thẻ Căn Cước Sen (Pet Parent Identity Card):**
+     - Avatar tròn bo viền đôi sang trọng với ảnh Sen / Boss đại diện.
+     - Tên Sen, @handle, Khu căn hộ / Chung cư (VD: *Masteri Thảo Điền*), và Huy hiệu Yêu Thú Cưng / Gói thành viên VIP.
+     - Châm ngôn / Lời nhắn nuôi cưng hôm nay (*"Cùng Lu dạo mát mỗi chiều"*).
+     - Duy nhất 1 nút hành động tinh gọn: **`[ Chỉnh sửa thông tin ]`** với typography căn giữa hoàn hảo.
+  2. **Toàn Bộ Cài Đặt, Quyền Riêng Tư & Kết Nối Trong Hamburger (☰):**
+     - Tuyệt đối không để nút bấm rườm rà trên màn hình chính.
+     - Nút `☰` ở góc phải mở Menu Bottom Sheet:
+       - **Công tắc Quyền riêng tư (`🔒`):** Bật/Tắt chế độ chỉ bạn bè mới xem được Boss.
+       - **Thiết lập Hồ sơ Kết nối (Tinder Setup):** Tuổi, Giới tính, Đang tìm kiếm, Gu dắt dạo.
+       - **Gói thành viên Pawty Plus & Gold:** Quyền lợi VIP.
+       - **Tài khoản & Thiết bị đăng nhập:** Quản lý Single-Device Login, Đăng xuất.
+  3. **Bỏ hoàn toàn phần "Khám phá mọi người":**
+     - Không hiển thị bất kỳ danh sách gợi ý người dùng nào trên trang này.
+  4. **Phân Hệ Hộ Chiếu Thú Cưng Chuyên Sâu (Pet Passport Interactive Showcase):**
+     - **Thanh Chọn Boss Sinh Động (Pet Selector Bar):** Dải avatar các bé thú cưng tròn đáng yêu với viền active màu San Hô, kèm nút `[ + Thêm bé ]` (tối đa 3 bé miễn phí).
+     - **Thẻ Hộ Chiếu Boss Đang Chọn (Active Pet Passport):**
+       - Ảnh chân dung Boss kích thước lớn, sắc nét, có nút chỉnh sửa ảnh.
+       - Tên Boss, Loài (Chó/Mèo), Giống lai, Cân nặng chuẩn, Tuổi.
+       - **Thẻ Sổ Tiêm Chủng Điện Tử Safe Pet (Màu Mint `#A3E4D7`):** Chứng nhận tiêm phòng 7 bệnh và vắc-xin phòng dại, chạm trực tiếp để cập nhật mũi tiêm.
+       - **Thói quen & Lưu ý khi gặp gỡ:** Minh bạch hành vi để dắt dạo an toàn (VD: *Thân thiện với cún nhỏ, Hay đuổi bồ câu, Thích chia sẻ đồ ăn*), triệt tiêu nguy cơ cắn nhau ngoài công viên.
+       - Thao tác: Chỉnh sửa hồ sơ bé · Xóa thú cưng có hộp thoại xác nhận.
+  5. **Bộ Sưu Tập Khoảnh Khắc Của Gia Đình Boss (Furry Family Moments):**
+     - Nhật ký hình ảnh kỷ niệm của các bé do Sen chia sẻ, hiển thị đẹp mắt, trực quan và tối ưu cho màn hình cảm ứng di động.
