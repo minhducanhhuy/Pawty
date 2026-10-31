@@ -14,6 +14,7 @@
 
 ### 1.2 Users, Profiles & Privacy (Luật BVDLCN 91/2025/QH15)
 - `GET /api/users/me` & `PUT /api/users/me` (`display_name`, `bio`, `district`, `neighborhood`).
+- `GET /api/users/profile/:handle?currentUserId=` — Lấy hồ sơ công khai (Instagram style) của người dùng từ PostgreSQL (bao gồm thông tin cá nhân, danh sách thú cưng, sổ tiêm chủng, bài viết đã đăng, trạng thái theo dõi và kết bạn).
 - `PUT /api/users/me/location` (`lat`, `lng`, `district`, `neighborhood`) & `PUT /api/users/me/privacy`.
 - `POST /api/users/me/data-export` & `DELETE /api/users/me` (quyền được lãng quên).
 
@@ -52,7 +53,7 @@
 - `POST /api/reports`, `POST /api/users/:id/block`, `GET /api/admin/metrics` (North Star & KPI Dashboard).
 
 ### 1.8 Bootstrap & Data Sync
-- `GET /api/bootstrap` — Tải toàn bộ dữ liệu khởi tạo thực tế từ PostgreSQL cho Mobile và Web Client (User, Pets, Feed Posts, Tinder Candidates, Chats, SOS Alerts, Notifications).
+- `GET /api/bootstrap` — Tải toàn bộ dữ liệu khởi tạo thực tế 100% từ PostgreSQL cho Mobile và Web Client (User, Pets, Feed Posts, Tinder Candidates, Chats, SOS Alerts, Notifications, Public Profiles của toàn bộ cư dân trong database).
 
 ## 2. WebSocket Events (Socket.io)
 - **Client → Server:** `chat:send`, `chat:typing`, `chat:read`.
