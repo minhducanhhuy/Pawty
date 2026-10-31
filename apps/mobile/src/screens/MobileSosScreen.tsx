@@ -71,7 +71,7 @@ export const MobileSosScreen: React.FC = () => {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 0.8,
+        quality: 0.35,
         base64: true,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -105,14 +105,15 @@ export const MobileSosScreen: React.FC = () => {
       }
 
       let aiData: any = null;
+      let errorMsg = '';
 
-      // 1. Try local/LAN backend if reachable
+      const hostIp = Constants.expoConfig?.hostUri
+        ? Constants.expoConfig.hostUri.split(':')[0]
+        : '192.168.2.7';
+
       try {
-        const hostIp = Constants.expoConfig?.hostUri
-          ? Constants.expoConfig.hostUri.split(':')[0]
-          : '192.168.2.7';
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
 
         const response = await fetch(`http://${hostIp}:3000/api/ai/describe-pet`, {
           method: 'POST',
@@ -128,67 +129,15 @@ export const MobileSosScreen: React.FC = () => {
         });
         clearTimeout(timeoutId);
 
-        if (response.ok) {
-          const resJson = await response.json();
-          if (resJson.success && resJson.description) {
-            aiData = resJson;
-          }
+        const resJson = await response.json();
+        if (response.ok && resJson.success && resJson.description) {
+          aiData = resJson;
+        } else {
+          errorMsg = resJson.error || 'Server không thể phân tích ảnh.';
         }
-      } catch (backendErr) {
-        console.log('[MobileSos] Backend call skipped or timed out, trying direct Gemini API...');
-      }
-
-      // 2. Direct Gemini Vision API call fallback
-      if (!aiData && b64) {
-        const geminiApiKey = 'AIzaSyAp3GD5ZKWqAP7Pe3h0fM0ncbWRG1GbuHs';
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
-
-        const prompt = `Bạn là Trợ lý AI nhận dạng thú cưng của Pawty Super App.
-Nhiệm vụ: Người dùng đang cần đăng tin tìm thú cưng thất lạc. Hãy nhìn kỹ bức ảnh này và tự động viết một đoạn mô tả nhận diện cực kỳ chi tiết, súc tích, dễ nhận biết nhất bằng tiếng Việt (giúp người đi đường dễ dàng nhận ra bé).
-BẮT BUỘC trả về ĐÚNG 1 JSON hợp lệ (không markdown, không thêm text ngoài):
-{
-  "species": "Chó" hoặc "Mèo",
-  "breed": "Tên giống cụ thể (ví dụ: Poodle Toy, Golden Retriever, Corgi Pembroke, Mèo Ba Tư, Mèo Anh lông dài, Mèo Anh lông ngắn...)",
-  "primaryColor": "Màu lông chủ đạo",
-  "hasCollar": true hoặc false,
-  "collarColor": "Màu vòng cổ nếu có",
-  "distinctiveFeatures": ["đặc điểm 1", "đặc điểm 2"],
-  "description": "Đoạn văn hoàn chỉnh 2-3 câu mô tả đầy đủ: giống loài, màu sắc, dáng lông, phụ kiện đeo cổ (nếu có), các điểm nổi bật nhất để người khác nhìn thấy là nhận ra ngay."
-}`;
-
-        const geminiResp = await fetch(geminiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: prompt },
-                  {
-                    inlineData: {
-                      mimeType: 'image/jpeg',
-                      data: b64,
-                    },
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.3,
-            },
-          }),
-        });
-
-        if (geminiResp.ok) {
-          const geminiJson = await geminiResp.json();
-          const rawText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) {
-            aiData = JSON.parse(rawText);
-          }
-        }
+      } catch (backendErr: any) {
+        console.warn('[MobileSos] Backend describe error:', backendErr?.message || backendErr);
+        errorMsg = `Không thể kết nối đến máy chủ server (${hostIp}:3000). Vui lòng đảm bảo server đang chạy!`;
       }
 
       if (aiData) {
@@ -206,7 +155,7 @@ BẮT BUỘC trả về ĐÚNG 1 JSON hợp lệ (không markdown, không thêm 
         }
         showToast('✨ AI đã nhận diện và điền chi tiết nhận dạng giúp bạn!');
       } else {
-        showToast('Không thể kết nối AI nhận diện. Vui lòng thử lại sau.');
+        showToast(errorMsg || 'Không thể kết nối AI nhận diện. Vui lòng thử lại sau.');
       }
     } catch (err: any) {
       console.warn('AI describe-pet error:', err);
