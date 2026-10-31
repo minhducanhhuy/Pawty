@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
@@ -27,13 +28,21 @@ export const MobileOnboardingScreen: React.FC = () => {
   } = useMobilePawty();
 
   const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('welcome');
-  const [phoneInput, setPhoneInput] = useState('0909 123 456');
-  const [otpInput, setOtpInput] = useState('6868');
+  const [identifierInput, setIdentifierInput] = useState('mai_nguyen');
+  const [passwordInput, setPasswordInput] = useState('password123');
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Register fields
   const [fullNameInput, setFullNameInput] = useState('Mai Nguyễn');
+  const [phoneInput, setPhoneInput] = useState('0912345678');
+  const [usernameInput, setUsernameInput] = useState('mai_nguyen');
   const [petNameInput, setPetNameInput] = useState('Lu');
   const [petSpeciesInput, setPetSpeciesInput] = useState<'Chó' | 'Mèo'>('Chó');
   const [petBreedInput, setPetBreedInput] = useState('Golden Retriever');
   const [petVaccinated, setPetVaccinated] = useState(true);
+
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   const scrollViewRef = useRef<any>(null);
@@ -57,6 +66,65 @@ export const MobileOnboardingScreen: React.FC = () => {
     setTimeout(() => {
       scrollViewRef.current?.scrollTo({ y: yOffset, animated: true });
     }, 180);
+  };
+
+  const handleLogin = async () => {
+    Keyboard.dismiss();
+    setAuthError(null);
+    if (!identifierInput.trim()) {
+      setAuthError('Vui lòng nhập Số điện thoại hoặc Tên đăng nhập.');
+      return;
+    }
+    if (!passwordInput.trim()) {
+      setAuthError('Vui lòng nhập Mật khẩu.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await loginOrRegister({
+        identifier: identifierInput.trim(),
+        password: passwordInput.trim(),
+      });
+    } catch (err: any) {
+      setAuthError(err.message || 'Số điện thoại / tên đăng nhập hoặc mật khẩu không đúng.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegister = async () => {
+    Keyboard.dismiss();
+    setAuthError(null);
+    if (!fullNameInput.trim()) {
+      setAuthError('Vui lòng nhập Họ và tên.');
+      return;
+    }
+    if (!phoneInput.trim()) {
+      setAuthError('Vui lòng nhập Số điện thoại.');
+      return;
+    }
+    if (!passwordInput.trim()) {
+      setAuthError('Vui lòng nhập Mật khẩu.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await loginOrRegister({
+        name: fullNameInput.trim(),
+        phone: phoneInput.trim(),
+        username: usernameInput.trim() || undefined,
+        password: passwordInput.trim(),
+        petName: petNameInput.trim(),
+        petSpecies: petSpeciesInput,
+        petBreed: petBreedInput.trim(),
+      });
+    } catch (err: any) {
+      setAuthError(err.message || 'Đăng ký không thành công. Vui lòng thử lại.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -111,6 +179,8 @@ export const MobileOnboardingScreen: React.FC = () => {
                 loginOrRegister({
                   name: ownerName,
                   phone: phoneInput,
+                  identifier: 'mai_nguyen',
+                  password: 'password123',
                 })
               }
             >
@@ -137,7 +207,10 @@ export const MobileOnboardingScreen: React.FC = () => {
 
             <TouchableOpacity
               style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
-              onPress={() => setMode('register')}
+              onPress={() => {
+                setAuthError(null);
+                setMode('register');
+              }}
             >
               <Feather name="user-plus" size={16} color="#FFFFFF" />
               <Text style={styles.primaryBtnText}>Tạo tài khoản mới</Text>
@@ -145,10 +218,13 @@ export const MobileOnboardingScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.secondaryBtn}
-              onPress={() => setMode('login')}
+              onPress={() => {
+                setAuthError(null);
+                setMode('login');
+              }}
             >
               <Feather name="log-in" size={16} color="#4A3F35" />
-              <Text style={styles.secondaryBtnText}>Đăng nhập bằng Số điện thoại</Text>
+              <Text style={styles.secondaryBtnText}>Đăng nhập bằng SĐT / Username</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -157,46 +233,85 @@ export const MobileOnboardingScreen: React.FC = () => {
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
               <Text style={styles.sectionTitle}>Đăng nhập tài khoản</Text>
-              <TouchableOpacity onPress={() => setMode('welcome')}>
+              <TouchableOpacity onPress={() => {
+                setAuthError(null);
+                setMode('welcome');
+              }}>
                 <Text style={[styles.backLink, { color: theme.primary }]}>Quay lại</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.inputLabel}>Số điện thoại</Text>
+            <Text style={styles.sectionSub}>
+              Đăng nhập bằng Số điện thoại hoặc Tên đăng nhập và Mật khẩu của bạn.
+            </Text>
+
+            {authError && (
+              <View style={styles.errorBox}>
+                <Feather name="alert-circle" size={15} color="#D32F2F" />
+                <Text style={styles.errorText}>{authError}</Text>
+              </View>
+            )}
+
+            <Text style={styles.inputLabel}>Số điện thoại hoặc Tên đăng nhập (Username)</Text>
             <TextInput
               style={styles.input}
-              value={phoneInput}
-              onChangeText={setPhoneInput}
-              keyboardType="phone-pad"
-              placeholder="Nhập số điện thoại..."
+              value={identifierInput}
+              onChangeText={setIdentifierInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="VD: 0912345678 hoặc mai_nguyen"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(140)}
             />
 
-            <Text style={styles.inputLabel}>Mã xác thực OTP (4 số)</Text>
-            <TextInput
-              style={styles.input}
-              value={otpInput}
-              onChangeText={setOtpInput}
-              keyboardType="number-pad"
-              placeholder="Nhập mã OTP..."
-              placeholderTextColor="#B8AEA4"
-              onFocus={() => scrollToOffset(220)}
-            />
+            <Text style={styles.inputLabel}>Mật khẩu</Text>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                value={passwordInput}
+                onChangeText={setPasswordInput}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                placeholder="Nhập mật khẩu..."
+                placeholderTextColor="#B8AEA4"
+                onFocus={() => scrollToOffset(220)}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeBtn}
+              >
+                <Feather
+                  name={showPassword ? 'eye-off' : 'eye'}
+                  size={18}
+                  color="#7A6E63"
+                />
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: theme.primary, marginTop: 8 }]}
-              onPress={() => {
-                Keyboard.dismiss();
-                loginOrRegister({
-                  name: ownerName,
-                  phone: phoneInput,
-                });
-              }}
+              style={[
+                styles.primaryBtn,
+                { backgroundColor: theme.primary, marginTop: 8 },
+                isLoading && { opacity: 0.7 },
+              ]}
+              disabled={isLoading}
+              onPress={handleLogin}
             >
-              <Feather name="check" size={16} color="#FFFFFF" />
-              <Text style={styles.primaryBtnText}>Đăng nhập ngay (1 Thiết bị)</Text>
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Feather name="check" size={16} color="#FFFFFF" />
+                  <Text style={styles.primaryBtnText}>Đăng nhập ngay (1 Thiết bị)</Text>
+                </>
+              )}
             </TouchableOpacity>
+
+            <View style={styles.hintBox}>
+              <Text style={styles.hintTitle}>💡 Gợi ý tài khoản kiểm thử:</Text>
+              <Text style={styles.hintText}>• SĐT: 0912345678 hoặc Username: mai_nguyen</Text>
+              <Text style={styles.hintText}>• Mật khẩu: password123</Text>
+            </View>
           </View>
         )}
 
@@ -204,10 +319,20 @@ export const MobileOnboardingScreen: React.FC = () => {
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
               <Text style={styles.sectionTitle}>Tạo tài khoản mới</Text>
-              <TouchableOpacity onPress={() => setMode('welcome')}>
+              <TouchableOpacity onPress={() => {
+                setAuthError(null);
+                setMode('welcome');
+              }}>
                 <Text style={[styles.backLink, { color: theme.primary }]}>Quay lại</Text>
               </TouchableOpacity>
             </View>
+
+            {authError && (
+              <View style={styles.errorBox}>
+                <Feather name="alert-circle" size={15} color="#D32F2F" />
+                <Text style={styles.errorText}>{authError}</Text>
+              </View>
+            )}
 
             <Text style={styles.inputLabel}>Họ và tên của bạn</Text>
             <TextInput
@@ -219,16 +344,52 @@ export const MobileOnboardingScreen: React.FC = () => {
               onFocus={() => scrollToOffset(120)}
             />
 
-            <Text style={styles.inputLabel}>Số điện thoại đăng ký (Gắn duy nhất 1 thiết bị)</Text>
+            <Text style={styles.inputLabel}>Số điện thoại</Text>
             <TextInput
               style={styles.input}
               value={phoneInput}
               onChangeText={setPhoneInput}
               keyboardType="phone-pad"
-              placeholder="0909 123 456"
+              placeholder="0912345678"
               placeholderTextColor="#B8AEA4"
-              onFocus={() => scrollToOffset(195)}
+              onFocus={() => scrollToOffset(170)}
             />
+
+            <Text style={styles.inputLabel}>Tên đăng nhập (Username)</Text>
+            <TextInput
+              style={styles.input}
+              value={usernameInput}
+              onChangeText={setUsernameInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="VD: mai_nguyen"
+              placeholderTextColor="#B8AEA4"
+              onFocus={() => scrollToOffset(220)}
+            />
+
+            <Text style={styles.inputLabel}>Mật khẩu</Text>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                value={passwordInput}
+                onChangeText={setPasswordInput}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                placeholder="Nhập mật khẩu..."
+                placeholderTextColor="#B8AEA4"
+                onFocus={() => scrollToOffset(270)}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeBtn}
+              >
+                <Feather
+                  name={showPassword ? 'eye-off' : 'eye'}
+                  size={18}
+                  color="#7A6E63"
+                />
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
@@ -344,20 +505,22 @@ export const MobileOnboardingScreen: React.FC = () => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: theme.primary, marginTop: 10 }]}
-              onPress={() => {
-                Keyboard.dismiss();
-                loginOrRegister({
-                  name: fullNameInput,
-                  phone: phoneInput,
-                  petName: petNameInput,
-                  petSpecies: petSpeciesInput,
-                  petBreed: petBreedInput,
-                });
-              }}
+              style={[
+                styles.primaryBtn,
+                { backgroundColor: theme.primary, marginTop: 10 },
+                isLoading && { opacity: 0.7 },
+              ]}
+              disabled={isLoading}
+              onPress={handleRegister}
             >
-              <Feather name="check-circle" size={16} color="#FFFFFF" />
-              <Text style={styles.primaryBtnText}>Hoàn tất & Vào ứng dụng</Text>
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Feather name="check-circle" size={16} color="#FFFFFF" />
+                  <Text style={styles.primaryBtnText}>Hoàn tất & Vào ứng dụng</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         )}
@@ -448,19 +611,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
     color: '#2C2520',
   },
   sectionSub: {
     fontSize: 13,
-    color: '#8E8074',
-    lineHeight: 19,
-    marginTop: 4,
-    marginBottom: 14,
+    color: '#7A6E63',
+    lineHeight: 18,
+    marginBottom: 16,
   },
   backLink: {
     fontSize: 13,
@@ -470,15 +632,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 14,
+    padding: 12,
     borderRadius: 18,
-    backgroundColor: '#FAF7F2',
     borderWidth: 1.5,
+    backgroundColor: '#FAF7F2',
+    marginBottom: 14,
   },
   savedAvatar: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -488,8 +651,8 @@ const styles = StyleSheet.create({
     color: '#2C2520',
   },
   savedMeta: {
-    fontSize: 12,
-    color: '#8E8074',
+    fontSize: 11,
+    color: '#7A6E63',
     marginTop: 2,
   },
   enterBadge: {
@@ -497,29 +660,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingVertical: 6,
     borderRadius: 12,
   },
   enterBadgeText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#FFFFFF',
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginVertical: 16,
+    marginVertical: 14,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#EFE9E1',
+    backgroundColor: '#E8E0D5',
   },
   dividerText: {
+    paddingHorizontal: 10,
     fontSize: 11,
     fontWeight: '600',
-    color: '#A3968A',
+    color: '#A09387',
   },
   primaryBtn: {
     flexDirection: 'row',
@@ -566,6 +729,61 @@ const styles = StyleSheet.create({
     color: '#2C2520',
     marginBottom: 12,
   },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FAF7F2',
+    borderWidth: 1,
+    borderColor: '#E8E0D5',
+    borderRadius: 14,
+    marginBottom: 12,
+    paddingRight: 10,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#2C2520',
+  },
+  eyeBtn: {
+    padding: 6,
+  },
+  errorBox: {
+    backgroundColor: '#FFECEB',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  errorText: {
+    color: '#D32F2F',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  hintBox: {
+    backgroundColor: '#F3FBF8',
+    borderColor: '#A3E4D7',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 12,
+  },
+  hintTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1E6F56',
+    marginBottom: 4,
+  },
+  hintText: {
+    fontSize: 11,
+    color: '#267359',
+    lineHeight: 16,
+  },
   speciesRow: {
     flexDirection: 'row',
     gap: 10,
@@ -579,9 +797,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 11,
     borderRadius: 14,
-    backgroundColor: '#FAF7F2',
     borderWidth: 1,
     borderColor: '#E8E0D5',
+    backgroundColor: '#FAF7F2',
   },
   speciesChipText: {
     fontSize: 13,
@@ -594,23 +812,23 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 12,
     borderRadius: 14,
-    backgroundColor: '#FAF7F2',
     borderWidth: 1,
     borderColor: '#E8E0D5',
-    marginBottom: 8,
+    backgroundColor: '#FAF7F2',
+    marginVertical: 6,
   },
   checkboxSquare: {
     width: 22,
     height: 22,
-    borderRadius: 7,
-    borderWidth: 1.5,
-    borderColor: '#C5B8AC',
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#B8AEA4',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
   },
   vaccineToggleTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
     color: '#2C2520',
   },

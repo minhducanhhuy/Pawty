@@ -43,15 +43,20 @@ export const MobileExploreScreen: React.FC = () => {
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const [activePhotoIndexMap, setActivePhotoIndexMap] = useState<Record<string, number>>({});
 
-  const filteredPosts = posts.filter((post) => {
+    const filteredPosts = posts.filter((post) => {
+    if (!post) return false;
     const q = searchQuery.trim().toLowerCase();
-    const matchQuery =
-      !q ||
-      post.content.toLowerCase().includes(q) ||
-      post.authorName.toLowerCase().includes(q) ||
-      post.authorHandle.toLowerCase().includes(q) ||
-      post.tags.some((h) => h.toLowerCase().includes(q));
-    return matchQuery;
+    if (!q) return true;
+    const postContent = (post.content || '').toLowerCase();
+    const authorName = (post.authorName || '').toLowerCase();
+    const authorHandle = (post.authorHandle || '').toLowerCase();
+    const tags = Array.isArray(post.tags) ? post.tags : [];
+    return (
+      postContent.includes(q) ||
+      authorName.includes(q) ||
+      authorHandle.includes(q) ||
+      tags.some((h) => (h || '').toLowerCase().includes(q))
+    );
   });
 
   const handleSelectSuggestion = (keyword: string) => {

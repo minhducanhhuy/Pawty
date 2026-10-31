@@ -22,6 +22,7 @@ export const MobileProfileScreen: React.FC = () => {
     ownerHandle,
     ownerBio,
     ownerArea,
+    ownerAvatar,
     ownerNoteBubble,
     isPrivateProfile,
     pets,
@@ -53,9 +54,10 @@ export const MobileProfileScreen: React.FC = () => {
   const [newPetWeight, setNewPetWeight] = useState('6.5');
   const [newPetAge, setNewPetAge] = useState('1 tuổi');
 
-  const myPosts = posts.filter((p) => p.authorHandle === ownerHandle);
+  const myPosts = posts.filter((p) => p.authorHandle === ownerHandle || p.authorName === ownerName);
   const displayPosts = myPosts.length > 0 ? myPosts : posts.slice(0, 4);
   const ownerAvatarUrl =
+    ownerAvatar ||
     pets[0]?.avatarUrl ||
     'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80';
 
@@ -461,6 +463,22 @@ export const MobileProfileScreen: React.FC = () => {
               >
                 <Feather name="check" size={14} color="#FFFFFF" />
                 <Text style={styles.saveInlinePetBtnText}>Lưu thú cưng mới</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {pets.length === 0 && (
+            <View style={styles.inlineAddPetCard}>
+              <Text style={[styles.petPolicyTitle, { textAlign: 'center' }]}>Chưa có hồ sơ thú cưng nào</Text>
+              <Text style={[styles.petPolicySub, { textAlign: 'center', marginTop: 4, marginBottom: 12 }]}>
+                Tài khoản này chưa có Boss cưng. Bạn có thể thêm tối đa 3 bé miễn phí để bắt đầu kết nối dắt dạo!
+              </Text>
+              <TouchableOpacity
+                style={[styles.saveInlinePetBtn, { backgroundColor: theme.primary }]}
+                onPress={() => setIsAddingPetInline(true)}
+              >
+                <Feather name="plus" size={14} color="#FFFFFF" />
+                <Text style={styles.saveInlinePetBtnText}>Thêm bé ngay</Text>
               </TouchableOpacity>
             </View>
           )}
