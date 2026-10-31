@@ -4,8 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   MobilePet,
   MobilePost,
-  MobileAppointment,
-  MobileService,
   MobileChatRoom,
   MobileSosAlert,
   MobileNotificationItem,
@@ -17,8 +15,6 @@ import {
   VipPlanOption,
   INITIAL_MOBILE_PETS,
   INITIAL_MOBILE_POSTS,
-  INITIAL_MOBILE_APPOINTMENTS,
-  INITIAL_MOBILE_SERVICES,
   INITIAL_MOBILE_CHATS,
   INITIAL_MOBILE_SOS,
   INITIAL_MOBILE_NOTIFICATIONS,
@@ -36,8 +32,6 @@ export const MAX_FREE_PETS = 3;
 export type MobileMainTab =
   | 'explore'
   | 'tinder'
-  | 'services'
-  | 'appointments'
   | 'chat'
   | 'profile'
   | 'sos';
@@ -45,7 +39,6 @@ export type MobileMainTab =
 export type MobileModalType =
   | null
   | 'new_moment'
-  | 'book_service'
   | 'vip_upgrade'
   | 'notifications'
   | 'edit_profile'
@@ -262,19 +255,6 @@ interface MobilePawtyContextType {
   toggleFriendStatus: (handle: string) => void;
   startDirectChatWithUser: (handle: string) => void;
 
-  // Services & Appointments
-  appointments: MobileAppointment[];
-  services: MobileService[];
-  selectedServiceForBooking: MobileService | null;
-  openBookingForService: (service: MobileService) => void;
-  bookAppointment: (params: {
-    serviceId: string;
-    dateLabel: string;
-    timeSlot: string;
-    notes: string;
-  }) => void;
-  cancelAppointment: (appointmentId: string) => void;
-
   // Kết nối (Tinder) Tab
   tinderIntent: TinderIntent;
   setTinderIntent: (intent: TinderIntent) => void;
@@ -382,14 +362,6 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [publicProfiles, setPublicProfiles] =
     useState<Record<string, PublicUserProfile>>(PUBLIC_USER_PROFILES);
   const [viewedUserHandle, setViewedUserHandle] = useState<string | null>(null);
-
-  // Services & Appointments
-  const [appointments, setAppointments] = useState<MobileAppointment[]>(
-    INITIAL_MOBILE_APPOINTMENTS
-  );
-  const [services] = useState<MobileService[]>(INITIAL_MOBILE_SERVICES);
-  const [selectedServiceForBooking, setSelectedServiceForBooking] =
-    useState<MobileService | null>(null);
 
   // Kết nối (Tinder)
   const [tinderIntent, setTinderIntent] = useState<TinderIntent>('dating');
@@ -975,47 +947,6 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setActiveChatId(newChatId);
   };
 
-  // Services & Appointments
-  const openBookingForService = (service: MobileService) => {
-    setSelectedServiceForBooking(service);
-    setActiveModal('book_service');
-  };
-
-  const bookAppointment = (params: {
-    serviceId: string;
-    dateLabel: string;
-    timeSlot: string;
-    notes: string;
-  }) => {
-    const service = services.find((s) => s.id === params.serviceId) || services[0];
-    if (!service) return;
-    const newApt: MobileAppointment = {
-      id: `apt-${Date.now()}`,
-      petId: activePet.id,
-      petName: activePet.name,
-      serviceName: service.Packages[0]?.name || service.name,
-      providerName: service.name,
-      category: service.category,
-      dateLabel: params.dateLabel || 'Ngày mai',
-      timeSlot: params.timeSlot || '10:00',
-      status: 'confirmed',
-      priceLabel: service.priceRange.split(' - ')[0] || '350.000đ',
-      location: service.address,
-      notes: params.notes || 'Đã đặt lịch qua ứng dụng Pawty',
-    };
-    setAppointments((prev) => [newApt, ...prev]);
-    setActiveModal(null);
-    setActiveTab('appointments');
-    showToast(`Đã đặt lịch tại ${service.name}`);
-  };
-
-  const cancelAppointment = (appointmentId: string) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt.id === appointmentId ? { ...apt, status: 'cancelled' } : apt))
-    );
-    showToast('Đã hủy lịch hẹn');
-  };
-
   // Kết nối (Tinder) Swipe & Match Logic
   const swipeTinderCandidate = (candidateId: string, direction: 'left' | 'right') => {
     const target = tinderCandidates.find((c) => c.id === candidateId);
@@ -1326,12 +1257,6 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         closePublicUserProfile,
         toggleFriendStatus,
         startDirectChatWithUser,
-        appointments,
-        services,
-        selectedServiceForBooking,
-        openBookingForService,
-        bookAppointment,
-        cancelAppointment,
         tinderIntent,
         setTinderIntent,
         tinderFilterGoal,

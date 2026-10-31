@@ -124,3 +124,35 @@ export function validateVietnamesePhone(phone: string): boolean {
   return /^(0|\+84)(3|5|7|8|9)\d{8}$/.test(cleaned);
 }
 
+
+export interface SosAlertValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+export function validateSosAlertPayload(payload: {
+  petName?: string;
+  species?: string;
+  lastSeenLocation?: string;
+  description?: string;
+}): SosAlertValidationResult {
+  const errors: string[] = [];
+  if (!payload.petName || payload.petName.trim().length < 2) {
+    errors.push('Tên thú cưng phải có ít nhất 2 ký tự.');
+  }
+  if (!payload.lastSeenLocation || payload.lastSeenLocation.trim().length < 4) {
+    errors.push('Vui lòng cung cấp vị trí nhìn thấy gần nhất để hàng xóm nhận diện.');
+  }
+  if (!payload.description || payload.description.trim().length < 6) {
+    errors.push('Vui lòng mô tả đặc điểm nhận dạng (màu lông, vòng cổ...).');
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+export function validateMatchDecisionPayload(payload: {
+  matchId?: string;
+  decision?: string;
+}): boolean {
+  if (!payload.matchId) return false;
+  return payload.decision === 'verified' || payload.decision === 'dismissed';
+}

@@ -120,12 +120,7 @@ export const MobileChatScreen: React.FC = () => {
                     <Text style={[styles.matchTagText, { color: theme.primary }]}>Kết nối</Text>
                   </View>
                 )}
-                {activeChat.matchSource === 'service' && (
-                  <View style={[styles.matchTag, { backgroundColor: '#EAF7F1' }]}>
-                    <Feather name="briefcase" size={10} color="#2E7D5B" />
-                    <Text style={[styles.matchTagText, { color: '#2E7D5B' }]}>Dịch vụ</Text>
-                  </View>
-                )}
+                
               </View>
               <Text style={[styles.headerSub, { color: theme.textMuted }]} numberOfLines={1}>
                 {activeChat.petSummary} · {activeChat.distanceLabel}
@@ -133,26 +128,13 @@ export const MobileChatScreen: React.FC = () => {
             </View>
           </TouchableOpacity>
 
-          {activeChat.matchSource === 'service' ? (
-            <TouchableOpacity
-              onPress={() => {
-                setActiveChatId(null);
-                setActiveTab('services');
-              }}
-              style={[styles.profileQuickBtn, { backgroundColor: '#EAF7F1' }]}
-            >
-              <Feather name="calendar" size={13} color="#2E7D5B" />
-              <Text style={[styles.profileQuickBtnText, { color: '#2E7D5B' }]}>Đặt lịch</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={() => openPublicUserProfile(activeChat.partnerHandle)}
-              style={[styles.profileQuickBtn, { backgroundColor: theme.surfaceMuted }]}
-            >
-              <Feather name="user" size={14} color={theme.text} />
-              <Text style={[styles.profileQuickBtnText, { color: theme.text }]}>Trang cá nhân</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={() => openPublicUserProfile(activeChat.partnerHandle)}
+            style={[styles.profileQuickBtn, { backgroundColor: theme.surfaceMuted }]}
+          >
+            <Feather name="user" size={14} color={theme.text} />
+            <Text style={[styles.profileQuickBtnText, { color: theme.text }]}>Trang cá nhân</Text>
+          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -279,10 +261,7 @@ export const MobileChatScreen: React.FC = () => {
                 id: 'tinder',
                 label: `Kết nối (${chats.filter((c) => c.matchSource === 'tinder_match').length})`,
               },
-              {
-                id: 'service',
-                label: `Dịch vụ (${chats.filter((c) => c.matchSource === 'service').length})`,
-              },
+              
             ] as const
           ).map((f) => {
             const active = chatFilter === f.id;
@@ -316,9 +295,9 @@ export const MobileChatScreen: React.FC = () => {
           <Feather name="message-square" size={32} color={theme.textMuted} />
           <Text style={[styles.emptyTitle, { color: theme.text }]}>Không có cuộc trò chuyện nào</Text>
           <Text style={[styles.emptySub, { color: theme.textMuted }]}>
-            {searchFriend
+{searchFriend
               ? 'Không tìm thấy kết quả phù hợp với từ khóa.'
-              : 'Hãy quẹt thẻ Kết nối hoặc đặt dịch vụ để bắt đầu trò chuyện.'}
+              : 'Hãy quẹt thẻ Kết nối để bắt đầu cuộc trò chuyện mới.'}
           </Text>
         </View>
       ) : (
@@ -350,11 +329,7 @@ export const MobileChatScreen: React.FC = () => {
                         <Text style={[styles.tinderMiniText, { color: theme.primary }]}>Kết nối</Text>
                       </View>
                     )}
-                    {room.matchSource === 'service' && (
-                      <View style={[styles.tinderMiniBadge, { backgroundColor: '#EAF7F1' }]}>
-                        <Text style={[styles.tinderMiniText, { color: '#2E7D5B' }]}>Dịch vụ</Text>
-                      </View>
-                    )}
+                    
                   </View>
                   <Text style={[styles.chatTime, { color: theme.textMuted }]}>
                     {lastMsg?.time || ''}

@@ -232,6 +232,27 @@ export const MobileExploreScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
 
+              {post.aiSosMatch && (
+                <View style={styles.aiMatchBanner}>
+                  <View style={styles.aiMatchHeaderRow}>
+                    <View style={styles.aiMatchBadge}>
+                      <Feather name="cpu" size={12} color="#FFFFFF" />
+                      <Text style={styles.aiMatchBadgeText}>AI RADAR PHÁT HIỆN</Text>
+                    </View>
+                    <View style={styles.aiMatchScorePill}>
+                      <Text style={styles.aiMatchScoreText}>Khớp {post.aiSosMatch.matchScore}%</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.aiMatchTitle}>
+                    Nghi vấn khớp với tin SOS của bé <Text style={{ fontWeight: '800', color: '#E17055' }}>{post.aiSosMatch.petName}</Text>
+                  </Text>
+                  <View style={styles.aiMatchMetaRow}>
+                    <Feather name="map-pin" size={12} color="#E17055" />
+                    <Text style={styles.aiMatchLocationText}>{post.aiSosMatch.detectedLocationName}</Text>
+                  </View>
+                </View>
+              )}
+
               <Text style={styles.caption}>{post.content}</Text>
 
               {post.tags.length > 0 && (
@@ -866,5 +887,62 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  aiMatchBanner: {
+    marginHorizontal: 14,
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: '#FFF5F0',
+    borderWidth: 1,
+    borderColor: '#FFD9CC',
+  },
+  aiMatchHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  aiMatchBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E17055',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  aiMatchBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.4,
+  },
+  aiMatchScorePill: {
+    backgroundColor: '#FFE3D9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  aiMatchScoreText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#E17055',
+  },
+  aiMatchTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2C2520',
+    marginBottom: 4,
+  },
+  aiMatchMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  aiMatchLocationText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#E17055',
   },
 });

@@ -17,8 +17,6 @@ import {
 } from './src/context/MobilePawtyContext';
 import { MobileExploreScreen } from './src/screens/MobileExploreScreen';
 import { MobileTinderScreen } from './src/screens/MobileTinderScreen';
-import { MobileServicesScreen } from './src/screens/MobileServicesScreen';
-import { MobileAppointmentsScreen } from './src/screens/MobileAppointmentsScreen';
 import { MobileChatScreen } from './src/screens/MobileChatScreen';
 import { MobileProfileScreen } from './src/screens/MobileProfileScreen';
 import { MobileSosScreen } from './src/screens/MobileSosScreen';
@@ -30,8 +28,6 @@ const PAWTY_LOGO_FULL = require('./assets/pawty-logo-full.png');
 const BOTTOM_TABS: { id: Exclude<MobileMainTab, 'sos'>; label: string; icon: string }[] = [
   { id: 'explore', label: 'Khám phá', icon: 'compass' },
   { id: 'tinder', label: 'Kết nối', icon: 'heart' },
-  { id: 'services', label: 'Dịch vụ', icon: 'briefcase' },
-  { id: 'appointments', label: 'Lịch hẹn', icon: 'calendar' },
   { id: 'chat', label: 'Tin nhắn', icon: 'message-circle' },
   { id: 'profile', label: 'Tôi', icon: 'user' },
 ];
@@ -55,7 +51,7 @@ const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
         </View>
         <Text style={styles.splashTagline}>Những bàn chân nhỏ đang tới</Text>
         <Text style={styles.splashSub}>
-          Mạng xã hội hình ảnh · Kết nối bạn đi dạo · Dịch vụ thú cưng
+          Mạng xã hội hình ảnh · Kết nối bạn đi dạo · Báo động SOS
         </Text>
       </View>
     </SafeAreaView>
@@ -229,72 +225,8 @@ const MainMobileShell: React.FC = () => {
           </>
         )}
 
-        {/* 3. DỊCH VỤ HEADER */}
-        {activeTab === 'services' && (
-          <>
-            <View style={styles.contextualTitleWrap}>
-              <Feather name="briefcase" size={18} color={theme.primary} />
-              <Text style={styles.contextualHeaderTitle}>Dịch vụ Thú cưng</Text>
-            </View>
-
-            <View style={styles.headerRightActions}>
-              <TouchableOpacity
-                style={styles.contextualPillBtn}
-                onPress={() => setActiveTab('appointments')}
-              >
-                <Feather name="calendar" size={13} color="#4A3F35" />
-                <Text style={styles.contextualPillText}>Lịch hẹn</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.sosHeaderBtn}
-                onPress={() => setActiveTab('sos')}
-              >
-                <Feather name="alert-triangle" size={13} color="#B85D43" />
-                <Text style={styles.sosHeaderText}>SOS</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {/* 4. LỊCH HẸN HEADER */}
-        {activeTab === 'appointments' && (
-          <>
-            <View style={styles.contextualTitleWrap}>
-              <Feather name="calendar" size={18} color={theme.primary} />
-              <Text style={styles.contextualHeaderTitle}>Quản lý Lịch hẹn</Text>
-            </View>
-
-            <View style={styles.headerRightActions}>
-              <TouchableOpacity
-                style={[
-                  styles.contextualPillBtn,
-                  { backgroundColor: theme.primarySoft },
-                ]}
-                onPress={() => setActiveTab('services')}
-              >
-                <Feather name="plus" size={13} color={theme.primary} />
-                <Text
-                  style={[
-                    styles.contextualPillText,
-                    { color: theme.primary },
-                  ]}
-                >
-                  Đặt lịch mới
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.iconSquareBtn}
-                onPress={() => setActiveModal('notifications')}
-              >
-                <Feather name="bell" size={18} color="#4A3F35" />
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {/* 5. TIN NHẮN HEADER */}
+        {/* 3. TIN NHẮN HEADER */}
+        
         {activeTab === 'chat' && (
           <>
             <View style={styles.contextualTitleWrap}>
@@ -424,8 +356,6 @@ const MainMobileShell: React.FC = () => {
       <View style={styles.body}>
         {activeTab === 'explore' && <MobileExploreScreen />}
         {activeTab === 'tinder' && <MobileTinderScreen />}
-        {activeTab === 'services' && <MobileServicesScreen />}
-        {activeTab === 'appointments' && <MobileAppointmentsScreen />}
         {activeTab === 'chat' && <MobileChatScreen />}
         {activeTab === 'profile' && <MobileProfileScreen />}
         {activeTab === 'sos' && <MobileSosScreen />}

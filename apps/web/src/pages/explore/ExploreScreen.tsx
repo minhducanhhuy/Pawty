@@ -51,7 +51,6 @@ export const ExploreScreen: React.FC = () => {
     reactToPost,
     addCommentToPost,
     toggleBookmarkPost,
-    partners,
     radarCandidates,
     swipeRadarCandidate,
     setActiveModal,
@@ -389,82 +388,6 @@ export const ExploreScreen: React.FC = () => {
     );
   }
 
-  // ============================================================================
-  // TAB 3: DỊCH VỤ (DEDICATED SERVICES TAB)
-  // ============================================================================
-  if (activeTab === 'services') {
-    return (
-      <div className="p-4 pb-6 space-y-3">
-        {partners.map((partner) => (
-          <div
-            key={partner.id}
-            style={{ backgroundColor: theme.surface, borderColor: theme.border }}
-            className="rounded-2xl p-4 border space-y-3"
-          >
-            <div className="flex items-start gap-3">
-              <img
-                src={partner.avatarUrl}
-                alt={partner.name}
-                className="w-14 h-14 rounded-2xl object-cover shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <h3 style={{ color: theme.text }} className="text-sm font-bold">
-                    {partner.name}
-                  </h3>
-                  <span
-                    style={{ backgroundColor: theme.primarySoft, color: theme.primary }}
-                    className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-bold"
-                  >
-                    <CheckCircle2 className="w-3 h-3" /> Đối tác uy tín
-                  </span>
-                </div>
-                <p style={{ color: theme.textSoft }} className="text-xs mt-0.5">
-                  {partner.address}
-                </p>
-                <div className="flex items-center gap-3 mt-1 text-xs font-bold">
-                  <span style={{ color: '#C88A2E' }} className="inline-flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 fill-current" /> {partner.ratingAvg} (
-                    {partner.reviewCount})
-                  </span>
-                  <span style={{ color: theme.primary }}>
-                    Cách {formatDistanceLabel(partner.distanceMeters)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ borderColor: theme.border }} className="space-y-1.5 pt-2.5 border-t">
-              {partner.services.slice(0, 3).map((srv) => (
-                <div
-                  key={srv.id}
-                  style={{ backgroundColor: theme.bg }}
-                  className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl"
-                >
-                  <span style={{ color: theme.text }} className="font-medium">
-                    {srv.name} ({srv.durationMin} phút)
-                  </span>
-                  <span style={{ color: theme.primary }} className="font-bold">
-                    {formatVndCurrency(srv.priceVnd)}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setActiveModal('book_service', partner.id)}
-              style={{ backgroundColor: theme.primary }}
-              className="w-full py-2.5 rounded-xl text-white text-xs font-bold"
-            >
-              Đặt lịch hẹn ngay
-            </button>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // ============================================================================
   // TAB 1 (DEFAULT): KHÁM PHÁ = BẢNG TIN MẠNG XÃ HỘI INSTAGRAM STYLE
   // ============================================================================
   return (
@@ -606,6 +529,29 @@ export const ExploreScreen: React.FC = () => {
             style={{ backgroundColor: theme.surface, borderColor: theme.border }}
             className="rounded-2xl p-4 border space-y-3"
           >
+            {/* AI Sighting Match Banner */}
+            {((post as any).aiSosMatch || post.textContent.toLowerCase().includes('lạc')) && (
+              <div
+                style={{ backgroundColor: '#FFF5F2', borderColor: '#FFD5CC' }}
+                className="p-3 rounded-xl border flex flex-col gap-1.5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#E17055] text-white text-[10px] font-extrabold uppercase tracking-wide">
+                    🛰️ AI RADAR PHÁT HIỆN
+                  </span>
+                  <span className="text-[11px] font-extrabold text-[#E17055] bg-[#FFE8E2] px-2 py-0.5 rounded-md">
+                    Khớp {(post as any).aiSosMatch?.matchScore || 88}%
+                  </span>
+                </div>
+                <p style={{ color: theme.text }} className="text-xs font-semibold">
+                  Nghi vấn khớp với tin SOS của bé <strong className="text-[#E17055]">{(post as any).aiSosMatch?.petName || 'Coca'}</strong>
+                </p>
+                <div className="flex items-center gap-1 text-[11px] text-stone-500 font-medium">
+                  <span>📍 {(post as any).aiSosMatch?.detectedLocationName || 'Sảnh S2.03 - Vinhomes Grand Park'}</span>
+                </div>
+              </div>
+            )}
+
             {/* Author Header: Click Avatar/Name to view Public Profile */}
             <div className="flex items-center justify-between gap-2">
               <div

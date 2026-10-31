@@ -62,8 +62,6 @@ export const MobileModals: React.FC = () => {
     closePublicUserProfile,
     toggleFriendStatus,
     startDirectChatWithUser,
-    selectedServiceForBooking,
-    bookAppointment,
     tinderCandidates,
     showLikesYouDrawer,
     setShowLikesYouDrawer,
@@ -118,9 +116,6 @@ export const MobileModals: React.FC = () => {
   const [tinderChatStyleInput, setTinderChatStyleInput] = useState(userTinderSetup.chatStyle);
 
   // 4. Book Service State
-  const [bookingDate, setBookingDate] = useState('Thứ Bảy, 02/11');
-  const [bookingTime, setBookingTime] = useState('10:00');
-  const [bookingNotes, setBookingNotes] = useState('Cắt tỉa gọn gàng, tắm thảo mộc.');
 
   // 5. Lightbox Index State
   const [lightboxIdx, setLightboxIdx] = useState(0);
@@ -575,7 +570,6 @@ export const MobileModals: React.FC = () => {
               {activeModal === 'tinder_setup' && 'Thiết lập Hồ sơ Kết nối'}
               {activeModal === 'vip_upgrade' && 'Gói thành viên Pawty Plus & Gold'}
               {activeModal === 'edit_profile' && 'Chỉnh sửa Trang cá nhân & Thú cưng'}
-              {activeModal === 'book_service' && 'Đặt lịch Dịch vụ Thú cưng'}
               {activeModal === 'notifications' && 'Thông báo hoạt động'}
             </Text>
             <TouchableOpacity onPress={() => setActiveModal(null)} style={styles.closeBtn}>
@@ -1289,52 +1283,6 @@ export const MobileModals: React.FC = () => {
                   <Text style={styles.deletePetModalBtnText}>
                     Xóa hồ sơ bé {activePet.name}
                   </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* MODAL 6: BOOK SERVICE */}
-            {activeModal === 'book_service' && selectedServiceForBooking && (
-              <View>
-                <Text style={styles.optionTitle}>{selectedServiceForBooking.name}</Text>
-                <Text style={[styles.subHintText, { marginTop: 4 }]}>
-                  {selectedServiceForBooking.address} · {selectedServiceForBooking.priceRange}
-                </Text>
-
-                <Text style={styles.label}>Ngày hẹn</Text>
-                <TextInput
-                  style={styles.input}
-                  value={bookingDate}
-                  onChangeText={setBookingDate}
-                />
-
-                <Text style={styles.label}>Khung giờ</Text>
-                <TextInput
-                  style={styles.input}
-                  value={bookingTime}
-                  onChangeText={setBookingTime}
-                />
-
-                <Text style={styles.label}>Ghi chú cho cơ sở dịch vụ</Text>
-                <TextInput
-                  style={styles.input}
-                  value={bookingNotes}
-                  onChangeText={setBookingNotes}
-                />
-
-                <TouchableOpacity
-                  style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
-                  onPress={() =>
-                    bookAppointment({
-                      serviceId: selectedServiceForBooking.id,
-                      dateLabel: bookingDate,
-                      timeSlot: bookingTime,
-                      notes: bookingNotes,
-                    })
-                  }
-                >
-                  <Feather name="calendar" size={16} color="#FFFFFF" />
-                  <Text style={styles.primaryBtnText}>Xác nhận đặt lịch hẹn</Text>
                 </TouchableOpacity>
               </View>
             )}

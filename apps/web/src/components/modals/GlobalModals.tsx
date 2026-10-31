@@ -43,20 +43,18 @@ export const GlobalModals: React.FC = () => {
   const {
     activeModal,
     setActiveModal,
+    sosAlerts,
     user,
     pets,
     activePetId,
     circleMembers,
     places,
-    partners,
-    selectedPartnerIdForBooking,
     selectedPublicPet,
     handoverNote,
     toggleHandoverChecklistItem,
     createSocialPost,
     createCareTask,
     revokeCircleMember,
-    createServiceBooking,
     createWalkAppointment,
     upgradeToVipPlan,
     activateSosAlert,
@@ -121,16 +119,6 @@ export const GlobalModals: React.FC = () => {
   const [newPetBreed, setNewPetBreed] = useState('Corgi');
   const [newPetWeight, setNewPetWeight] = useState(10);
   const [newPetAge, setNewPetAge] = useState('1 tuổi');
-
-  // Service Booking State
-  const activePartner =
-    partners.find((p) => p.id === selectedPartnerIdForBooking) ?? partners[0];
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([
-    activePartner.services[0]?.id || 'srv-1',
-  ]);
-  const [bookingDate, setBookingDate] = useState('Thứ 7, 08/11/2026');
-  const [bookingSlot, setBookingSlot] = useState('10:00');
-  const [bookingNote, setBookingNote] = useState('Nhờ nhân viên sấy nhẹ nhàng cho bé.');
 
   // Walk Scheduler State
   const partnerGeo = { lat: 10.8435, lng: 106.8271 };
@@ -1482,135 +1470,6 @@ export const GlobalModals: React.FC = () => {
     );
   }
 
-  // 10. BOOK SERVICE MODAL
-  if (activeModal === 'book_service') {
-    const toggleService = (id: string) => {
-      if (selectedServiceIds.includes(id)) {
-        if (selectedServiceIds.length > 1) {
-          setSelectedServiceIds(selectedServiceIds.filter((s) => s !== id));
-        }
-      } else {
-        setSelectedServiceIds([...selectedServiceIds, id]);
-      }
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-        <div
-          style={{ backgroundColor: theme.surface, color: theme.text }}
-          className="w-full max-w-md rounded-3xl p-5 space-y-3.5 shadow-xl max-h-[90vh] overflow-y-auto"
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold">Đặt lịch: {activePartner.name}</h3>
-            <button onClick={() => setActiveModal(null)} style={{ color: theme.textSoft }}>
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {activePartner.services.map((srv) => {
-              const checked = selectedServiceIds.includes(srv.id);
-              return (
-                <button
-                  key={srv.id}
-                  type="button"
-                  onClick={() => toggleService(srv.id)}
-                  style={{
-                    backgroundColor: checked ? theme.primarySoft : theme.bg,
-                    borderColor: checked ? theme.primary : theme.border,
-                  }}
-                  className="w-full p-3 rounded-xl border flex items-center justify-between text-left text-xs"
-                >
-                  <div>
-                    <p style={{ color: theme.text }} className="font-bold">
-                      {srv.name}
-                    </p>
-                    <p style={{ color: theme.textSoft }} className="text-[11px]">
-                      Thời lượng: {srv.durationMin} phút
-                    </p>
-                  </div>
-                  <span style={{ color: theme.primary }} className="font-bold">
-                    {formatVndCurrency(srv.priceVnd)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label style={{ color: theme.textSoft }} className="block text-xs mb-1">
-                Ngày hẹn
-              </label>
-              <input
-                type="text"
-                value={bookingDate}
-                onChange={(e) => setBookingDate(e.target.value)}
-                style={{
-                  backgroundColor: theme.bg,
-                  borderColor: theme.border,
-                  color: theme.text,
-                }}
-                className="w-full px-3 py-2 rounded-xl border text-xs font-semibold"
-              />
-            </div>
-            <div>
-              <label style={{ color: theme.textSoft }} className="block text-xs mb-1">
-                Khung giờ
-              </label>
-              <select
-                value={bookingSlot}
-                onChange={(e) => setBookingSlot(e.target.value)}
-                style={{
-                  backgroundColor: theme.bg,
-                  borderColor: theme.border,
-                  color: theme.text,
-                }}
-                className="w-full px-3 py-2 rounded-xl border text-xs font-semibold"
-              >
-                {activePartner.availableSlots.map((sl) => (
-                  <option key={sl} value={sl}>
-                    {sl}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <input
-            type="text"
-            value={bookingNote}
-            onChange={(e) => setBookingNote(e.target.value)}
-            placeholder="Ghi chú cho cửa hàng..."
-            style={{
-              backgroundColor: theme.bg,
-              borderColor: theme.border,
-              color: theme.text,
-            }}
-            className="w-full px-3 py-2 rounded-xl border text-xs"
-          />
-
-          <button
-            onClick={() =>
-              createServiceBooking({
-                partnerId: activePartner.id,
-                petId: activePet.id,
-                serviceIds: selectedServiceIds,
-                scheduledDate: bookingDate,
-                scheduledTime: bookingSlot,
-                note: bookingNote,
-              })
-            }
-            style={{ backgroundColor: theme.primary }}
-            className="w-full py-3 rounded-xl text-white text-xs font-bold"
-          >
-            Xác nhận đặt lịch cho {activePet.name}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // 11. WALK SCHEDULER MODAL
   if (activeModal === 'walk_scheduler') {
     const chosenPlace =
@@ -1814,12 +1673,41 @@ export const GlobalModals: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-[#C94A4A]" />
-              <h3 className="text-base font-bold">Báo tìm thú lạc bán kính 3km</h3>
+              <h3 className="text-base font-bold">Trung tâm SOS & AI Radar Truy Vết</h3>
             </div>
             <button onClick={() => setActiveModal(null)} style={{ color: theme.textSoft }}>
               <X className="w-4 h-4" />
             </button>
           </div>
+
+          {/* AI Radar Trajectory Preview Banner */}
+          {sosAlerts.length > 0 && (
+            <div className="p-3.5 rounded-2xl bg-stone-900 text-white space-y-2.5 shadow-md">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-extrabold text-[#FF6F61]">
+                  🛰️ AI SPATIOTEMPORAL RADAR
+                </span>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                  {sosAlerts[0]?.trajectoryPoints?.length || 3} Mốc Lộ Trình
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-300">
+                Đang truy vết: <strong className="text-white">{sosAlerts[0]?.petName}</strong> (Bán kính 3km)
+              </p>
+              <div className="space-y-2 pt-2 border-t border-stone-800">
+                {(sosAlerts[0]?.trajectoryPoints || []).map((pt, idx) => (
+                  <div key={pt.id || idx} className="flex items-start gap-2.5 text-[11px]">
+                    <span className="shrink-0 mt-0.5">{idx === 0 ? '🔴' : pt.source === 'ai_feed_match' ? '🟢' : '🟡'}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-stone-200 truncate">{pt.locationName}</p>
+                      <p className="text-[10px] text-stone-400 font-medium">{pt.note || pt.timestamp}</p>
+                    </div>
+                    <span className="text-[10px] text-stone-400 shrink-0 font-medium">{pt.timestamp}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2.5">
             <div>
