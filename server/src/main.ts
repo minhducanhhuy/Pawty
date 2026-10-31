@@ -327,20 +327,18 @@ const server = http.createServer(async (req, res) => {
         if (pathname === '/api/ai/describe-pet' && method === 'POST') {
       const body = await parseJsonBody(req);
       const imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl : undefined;
-      if (!imageUrl) {
-        sendJson(res, 400, { error: 'Vui lòng cung cấp imageUrl để AI phân tích' });
+      const imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64 : undefined;
+      const mimeType = typeof body.mimeType === 'string' ? body.mimeType : 'image/jpeg';
+
+      if (!imageUrl && !imageBase64) {
+        sendJson(res, 400, { error: 'Vui lòng cung cấp imageUrl hoặc imageBase64 để AI phân tích' });
         return;
       }
-      const aiResult = await geminiVisionService.generateSosPetDescription(imageUrl);
+      const aiResult = await geminiVisionService.generateSosPetDescription(imageUrl, imageBase64, mimeType);
       if (!aiResult) {
-        sendJson(res, 200, {
-          success: true,
-          species: 'Chó',
-          breed: 'Chưa rõ giống',
-          primaryColor: 'Nâu',
-          hasCollar: false,
-          distinctiveFeatures: [],
-          description: 'Bé cún/mèo thân thiện cần tìm chủ. Vui lòng liên hệ nếu nhìn thấy bé.',
+        sendJson(res, 500, {
+          success: false,
+          error: 'AI không thể phân tích ảnh vào lúc này.',
         });
         return;
       }
