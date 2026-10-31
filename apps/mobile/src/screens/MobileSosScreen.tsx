@@ -20,6 +20,7 @@ export const MobileSosScreen: React.FC = () => {
   const {
     theme,
     ownerHandle,
+    ownerName,
     sosAlerts,
     reportSosSighting,
     confirmSosPetFound,
@@ -71,7 +72,7 @@ export const MobileSosScreen: React.FC = () => {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 0.8,
+        quality: 0.35,
         base64: true,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -105,14 +106,15 @@ export const MobileSosScreen: React.FC = () => {
       }
 
       let aiData: any = null;
+      let errorMsg = '';
 
-      // 1. Try local/LAN backend if reachable
+      const hostIp = Constants.expoConfig?.hostUri
+        ? Constants.expoConfig.hostUri.split(':')[0]
+        : '192.168.2.7';
+
       try {
-        const hostIp = Constants.expoConfig?.hostUri
-          ? Constants.expoConfig.hostUri.split(':')[0]
-          : '192.168.2.7';
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
 
         const response = await fetch(`http://${hostIp}:3000/api/ai/describe-pet`, {
           method: 'POST',
@@ -128,67 +130,15 @@ export const MobileSosScreen: React.FC = () => {
         });
         clearTimeout(timeoutId);
 
-        if (response.ok) {
-          const resJson = await response.json();
-          if (resJson.success && resJson.description) {
-            aiData = resJson;
-          }
+        const resJson = await response.json();
+        if (response.ok && resJson.success && resJson.description) {
+          aiData = resJson;
+        } else {
+          errorMsg = resJson.error || 'Server không thể phân tích ảnh.';
         }
-      } catch (backendErr) {
-        console.log('[MobileSos] Backend call skipped or timed out, trying direct Gemini API...');
-      }
-
-      // 2. Direct Gemini Vision API call fallback
-      if (!aiData && b64) {
-        const geminiApiKey = 'AIzaSyAp3GD5ZKWqAP7Pe3h0fM0ncbWRG1GbuHs';
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
-
-        const prompt = `Bạn là Trợ lý AI nhận dạng thú cưng của Pawty Super App.
-Nhiệm vụ: Người dùng đang cần đăng tin tìm thú cưng thất lạc. Hãy nhìn kỹ bức ảnh này và tự động viết một đoạn mô tả nhận diện cực kỳ chi tiết, súc tích, dễ nhận biết nhất bằng tiếng Việt (giúp người đi đường dễ dàng nhận ra bé).
-BẮT BUỘC trả về ĐÚNG 1 JSON hợp lệ (không markdown, không thêm text ngoài):
-{
-  "species": "Chó" hoặc "Mèo",
-  "breed": "Tên giống cụ thể (ví dụ: Poodle Toy, Golden Retriever, Corgi Pembroke, Mèo Ba Tư, Mèo Anh lông dài, Mèo Anh lông ngắn...)",
-  "primaryColor": "Màu lông chủ đạo",
-  "hasCollar": true hoặc false,
-  "collarColor": "Màu vòng cổ nếu có",
-  "distinctiveFeatures": ["đặc điểm 1", "đặc điểm 2"],
-  "description": "Đoạn văn hoàn chỉnh 2-3 câu mô tả đầy đủ: giống loài, màu sắc, dáng lông, phụ kiện đeo cổ (nếu có), các điểm nổi bật nhất để người khác nhìn thấy là nhận ra ngay."
-}`;
-
-        const geminiResp = await fetch(geminiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: prompt },
-                  {
-                    inlineData: {
-                      mimeType: 'image/jpeg',
-                      data: b64,
-                    },
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.3,
-            },
-          }),
-        });
-
-        if (geminiResp.ok) {
-          const geminiJson = await geminiResp.json();
-          const rawText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) {
-            aiData = JSON.parse(rawText);
-          }
-        }
+      } catch (backendErr: any) {
+        console.warn('[MobileSos] Backend describe error:', backendErr?.message || backendErr);
+        errorMsg = `Không thể kết nối đến máy chủ server (${hostIp}:3000). Vui lòng đảm bảo server đang chạy!`;
       }
 
       if (aiData) {
@@ -206,7 +156,7 @@ BẮT BUỘC trả về ĐÚNG 1 JSON hợp lệ (không markdown, không thêm 
         }
         showToast('✨ AI đã nhận diện và điền chi tiết nhận dạng giúp bạn!');
       } else {
-        showToast('Không thể kết nối AI nhận diện. Vui lòng thử lại sau.');
+        showToast(errorMsg || 'Không thể kết nối AI nhận diện. Vui lòng thử lại sau.');
       }
     } catch (err: any) {
       console.warn('AI describe-pet error:', err);
@@ -490,7 +440,7 @@ BẮT BUỘC trả về ĐÚNG 1 JSON hợp lệ (không markdown, không thêm 
       {/* SOS Feed List */}
       <View style={styles.listStack}>
         {filteredSosAlerts.map((sos) => {
-          const isAuthor = sos.ownerHandle === ownerHandle;
+          const isAuthor = sos.ownerHandle === ownerHandle || (Boolean(sos.ownerName) && sos.ownerName === ownerName);
           const isFound = sos.status === 'found';
 
           return (
@@ -551,7 +501,7 @@ BẮT BUỘC trả về ĐÚNG 1 JSON hợp lệ (không markdown, không thêm 
               <View style={styles.locationBox}>
                 <Feather name="map-pin" size={13} color="#B85D43" />
                 <Text style={styles.locationBoxText}>
-                  Vị trí cuối: {sos.lastSeenLocation}
+                  Vị trí cuối: {(sos.lastSeenLocation || "").replace(/^(Quanh khu vực\s*)+/gi, "Quanh khu vực ").trim()}
                 </Text>
               </View>
 
@@ -560,38 +510,52 @@ BẮT BUỘC trả về ĐÚNG 1 JSON hợp lệ (không markdown, không thêm 
               {/* Action Buttons: ONLY the post creator can press "Đã đón về"! */}
               {!isFound ? (
                 <View style={styles.sosActionRow}>
-                  <TouchableOpacity
-                    style={styles.sightingBtn}
-                    onPress={() =>
-                      reportSosSighting(
-                        sos.id,
-                        `Quanh khu vực ${sos.lastSeenLocation}`,
-                        'Vừa nhìn thấy bé cách đây ít phút'
-                      )
-                    }
-                  >
-                    <Feather name="map-pin" size={14} color="#FFFFFF" />
-                    <Text style={styles.sightingBtnText}>
-                      Báo vừa nhìn thấy ({sos.sightingsCount})
-                    </Text>
-                  </TouchableOpacity>
-
                   {isAuthor ? (
-                    <TouchableOpacity
-                      style={styles.foundBtnAuthorOnly}
-                      onPress={() => confirmSosPetFound(sos.id)}
-                    >
-                      <Feather name="check-circle" size={14} color="#FFFFFF" />
-                      <Text style={styles.foundBtnAuthorText}>Đã đón về</Text>
-                    </TouchableOpacity>
+                    <>
+                      {sos.sightingsCount > 0 && (
+                        <View style={styles.authorCluesBox}>
+                          <Feather name="eye" size={14} color="#B85D43" />
+                          <Text style={styles.authorCluesText}>
+                            {sos.sightingsCount} manh mối báo về
+                          </Text>
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        style={[styles.foundBtnAuthorOnly, sos.sightingsCount === 0 && { flex: 1 }]}
+                        onPress={() => confirmSosPetFound(sos.id)}
+                      >
+                        <Feather name="check-circle" size={16} color="#FFFFFF" />
+                        <Text style={styles.foundBtnAuthorText}>
+                          {sos.sightingsCount === 0 ? '✓ Xác nhận đã đón bé về nhà' : 'Đã đón về'}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
                   ) : (
-                    <TouchableOpacity
-                      style={styles.contactOwnerBtn}
-                      onPress={() => openPublicUserProfile(sos.ownerHandle)}
-                    >
-                      <Feather name="message-circle" size={14} color="#4A3F35" />
-                      <Text style={styles.contactOwnerBtnText}>Liên hệ chủ</Text>
-                    </TouchableOpacity>
+                    <>
+                      <TouchableOpacity
+                        style={styles.sightingBtn}
+                        onPress={() =>
+                          reportSosSighting(
+                            sos.id,
+                            sos.lastSeenLocation,
+                            'Vừa nhìn thấy bé quanh đây cách đây ít phút'
+                          )
+                        }
+                      >
+                        <Feather name="map-pin" size={14} color="#FFFFFF" />
+                        <Text style={styles.sightingBtnText}>
+                          Báo vừa nhìn thấy ({sos.sightingsCount})
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.contactOwnerBtn}
+                        onPress={() => openPublicUserProfile(sos.ownerHandle)}
+                      >
+                        <Feather name="message-circle" size={14} color="#4A3F35" />
+                        <Text style={styles.contactOwnerBtnText}>Liên hệ chủ</Text>
+                      </TouchableOpacity>
+                    </>
                   )}
                 </View>
               ) : (
@@ -928,6 +892,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  authorCluesBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FFF5F2',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+  },
+  authorCluesText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B85D43',
   },
   foundBtnAuthorOnly: {
     flex: 1,

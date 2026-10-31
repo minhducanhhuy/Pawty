@@ -347,20 +347,34 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 400, { error: 'Vui lòng cung cấp imageUrl hoặc imageBase64 để AI phân tích' });
         return;
       }
-      const aiResult = await geminiVisionService.generateSosPetDescription(imageUrl, imageBase64, mimeType);
-      if (!aiResult) {
+
+      try {
+        console.log('[Pawty Server] 🧠 Đang phân tích ảnh qua Gemini Vision...');
+        const aiResult = await geminiVisionService.generateSosPetDescription(imageUrl, imageBase64, mimeType);
+        if (!aiResult) {
+          sendJson(res, 500, {
+            success: false,
+            error: 'Khóa GEMINI_API_KEY không khả dụng hoặc bị lỗi. Vui lòng kiểm tra server/.env!',
+          });
+          return;
+        }
+        console.log(`[Pawty Server] ✅ Phân tích thành công: ${aiResult.species} - ${aiResult.breed}`);
+        sendJson(res, 200, {
+          success: true,
+          ...aiResult,
+        });
+        return;
+      } catch (err: any) {
+        const message = err && err.message ? err.message : String(err);
+        console.error('[Pawty Server] ❌ Lỗi Gemini:', message);
         sendJson(res, 500, {
           success: false,
-          error: 'AI không thể phân tích ảnh vào lúc này.',
+          error: message || 'Lỗi khi kết nối Google Gemini API',
         });
         return;
       }
-      sendJson(res, 200, {
-        success: true,
-        ...aiResult,
-      });
-      return;
     }
+
 
     if (pathname === '/api/ai/trace-pet' && method === 'POST') {
       const body = await parseJsonBody(req);

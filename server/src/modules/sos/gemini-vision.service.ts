@@ -147,6 +147,7 @@ BẮT BUỘC chỉ trả về 1 đối tượng JSON duy nhất (không bọc ma
               if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
                 resolve(body);
               } else {
+                console.error(`[GeminiVisionService] ❌ Google Gemini API Error HTTP ${res.statusCode}: ${body}`);
                 reject(new Error(`Gemini API error (HTTP ${res.statusCode}): ${body}`));
               }
             });
@@ -204,7 +205,7 @@ BẮT BUỘC chỉ trả về 1 đối tượng JSON duy nhất (không bọc ma
   } | null> {
     if (!this.apiKey) {
       console.warn('[GeminiVisionService] Không tìm thấy GEMINI_API_KEY.');
-      return null;
+      throw new Error('Chưa cấu hình GEMINI_API_KEY trong server/.env. Vui lòng thêm API key của bạn!');
     }
 
     try {
@@ -306,8 +307,8 @@ BẮT BUỘC trả về ĐÚNG 1 JSON hợp lệ (không markdown, không thêm 
         description: String(aiData.description || 'Bé cún/mèo thân thiện cần tìm chủ.'),
       };
     } catch (err: any) {
-      console.warn('[GeminiVisionService] Lỗi khi tạo mô tả SOS:', err.message);
-      return null;
+      console.warn('[GeminiVisionService] Lỗi khi tạo mô tả SOS:', err?.message || err);
+      throw err;
     }
   }
 }
