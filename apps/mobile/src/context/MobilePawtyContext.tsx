@@ -558,6 +558,10 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (Array.isArray(bootstrap.notifications)) {
         setNotifications(bootstrap.notifications);
       }
+
+      if (bootstrap.publicProfiles && typeof bootstrap.publicProfiles === 'object') {
+        setPublicProfiles(bootstrap.publicProfiles);
+      }
     } catch (err) {
       console.warn('[Pawty] Hydration from DB failed:', err);
     } finally {
@@ -1294,7 +1298,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return newProfile;
   }, [publicProfiles, tinderCandidates, posts, chats]);
 
-  const openPublicUserProfile = (handle: string) => {
+  const openPublicUserProfile = async (handle: string) => {
     const isOwner =
       handle.toLowerCase() === ownerHandle.toLowerCase() ||
       handle.replace(/_/g, '').toLowerCase() === ownerHandle.replace(/_/g, '').toLowerCase();
@@ -1306,7 +1310,22 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return;
     }
 
-    const prof = resolvePublicProfile(handle);
+    let prof = publicProfiles[handle] || publicProfiles[handle.replace(/^@/, '')];
+    if (!prof) {
+      try {
+        const fetched = await apiClient.getUserProfile(handle, currentUserId);
+        if (fetched) {
+          prof = fetched;
+        }
+      } catch (e) {
+        // Fallback to resolvePublicProfile
+      }
+    }
+
+    if (!prof) {
+      prof = resolvePublicProfile(handle);
+    }
+
     setPublicProfiles((prev) => ({ ...prev, [handle]: prof, [prof.handle]: prof }));
     setViewedUserHandle(prof.handle);
   };
@@ -1315,7 +1334,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setViewedUserHandle(null);
   };
 
-  const openUserProfileInTab = (handle: string) => {
+  const openUserProfileInTab = async (handle: string) => {
     const isOwner =
       handle.toLowerCase() === ownerHandle.toLowerCase() ||
       handle.replace(/_/g, '').toLowerCase() === ownerHandle.replace(/_/g, '').toLowerCase();
@@ -1324,7 +1343,22 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       showToast('Đang mở trang cá nhân của bạn');
       setSelectedProfileHandle(null);
     } else {
-      const prof = resolvePublicProfile(handle);
+      let prof = publicProfiles[handle] || publicProfiles[handle.replace(/^@/, '')];
+      if (!prof) {
+        try {
+          const fetched = await apiClient.getUserProfile(handle, currentUserId);
+          if (fetched) {
+            prof = fetched;
+          }
+        } catch (e) {
+          // Fallback to resolvePublicProfile
+        }
+      }
+
+      if (!prof) {
+        prof = resolvePublicProfile(handle);
+      }
+
       setPublicProfiles((prev) => ({ ...prev, [handle]: prof, [prof.handle]: prof }));
       setSelectedProfileHandle(prof.handle);
     }

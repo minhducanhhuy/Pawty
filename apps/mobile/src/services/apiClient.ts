@@ -179,6 +179,14 @@ export const apiClient = {
     });
   },
 
+  // 7. Users & Profiles
+  async getUserProfile(handle: string, currentUserId = 'user-mai') {
+    const cleanHandle = encodeURIComponent(handle);
+    const query = currentUserId ? `?currentUserId=${encodeURIComponent(currentUserId)}` : '';
+    const res = await request<{ success: boolean; profile: any }>(`/api/users/profile/${cleanHandle}${query}`);
+    return res?.profile || null;
+  },
+
   // 7. SOS Alerts
   async getSosAlerts() {
     return request<{ sosAlerts: any[] }>('/api/sos');
