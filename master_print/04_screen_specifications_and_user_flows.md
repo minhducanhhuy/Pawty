@@ -13,7 +13,7 @@
 2. **Header Động theo từng Nhánh chính (`Dynamic Contextual Header`):**
    - **Không cố định cứng 1 Header cho mọi trang**, mà biến đổi theo từng nhánh chính:
      - **Nhánh `Khám phá`:** Trái: Nút `+` (Đăng bài) · Giữa: 1 Logo `Pawty` duy nhất · Phải: Nút `SOS` (mở trang SOS toàn màn hình) + Nút `Thông báo`.
-     - **Nhánh `Kết nối` (Tinder):** Header 1 hàng duy nhất: Trái: Tiêu đề `Kết nối` kèm nhãn mục đích đang lọc (Tất cả / Tìm bạn chơi / Hẹn hò / Giao lưu) · Phải: Nút `Bộ lọc` (Mục đích duyệt & Hộ chiếu vị trí Passport VIP) + Nút `Menu phụ` (Hoàn tác quẹt VIP, Danh sách ai thích bạn VIP, Hồ sơ kết nối của tôi). Tách riêng bộ lọc đang xem khỏi mục đích công khai của người dùng.
+     - **Nhánh `Kết nối` (Tinder):** Header 1 hàng duy nhất: Trái: Tiêu đề `Kết nối` kèm nhãn mục đích đang lọc (Tất cả / Tìm bạn chơi / Hẹn hò / Giao lưu) · Phải: Nút `Bộ lọc` (Mục đích duyệt & Thanh trượt bán kính tìm kiếm 1-30km Miễn phí) + Nút `Menu phụ` (Hoàn tác quẹt VIP, Danh sách ai thích bạn VIP, Hồ sơ kết nối của tôi). Tách riêng bộ lọc đang xem khỏi mục đích công khai của người dùng.
      - **Nhánh `Tin nhắn`:** Trái: Tiêu đề `Tin nhắn` · Phải: Nút `Kết nối` + Nút `SOS` (tự động ẩn khi vào phòng chat chi tiết).
      - **Nhánh `Tôi` (Chuẩn Instagram):** Trái: Nút `+` · Giữa: Biểu tượng khóa `🔒` (nếu bật chế độ riêng tư) + `@username` + `⌄` · Phải: Nút `Plus` tinh gọn + Nút Menu `☰` (mở trang **Cài đặt của tôi**).
      - **Nhánh `SOS` (Toàn màn hình khi bấm từ góc trên phải):** Trái: Nút `← Quay lại` + Tiêu đề `Bảng tin SOS Thú Lạc` · Phải: Nút `Thông báo`.
@@ -47,20 +47,39 @@
   - Thanh phân đoạn hiển thị số lượng ảnh ở đỉnh (`— — — —`). Phân biệt rõ cử chỉ chạm (tap trái/phải đổi ảnh) và kéo (drag quẹt trái/phải), ngăn chặn đổi ảnh ngoài ý muốn khi quẹt.
   - Chân thẻ dùng `expo-linear-gradient` chuyển tiếp mượt mà từ trong suốt sang đen mờ vừa đủ đọc chữ.
   - Bỏ 6 chip lifestyle và tiêu đề "Thông tin cơ bản & Phong cách sống" khỏi mặt thẻ.
-  - Tóm tắt gọn 3-4 dòng thông tin cùng 1 nhãn mục đích (`Intent Badge`) nổi bật.
+  - **Tập trung tối đa vào Thú cưng:** Ảnh hiển thị trên thẻ và album vuốt ngang chỉ bao gồm ảnh của các bé thú cưng, tuyệt đối không đưa avatar to của chủ nhân lên làm ảnh chính. Trọng tâm thông tin là tên bé thú cưng (`Tên bé · Tuổi · Giống loài`), dòng phụ giới thiệu chủ nhân (`Đi cùng [Tên chủ] · cách [Khoảng cách] km`).
   - Nút mở hồ sơ tròn `↑` góc dưới phải có diện tích chạm tiêu chuẩn (tối thiểu 44×44).
 - **Trình bày thông tin linh hoạt theo Mục đích (`Intent Layout`):**
-  - **Playdate (Tìm bạn chơi chung):** Tên và ảnh bé pet đại diện (mặc định pet đầu tiên) là trọng tâm; tuổi, giống, cân nặng. Dòng phụ: *"Đi cùng [Tên chủ] · cách [Khoảng cách] km"*. Nếu có nhiều pet, hiển thị nhãn `+N bé` (chạm mở hồ sơ chi tiết). Lượt thích vẫn lưu theo hồ sơ chủ nuôi.
-  - **Dating (Hẹn hò chủ nuôi):** Ảnh và thông tin chủ nuôi (`Tên Tuổi`), khoảng cách, một dòng tóm tắt thú cưng (kèm avatar nhỏ và `+N bé`).
-  - **Community (Giao lưu nội khu):** Tên chủ và bé thú cưng, khoảng cách, mục đích giao lưu. Chỉ hiển thị khu vực nếu candidate có trường dữ liệu riêng, tuyệt đối không dùng Passport tạm thời gán làm khu vực cư trú của ứng viên.
+  - **Playdate, Dating, Community:** Đều hiển thị ảnh thú cưng làm nhân vật chính trên thẻ. Chủ nuôi và khoảng cách được hiển thị ở dòng phụ tinh gọn. Lượt thích vẫn lưu theo hồ sơ chủ nuôi.
   - Chế độ *"Tất cả mục đích"*: Duyệt qua từng ứng viên và hiển thị thẻ chuẩn theo intent của ứng viên đó.
-- **Hàng hành động cố định (`Fixed Action Bar`):**
-  - Hai nút chính: **[Bỏ qua ✕]** và **[Thích ❤️]** kích thước chuẩn, cố định ở đáy ngoài thẻ chuyển động, không bị kéo bay theo thẻ.
+- **Thanh trượt điều chỉnh Bán kính tìm kiếm Chuẩn Tinder (Interactive Radius Slider 2km - 160km):**
+  - **Dải khoảng cách chuẩn Tinder:** Kéo thả mượt mà từ **2 km đến 160 km** (tương đương chuẩn 100 miles của Tinder quốc tế, bao quát từ nội đô đến toàn vùng kinh tế trọng điểm).
+  - **Cơ chế lưu tạm chống quá tải Backend (Draft State / Deferred Apply):** Khi người dùng kéo thanh trượt hoặc đổi mục đích, hệ thống chỉ cập nhật trạng thái tạm thời trong modal; **tuyệt đối không gửi request query backend hay re-render cọc thẻ trong khi đang kéo**. Chỉ khi bấm nút **[Áp dụng bộ lọc]**, filter mới được gửi đi và nạp lại ứng viên. Chạm ✕ hoặc bấm ra ngoài sẽ hủy bỏ thay đổi nháp.
+  - **Triệt tiêu rung giật khi kéo (Smooth Dragging):** Thanh trượt tính toán theo tỷ lệ di chuyển ngón tay delta (`gestureState.dx`), khóa `pointerEvents="none"` cho các phần tử con bên trong để tránh sai lệch tọa độ tương đối, cập nhật 60 FPS không giật lag.
+  - **Nút chọn nhanh (Quick Preset Chips):** `5 km`, `15 km`, `30 km`, `50 km`, `100 km`, `160 km`, và `Tất cả khoảng cách`.
+- **Dữ liệu Khởi tạo Sạch cho Kiểm thử (Clean Test State):**
+  - Toàn bộ hồ sơ ứng viên trong seed database được khởi tạo ở trạng thái chưa từng tương tác (`hasLikedMe: false`, `isMatched: false`), cho phép kiểm thử luồng quẹt thẻ và khớp nối Match chuẩn xác từ đầu.
+- **Hàng hành động cố định (`Fixed Action Bar`) & Nút Hoàn tác Độc lập:**
+  - Ba nút hành động: **[Hoàn tác ⟲]** (bên trái), **[Bỏ qua ✕]** (ở giữa), và **[Thích ❤️]** (bên phải).
+  - **Trạng thái kích hoạt nút Hoàn tác:**
+    - Khi người dùng ở hồ sơ đầu tiên (chưa từng quẹt ai, `swipedCandidateHistory.length === 0`): Nút Hoàn tác bị vô hiệu hóa (`disabled`), màu xám mờ (`#C5BDB3`, nền `#F3EFEA`), không thể bấm.
+    - Khi người dùng đã quẹt ít nhất 1 hồ sơ (`swipedCandidateHistory.length > 0`): Nút Hoàn tác sáng lên nổi bật (chuẩn Tinder: icon vàng hổ phách `#E5A93C`, viền sáng `#F5DCA8`, nền trắng, đổ bóng elevation), cho phép bấm.
+    - Khi bấm Hoàn tác: Hồ sơ vừa lướt qua ngay lập tức được phục hồi lại vị trí đầu tiên trên đỉnh deck (`tinderCandidates[0]`), đồng thời gửi request đồng bộ xóa bản ghi quẹt trong database (`POST /api/matches/rewind`). Nếu lịch sử quẹt trở về 0, nút lại tự động mờ đi.
   - Cơ chế đồng bộ cử chỉ: Bấm nút hoặc kéo tay dùng chung một luồng animation và chỉ commit 1 lần duy nhất; khóa tương tác khi đang chuyển cảnh để chống bấm nhanh sinh nhiều lượt quẹt/match.
-- **Hồ sơ chi tiết phủ toàn màn hình (`Fullscreen Detail Sheet`):**
+- **Hồ sơ chi tiết phủ toàn màn hình (`Fullscreen Detail Sheet`) & Modal Tương Hợp:**
   - Mở dạng phủ màn hình khi bấm nút `↑` trên thẻ, không đẩy dồn bung nội dung thẻ.
   - Đóng chi tiết giữ nguyên ứng viên và ảnh đang xem; chặn tương tác quẹt ngầm khi đang mở hồ sơ.
-  - Nội dung phân tầng theo mục đích: Đang tìm kiếm & Giới thiệu, Danh sách từng bé thú cưng, Thông tin chủ nuôi, Phong cách sống (Dating).
+  - **Modal chúc mừng kết nối (`matchedCandidateModal`):**
+    - Áp dụng đệm đáy an toàn theo `insets.bottom` (`Math.max(insets.bottom, 28) + 16`), đảm bảo nút **[Nhắn tin làm quen ngay]** luôn hiển thị nổi hoàn toàn phía trên Android Navigation Bar (3 phím điều hướng hệ thống), không bị che đè.
+    - Tự động liên kết `conversationId` thực tế từ cơ sở dữ liệu để khi bấm nhắn tin sẽ dẫn thẳng vào phòng chat chung giữa hai tài khoản.
+  - **Ưu tiên thông tin thú cưng lên hàng đầu:**
+    - Hero photo album chỉ hiển thị ảnh của các bé thú cưng.
+    - Khối đầu tiên: Hồ sơ chi tiết từng bé thú cưng (Ảnh pet, Tên, Loài, Giống, Cân nặng, Sổ tiêm chủng & phòng dại, Thói quen).
+    - Khối thứ hai: Mục đích kết nối & giới thiệu chung (`lookingFor`, `bio`, khoảng cách).
+    - Khối dưới cùng: Thông tin chủ nuôi (Avatar nhỏ, Handle, Tuổi, Phong cách sống lifestyle chips, Nút xem trang cá nhân chủ nuôi).
+  - **Tương thích toàn diện Android Insets (Tránh bị đè Status Bar & Nav Bar):**
+    - Cụm Header trên (Nút ẩn `chevron-down`, tiêu đề, nút chia sẻ `share-2`) được áp dụng padding an toàn tính theo `StatusBar.currentHeight` và `insets.top`, triệt tiêu hoàn toàn lỗi bị icon Pin, Sóng, Wifi của Android chèn lên.
+    - Cụm Floating Action Bar dưới đáy (Nút ✕ và ❤️) được áp dụng khoảng đệm an toàn theo `insets.bottom`, đảm bảo nằm nổi rõ ràng phía trên Navigation Bar (3 phím điều hướng hoặc thanh cử chỉ) của Android.
   - Đổi nút "Trả lời" thành "Xem hồ sơ chủ nuôi" để khớp đúng hành động mở `PublicUserProfile`.
 - **Trạng thái Tiêm chủng & An toàn Thú cưng:**
   - Hiển thị theo từng bé thú cưng. Dữ liệu `isVaccinatedAndRabies` được thể hiện chính xác là *"Chủ nuôi khai báo đã tiêm"* hoặc *"Chưa có xác nhận đầy đủ"*, không khẳng định là chứng chỉ y tế đã kiểm định.
@@ -88,8 +107,31 @@
 - Nhắn tin trực tiếp giữa người dùng với các bộ lọc tiện lợi: `Tất cả`, `Chưa đọc`, `Kết nối`.
 - **Trải nghiệm phòng chat chi tiết & Chống bàn phím ảo che khuất (`Keyboard Avoiding Chat Room`):**
   - Khi mở một cuộc trò chuyện cụ thể (`activeChatId` khác null), tự động ẩn Header chung của ứng dụng và ẩn Thanh điều hướng đáy (`bottomBar`) để nhường toàn bộ không gian cho màn hình chat.
-  - Sử dụng `KeyboardAvoidingView` kết hợp `useSafeAreaInsets` tinh chỉnh độ nâng theo nền tảng (iOS padding, Android tương thích adjustResize), đảm bảo thanh nhập tin nhắn (`inputBar`) luôn nằm sát ngay phía trên bàn phím ảo.
-  - `ScrollView` danh sách tin nhắn tích hợp `ref` tự động cuộn xuống tin nhắn cuối cùng (`scrollToEnd`) khi mở màn hình, khi bàn phím ảo xuất hiện (`keyboardDidShow`) và khi gửi tin nhắn mới, giúp người dùng luôn thấy rõ nội dung đang soạn thảo và ngữ cảnh trò chuyện.
+  - Xử lý bàn phím ảo Android chuẩn xác: Cấu hình `KeyboardAvoidingView` với `behavior="height"` trên Android kết hợp `keyboardVerticalOffset=(StatusBar.currentHeight || 28) + 14` để bù đắp phần chiều cao Status Bar của thiết bị, loại bỏ đệm đáy `bottom` của `SafeAreaView` gốc khi đang ở phòng chat; đảm bảo thanh soạn thảo `inputBar` được đẩy lên trọn vẹn 100% khít ngay trên mép bàn phím ảo, không bị che mất nửa thanh.
+  - `ScrollView` danh sách tin nhắn tích hợp `ref` tự động cuộn xuống tin nhắn cuối cùng (`scrollToEnd`) khi mở màn hình, khi bàn phím ảo xuất hiện và khi gửi tin nhắn mới.
+- **Đồng bộ Tin Nhắn 2 Chiều & Lưu Trữ PostgreSQL (`Real-time DB Message Sync`):**
+  - Mọi tin nhắn gửi đi lập tức được lưu vào bảng `Message` trong PostgreSQL qua API `POST /api/chats/:id/messages` với cơ chế Optimistic UI (hiện tức thì trên máy người gửi).
+  - Định kỳ đồng bộ hai chiều thời gian thực (Real-time polling 2.5s) khi người dùng đang ở tab Chat, tự động tải các tin nhắn mới từ đối phương mà không cần tải lại trang.
+  - Đảm bảo tính nhất quán tuyệt đối giữa các tài khoản: Tin nhắn của `Mai Nguyễn` gửi cho `Hải Yến` sẽ được lưu vĩnh viễn trên server, khi đăng xuất và đổi sang tài khoản `Hải Yến` sẽ thấy đầy đủ cuộc trò chuyện.
+- **Cơ chế Đã Đọc & Báo Nhận Đã Xem Chuẩn Messenger (`Read Receipts & Badge Clearing`):**
+  - **Tự động xóa badge chưa đọc khi mở chat:** Ngay khi người dùng nhấp vào mở một cuộc trò chuyện (`setActiveChatId(room.id)`), client kích hoạt `markChatRead(chatId)`:
+    - Optimistic: Lập tức reset `unreadCount = 0` trên phòng chat đó, trừ số lượng chưa đọc trên tab lọc `Chưa đọc` và trên icon tab bar `Tin nhắn` ở đáy màn hình.
+    - Database sync: Gửi API `POST /api/chats/:id/read` lên server để cập nhật tất cả tin nhắn đối phương gửi thành `isRead = true` trong database PostgreSQL.
+  - **Hiển thị trạng thái "Đã xem" (Seen) kiểu Facebook Messenger:**
+    - Dưới tin nhắn cuối cùng do người gửi tạo (`isMe && isLastMessage`), nếu người nhận đã vào xem cuộc trò chuyện (`msg.isRead === true`), hệ thống hiển thị dòng chữ thanh thoát `Đã xem` kèm avatar thu nhỏ 14x14 của đối phương (hoặc icon tích xanh đã đọc).
+    - Nếu người nhận chưa mở phòng chat (`isRead === false`), hiển thị trạng thái `Đã gửi` kèm icon tích kiểm tinh tế.
+  - **Tự động đánh dấu đã đọc khi đang mở phòng chat:** Nếu người dùng đang ở trong màn hình chat chi tiết và đối phương gửi tin nhắn mới đến, tin nhắn vừa nhận sẽ tự động được đánh dấu đã đọc ngay lập tức, không để lại badge chưa đọc tồn đọng vô lý.
+- **Trải nghiệm Thời gian Gửi Chuẩn Facebook Messenger (`Messenger Timestamp & Tap-to-Reveal`):**
+  - **Khoảng cách tin nhắn cùng phiên siêu gọn:** Bỏ `gap: 10` của container, các tin nhắn liên tiếp do cùng một người gửi trong cùng một phiên chỉ cách nhau 2.5px, tạo cảm giác cụm bong bóng liền mạch như Messenger.
+  - **Ẩn giờ gửi cố định trong từng bong bóng tin nhắn:** Toàn bộ bong bóng chat loại bỏ nhãn giờ gửi bên trong.
+  - **Mốc thời gian đặt ở giữa theo phiên (`Centered Session Timestamps`):**
+    - Ngưỡng phân tách phiên là 5 phút: Nếu hai tin nhắn cách nhau từ 5 phút trở lên (ví dụ: 5:02 và 5:12) hoặc sang ngày mới, hệ thống tự động chèn một mốc thời gian ở chính giữa (dạng `T.7 LÚC 21:16` hoặc `CN LÚC 05:12`).
+    - Các tin nhắn liên tiếp gửi gần nhau (dưới 5 phút) sẽ gom chung một phiên mà không lặp lại mốc thời gian ở giữa.
+  - **Chạm vào tin nhắn để hiện mốc giờ ở giữa và trạng thái ở dưới (`Tap to Reveal`):**
+    - Khi người dùng chạm (tap) vào một tin nhắn cụ thể:
+      - Tự động đẩy các tin nhắn phía trên lên để hiển thị mốc thời gian gửi của tin nhắn đó ở chính giữa màn hình.
+      - Đồng thời hiển thị dòng trạng thái (`Đã gửi ✓` hoặc `Đã xem` kèm avatar) ngay dưới chân tin nhắn đó.
+    - Chạm lại lần nữa để thu gọn trở lại trạng thái ban đầu.
 
 ### 2.5 Tab 4: Tôi (`Profile` Chuẩn Instagram, Tối đa 3 Pet Miễn phí & Cài đặt)
 - **Thiết kế trang `Tôi` giống hệt Instagram:**
