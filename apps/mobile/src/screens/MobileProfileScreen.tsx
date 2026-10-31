@@ -40,9 +40,15 @@ export const MobileProfileScreen: React.FC = () => {
     openPublicUserProfile,
     openLightboxMedia,
     setActiveModal,
+  selectedProfileHandle,
+  setSelectedProfileHandle,
+  publicProfiles,
+  toggleFriendStatus,
+  toggleFollowUser,
+  startDirectChatWithUser,
   } = useMobilePawty();
 
-  const [profileSubTab, setProfileSubTab] = useState<'grid' | 'pets' | 'tinder_setup'>('grid');
+  const [profileSubTab, setProfileSubTab] = useState<'grid' | 'pets'>('grid');
   const [showDiscoverPeople, setShowDiscoverPeople] = useState(true);
   const [isAddingPetInline, setIsAddingPetInline] = useState(false);
 
@@ -53,11 +59,74 @@ export const MobileProfileScreen: React.FC = () => {
   const [newPetWeight, setNewPetWeight] = useState('6.5');
   const [newPetAge, setNewPetAge] = useState('1 tuổi');
 
-  const myPosts = posts.filter((p) => p.authorHandle === ownerHandle);
+    const myPosts = posts.filter((p) => p.authorHandle === ownerHandle);
   const displayPosts = myPosts.length > 0 ? myPosts : posts.slice(0, 4);
   const ownerAvatarUrl =
     pets[0]?.avatarUrl ||
     'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80';
+
+  // Xác định đang xem trang của Mai Nguyễn hay xem trang của người khác
+  const isViewingOther = Boolean(
+    selectedProfileHandle &&
+      selectedProfileHandle !== ownerHandle &&
+      publicProfiles[selectedProfileHandle]
+  );
+  const otherProfile = isViewingOther ? publicProfiles[selectedProfileHandle!] : null;
+
+  const displayName = isViewingOther ? otherProfile!.name : ownerName;
+  const displayHandle = isViewingOther ? otherProfile!.handle : ownerHandle;
+  const displayBio = isViewingOther ? otherProfile!.bio : ownerBio;
+  const displayArea = isViewingOther ? otherProfile!.area : ownerArea;
+  const displayAvatarUrl = isViewingOther ? otherProfile!.avatarUrl : ownerAvatarUrl;
+  const displayNickname = isViewingOther ? otherProfile!.nickname : 'Thành viên Pawty';
+  const displayFollowersCount = isViewingOther ? otherProfile!.followersCount : 218;
+  const displayFollowingCount = isViewingOther ? otherProfile!.friendsCount : 305;
+
+  const otherUserPosts = isViewingOther
+    ? posts.filter((p) => p.authorHandle === otherProfile!.handle)
+    : [];
+  const displayPostsList = isViewingOther
+    ? otherUserPosts.length > 0
+      ? otherUserPosts
+      : otherProfile!.galleryUrls.map((url, idx) => ({
+          id: `gal-${idx}`,
+          authorName: otherProfile!.name,
+          authorHandle: otherProfile!.handle,
+          authorAvatar: otherProfile!.avatarUrl,
+          authorNickname: otherProfile!.nickname,
+          category: 'moment' as const,
+          categoryLabel: 'Khoảnh khắc',
+          content: '',
+          tags: ['#Pawty'],
+          mediaUrls: [url],
+          mediaType: 'image' as const,
+          videoDuration: undefined as string | undefined,
+          reactions: { paws: 15, love: 6, haha: 1, wow: 0, helpful: 2 },
+          userReaction: 'paws' as const,
+          shareCount: 1,
+          isSaved: false,
+          comments: [],
+          createdAt: 'Gần đây',
+        }))
+    : displayPosts;
+
+  const displayPetsList = isViewingOther
+    ? otherProfile!.pets.map((p, idx) => ({
+        id: `other-p-${idx}`,
+        name: p.name,
+        species: p.species,
+        breed: p.breed,
+        gender: 'Đực' as const,
+        ageLabel: p.ageLabel,
+        weightKg: p.weightKg,
+        avatarUrl:
+          otherProfile!.galleryUrls[idx] ||
+          'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=300&q=80',
+        bio: `Bé cưng của ${otherProfile!.name}`,
+        isVaccinatedAndRabies: p.isVaccinatedAndRabies,
+        galleryUrls: [],
+      }))
+    : pets;
 
   return (
     <ScrollView
@@ -65,59 +134,79 @@ export const MobileProfileScreen: React.FC = () => {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
+      {/* 0. HEADER QUAY LẠI KHI XEM PROFILE NGƯỜI KHÁC */}
+      {isViewingOther && (
+        <View style={styles.viewedUserTopHeader}>
+          <TouchableOpacity
+            style={styles.viewedUserBackBtn}
+            onPress={() => setSelectedProfileHandle(null)}
+            activeOpacity={0.7}
+          >
+            <Feather name="arrow-left" size={18} color="#1C1815" />
+            <Text style={styles.viewedUserBackText}>Quay lại</Text>
+          </TouchableOpacity>
+          <View style={styles.viewedUserHandleBadge}>
+            <Text style={styles.viewedUserHandleText}>{displayHandle}</Text>
+          </View>
+          <View style={{ width: 60 }} />
+        </View>
+      )}
+
       {/* 1. INSTAGRAM-STYLE PROFILE TOP SECTION */}
       <View style={styles.igTopSection}>
-        {/* Floating Note Bubble above Avatar */}
-        <TouchableOpacity
-          style={styles.noteBubbleWrap}
-          onPress={() => setActiveModal('edit_profile')}
-          activeOpacity={0.85}
-        >
-          <View style={styles.noteBubble}>
-            <Text style={styles.noteBubbleText} numberOfLines={2}>
-              {ownerNoteBubble || 'Hỏi bạn bè bất cứ điều gì...'}
-            </Text>
-          </View>
-          <View style={styles.noteBubbleTail} />
-        </TouchableOpacity>
+        {/* Floating Note Bubble (Chỉ hiển thị cho Mai Nguyễn) */}
+        {!isViewingOther && (
+          <TouchableOpacity
+            style={styles.noteBubbleWrap}
+            onPress={() => setActiveModal('edit_profile')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.noteBubble}>
+              <Text style={styles.noteBubbleText} numberOfLines={2}>
+                {ownerNoteBubble || 'Hỏi bạn bè bất cứ điều gì...'}
+              </Text>
+            </View>
+            <View style={styles.noteBubbleTail} />
+          </TouchableOpacity>
+        )}
 
         <View style={styles.avatarAndStatsRow}>
           <TouchableOpacity
             style={styles.avatarWrap}
-            onPress={() => setActiveModal('edit_profile')}
-            activeOpacity={0.85}
+            onPress={() => (!isViewingOther ? setActiveModal('edit_profile') : null)}
+            activeOpacity={isViewingOther ? 1 : 0.85}
           >
-            <Image source={{ uri: ownerAvatarUrl }} style={styles.igAvatar} />
-            <View style={styles.avatarPlusBadge}>
-              <Feather name="plus" size={13} color="#FFFFFF" />
-            </View>
+            <Image source={{ uri: displayAvatarUrl }} style={styles.igAvatar} />
+            {!isViewingOther && (
+              <View style={styles.avatarPlusBadge}>
+                <Feather name="plus" size={13} color="#FFFFFF" />
+              </View>
+            )}
           </TouchableOpacity>
 
-          {/* Owner Name + 3 Stats */}
+          {/* User Name + 3 Stats */}
           <View style={styles.rightStatsColumn}>
             <View style={styles.ownerNameRow}>
-              <Text style={styles.igOwnerName}>{ownerName}</Text>
-              {isVip && (
-                <View style={[styles.tierPill, { backgroundColor: theme.primarySoft }]}>
-                  <Feather name="award" size={11} color={theme.primary} />
-                  <Text style={[styles.tierPillText, { color: theme.primary }]}>
-                    {activeVipPlanId === 'vip_gold' ? 'Gold' : 'Plus'}
-                  </Text>
-                </View>
-              )}
+              <Text style={styles.igOwnerName}>{displayName}</Text>
+              <View style={[styles.tierPill, { backgroundColor: theme.primarySoft }]}>
+                <Feather name="award" size={11} color={theme.primary} />
+                <Text style={[styles.tierPillText, { color: theme.primary }]}>
+                  {displayNickname}
+                </Text>
+              </View>
             </View>
 
             <View style={styles.statsRow}>
               <View style={styles.statCol}>
-                <Text style={styles.statNum}>{myPosts.length}</Text>
+                <Text style={styles.statNum}>{displayPostsList.length}</Text>
                 <Text style={styles.statLabel}>bài viết</Text>
               </View>
               <View style={styles.statCol}>
-                <Text style={styles.statNum}>218</Text>
+                <Text style={styles.statNum}>{displayFollowersCount}</Text>
                 <Text style={styles.statLabel}>người theo dõi</Text>
               </View>
               <View style={styles.statCol}>
-                <Text style={styles.statNum}>305</Text>
+                <Text style={styles.statNum}>{displayFollowingCount}</Text>
                 <Text style={styles.statLabel}>đang theo dõi</Text>
               </View>
             </View>
@@ -128,52 +217,158 @@ export const MobileProfileScreen: React.FC = () => {
         <View style={styles.bioBlock}>
           <View style={styles.handleAndLocationRow}>
             <View style={styles.atHandlePill}>
-              <Text style={styles.atHandleText}>{ownerHandle}</Text>
+              <Text style={styles.atHandleText}>{displayHandle}</Text>
             </View>
             <View style={styles.locationMiniRow}>
               <Feather name="map-pin" size={11} color="#7A6E63" />
-              <Text style={styles.locationMiniText}>{ownerArea}</Text>
+              <Text style={styles.locationMiniText}>{displayArea}</Text>
             </View>
-            {isPrivateProfile && (
-              <View style={styles.privateMiniTag}>
-                <Feather name="lock" size={10} color="#6C6055" />
-                <Text style={styles.privateMiniText}>Riêng tư</Text>
-              </View>
+            {isViewingOther ? (
+              otherProfile?.isPrivate && (
+                <View style={styles.privateMiniTag}>
+                  <Feather name="lock" size={10} color="#6C6055" />
+                  <Text style={styles.privateMiniText}>Riêng tư</Text>
+                </View>
+              )
+            ) : (
+              isPrivateProfile && (
+                <View style={styles.privateMiniTag}>
+                  <Feather name="lock" size={10} color="#6C6055" />
+                  <Text style={styles.privateMiniText}>Riêng tư</Text>
+                </View>
+              )
             )}
           </View>
-          <Text style={styles.igBioText}>{ownerBio}</Text>
+          <Text style={styles.igBioText}>{displayBio}</Text>
         </View>
 
-        {/* Action Buttons Row: Chỉnh sửa trang cá nhân | Hồ sơ Kết nối | Toggle Suggested People */}
-        <View style={styles.igActionButtonsRow}>
-          <TouchableOpacity
-            style={styles.igGrayActionBtn}
-            onPress={() => setActiveModal('edit_profile')}
-          >
-            <Text style={styles.igGrayActionBtnText}>Chỉnh sửa trang cá nhân</Text>
-          </TouchableOpacity>
+        {/* Action Buttons Row */}
+        {isViewingOther ? (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+            {/* Nút 1: Theo dõi */}
+            <TouchableOpacity
+              style={[
+                styles.viewedUserActionBtn,
+                {
+                  backgroundColor: otherProfile?.isFollowing ? '#EFEAE2' : theme.primary,
+                },
+              ]}
+              onPress={() => toggleFollowUser(otherProfile!.handle)}
+              activeOpacity={0.8}
+            >
+              <Feather
+                name={otherProfile?.isFollowing ? 'check' : 'bell'}
+                size={14}
+                color={otherProfile?.isFollowing ? '#1C1815' : '#FFFFFF'}
+              />
+              <Text
+                style={[
+                  styles.viewedUserActionText,
+                  { color: otherProfile?.isFollowing ? '#1C1815' : '#FFFFFF' },
+                ]}
+              >
+                {otherProfile?.isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.igGrayActionBtn}
-            onPress={() => setActiveModal('tinder_setup')}
-          >
-            <Text style={styles.igGrayActionBtnText}>Hồ sơ Kết nối</Text>
-          </TouchableOpacity>
+            {/* Nút 2: Kết bạn */}
+            <TouchableOpacity
+              style={[
+                styles.viewedUserActionBtn,
+                {
+                  backgroundColor:
+                    otherProfile?.friendStatus === 'accepted' || otherProfile?.isFriend
+                      ? '#EAF7F1'
+                      : otherProfile?.friendStatus === 'pending'
+                      ? '#FFF3CD'
+                      : '#EFEAE2',
+                },
+              ]}
+              onPress={() => toggleFriendStatus(otherProfile!.handle)}
+              activeOpacity={0.8}
+            >
+              <Feather
+                name={
+                  otherProfile?.friendStatus === 'accepted' || otherProfile?.isFriend
+                    ? 'check'
+                    : otherProfile?.friendStatus === 'pending'
+                    ? 'clock'
+                    : 'user-plus'
+                }
+                size={14}
+                color={
+                  otherProfile?.friendStatus === 'accepted' || otherProfile?.isFriend
+                    ? '#2E7D5B'
+                    : otherProfile?.friendStatus === 'pending'
+                    ? '#856404'
+                    : '#1C1815'
+                }
+              />
+              <Text
+                style={[
+                  styles.viewedUserActionText,
+                  {
+                    color:
+                      otherProfile?.friendStatus === 'accepted' || otherProfile?.isFriend
+                        ? '#2E7D5B'
+                        : otherProfile?.friendStatus === 'pending'
+                        ? '#856404'
+                        : '#1C1815',
+                  },
+                ]}
+              >
+                {otherProfile?.friendStatus === 'accepted' || otherProfile?.isFriend
+                  ? 'Bạn bè'
+                  : otherProfile?.friendStatus === 'pending'
+                  ? 'Đã gửi lời mời'
+                  : 'Kết bạn'}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.igIconActionBtn,
-              showDiscoverPeople && { backgroundColor: '#E5DDD3' },
-            ]}
-            onPress={() => setShowDiscoverPeople(!showDiscoverPeople)}
-          >
-            <Feather name="user-plus" size={15} color="#1C1815" />
-          </TouchableOpacity>
-        </View>
+            {/* Nút 3: Nhắn tin (nếu là bạn bè) */}
+            {(otherProfile?.friendStatus === 'accepted' || otherProfile?.isFriend) && (
+              <TouchableOpacity
+                style={{
+                  width: 44,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: '#EFEAE2',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={() => startDirectChatWithUser(otherProfile!.handle)}
+                activeOpacity={0.8}
+              >
+                <Feather name="message-circle" size={17} color="#1C1815" />
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <View style={styles.igActionButtonsRow}>
+            <TouchableOpacity
+              style={styles.igGrayActionBtn}
+              onPress={() => setActiveModal('edit_profile')}
+            >
+              <Text style={styles.igGrayActionBtnText}>Chỉnh sửa trang cá nhân</Text>
+            </TouchableOpacity>
+
+            
+
+            <TouchableOpacity
+              style={[
+                styles.igIconActionBtn,
+                showDiscoverPeople && { backgroundColor: '#E5DDD3' },
+              ]}
+              onPress={() => setShowDiscoverPeople(!showDiscoverPeople)}
+            >
+              <Feather name="user-plus" size={15} color="#1C1815" />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
-      {/* 2. INSTAGRAM "KHÁM PHÁ MỌI NGƯỜI" HORIZONTAL CARDS */}
-      {showDiscoverPeople && suggestedPeople.length > 0 && (
+      {/* 2. INSTAGRAM "KHÁM PHÁ MỌI NGƯỜI" (Chỉ hiện cho Mai Nguyễn) */}
+      {!isViewingOther && showDiscoverPeople && suggestedPeople.length > 0 && (
         <View style={styles.discoverSection}>
           <View style={styles.discoverHeaderRow}>
             <Text style={styles.discoverTitle}>Khám phá mọi người</Text>
@@ -281,40 +476,16 @@ export const MobileProfileScreen: React.FC = () => {
               profileSubTab === 'pets' && styles.igTabTextActive,
             ]}
           >
-            Thú cưng ({pets.length}/{MAX_FREE_PETS})
+            Thú cưng ({displayPetsList.length})
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.igTabBtn,
-            profileSubTab === 'tinder_setup' && [
-              styles.igTabBtnActive,
-              { borderBottomColor: '#1C1815' },
-            ],
-          ]}
-          onPress={() => setProfileSubTab('tinder_setup')}
-        >
-          <Feather
-            name="heart"
-            size={18}
-            color={profileSubTab === 'tinder_setup' ? '#1C1815' : '#9C8E80'}
-          />
-          <Text
-            style={[
-              styles.igTabText,
-              profileSubTab === 'tinder_setup' && styles.igTabTextActive,
-            ]}
-          >
-            Hồ sơ Kết nối
-          </Text>
-        </TouchableOpacity>
-      </View>
+        </View>
 
       {/* SUB-TAB 1: 3-COLUMN PHOTO GRID */}
       {profileSubTab === 'grid' && (
         <View style={styles.photoGrid}>
-          {displayPosts.map((post) => {
+          {displayPostsList.map((post) => {
             const urls = post.mediaUrls;
             return (
               <TouchableOpacity
@@ -465,7 +636,7 @@ export const MobileProfileScreen: React.FC = () => {
             </View>
           )}
 
-          {pets.map((pet) => {
+          {displayPetsList.map((pet) => {
             const isSelected = pet.id === activePetId;
             return (
               <View
@@ -517,109 +688,37 @@ export const MobileProfileScreen: React.FC = () => {
 
                 <Text style={styles.petBioNote}>{pet.bio}</Text>
 
-                <View style={styles.petActionsFooter}>
-                  <TouchableOpacity
-                    style={[styles.petEditBtn, { backgroundColor: theme.primarySoft }]}
-                    onPress={() => {
-                      setActivePetId(pet.id);
-                      setActiveModal('edit_profile');
-                    }}
-                  >
-                    <Feather name="edit-3" size={13} color={theme.primary} />
-                    <Text style={[styles.petEditBtnText, { color: theme.primary }]}>
-                      Chỉnh sửa hồ sơ bé
-                    </Text>
-                  </TouchableOpacity>
+                {!isViewingOther && (
+                    <View style={styles.petActionsFooter}>
+                      <TouchableOpacity
+                        style={[styles.petEditBtn, { backgroundColor: theme.primarySoft }]}
+                        onPress={() => {
+                          setActivePetId(pet.id);
+                          setActiveModal('edit_profile');
+                        }}
+                      >
+                        <Feather name="edit-3" size={13} color={theme.primary} />
+                        <Text style={[styles.petEditBtnText, { color: theme.primary }]}>
+                          Chỉnh sửa hồ sơ bé
+                        </Text>
+                      </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.petDeleteBtn}
-                    onPress={() => deletePetProfile(pet.id)}
-                  >
-                    <Feather name="trash-2" size={13} color="#C9302C" />
-                    <Text style={styles.petDeleteBtnText}>Xóa thú cưng</Text>
-                  </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.petDeleteBtn}
+                        onPress={() => deletePetProfile(pet.id)}
+                      >
+                        <Feather name="trash-2" size={13} color="#C9302C" />
+                        <Text style={styles.petDeleteBtnText}>Xóa thú cưng</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
-              </View>
-            );
-          })}
+              );
+            })}
         </View>
       )}
 
-      {/* SUB-TAB 3: USER TINDER SETUP PROFILE PREVIEW & EDIT */}
-      {profileSubTab === 'tinder_setup' && (
-        <View style={styles.tinderSetupSection}>
-          <View style={styles.tinderSetupCard}>
-            <View style={styles.tinderSetupHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.tinderSetupTitle}>
-                  Hồ sơ Kết nối của {ownerName}, {userTinderSetup.age}
-                </Text>
-                <Text style={styles.tinderSetupSub}>
-                  Thông tin này hiển thị trên thẻ của bạn ở nhánh Kết nối (Tinder)
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.editTinderBtn, { backgroundColor: theme.primary }]}
-                onPress={() => setActiveModal('tinder_setup')}
-              >
-                <Feather name="edit-3" size={13} color="#FFFFFF" />
-                <Text style={styles.editTinderBtnText}>Thiết lập</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.tinderPreviewBox}>
-              <Text style={styles.tinderFieldLabel}>Đang tìm kiếm</Text>
-              <Text style={styles.tinderFieldBig}>{userTinderSetup.lookingFor}</Text>
-            </View>
-
-            <View style={styles.tinderLifestyleGrid}>
-              <View style={styles.tinderPillItem}>
-                <Feather name="user" size={13} color="#5C5046" />
-                <Text style={styles.tinderPillText}>Giới tính: {userTinderSetup.gender}</Text>
-              </View>
-              <View style={styles.tinderPillItem}>
-                <Feather name="zap" size={13} color="#5C5046" />
-                <Text style={styles.tinderPillText}>{userTinderSetup.smoking}</Text>
-              </View>
-              <View style={styles.tinderPillItem}>
-                <Feather name="activity" size={13} color="#5C5046" />
-                <Text style={styles.tinderPillText}>Tập luyện: {userTinderSetup.workout}</Text>
-              </View>
-              <View style={styles.tinderPillItem}>
-                <Feather name="coffee" size={13} color="#5C5046" />
-                <Text style={styles.tinderPillText}>{userTinderSetup.drinking}</Text>
-              </View>
-              <View style={styles.tinderPillItem}>
-                <Feather name="star" size={13} color="#5C5046" />
-                <Text style={styles.tinderPillText}>{userTinderSetup.zodiac}</Text>
-              </View>
-              <View style={styles.tinderPillItem}>
-                <Feather name="message-circle" size={13} color="#5C5046" />
-                <Text style={styles.tinderPillText}>{userTinderSetup.chatStyle}</Text>
-              </View>
-            </View>
-
-            <Text style={[styles.tinderFieldLabel, { marginTop: 14, marginBottom: 6 }]}>
-              Thú cưng đính kèm trên thẻ Kết nối ({pets.length} bé)
-            </Text>
-            {pets.map((p) => (
-              <View key={p.id} style={styles.tinderAttachedPetRow}>
-                <Image source={{ uri: p.avatarUrl }} style={styles.tinderAttachedPetAvatar} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.tinderAttachedPetName}>
-                    {p.name} ({p.species} · {p.breed})
-                  </Text>
-                  <Text style={styles.tinderAttachedPetVaccine}>
-                    {p.isVaccinatedAndRabies
-                      ? '✓ Đã tiêm chủng & Phòng dại đầy đủ'
-                      : 'Chưa xác nhận tiêm phòng'}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
+      
     </ScrollView>
   );
 };
@@ -1234,5 +1333,53 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#2E7D5B',
     marginTop: 2,
+  },
+  viewedUserTopHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2ECE4',
+  },
+  viewedUserBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#F7F3EE',
+  },
+  viewedUserBackText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2C2520',
+  },
+  viewedUserHandleBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+    backgroundColor: '#F0E8DC',
+  },
+  viewedUserHandleText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#3D342C',
+  },
+  viewedUserActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  viewedUserActionText: {
+    fontSize: 13,
+    fontWeight: '800',
   },
 });

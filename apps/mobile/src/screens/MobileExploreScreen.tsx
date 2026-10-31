@@ -33,8 +33,10 @@ export const MobileExploreScreen: React.FC = () => {
     addComment,
     sharePost,
     openPublicUserProfile,
+    openUserProfileInTab,
     openLightboxMedia,
     setActiveModal,
+    setActiveTab,
   } = useMobilePawty();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -213,7 +215,7 @@ export const MobileExploreScreen: React.FC = () => {
               <View style={styles.postHeader}>
                 <TouchableOpacity
                   style={styles.authorTouchRow}
-                  onPress={() => openPublicUserProfile(post.authorHandle)}
+                  onPress={() => openUserProfileInTab(post.authorHandle)}
                 >
                   <Image source={{ uri: post.authorAvatar }} style={styles.authorAvatar} />
                   <View style={{ flex: 1 }}>
@@ -230,6 +232,7 @@ export const MobileExploreScreen: React.FC = () => {
                     <Text style={styles.postMeta}>{post.createdAt}</Text>
                   </View>
                 </TouchableOpacity>
+                
               </View>
 
               {post.aiSosMatch && (
@@ -944,5 +947,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#E17055',
+  },
+  viewProfileHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignSelf: 'center',
+    marginLeft: 6,
+  },
+  viewProfileHeaderBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

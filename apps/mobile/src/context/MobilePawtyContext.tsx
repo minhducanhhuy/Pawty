@@ -249,9 +249,16 @@ interface MobilePawtyContextType {
   // Public User Profile (Instagram Style)
   publicProfiles: Record<string, PublicUserProfile>;
   viewedUserHandle: string | null;
+  selectedProfileHandle: string | null;
+  setSelectedProfileHandle: (handle: string | null) => void;
+  openUserProfileInTab: (handle: string) => void;
   openPublicUserProfile: (handle: string) => void;
   closePublicUserProfile: () => void;
   toggleFriendStatus: (handle: string) => void;
+  sendFriendRequest: (handle: string) => void;
+  acceptFriendRequest: (handle: string, notifId?: string) => void;
+  declineFriendRequest: (handle: string, notifId?: string) => void;
+  toggleFollowUser: (handle: string) => void;
   startDirectChatWithUser: (handle: string) => void;
 
   // Kết nối (Tinder) Tab
@@ -365,6 +372,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [publicProfiles, setPublicProfiles] =
     useState<Record<string, PublicUserProfile>>(PUBLIC_USER_PROFILES);
   const [viewedUserHandle, setViewedUserHandle] = useState<string | null>(null);
+  const [selectedProfileHandle, setSelectedProfileHandle] = useState<string | null>(null);
 
   // Kết nối (Tinder)
   const [tinderIntent, setTinderIntent] = useState<TinderIntent>('dating');
@@ -930,24 +938,195 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setViewedUserHandle(null);
   };
 
+  const openUserProfileInTab = (handle: string) => {
+    if (handle === ownerHandle) {
+      setSelectedProfileHandle(null);
+    } else {
+      setSelectedProfileHandle(handle);
+    }
+    setViewedUserHandle(null);
+    setActiveTab('profile');
+  };
+
   const toggleFriendStatus = (handle: string) => {
     setPublicProfiles((prev) => {
       const current = prev[handle];
       if (!current) return prev;
-      const nextFriend = !current.isFriend;
-      showToast(
-        nextFriend
-          ? `Đã kết bạn với ${current.name}! Giờ bạn có thể xem toàn bộ nhật ký và nhắn tin.`
-          : `Đã hủy kết bạn với ${current.name}`
-      );
+
+      if (current.friendStatus === 'accepted' || current.isFriend) {
+        // Hủy kết bạn
+        showToast(`Đã hủy kết bạn với ${current.name}`);
+        return {
+          ...prev,
+          [handle]: {
+            ...current,
+            isFriend: false,
+            friendStatus: 'none',
+            friendsCount: Math.max(0, current.friendsCount - 1),
+          },
+        };
+      } else if (current.friendStatus === 'pending') {
+        // Hủy lời mời kết bạn đã gửi
+        showToast(`Đã thu hồi lời mời kết bạn với ${current.name}`);
+        return {
+          ...prev,
+          [handle]: {
+            ...current,
+            friendStatus: 'none',
+          },
+        };
+      } else {
+        // Gửi lời mời kết bạn
+        showToast(
+          `Đã gửi lời mời kết bạn đến ${current.name}! Cần người ấy chấp nhận để có thể nhắn tin.`
+        );
+        // Bắn thông báo đến hệ thống (mô phỏng nhận được lời mời kết bạn)
+        const friendRequestNotif: MobileNotificationItem = {
+          id: `notif-fr-${Date.now()}`,
+          title: 'Lời mời kết bạn đã gửi',
+          body: `Bạn đã gửi lời mời kết bạn đến ${current.name} (${current.handle}). Khi đối phương chấp nhận, hai bạn có thể nhắn tin.`,
+          timeLabel: 'Vừa xong',
+          type: 'friend_request',
+          isRead: false,
+          actionPayload: {
+            senderHandle: current.handle,
+            senderName: current.name,
+            status: 'pending',
+          },
+        };
+        setNotifications((nPrev) => [friendRequestNotif, ...nPrev]);
+
+        return {
+          ...prev,
+          [handle]: {
+            ...current,
+            friendStatus: 'pending',
+          },
+        };
+      }
+    });
+  };
+
+  const sendFriendRequest = (handle: string) => {
+    toggleFriendStatus(handle);
+  };
+
+  const acceptFriendRequest = (handle: string, notifId?: string) => {
+    setPublicProfiles((prev) => {
+      const current = prev[handle];
+      if (!current) return prev;
       return {
         ...prev,
         [handle]: {
           ...current,
-          isFriend: nextFriend,
-          friendsCount: nextFriend
-            ? current.friendsCount + 1
-            : Math.max(0, current.friendsCount - 1),
+          isFriend: true,
+          friendStatus: 'accepted',
+          friendsCount: current.friendsCount + 1,
+        },
+      };
+    });
+
+    setNotifications((prev) =>
+      prev.map((n) => {
+        if (n.id === notifId || (n.actionPayload && n.actionPayload.senderHandle === handle)) {
+          return {
+            ...n,
+            isRead: true,
+            title: '✓ Đã trở thành bạn bè',
+            body: `Bạn và ${n.actionPayload?.senderName || handle} đã kết bạn thành công! Giờ hai bạn có thể nhắn tin cho nhau.`,
+            actionPayload: {
+              ...n.actionPayload,
+              status: 'accepted',
+            },
+          };
+        }
+        return n;
+      })
+    );
+
+    showToast('🎉 Đã chấp nhận lời mời kết bạn! Giờ hai bạn đã có thể nhắn tin.');
+  };
+
+  const declineFriendRequest = (handle: string, notifId?: string) => {
+    setPublicProfiles((prev) => {
+      const current = prev[handle];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [handle]: {
+          ...current,
+          friendStatus: 'none',
+          isFriend: false,
+        },
+      };
+    });
+
+    setNotifications((prev) =>
+      prev.map((n) => {
+        if (n.id === notifId || (n.actionPayload && n.actionPayload.senderHandle === handle)) {
+          return {
+            ...n,
+            isRead: true,
+            title: 'Đã từ chối lời mời',
+            body: `Bạn đã từ chối lời mời kết bạn từ ${n.actionPayload?.senderName || handle}.`,
+            actionPayload: {
+              ...n.actionPayload,
+              status: 'declined',
+            },
+          };
+        }
+        return n;
+      })
+    );
+
+    showToast('Đã từ chối lời mời kết bạn.');
+  };
+
+  const toggleFollowUser = (handle: string) => {
+    setPublicProfiles((prev) => {
+      const current = prev[handle];
+      if (!current) return prev;
+      const nextFollowing = !current.isFollowing;
+
+      if (nextFollowing) {
+        showToast(
+          `Đã theo dõi ${current.name}! Bạn sẽ nhận được thông báo khi người này đăng bài mới.`
+        );
+        // Tự động bắn thông báo xác nhận theo dõi và nhận tin bài mới
+        const followNotif: MobileNotificationItem = {
+          id: `notif-follow-${Date.now()}`,
+          title: `Đang theo dõi ${current.name}`,
+          body: `Bạn sẽ nhận được thông báo ngay khi ${current.name} (${current.handle}) đăng tải bài viết mới trên Khám phá.`,
+          timeLabel: 'Vừa xong',
+          type: 'social',
+          isRead: false,
+        };
+        // Giả lập thông báo bài đăng mới từ người vừa theo dõi sau 2.5s để user trải nghiệm
+        setTimeout(() => {
+          const newPostNotif: MobileNotificationItem = {
+            id: `notif-newpost-${Date.now()}`,
+            title: `Bài viết mới từ ${current.name}`,
+            body: `${current.name} (${current.handle}) vừa đăng một khoảnh khắc mới trên trang Khám phá! Nhấn để xem ngay.`,
+            timeLabel: 'Vừa xong',
+            type: 'new_post',
+            isRead: false,
+          };
+          setNotifications((nPrev) => [newPostNotif, ...nPrev]);
+        }, 2500);
+
+        setNotifications((nPrev) => [followNotif, ...nPrev]);
+      } else {
+        showToast(`Đã hủy theo dõi ${current.name}`);
+      }
+
+      return {
+        ...prev,
+        [handle]: {
+          ...current,
+          isFollowing: nextFollowing,
+          followersCount: nextFollowing
+            ? current.followersCount + 1
+            : Math.max(0, current.followersCount - 1),
         },
       };
     });
@@ -955,6 +1134,15 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const startDirectChatWithUser = (handle: string) => {
     const profile = publicProfiles[handle];
+
+    // KIỂM TRA RÀNG BUỘC KẾT BẠN: Chưa là bạn bè thì CHẶN nhắn tin
+    if (profile && !profile.isFriend) {
+      showToast(
+        `⚠️ Bạn và ${profile.name} cần kết bạn và được chấp nhận trước mới có thể nhắn tin!`
+      );
+      return;
+    }
+
     const existingChat = chats.find((c) => c.partnerHandle === handle);
     setViewedUserHandle(null);
     setActiveTab('chat');
@@ -985,7 +1173,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         {
           id: `m-${Date.now()}`,
           sender: 'me',
-          text: `Chào ${profile ? profile.name : 'bạn'}, mình vừa ghé thăm trang cá nhân của bạn trên Pawty!`,
+          text: `Chào ${profile ? profile.name : 'bạn'}, rất vui được kết bạn cùng bạn trên Pawty!`,
           time: 'Vừa xong',
         },
       ],
@@ -1319,9 +1507,16 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         closeLightboxMedia,
         publicProfiles,
         viewedUserHandle,
+        selectedProfileHandle,
+        setSelectedProfileHandle,
+        openUserProfileInTab,
         openPublicUserProfile,
         closePublicUserProfile,
         toggleFriendStatus,
+        sendFriendRequest,
+        acceptFriendRequest,
+        declineFriendRequest,
+        toggleFollowUser,
         startDirectChatWithUser,
         tinderIntent,
         setTinderIntent,

@@ -31,12 +31,25 @@
 - **Bài viết nhiều ảnh & Phóng to vuốt chuyển ảnh:**
   - Trên bài đăng có nhiều ảnh: Hỗ trợ **gạt ngang (`ScrollView horizontal pagingEnabled`)** để chuyển ảnh mượt mà kèm chỉ báo vị trí (`1/3`, `2/3`).
   - Khi chạm vào ảnh/video để mở **Phóng to toàn màn hình (`Lightbox`)**: Hỗ trợ **gạt ngang trái/phải** để chuyển qua lại giữa các ảnh trong bài đăng.
+- **Header Bài Viết & Nút "Xem Profile":**
+  - Cạnh cụm Avatar + Tên tác giả trên bài viết: Thêm nút **`[Xem profile]`**. Khi bấm vào nút này, ứng dụng sẽ chuyển thẳng sang tab **Hồ sơ (`Tôi`)** và hiển thị trang thông tin của tác giả.
+  - Chạm vào avatar/tên tác giả cũng mở Popup/Modal Profile rút gọn.
+- **Modal Profile Tác Giả & Hai Nút Hành Động ("Kết bạn" & "Theo dõi"):**
+  - Thay vì hiện nút "Nhắn tin", modal hiển thị 2 nút chính: **`[Kết bạn]`** và **`[Theo dõi]`** cùng nút phụ **`[Xem profile]`** (chuyển sang tab Tôi/Hồ sơ).
+  - **Cơ chế Lời Mời Kết Bạn & Kiểm Soát Nhắn Tin:**
+    - Khi người A ấn `[Kết bạn]` với người B: Nút chuyển sang trạng thái `[Đã gửi lời mời]`.
+    - Hệ thống tự động bắn Thông báo (Notification) đến người B: `"${Người A} đã gửi lời mời kết bạn"`, kèm 2 nút tương tác **`[Chấp nhận]`** và **`[Từ chối]`**.
+    - **Ràng buộc Nhắn tin Chặt chẽ:** Người dùng **CHỈ ĐƯỢC PHÉP NHẮN TIN khi hai bên đã là bạn bè (người B đã chấp nhận lời mời kết bạn)**. Nếu chưa chấp nhận hoặc đã từ chối, hệ thống ngăn không cho mở phòng chat và hiển thị thông báo yêu cầu kết bạn trước.
+  - **Cơ chế Theo Dõi & Nhận Thông Báo Bài Viết:**
+    - Khi ấn `[Theo dõi]`: Chuyển trạng thái sang `[Đang theo dõi]` (ấn lại để hủy theo dõi).
+    - Khi người được theo dõi đăng tải bài viết/khoảnh khắc mới trên trang Khám phá, hệ thống sẽ tự động gửi thông báo đến toàn bộ người theo dõi: `"${Tên tác giả} vừa đăng một khoảnh khắc mới trên Khám phá!"`.
 - **Huy hiệu AI Sighting trên Pet Feed:**
   - Khi AI quét bài viết và phát hiện ảnh/đặc điểm khớp với một tin SOS đang mở: Hiển thị thanh Banner cảnh báo màu San Hô (`#FF6F61`): *"🔍 AI phát hiện: Khớp 85% với tin SOS của bé Coca lúc 09:30 tại Công viên Bờ Sông"*.
   - Nhấp vào banner mở rộng bản đồ lộ trình truy vết và thông tin liên hệ chủ nuôi.
 - **Khung Đăng bài mới (`new_moment`):**
   - **Tải ảnh & video thật từ điện thoại (`expo-image-picker`):** Cho phép bấm chọn nhiều ảnh hoặc video trực tiếp từ thư viện máy hoặc mở Camera, kèm thao tác gạt ngang xem trước và xóa từng mục.
   - **Hashtag tự do + Gợi ý:** Có ô nhập để người dùng **tự gõ hashtag bất kỳ** và bấm thêm, kết hợp chạm nhanh vào các hashtag gợi ý.
+  - Khi đăng bài thành công, tự động gửi thông báo đến các tài khoản đang theo dõi tác giả.
 
 ### 2.2 Tab 2: Kết nối (`Tinder` — Giao diện chuẩn Tinder & Nhiều Thú Cưng)
 - **Giao diện thẻ chuẩn ứng dụng Tinder:**
