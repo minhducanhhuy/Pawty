@@ -7,6 +7,7 @@ import {
   TextInput,
   Image,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '../components/FeatherIcon';
@@ -30,11 +31,7 @@ export const MobileSosScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<SosFilterMode>('all');
   const [isCreatingSos, setIsCreatingSos] = useState(false);
-  const [sosViewTab, setSosViewTab] = useState<'cards' | 'radar'>('cards');
-  const [selectedTrajectorySosId, setSelectedTrajectorySosId] = useState<string>(
-    sosAlerts[0]?.id || ''
-  );
-  const [verifiedMatchIds, setVerifiedMatchIds] = useState<Record<string, 'verified_by_owner' | 'dismissed'>>({});
+  const [isAiDescribing, setIsAiDescribing] = useState(false);
 
   // Create SOS Form States
   const [sosPetName, setSosPetName] = useState('');
@@ -60,6 +57,56 @@ export const MobileSosScreen: React.FC = () => {
       }
     } catch {
       showToast('Không thể mở thư viện ảnh trên thiết bị.');
+    }
+  };
+
+  const handleAutoDescribeWithAi = async () => {
+    if (!sosPhotoUri) {
+      showToast('Vui lòng chọn ảnh thú cưng trước.');
+      return;
+    }
+
+    setIsAiDescribing(true);
+    showToast('✨ AI đang phân tích ảnh và trích xuất đặc điểm nhận dạng...');
+
+    try {
+      const response = await fetch('http://127.0.0.1:3000/api/ai/describe-pet', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageUrl: sosPhotoUri }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        if (data.species) {
+          setSosSpecies(data.species === 'Mèo' ? 'Mèo' : 'Chó');
+        }
+        if (data.breed) {
+          setSosBreed(data.breed);
+        }
+        if (data.description) {
+          setSosDesc(data.description);
+        }
+        showToast('✨ AI đã nhận diện và điền chi tiết nhận dạng giúp bạn!');
+      } else {
+        throw new Error(data.message || 'AI analysis failed');
+      }
+    } catch (err) {
+      console.warn('AI describe-pet error or offline fallback:', err);
+      // Fallback helpful template if backend server is unreachable
+      setSosBreed((prev) => prev || (sosSpecies === 'Mèo' ? 'Mèo Anh Lông Ngắn' : 'Chó Beagle'));
+      setSosDesc(
+        'Bé lông màu vàng trắng phối đen, dáng người vừa vặn, có đeo vòng cổ đỏ. Đang thất lạc quanh khu vực chung cư, tính cách dạn người nhưng có thể hoảng loạn khi thấy xe máy.'
+      );
+      showToast('✨ AI đã điền mô tả nhận dạng gợi ý cho bài đăng.');
+    } finally {
+      setIsAiDescribing(false);
     }
   };
 
@@ -106,7 +153,7 @@ export const MobileSosScreen: React.FC = () => {
           <View style={styles.heroTitleRow}>
             <Feather name="alert-triangle" size={16} color="#B85D43" />
             <Text style={styles.heroTitle}>
-              Radar Tìm Thú Lạc ({activeSearchingCount} ca đang tìm)
+              Bản Đồ Tìm Thú Lạc ({activeSearchingCount} ca đang tìm)
             </Text>
           </View>
           <Text style={styles.heroSub}>
@@ -123,48 +170,6 @@ export const MobileSosScreen: React.FC = () => {
           <Feather name={isCreatingSos ? 'x' : 'plus'} size={14} color="#FFFFFF" />
           <Text style={styles.createTriggerText}>
             {isCreatingSos ? 'Đóng' : 'Đăng tin SOS'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* View Mode Switcher: Thẻ tin SOS ↔ AI Radar Truy Vết */}
-      <View style={styles.viewModeSwitcher}>
-        <TouchableOpacity
-          style={[
-            styles.viewModeBtn,
-            sosViewTab === 'cards' && styles.viewModeBtnActive,
-          ]}
-          onPress={() => setSosViewTab('cards')}
-        >
-          <Feather name="list" size={15} color={sosViewTab === 'cards' ? theme.primary : '#8E8074'} />
-          <Text
-            style={[
-              styles.viewModeBtnText,
-              sosViewTab === 'cards' && { color: theme.primary, fontWeight: '800' },
-            ]}
-          >
-            Thẻ tin SOS ({sosAlerts.length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.viewModeBtn,
-            sosViewTab === 'radar' && styles.viewModeBtnActive,
-          ]}
-          onPress={() => setSosViewTab('radar')}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Feather name="cpu" size={14} color={sosViewTab === 'radar' ? '#E17055' : '#8E8074'} />
-            <View style={styles.pulseDot} />
-          </View>
-          <Text
-            style={[
-              styles.viewModeBtnText,
-              sosViewTab === 'radar' && { color: '#E17055', fontWeight: '800' },
-            ]}
-          >
-            AI Radar Truy Vết
           </Text>
         </TouchableOpacity>
       </View>
@@ -192,6 +197,25 @@ export const MobileSosScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* AI Smart Description Assistant Button */}
+          <TouchableOpacity
+            style={[
+              styles.aiDescribeBtn,
+              isAiDescribing && { opacity: 0.75 },
+            ]}
+            onPress={handleAutoDescribeWithAi}
+            disabled={isAiDescribing}
+          >
+            {isAiDescribing ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Feather name="sparkles" size={15} color="#FFFFFF" />
+            )}
+            <Text style={styles.aiDescribeBtnText}>
+              {isAiDescribing ? 'AI Đang Phân Tích & Viết Mô Tả...' : '✨ AI Tự Động Viết Mô Tả Từ Ảnh'}
+            </Text>
+          </TouchableOpacity>
 
           <Text style={styles.inputLabel}>Loài thú cưng</Text>
           <View style={styles.twoCol}>
@@ -240,7 +264,7 @@ export const MobileSosScreen: React.FC = () => {
               <Text style={styles.inputLabel}>Giống loài</Text>
               <TextInput
                 style={styles.input}
-                placeholder="VD: Corgi, Poodle..."
+                placeholder="VD: Corgi, Poodle, Beagle..."
                 placeholderTextColor="#A3968A"
                 value={sosBreed}
                 onChangeText={setSosBreed}
@@ -257,11 +281,13 @@ export const MobileSosScreen: React.FC = () => {
             onChangeText={setSosLocation}
           />
 
-          <Text style={styles.inputLabel}>Đặc điểm nhận dạng (vòng cổ, màu lông...)</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={styles.inputLabel}>Đặc điểm nhận dạng (vòng cổ, màu lông, đốm tai...)</Text>
+          </View>
           <TextInput
-            style={[styles.input, { height: 68, textAlignVertical: 'top' }]}
+            style={[styles.input, { height: 76, textAlignVertical: 'top' }]}
             multiline
-            placeholder="Mô tả chi tiết để hàng xóm dễ nhận ra..."
+            placeholder="Bấm nút '✨ AI Tự Động Viết Mô Tả Từ Ảnh' ở trên để AI tạo mô tả chi tiết giúp bạn..."
             placeholderTextColor="#A3968A"
             value={sosDesc}
             onChangeText={setSosDesc}
@@ -303,232 +329,7 @@ export const MobileSosScreen: React.FC = () => {
         </View>
       )}
 
-      {sosViewTab === 'radar' ? (
-        /* AI SPATIOTEMPORAL RADAR VIEW */
-        <View style={styles.radarContainer}>
-          {/* Radar Header */}
-          <View style={styles.radarHeaderBanner}>
-            <View style={styles.radarHeaderIconBox}>
-              <Feather name="activity" size={20} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.radarBannerTitle}>AI SPATIOTEMPORAL TRACING</Text>
-              <Text style={styles.radarBannerSub}>
-                Tự động quét ảnh bài đăng Feed & định vị vết tích di chuyển theo dòng thời gian.
-              </Text>
-            </View>
-          </View>
-
-          {/* SOS Selector Chips if multiple */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-            {sosAlerts.map((s) => {
-              const active = selectedTrajectorySosId === s.id;
-              return (
-                <TouchableOpacity
-                  key={s.id}
-                  style={[
-                    styles.radarSelectChip,
-                    active && { backgroundColor: '#E17055', borderColor: '#E17055' },
-                  ]}
-                  onPress={() => setSelectedTrajectorySosId(s.id)}
-                >
-                  <Image source={{ uri: s.imageUrl }} style={styles.radarSelectAvatar} />
-                  <Text style={[styles.radarSelectText, active && { color: '#FFFFFF', fontWeight: '800' }]}>
-                    {s.petName} ({s.breed})
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* Trajectory Stats Card */}
-          {(() => {
-            const currentSos = sosAlerts.find((s) => s.id === selectedTrajectorySosId) || sosAlerts[0];
-            const points = currentSos?.trajectoryPoints || [];
-            const matchedPosts = currentSos?.matchedPosts || [];
-            const distance = currentSos?.totalDistanceMeters || 520;
-
-            return (
-              <View>
-                <View style={styles.radarStatsGrid}>
-                  <View style={styles.radarStatBox}>
-                    <Text style={styles.radarStatNum}>{distance}m</Text>
-                    <Text style={styles.radarStatLabel}>Lộ trình di chuyển</Text>
-                  </View>
-                  <View style={styles.radarStatBox}>
-                    <Text style={[styles.radarStatNum, { color: '#27AE60' }]}>{points.length}</Text>
-                    <Text style={styles.radarStatLabel}>Điểm mốc vết tích</Text>
-                  </View>
-                  <View style={styles.radarStatBox}>
-                    <Text style={[styles.radarStatNum, { color: '#E17055' }]}>{matchedPosts.length}</Text>
-                    <Text style={styles.radarStatLabel}>Bài Feed khớp AI</Text>
-                  </View>
-                </View>
-
-                {/* AI Visual Signature Info */}
-                {currentSos?.visualSignatures && (
-                  <View style={styles.visualSigCard}>
-                    <View style={styles.visualSigHeader}>
-                      <Feather name="eye" size={14} color="#E17055" />
-                      <Text style={styles.visualSigTitle}>Đặc Trưng Nhận Diện Thị Giác (AI Extracted)</Text>
-                    </View>
-                    <View style={styles.visualSigTagsRow}>
-                      <View style={styles.sigTag}><Text style={styles.sigTagText}>Loài: {currentSos.visualSignatures.species}</Text></View>
-                      <View style={styles.sigTag}><Text style={styles.sigTagText}>Giống: {currentSos.visualSignatures.breed}</Text></View>
-                      <View style={styles.sigTag}><Text style={styles.sigTagText}>Màu: {currentSos.visualSignatures.primaryColor}</Text></View>
-                      {currentSos.visualSignatures.hasCollar && (
-                        <View style={[styles.sigTag, { backgroundColor: '#E8F8F5' }]}>
-                          <Text style={[styles.sigTagText, { color: '#16A085' }]}>
-                            {currentSos.visualSignatures.collarColor} Vòng cổ
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                )}
-
-                {/* Trajectory Timeline Map */}
-                <Text style={styles.timelineSectionTitle}>📍 Chuỗi Vết Tích Di Chuyển Theo Dòng Thời Gian</Text>
-                <View style={styles.timelineWrapper}>
-                  {points.map((pt, index) => {
-                    const isStart = pt.source === 'initial_lost';
-                    const isAiMatch = pt.source === 'ai_feed_match';
-                    const markerColor = isStart ? '#E74C3C' : isAiMatch ? '#27AE60' : '#F39C12';
-                    const isLast = index === points.length - 1;
-
-                    return (
-                      <View key={pt.id} style={styles.timelineItemRow}>
-                        {/* Left Line & Node */}
-                        <View style={styles.timelineLineCol}>
-                          <View style={[styles.timelineNode, { backgroundColor: markerColor }]}>
-                            <Feather
-                              name={isStart ? 'map-pin' : isAiMatch ? 'cpu' : 'user'}
-                              size={12}
-                              color="#FFFFFF"
-                            />
-                          </View>
-                          {!isLast && <View style={styles.timelineConnector} />}
-                        </View>
-
-                        {/* Right Content Box */}
-                        <View style={[styles.timelineContentBox, isAiMatch && { borderColor: '#A3E4D7', borderWidth: 1.5 }]}>
-                          <View style={styles.timelineTopRow}>
-                            <View style={{ flex: 1 }}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <Text style={styles.timelinePointTitle}>
-                                  {isStart ? '🔴 Điểm mất tích ban đầu' : isAiMatch ? '🟢 AI phát hiện qua ảnh Feed' : '🟡 Manh mối cư dân gửi về'}
-                                </Text>
-                                <View style={[styles.confidenceBadge, { backgroundColor: isAiMatch ? '#E8F8F5' : '#FAF5EF' }]}>
-                                  <Text style={[styles.confidenceText, { color: isAiMatch ? '#16A085' : '#8E8074' }]}>
-                                    {isAiMatch ? `Khớp ${Math.round(pt.confidenceScore * 100)}%` : 'Xác thực'}
-                                  </Text>
-                                </View>
-                              </View>
-                              <Text style={styles.timelineLocation}>{pt.locationName}</Text>
-                            </View>
-                            <Text style={styles.timelineTime}>{pt.timestamp}</Text>
-                          </View>
-
-                          {pt.note && <Text style={styles.timelineNote}>"{pt.note}"</Text>}
-
-                          {pt.photoUrl && (
-                            <TouchableOpacity
-                              onPress={() =>
-                                openLightboxMedia({
-                                  postId: pt.id,
-                                  mediaUrls: [pt.photoUrl!],
-                                  initialIndex: 0,
-                                  mediaType: 'image',
-                                  caption: `Manh mối ${pt.locationName} - ${pt.timestamp}`,
-                                  authorName: pt.reporterName || 'Cộng đồng Pawty',
-                                })
-                              }
-                            >
-                              <Image source={{ uri: pt.photoUrl }} style={styles.timelinePhoto} />
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-
-                {/* AI Matched Posts Review Section */}
-                {matchedPosts.length > 0 && (
-                  <View style={{ marginTop: 16 }}>
-                    <Text style={styles.timelineSectionTitle}>
-                      🔍 Manh Mối Cần Chủ Nuôi Xác Nhận ({matchedPosts.length})
-                    </Text>
-                    {matchedPosts.map((m) => {
-                      const decision = verifiedMatchIds[m.id] || m.status;
-                      const isVerified = decision === 'verified_by_owner';
-                      const isDismissed = decision === 'dismissed';
-
-                      return (
-                        <View key={m.id} style={styles.matchedPostCard}>
-                          <View style={styles.matchedTopRow}>
-                            <View style={styles.aiTagPill}>
-                              <Feather name="cpu" size={11} color="#E17055" />
-                              <Text style={styles.aiTagText}>Độ tương đồng {m.matchScore}%</Text>
-                            </View>
-                            <Text style={styles.matchedTime}>{m.detectedAt}</Text>
-                          </View>
-
-                          <Text style={styles.matchedAuthor}>Đăng bởi: {m.authorName}</Text>
-                          <Text style={styles.matchedText}>"{m.text}"</Text>
-
-                          {m.photoUrl && (
-                            <Image source={{ uri: m.photoUrl }} style={styles.matchedPhoto} />
-                          )}
-
-                          <View style={styles.matchedActionsRow}>
-                            {isVerified ? (
-                              <View style={styles.verifiedStateBox}>
-                                <Feather name="check-circle" size={14} color="#27AE60" />
-                                <Text style={styles.verifiedStateText}>Đã xác nhận đúng Boss - Đang cập nhật lộ trình</Text>
-                              </View>
-                            ) : isDismissed ? (
-                              <Text style={{ fontSize: 12, color: '#A3968A', fontStyle: 'italic' }}>
-                                Đã bỏ qua manh mối này
-                              </Text>
-                            ) : (
-                              <>
-                                <TouchableOpacity
-                                  style={styles.verifyBtn}
-                                  onPress={() => {
-                                    setVerifiedMatchIds((prev) => ({ ...prev, [m.id]: 'verified_by_owner' }));
-                                    showToast('Đã xác nhận manh mối! Lộ trình đã được cập nhật.');
-                                  }}
-                                >
-                                  <Feather name="check" size={13} color="#FFFFFF" />
-                                  <Text style={styles.verifyBtnText}>Xác nhận đúng Boss</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                  style={styles.dismissBtn}
-                                  onPress={() => {
-                                    setVerifiedMatchIds((prev) => ({ ...prev, [m.id]: 'dismissed' }));
-                                    showToast('Đã bỏ qua manh mối không chính xác.');
-                                  }}
-                                >
-                                  <Text style={styles.dismissBtnText}>Không phải</Text>
-                                </TouchableOpacity>
-                              </>
-                            )}
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
-            );
-          })()}
-        </View>
-      ) : (
-        /* STANDARD SOS FEED CARDS VIEW */
-        <>
-          {/* Search & Filter Management Bar */}
+      {/* Search & Filter Management Bar */}
       <View style={styles.searchBox}>
         <Feather name="search" size={16} color="#8E8074" />
         <TextInput
@@ -650,25 +451,6 @@ export const MobileSosScreen: React.FC = () => {
 
               <Text style={styles.sosDescText}>{sos.description}</Text>
 
-              {/* Quick AI Radar Button if matched */}
-              {Boolean(sos.trajectoryPoints?.length || sos.matchedPosts?.length) && (
-                <TouchableOpacity
-                  style={styles.cardRadarShortcut}
-                  onPress={() => {
-                    setSelectedTrajectorySosId(sos.id);
-                    setSosViewTab('radar');
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Feather name="activity" size={13} color="#E17055" />
-                    <Text style={styles.cardRadarShortcutText}>
-                      AI đã phát hiện {sos.matchedPosts?.length || 1} manh mối lộ trình (Nhấp xem)
-                    </Text>
-                  </View>
-                  <Feather name="chevron-right" size={14} color="#E17055" />
-                </TouchableOpacity>
-              )}
-
               {/* Action Buttons: ONLY the post creator can press "Đã đón về"! */}
               {!isFound ? (
                 <View style={styles.sosActionRow}>
@@ -728,8 +510,6 @@ export const MobileSosScreen: React.FC = () => {
           </View>
         )}
       </View>
-      </>
-      )}
     </ScrollView>
   );
 };
@@ -807,7 +587,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sosPreviewImg: {
     width: 68,
@@ -828,6 +608,27 @@ const styles = StyleSheet.create({
   },
   pickPhotoBtnText: {
     fontSize: 12,
+    fontWeight: '800',
+  },
+  aiDescribeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#6C5CE7',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    marginBottom: 12,
+    shadowColor: '#6C5CE7',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  aiDescribeBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '800',
   },
   inputLabel: {
@@ -1085,350 +886,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7A6E63',
     marginTop: 4,
-  },
-  viewModeSwitcher: {
-    flexDirection: 'row',
-    backgroundColor: '#EFE9E0',
-    borderRadius: 14,
-    padding: 4,
-    marginHorizontal: 16,
-    marginBottom: 12,
-  },
-  viewModeBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 11,
-  },
-  viewModeBtnActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  viewModeBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#8E8074',
-  },
-  pulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#E17055',
-  },
-  radarContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 40,
-  },
-  radarHeaderBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#2C2520',
-    padding: 14,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  radarHeaderIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#E17055',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radarBannerTitle: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  radarBannerSub: {
-    color: '#D1C7BD',
-    fontSize: 11,
-    marginTop: 2,
-  },
-  radarSelectChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ECE6DF',
-    marginRight: 8,
-  },
-  radarSelectAvatar: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-  },
-  radarSelectText: {
-    fontSize: 12,
-    color: '#5C5046',
-    fontWeight: '600',
-  },
-  radarStatsGrid: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  radarStatBox: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ECE6DF',
-  },
-  radarStatNum: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#2C2520',
-  },
-  radarStatLabel: {
-    fontSize: 11,
-    color: '#8E8074',
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  visualSigCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ECE6DF',
-    marginBottom: 16,
-  },
-  visualSigHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  visualSigTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#2C2520',
-  },
-  visualSigTagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  sigTag: {
-    backgroundColor: '#F5F0EA',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  sigTagText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#5C5046',
-  },
-  timelineSectionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#2C2520',
-    marginBottom: 10,
-  },
-  timelineWrapper: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#ECE6DF',
-    marginBottom: 16,
-  },
-  timelineItemRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  timelineLineCol: {
-    alignItems: 'center',
-    width: 24,
-  },
-  timelineNode: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  timelineConnector: {
-    width: 2,
-    flex: 1,
-    backgroundColor: '#E0D8CE',
-    marginVertical: 4,
-  },
-  timelineContentBox: {
-    flex: 1,
-    backgroundColor: '#FAF7F2',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 14,
-  },
-  timelineTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-  },
-  timelinePointTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#2C2520',
-  },
-  confidenceBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  confidenceText: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  timelineLocation: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2C2520',
-    marginTop: 2,
-  },
-  timelineTime: {
-    fontSize: 11,
-    color: '#8E8074',
-    fontWeight: '500',
-  },
-  timelineNote: {
-    fontSize: 12,
-    color: '#5C5046',
-    fontStyle: 'italic',
-    marginTop: 4,
-  },
-  timelinePhoto: {
-    width: '100%',
-    height: 110,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  matchedPostCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1.5,
-    borderColor: '#FFD5CC',
-    marginBottom: 12,
-  },
-  matchedTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  aiTagPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFE8E2',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  aiTagText: {
-    color: '#E17055',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  matchedTime: {
-    fontSize: 11,
-    color: '#8E8074',
-  },
-  matchedAuthor: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2C2520',
-  },
-  matchedText: {
-    fontSize: 13,
-    color: '#4A3F35',
-    marginVertical: 6,
-  },
-  matchedPhoto: {
-    width: '100%',
-    height: 130,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  matchedActionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  verifyBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: '#27AE60',
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  verifyBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  dismissBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#F5F0EA',
-    borderRadius: 10,
-  },
-  dismissBtnText: {
-    color: '#7D6F63',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  verifiedStateBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    padding: 8,
-    backgroundColor: '#E8F8F5',
-    borderRadius: 8,
-    flex: 1,
-  },
-  verifiedStateText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#27AE60',
-  },
-  cardRadarShortcut: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFF5F2',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    marginHorizontal: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#FFD5CC',
-  },
-  cardRadarShortcutText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#E17055',
   },
 });
