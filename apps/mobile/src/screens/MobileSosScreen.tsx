@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import Constants from 'expo-constants';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
 
@@ -44,15 +45,43 @@ export const MobileSosScreen: React.FC = () => {
     'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80'
   );
 
+  const [sosPhotoBase64, setSosPhotoBase64] = useState<string | null>(null);
+
+  const convertUriToBase64 = async (uri: string): Promise<string | null> => {
+    try {
+      const res = await fetch(uri);
+      const blob = await res.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const dataUrl = (reader.result as string) || '';
+          const b64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+          resolve(b64);
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
   const pickSosPhotoFromPhone = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 0.85,
+        quality: 0.8,
+        base64: true,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSosPhotoUri(result.assets[0].uri);
+        const asset = result.assets[0];
+        setSosPhotoUri(asset.uri);
+        if (asset.base64) {
+          setSosPhotoBase64(asset.base64);
+        } else {
+          setSosPhotoBase64(null);
+        }
         showToast('Đã tải ảnh thú cưng từ điện thoại lên.');
       }
     } catch {
@@ -70,41 +99,118 @@ export const MobileSosScreen: React.FC = () => {
     showToast('✨ AI đang phân tích ảnh và trích xuất đặc điểm nhận dạng...');
 
     try {
-      const response = await fetch('http://127.0.0.1:3000/api/ai/describe-pet', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ imageUrl: sosPhotoUri }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server returned status ${response.status}`);
+      let b64 = sosPhotoBase64;
+      if (!b64 && sosPhotoUri) {
+        b64 = await convertUriToBase64(sosPhotoUri);
       }
 
-      const data = await response.json();
-      if (data.success) {
-        if (data.species) {
-          setSosSpecies(data.species === 'Mèo' ? 'Mèo' : 'Chó');
+      let aiData: any = null;
+
+      // 1. Try local/LAN backend if reachable
+      try {
+        const hostIp = Constants.expoConfig?.hostUri
+          ? Constants.expoConfig.hostUri.split(':')[0]
+          : '192.168.2.7';
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        const response = await fetch(`http://${hostIp}:3000/api/ai/describe-pet`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            imageUrl: sosPhotoUri,
+            imageBase64: b64 || undefined,
+            mimeType: 'image/jpeg',
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const resJson = await response.json();
+          if (resJson.success && resJson.description) {
+            aiData = resJson;
+          }
         }
-        if (data.breed) {
-          setSosBreed(data.breed);
+      } catch (backendErr) {
+        console.log('[MobileSos] Backend call skipped or timed out, trying direct Gemini API...');
+      }
+
+      // 2. Direct Gemini Vision API call fallback
+      if (!aiData && b64) {
+        const geminiApiKey = 'AIzaSyAp3GD5ZKWqAP7Pe3h0fM0ncbWRG1GbuHs';
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+
+        const prompt = `Bạn là Trợ lý AI nhận dạng thú cưng của Pawty Super App.
+Nhiệm vụ: Người dùng đang cần đăng tin tìm thú cưng thất lạc. Hãy nhìn kỹ bức ảnh này và tự động viết một đoạn mô tả nhận diện cực kỳ chi tiết, súc tích, dễ nhận biết nhất bằng tiếng Việt (giúp người đi đường dễ dàng nhận ra bé).
+BẮT BUỘC trả về ĐÚNG 1 JSON hợp lệ (không markdown, không thêm text ngoài):
+{
+  "species": "Chó" hoặc "Mèo",
+  "breed": "Tên giống cụ thể (ví dụ: Poodle Toy, Golden Retriever, Corgi Pembroke, Mèo Ba Tư, Mèo Anh lông dài, Mèo Anh lông ngắn...)",
+  "primaryColor": "Màu lông chủ đạo",
+  "hasCollar": true hoặc false,
+  "collarColor": "Màu vòng cổ nếu có",
+  "distinctiveFeatures": ["đặc điểm 1", "đặc điểm 2"],
+  "description": "Đoạn văn hoàn chỉnh 2-3 câu mô tả đầy đủ: giống loài, màu sắc, dáng lông, phụ kiện đeo cổ (nếu có), các điểm nổi bật nhất để người khác nhìn thấy là nhận ra ngay."
+}`;
+
+        const geminiResp = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt },
+                  {
+                    inlineData: {
+                      mimeType: 'image/jpeg',
+                      data: b64,
+                    },
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.3,
+            },
+          }),
+        });
+
+        if (geminiResp.ok) {
+          const geminiJson = await geminiResp.json();
+          const rawText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText) {
+            aiData = JSON.parse(rawText);
+          }
         }
-        if (data.description) {
-          setSosDesc(data.description);
+      }
+
+      if (aiData) {
+        const rawSpecies = String(aiData.species || '').toLowerCase();
+        if (rawSpecies.includes('mèo') || rawSpecies.includes('cat')) {
+          setSosSpecies('Mèo');
+        } else {
+          setSosSpecies('Chó');
+        }
+        if (aiData.breed) {
+          setSosBreed(String(aiData.breed));
+        }
+        if (aiData.description) {
+          setSosDesc(String(aiData.description));
         }
         showToast('✨ AI đã nhận diện và điền chi tiết nhận dạng giúp bạn!');
       } else {
-        throw new Error(data.message || 'AI analysis failed');
+        showToast('Không thể kết nối AI nhận diện. Vui lòng thử lại sau.');
       }
-    } catch (err) {
-      console.warn('AI describe-pet error or offline fallback:', err);
-      // Fallback helpful template if backend server is unreachable
-      setSosBreed((prev) => prev || (sosSpecies === 'Mèo' ? 'Mèo Anh Lông Ngắn' : 'Chó Beagle'));
-      setSosDesc(
-        'Bé lông màu vàng trắng phối đen, dáng người vừa vặn, có đeo vòng cổ đỏ. Đang thất lạc quanh khu vực chung cư, tính cách dạn người nhưng có thể hoảng loạn khi thấy xe máy.'
-      );
-      showToast('✨ AI đã điền mô tả nhận dạng gợi ý cho bài đăng.');
+    } catch (err: any) {
+      console.warn('AI describe-pet error:', err);
+      showToast('Đã xảy ra lỗi khi AI phân tích ảnh. Vui lòng thử lại.');
     } finally {
       setIsAiDescribing(false);
     }
@@ -824,14 +930,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   foundBtnAuthorOnly: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 6,
     backgroundColor: '#2E7D5B',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
   },
   foundBtnAuthorText: {
     fontSize: 12,

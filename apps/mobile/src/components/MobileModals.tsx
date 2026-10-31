@@ -246,17 +246,30 @@ export const MobileModals: React.FC = () => {
       <Modal visible transparent animationType="fade" onRequestClose={closeLightboxMedia}>
         <View style={styles.lightboxBackdrop}>
           <View style={styles.lightboxHeader}>
-            <View style={{ flex: 1 }}>
+            <TouchableOpacity
+              onPress={closeLightboxMedia}
+              style={styles.lightboxBackBtn}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
+              <Feather name="arrow-left" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={{ flex: 1, marginHorizontal: 8 }}>
               <Text style={styles.lightboxAuthor}>
                 {lightboxMedia.authorName || 'Xem phương tiện'}
               </Text>
               <Text style={styles.lightboxCounter}>
                 {lightboxMedia.mediaType === 'video'
                   ? 'Đang phát Video ngắn'
-                  : `Ảnh ${lightboxIdx + 1} / ${urls.length} (Gạt ngang để chuyển ảnh)`}
+                  : `Ảnh ${lightboxIdx + 1} / ${urls.length} (Chạm để đóng · Gạt xem tiếp)`}
               </Text>
             </View>
-            <TouchableOpacity onPress={closeLightboxMedia} style={styles.lightboxCloseBtn}>
+
+            <TouchableOpacity
+              onPress={closeLightboxMedia}
+              style={styles.lightboxCloseBtn}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
               <Feather name="x" size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -271,13 +284,18 @@ export const MobileModals: React.FC = () => {
               contentOffset={{ x: lightboxIdx * SCREEN_WIDTH, y: 0 }}
             >
               {urls.map((imgUri, idx) => (
-                <View key={`lb-${idx}`} style={styles.lightboxSlide}>
+                <TouchableOpacity
+                  key={`lb-${idx}`}
+                  style={styles.lightboxSlide}
+                  activeOpacity={1}
+                  onPress={closeLightboxMedia}
+                >
                   <Image
                     source={{ uri: imgUri }}
                     style={styles.lightboxMainImage}
                     resizeMode="contain"
                   />
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
 
@@ -309,12 +327,17 @@ export const MobileModals: React.FC = () => {
           )}
 
           {lightboxMedia.caption ? (
-            <View style={styles.lightboxFooter}>
+            <TouchableOpacity activeOpacity={1} onPress={closeLightboxMedia} style={styles.lightboxFooter}>
               <Text style={styles.lightboxCaption} numberOfLines={3}>
                 {lightboxMedia.caption}
               </Text>
-            </View>
-          ) : null}
+              <Text style={styles.lightboxDismissHint}>Chạm vào màn hình để quay lại bảng tin</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity activeOpacity={1} onPress={closeLightboxMedia} style={{ alignItems: 'center', paddingBottom: 12 }}>
+              <Text style={styles.lightboxDismissHint}>Chạm vào màn hình để quay lại bảng tin</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </Modal>
     );
@@ -1972,6 +1995,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#C5B8AC',
     marginTop: 2,
+  },
+  lightboxBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  lightboxDismissHint: {
+    fontSize: 11,
+    color: '#A89F95',
+    textAlign: 'center',
+    marginTop: 6,
   },
   lightboxCloseBtn: {
     width: 38,
