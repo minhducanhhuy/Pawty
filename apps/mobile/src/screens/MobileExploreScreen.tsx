@@ -220,7 +220,8 @@ export const MobileExploreScreen: React.FC = () => {
               <View style={styles.postHeader}>
                 <TouchableOpacity
                   style={styles.authorTouchRow}
-                  onPress={() => openUserProfileInTab(post.authorHandle)}
+                  onPress={() => openPublicUserProfile(post.authorHandle)}
+                  activeOpacity={0.7}
                 >
                   <Image source={{ uri: post.authorAvatar }} style={styles.authorAvatar} />
                   <View style={{ flex: 1 }}>
@@ -237,7 +238,20 @@ export const MobileExploreScreen: React.FC = () => {
                     <Text style={styles.postMeta}>{post.createdAt}</Text>
                   </View>
                 </TouchableOpacity>
-                
+
+                <TouchableOpacity
+                  style={[
+                    styles.viewProfileHeaderBtn,
+                    { borderColor: theme.border, backgroundColor: theme.surface },
+                  ]}
+                  onPress={() => openUserProfileInTab(post.authorHandle)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="user" size={12} color={theme.primary} />
+                  <Text style={[styles.viewProfileHeaderBtnText, { color: theme.primary }]}>
+                    Xem profile
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               {post.aiSosMatch && (

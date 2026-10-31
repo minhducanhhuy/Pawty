@@ -1509,6 +1509,56 @@ export const MobileModals: React.FC = () => {
                       <Text style={styles.notifTime}>{n.timeLabel}</Text>
                     </View>
                     <Text style={styles.optionSub}>{n.body}</Text>
+                    {n.type === 'friend_request' && n.actionPayload?.status === 'pending' && (
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: theme.primary,
+                            paddingHorizontal: 14,
+                            paddingVertical: 6,
+                            borderRadius: 8,
+                          }}
+                          onPress={() => n.actionPayload?.senderHandle && acceptFriendRequest(n.actionPayload.senderHandle, n.id)}
+                        >
+                          <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>
+                            Chấp nhận
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: '#ECE6DF',
+                            paddingHorizontal: 14,
+                            paddingVertical: 6,
+                            borderRadius: 8,
+                          }}
+                          onPress={() => n.actionPayload?.senderHandle && declineFriendRequest(n.actionPayload.senderHandle, n.id)}
+                        >
+                          <Text style={{ color: '#5C5046', fontSize: 12, fontWeight: '700' }}>
+                            Từ chối
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    {n.type === 'new_post' && (
+                      <TouchableOpacity
+                        style={{
+                          marginTop: 8,
+                          alignSelf: 'flex-start',
+                          backgroundColor: theme.primarySoft,
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                          borderRadius: 6,
+                        }}
+                        onPress={() => {
+                          setActiveModal(null);
+                          setActiveTab('explore');
+                        }}
+                      >
+                        <Text style={{ color: theme.primary, fontSize: 11, fontWeight: '700' }}>
+                          Xem bài viết ngay →
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
