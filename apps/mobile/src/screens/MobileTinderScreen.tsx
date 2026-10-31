@@ -25,8 +25,11 @@ export const MobileTinderScreen: React.FC = () => {
     tinderCandidates,
     tinderFilterGoal,
     setTinderFilterGoal,
+    tinderDistanceLimit,
+    setTinderDistanceLimit,
     swipeTinderCandidate,
     rewindLastSwipe,
+    canRewind,
     activePassportArea,
     setPassportArea,
     cyclePassportArea,
@@ -38,12 +41,15 @@ export const MobileTinderScreen: React.FC = () => {
     isVip,
   } = useMobilePawty();
 
-  // 1. Lọc ứng viên theo mục đích đang chọn (tách biệt khỏi hồ sơ công khai của user)
+  // 1. Lọc ứng viên theo mục đích & bán kính khoảng cách (Miễn phí 100%)
   const filteredCandidates = useMemo(() => {
-    return tinderCandidates.filter(
-      (c) => tinderFilterGoal === 'all' || c.intent === tinderFilterGoal
-    );
-  }, [tinderCandidates, tinderFilterGoal]);
+    return tinderCandidates.filter((c) => {
+      const matchGoal = tinderFilterGoal === 'all' || c.intent === tinderFilterGoal;
+      const matchDistance =
+        tinderDistanceLimit === 'all' || c.distanceKm <= Number(tinderDistanceLimit);
+      return matchGoal && matchDistance;
+    });
+  }, [tinderCandidates, tinderFilterGoal, tinderDistanceLimit]);
 
   // Quản lý deck nhất quán: Đỉnh deck luôn là phần tử 0, thẻ kế tiếp là phần tử 1
   const currentCandidate = filteredCandidates.length > 0 ? filteredCandidates[0] : null;
@@ -116,19 +122,22 @@ export const MobileTinderScreen: React.FC = () => {
             Math.abs(gestureState.dy) < 12 &&
             elapsed < 280;
 
-          // Xử lý cử chỉ Chạm (Tap) nửa trái/nửa phải để chuyển ảnh
+          // Xử lý cử chỉ Chạm (Tap) nửa trái/nửa phải để chuyển ảnh thú cưng
           if (isTap && currentCandidate) {
-            const photosCount =
-              currentCandidate.photoUrls && currentCandidate.photoUrls.length > 0
-                ? currentCandidate.photoUrls.length
-                : 1;
+            const petPhotosList = (currentCandidate.pets || [])
+              .map((p) => p.imageUrl)
+              .filter(Boolean);
+            const otherPetPhotos = (currentCandidate.photoUrls || []).filter(
+              (u) => u !== currentCandidate.avatarUrl && !petPhotosList.includes(u)
+            );
+            const photosCount = Math.max(petPhotosList.length + otherPetPhotos.length, 1);
 
             if (gestureState.x0 < SCREEN_WIDTH / 2) {
               // Nửa trái -> lùi ảnh
               setPhotoIdx((prev) => (prev > 0 ? prev - 1 : Math.max(photosCount - 1, 0)));
             } else {
               // Nửa phải -> tiến ảnh
-              setPhotoIdx((prev) => (prev + 1) % Math.max(photosCount, 1));
+              setPhotoIdx((prev) => (prev + 1) % photosCount);
             }
             return;
           }
@@ -253,20 +262,23 @@ export const MobileTinderScreen: React.FC = () => {
 
               <TouchableOpacity
                 style={styles.emptySecondaryBtn}
-                onPress={cyclePassportArea}
+                onPress={() => setActiveModal('tinder_filter')}
                 activeOpacity={0.8}
               >
-                <Feather name="map-pin" size={13} color="#2E7D5B" />
-                <Text style={styles.emptySecondaryBtnText}>Đổi khu vực</Text>
+                <Feather name="sliders" size={13} color="#2E7D5B" />
+                <Text style={styles.emptySecondaryBtnText}>Mở rộng khoảng cách</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
       </View>
 
-      {/* 2. Hàng nút thao tác Bỏ qua & Thích cố định ở chân màn hình */}
+      {/* 2. Hàng nút thao tác Hoàn tác, Bỏ qua & Thích cố định ở chân màn hình */}
       <TinderActionBar
-        disabled={!currentCandidate || isDetailModalVisible}
+        disabled={isDetailModalVisible}
+        isCardActive={Boolean(currentCandidate)}
+        canRewind={canRewind}
+        onRewind={rewindLastSwipe}
         onPass={() => triggerSwipe('left')}
         onLike={() => triggerSwipe('right')}
       />
@@ -286,35 +298,29 @@ export const MobileTinderScreen: React.FC = () => {
         onShare={(name) => showToast(`Đã sao chép liên kết hồ sơ của ${name}`)}
       />
 
-      {/* 4. Modal Bộ lọc (Mục đích duyệt + Passport) */}
+      {/* 4. Modal Bộ lọc (Mục đích duyệt + Giới hạn khoảng cách) */}
       <TinderFilterModal
         visible={activeModal === 'tinder_filter'}
         onClose={() => setActiveModal(null)}
         currentGoal={tinderFilterGoal}
         onSelectGoal={(goal) => {
           setTinderFilterGoal(goal);
-          setActiveModal(null);
         }}
-        activePassportArea={activePassportArea}
-        onSelectPassportArea={(area) => {
-          setPassportArea(area);
-          if (isVip) setActiveModal(null);
-        }}
-        isVip={isVip}
-        onUpgradeVip={() => {
-          setActiveModal('vip_upgrade');
+        distanceLimit={tinderDistanceLimit}
+        onSelectDistanceLimit={(dist) => {
+          setTinderDistanceLimit(dist);
         }}
       />
 
-      {/* 5. Modal Menu phụ (Hoàn tác, Ai thích bạn, Hồ sơ kết nối) */}
+      {/* 5. Modal Menu phụ (Hoàn tác miễn phí, Ai thích bạn, Hồ sơ kết nối) */}
       <TinderMenuModal
         visible={activeModal === 'tinder_menu'}
         onClose={() => setActiveModal(null)}
         onRewind={rewindLastSwipe}
+        canRewind={canRewind}
         onOpenLikesYou={() => setShowLikesYouDrawer(true)}
         onOpenTinderSetup={() => setActiveModal('tinder_setup')}
         likedYouCount={likedYouCount}
-        isVip={isVip}
       />
     </View>
   );

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  PanResponder,
+  GestureResponderEvent,
+  PanResponderGestureState,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '../../components/FeatherIcon';
 import { TinderIntent } from '../../data/mobileSeedData';
 
@@ -15,10 +19,12 @@ interface TinderFilterModalProps {
   onClose: () => void;
   currentGoal: TinderIntent | 'all';
   onSelectGoal: (goal: TinderIntent | 'all') => void;
-  activePassportArea: string;
-  onSelectPassportArea: (area: string) => void;
-  isVip: boolean;
-  onUpgradeVip: () => void;
+  distanceLimit: number | 'all';
+  onSelectDistanceLimit: (dist: number | 'all') => void;
+  activePassportArea?: string;
+  onSelectPassportArea?: (area: string) => void;
+  isVip?: boolean;
+  onUpgradeVip?: () => void;
 }
 
 const GOAL_OPTIONS: { id: TinderIntent | 'all'; label: string; desc: string; icon: string }[] = [
@@ -48,11 +54,18 @@ const GOAL_OPTIONS: { id: TinderIntent | 'all'; label: string; desc: string; ico
   },
 ];
 
-const PASSPORT_AREAS = [
-  'Quanh bạn (Bán kính 3km)',
-  'Thảo Điền · Quận 2',
-  'Phú Mỹ Hưng · Quận 7',
-  'Vinhomes Central Park · Bình Thạnh',
+// Chuẩn khoảng cách Tinder quốc tế: 2 km đến 160 km (tương đương 100 miles)
+const MIN_DIST = 2;
+const MAX_DIST = 160;
+
+const PRESET_DISTANCES: { id: number | 'all'; label: string }[] = [
+  { id: 5, label: '5 km' },
+  { id: 15, label: '15 km' },
+  { id: 30, label: '30 km' },
+  { id: 50, label: '50 km' },
+  { id: 100, label: '100 km' },
+  { id: 160, label: '160 km' },
+  { id: 'all', label: 'Tất cả' },
 ];
 
 export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
@@ -60,20 +73,87 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
   onClose,
   currentGoal,
   onSelectGoal,
-  activePassportArea,
-  onSelectPassportArea,
-  isVip,
-  onUpgradeVip,
+  distanceLimit,
+  onSelectDistanceLimit,
 }) => {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 16);
+
+  // 1. DRAFT STATE (Chỉ lưu tạm trong modal, bấm "Áp dụng" mới gửi để tránh query backend liên tục)
+  const [draftGoal, setDraftGoal] = useState<TinderIntent | 'all'>(currentGoal);
+  const [draftDistance, setDraftDistance] = useState<number | 'all'>(distanceLimit);
+
+  // Đồng bộ lại draft khi modal được mở
+  useEffect(() => {
+    if (visible) {
+      setDraftGoal(currentGoal);
+      setDraftDistance(distanceLimit);
+    }
+  }, [visible, currentGoal, distanceLimit]);
+
+  // 2. Chiều rộng track đo đạc từ onLayout
+  const [trackWidth, setTrackWidth] = useState(280);
+  const trackWidthRef = useRef(280);
+  const initialRatioRef = useRef(0);
+  const lastDraftDistRef = useRef<number | 'all'>(draftDistance);
+  lastDraftDistRef.current = draftDistance;
+
+  // Tính tỷ lệ phần trăm lấp đầy thanh trượt (0 -> 1)
+  const currentNumericDist = draftDistance === 'all' ? MAX_DIST : draftDistance;
+  const progressRatio = Math.max(
+    0,
+    Math.min(1, (currentNumericDist - MIN_DIST) / (MAX_DIST - MIN_DIST))
+  );
+
+  // 3. PanResponder tính toán delta mượt mà, triệt tiêu rung giật
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (evt: GestureResponderEvent) => {
+          const w = trackWidthRef.current || 280;
+          // Lấy vị trí chạm ban đầu
+          const touchX = Math.max(0, Math.min(w, evt.nativeEvent.locationX));
+          const tapRatio = touchX / w;
+          initialRatioRef.current = tapRatio;
+
+          const newDist = Math.max(
+            MIN_DIST,
+            Math.min(MAX_DIST, Math.round(MIN_DIST + tapRatio * (MAX_DIST - MIN_DIST)))
+          );
+          setDraftDistance(newDist);
+        },
+        onPanResponderMove: (_: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+          const w = trackWidthRef.current || 280;
+          const deltaRatio = gestureState.dx / w;
+          const newRatio = Math.max(0, Math.min(1, initialRatioRef.current + deltaRatio));
+
+          const newDist = Math.max(
+            MIN_DIST,
+            Math.min(MAX_DIST, Math.round(MIN_DIST + newRatio * (MAX_DIST - MIN_DIST)))
+          );
+
+          if (newDist !== lastDraftDistRef.current) {
+            setDraftDistance(newDist);
+          }
+        },
+      }),
+    []
+  );
+
+  // 4. Áp dụng bộ lọc và cam kết thay đổi
+  const handleApplyFilter = () => {
+    onSelectGoal(draftGoal);
+    onSelectDistanceLimit(draftDistance);
+    onClose();
+  };
+
   return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      transparent
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.modalSheet}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+        <View style={[styles.modalSheet, { paddingBottom: bottomInset + 12 }]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
@@ -97,27 +177,21 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
             {/* 1. Mục đích duyệt ứng viên */}
             <Text style={styles.sectionHeading}>MỤC ĐÍCH TÌM KIẾM</Text>
             <Text style={styles.sectionSubhint}>
-              Bộ lọc này chỉ áp dụng để duyệt hồ sơ, không thay đổi hồ sơ cá nhân của bạn.
+              Bộ lọc chỉ áp dụng để duyệt hồ sơ, không thay đổi hồ sơ cá nhân của bạn.
             </Text>
 
             <View style={styles.optionsList}>
               {GOAL_OPTIONS.map((opt) => {
-                const isSelected = currentGoal === opt.id;
+                const isSelected = draftGoal === opt.id;
                 return (
                   <TouchableOpacity
                     key={opt.id}
-                    style={[
-                      styles.optionCard,
-                      isSelected && styles.optionCardSelected,
-                    ]}
-                    onPress={() => onSelectGoal(opt.id)}
+                    style={[styles.optionCard, isSelected && styles.optionCardSelected]}
+                    onPress={() => setDraftGoal(opt.id)}
                     activeOpacity={0.8}
                   >
                     <View
-                      style={[
-                        styles.optionIconBox,
-                        isSelected && styles.optionIconBoxSelected,
-                      ]}
+                      style={[styles.optionIconBox, isSelected && styles.optionIconBoxSelected]}
                     >
                       <Feather
                         name={opt.icon}
@@ -126,66 +200,129 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.optionTitle,
-                          isSelected && styles.optionTitleSelected,
-                        ]}
-                      >
+                      <Text style={[styles.optionTitle, isSelected && styles.optionTitleSelected]}>
                         {opt.label}
                       </Text>
                       <Text style={styles.optionDesc}>{opt.desc}</Text>
                     </View>
-                    {isSelected && (
-                      <Feather name="check-circle" size={18} color="#FF6F61" />
-                    )}
+                    {isSelected && <Feather name="check-circle" size={18} color="#FF6F61" />}
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            {/* 2. Hộ chiếu vị trí (Passport) */}
-            <View style={styles.passportSectionHeader}>
-              <Text style={styles.sectionHeading}>HỘ CHIẾU VỊ TRÍ (PASSPORT)</Text>
-              {!isVip && (
-                <TouchableOpacity
-                  style={styles.vipBadgeBtn}
-                  onPress={onUpgradeVip}
-                >
-                  <Feather name="award" size={11} color="#C47E00" />
-                  <Text style={styles.vipBadgeText}>Pawty Plus</Text>
-                </TouchableOpacity>
-              )}
+            {/* 2. Giới hạn khoảng cách: THANH TRƯỢT CHUẨN TINDER (2 - 160 KM) */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeading}>BÁN KÍNH TÌM KIẾM</Text>
             </View>
             <Text style={styles.sectionSubhint}>
-              Đổi vị trí tìm kiếm để kết nối với cộng đồng thú cưng ở khu vực khác.
+              Kéo thanh trượt từ 2 km đến 160 km (hoặc chọn Tất cả) để tìm bạn cún quanh bạn.
             </Text>
 
-            <View style={styles.areaChipGrid}>
-              {PASSPORT_AREAS.map((area) => {
-                const isAreaActive = activePassportArea === area;
+            {/* Card hiển thị khoảng cách nháp */}
+            <View style={styles.sliderDisplayCard}>
+              <View
+                style={[
+                  styles.sliderDisplayIconBox,
+                  draftDistance === 'all' && { backgroundColor: '#F0EBE3' },
+                ]}
+              >
+                <Feather
+                  name={draftDistance === 'all' ? 'globe' : 'navigation'}
+                  size={20}
+                  color={draftDistance === 'all' ? '#6C6055' : '#FF6F61'}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sliderDisplayValue}>
+                  {draftDistance === 'all'
+                    ? 'Tất cả khoảng cách'
+                    : `Trong bán kính ${draftDistance} km`}
+                </Text>
+                <Text style={styles.sliderDisplaySub}>
+                  {draftDistance === 'all'
+                    ? 'Quét và hiển thị toàn bộ hồ sơ không giới hạn cự ly'
+                    : draftDistance <= 15
+                    ? `Phạm vi nội đô lân cận (≤ ${draftDistance} km)`
+                    : draftDistance <= 50
+                    ? `Bao quát toàn thành phố & vùng ven (≤ ${draftDistance} km)`
+                    : `Mở rộng toàn vùng đô thị & liên tỉnh (≤ ${draftDistance} km)`}
+                </Text>
+              </View>
+            </View>
+
+            {/* Khung thanh trượt tương tác mượt mà 60 FPS */}
+            <View style={styles.sliderContainer}>
+              <View
+                style={styles.sliderTrackWrapper}
+                {...panResponder.panHandlers}
+                onLayout={(e) => {
+                  const w = e.nativeEvent.layout.width;
+                  if (w > 0) {
+                    setTrackWidth(w);
+                    trackWidthRef.current = w;
+                  }
+                }}
+              >
+                {/* Đường ray nền (pointerEvents="none" chống lệch tọa độ) */}
+                <View style={styles.sliderTrackBase} pointerEvents="none" />
+
+                {/* Đoạn đường ray đã kéo (Active Filled Track) */}
+                <View
+                  style={[
+                    styles.sliderTrackFilled,
+                    {
+                      width: `${progressRatio * 100}%`,
+                      backgroundColor: draftDistance === 'all' ? '#8A7D71' : '#FF6F61',
+                    },
+                  ]}
+                  pointerEvents="none"
+                />
+
+                {/* Nút kéo (Thumb) */}
+                <View
+                  style={[
+                    styles.sliderThumb,
+                    {
+                      left: Math.max(0, Math.min(trackWidth - 28, progressRatio * (trackWidth - 28))),
+                      borderColor: draftDistance === 'all' ? '#8A7D71' : '#FF6F61',
+                    },
+                  ]}
+                  pointerEvents="none"
+                >
+                  <View
+                    style={[
+                      styles.sliderThumbInner,
+                      { backgroundColor: draftDistance === 'all' ? '#8A7D71' : '#FF6F61' },
+                    ]}
+                  />
+                </View>
+              </View>
+
+              {/* Mốc chỉ số bên dưới thanh trượt */}
+              <View style={styles.sliderLabelsRow} pointerEvents="none">
+                <Text style={styles.sliderLabelText}>2 km</Text>
+                <Text style={styles.sliderLabelText}>50 km</Text>
+                <Text style={styles.sliderLabelText}>100 km</Text>
+                <Text style={styles.sliderLabelText}>160 km</Text>
+              </View>
+            </View>
+
+            {/* Các nút chọn nhanh mốc bán kính (Preset Chips) */}
+            <View style={styles.presetChipsRow}>
+              {PRESET_DISTANCES.map((p) => {
+                const isSelected = draftDistance === p.id;
                 return (
                   <TouchableOpacity
-                    key={area}
-                    style={[
-                      styles.areaChip,
-                      isAreaActive && styles.areaChipActive,
-                    ]}
-                    onPress={() => onSelectPassportArea(area)}
-                    activeOpacity={0.8}
+                    key={String(p.id)}
+                    style={[styles.presetChip, isSelected && styles.presetChipSelected]}
+                    onPress={() => setDraftDistance(p.id)}
+                    activeOpacity={0.75}
                   >
-                    <Feather
-                      name="map-pin"
-                      size={13}
-                      color={isAreaActive ? '#FFFFFF' : '#4A3F35'}
-                    />
                     <Text
-                      style={[
-                        styles.areaChipText,
-                        isAreaActive && styles.areaChipTextActive,
-                      ]}
+                      style={[styles.presetChipText, isSelected && styles.presetChipTextSelected]}
                     >
-                      {area}
+                      {p.label}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -193,11 +330,11 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
             </View>
           </ScrollView>
 
-          {/* Footer Submit Button */}
+          {/* Footer Submit Button: Bấm nút này mới áp dụng filter mới */}
           <View style={styles.footer}>
             <TouchableOpacity
               style={styles.applyBtn}
-              onPress={onClose}
+              onPress={handleApplyFilter}
               activeOpacity={0.85}
             >
               <Text style={styles.applyBtnText}>Áp dụng bộ lọc</Text>
@@ -250,48 +387,65 @@ const styles = StyleSheet.create({
     backgroundColor: '#EDE5DB',
   },
   body: {
-    flexGrow: 0,
+    paddingHorizontal: 20,
   },
   bodyContent: {
-    paddingHorizontal: 18,
     paddingTop: 16,
-    paddingBottom: 12,
+    paddingBottom: 20,
   },
   sectionHeading: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#8A7B6E',
-    letterSpacing: 0.5,
+    color: '#8A7D71',
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 22,
+    marginBottom: 4,
+  },
+  freeBadge: {
+    backgroundColor: '#EAF7F1',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  freeBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#2E7D5B',
   },
   sectionSubhint: {
     fontSize: 12,
     color: '#7A6E63',
-    marginTop: 4,
+    lineHeight: 17,
     marginBottom: 12,
   },
   optionsList: {
-    gap: 8,
-    marginBottom: 20,
+    gap: 10,
   },
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
     padding: 12,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: '#ECE5DB',
+    borderColor: '#EAE3D8',
+    gap: 12,
   },
   optionCardSelected: {
     borderColor: '#FF6F61',
     backgroundColor: '#FFF8F6',
   },
   optionIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#F5EFE8',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F5EFE6',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -300,81 +454,152 @@ const styles = StyleSheet.create({
   },
   optionTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#2C2520',
+    marginBottom: 2,
   },
   optionTitleSelected: {
-    color: '#D44A3C',
+    color: '#FF6F61',
+    fontWeight: '800',
   },
   optionDesc: {
     fontSize: 11,
     color: '#7A6E63',
-    marginTop: 2,
     lineHeight: 15,
   },
-  passportSectionHeader: {
+  sliderDisplayCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  vipBadgeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFF6E0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#F0D597',
-  },
-  vipBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#C47E00',
-  },
-  areaChipGrid: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  areaChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    padding: 14,
+    borderRadius: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#ECE5DB',
+    borderWidth: 1.5,
+    borderColor: '#EAE3D8',
+    gap: 12,
+    marginBottom: 16,
   },
-  areaChipActive: {
-    backgroundColor: '#2E7D5B',
-    borderColor: '#2E7D5B',
-  },
-  areaChipText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2C2520',
-  },
-  areaChipTextActive: {
-    color: '#FFFFFF',
-  },
-  footer: {
-    paddingHorizontal: 18,
-    paddingTop: 8,
-  },
-  applyBtn: {
-    backgroundColor: '#FF6F61',
+  sliderDisplayIconBox: {
+    width: 44,
+    height: 44,
     borderRadius: 14,
-    paddingVertical: 13,
+    backgroundColor: '#FFEAE6',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sliderDisplayValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#2C2520',
+    marginBottom: 2,
+  },
+  sliderDisplaySub: {
+    fontSize: 11,
+    color: '#7A6E63',
+    lineHeight: 15,
+  },
+  sliderContainer: {
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  sliderTrackWrapper: {
+    height: 40,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  sliderTrackBase: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E6DFD5',
+    width: '100%',
+  },
+  sliderTrackFilled: {
+    position: 'absolute',
+    left: 0,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF6F61',
+  },
+  sliderThumb: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#FF6F61',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  sliderThumbInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF6F61',
+  },
+  sliderLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    marginTop: 4,
+  },
+  sliderLabelText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8A7D71',
+  },
+  presetChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
+  presetChip: {
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#EAE3D8',
+  },
+  presetChipSelected: {
+    borderColor: '#FF6F61',
+    backgroundColor: '#FFEAE6',
+  },
+  presetChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#5C5046',
+  },
+  presetChipTextSelected: {
+    color: '#FF6F61',
+    fontWeight: '800',
+  },
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#EDE5DB',
+  },
+  applyBtn: {
+    backgroundColor: '#FF6F61',
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF6F61',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+  },
   applyBtnText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
   },
 });
-

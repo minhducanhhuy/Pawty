@@ -35,30 +35,29 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
 }) => {
   const [imageError, setImageError] = useState(false);
 
-  // Xây dựng danh sách ảnh theo từng mục đích (Intent-driven photo album)
+  // Xây dựng danh sách ảnh: 100% ảnh thú cưng, không lấy avatar to của chủ nhân
   const primaryPet = candidate.pets && candidate.pets.length > 0 ? candidate.pets[0] : null;
 
   const candidatePhotos = React.useMemo(() => {
-    if (candidate.intent === 'playdate' && primaryPet?.imageUrl) {
-      // Playdate: Ưu tiên ảnh pet đại diện làm ảnh đầu tiên
-      const otherPhotos = candidate.photoUrls.filter((u) => u !== primaryPet.imageUrl);
-      return [primaryPet.imageUrl, ...otherPhotos];
-    }
-    if (candidate.photoUrls && candidate.photoUrls.length > 0) {
-      return candidate.photoUrls;
-    }
-    return [candidate.avatarUrl || FALLBACK_OWNER_IMG];
-  }, [candidate, primaryPet]);
+    // 1. Tập hợp ảnh từ tất cả các bé thú cưng trong hồ sơ
+    const petPhotos = (candidate.pets || [])
+      .map((p) => p.imageUrl)
+      .filter(Boolean);
+
+    // 2. Thu thập thêm ảnh thú cưng từ album (loại trừ avatar người)
+    const albumPetPhotos = (candidate.photoUrls || []).filter(
+      (u) => u !== candidate.avatarUrl && !petPhotos.includes(u)
+    );
+
+    const merged = [...petPhotos, ...albumPetPhotos];
+    if (merged.length > 0) return merged;
+    return [FALLBACK_PET_IMG];
+  }, [candidate]);
 
   const activePhotoUrl =
-    candidatePhotos[photoIdx % Math.max(candidatePhotos.length, 1)] ||
-    (candidate.intent === 'playdate' ? FALLBACK_PET_IMG : FALLBACK_OWNER_IMG);
+    candidatePhotos[photoIdx % Math.max(candidatePhotos.length, 1)] || FALLBACK_PET_IMG;
 
-  const displayPhotoUrl = imageError
-    ? candidate.intent === 'playdate'
-      ? FALLBACK_PET_IMG
-      : FALLBACK_OWNER_IMG
-    : activePhotoUrl;
+  const displayPhotoUrl = imageError ? FALLBACK_PET_IMG : activePhotoUrl;
 
   const extraPetsCount = Math.max(0, candidate.pets.length - 1);
 
@@ -135,7 +134,7 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
             </View>
           )}
 
-          {extraPetsCount > 0 && candidate.intent === 'playdate' && (
+          {extraPetsCount > 0 && (
             <TouchableOpacity
               style={styles.extraPetsBadge}
               onPress={onOpenDetails}
@@ -146,54 +145,33 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
           )}
         </View>
 
-        {/* Thông tin hiển thị linh hoạt theo từng Intent */}
+        {/* Thông tin thẻ luôn ưu tiên Thú cưng làm trọng tâm */}
         <View style={styles.infoContentRow}>
           <View style={styles.infoTextColumn}>
-            {/* Playdate: Pet làm nhân vật chính */}
-            {candidate.intent === 'playdate' && (
+            {primaryPet ? (
               <>
                 <Text style={styles.primaryTitle} numberOfLines={1}>
-                  {primaryPet ? `${primaryPet.name} · ${primaryPet.ageLabel}` : candidate.ownerName}
+                  {candidate.pets.length > 1
+                    ? `${candidate.pets.map((p) => p.name).join(' & ')} · ${primaryPet.ageLabel}`
+                    : `${primaryPet.name} · ${primaryPet.ageLabel}`}
                 </Text>
-                {primaryPet && (
-                  <Text style={styles.secondaryMeta} numberOfLines={1}>
-                    {primaryPet.breed} {primaryPet.weightKg ? `· ${primaryPet.weightKg} kg` : ''}
-                  </Text>
-                )}
+                <Text style={styles.secondaryMeta} numberOfLines={1}>
+                  {primaryPet.breed} {primaryPet.weightKg ? `· ${primaryPet.weightKg} kg` : ''}
+                </Text>
                 <Text style={styles.tertiarySub} numberOfLines={1}>
                   Đi cùng {candidate.ownerName} · cách {candidate.distanceKm} km
                 </Text>
               </>
-            )}
-
-            {/* Dating: Chủ nuôi làm nhân vật chính */}
-            {candidate.intent === 'dating' && (
+            ) : (
               <>
                 <Text style={styles.primaryTitle} numberOfLines={1}>
-                  {candidate.ownerName} {candidate.ownerAge}
+                  {candidate.ownerName}
                 </Text>
                 <Text style={styles.secondaryMeta} numberOfLines={1}>
                   Cách xa {candidate.distanceKm} km
                 </Text>
                 <Text style={styles.tertiarySub} numberOfLines={1}>
-                  {candidate.pets.length > 0
-                    ? `Nuôi bé ${candidate.pets.map((p) => p.name).join(' & ')}`
-                    : candidate.lifestyle.petSummary || 'Yêu thú cưng'}
-                </Text>
-              </>
-            )}
-
-            {/* Community: Giao lưu kinh nghiệm & hội nhóm */}
-            {candidate.intent === 'community' && (
-              <>
-                <Text style={styles.primaryTitle} numberOfLines={1}>
-                  {candidate.ownerName} & {primaryPet ? primaryPet.name : 'Boss'}
-                </Text>
-                <Text style={styles.secondaryMeta} numberOfLines={1}>
-                  Cách xa {candidate.distanceKm} km
-                </Text>
-                <Text style={styles.tertiarySub} numberOfLines={1}>
-                  {candidate.lookingFor || candidate.bio || 'Tìm hội giao lưu cùng khu vực'}
+                  {candidate.lookingFor || candidate.bio || 'Yêu thích thú cưng'}
                 </Text>
               </>
             )}

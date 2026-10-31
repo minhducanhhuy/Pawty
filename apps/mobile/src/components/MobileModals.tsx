@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from './FeatherIcon';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useMobilePawty,
   THEME_PALETTES,
@@ -29,6 +30,9 @@ import {
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export const MobileModals: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16);
+
   const {
     themeId,
     theme,
@@ -330,7 +334,7 @@ export const MobileModals: React.FC = () => {
         onRequestClose={closeMatchedCandidateModal}
       >
         <View style={styles.backdrop}>
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { paddingBottom: bottomInset + 18 }]}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Kết nối thành công!</Text>
               <TouchableOpacity
@@ -382,7 +386,7 @@ export const MobileModals: React.FC = () => {
         onRequestClose={() => setShowLikesYouDrawer(false)}
       >
         <View style={styles.backdrop}>
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { paddingBottom: bottomInset + 18 }]}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>
                 Đã thích bạn ({likedCandidates.length})
@@ -458,7 +462,7 @@ export const MobileModals: React.FC = () => {
         onRequestClose={closePublicUserProfile}
       >
         <View style={styles.backdrop}>
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { paddingBottom: bottomInset + 18 }]}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Trang cá nhân: {profile.handle}</Text>
               <TouchableOpacity
@@ -549,11 +553,19 @@ export const MobileModals: React.FC = () => {
     );
   }
 
-  if (!activeModal) return null;
+  const isGeneralModalActive =
+    activeModal === 'new_moment' ||
+    activeModal === 'my_settings' ||
+    activeModal === 'tinder_setup' ||
+    activeModal === 'vip_upgrade' ||
+    activeModal === 'edit_profile' ||
+    activeModal === 'notifications';
+
+  if (!isGeneralModalActive) return null;
 
   return (
     <Modal
-      visible={Boolean(activeModal)}
+      visible={isGeneralModalActive}
       transparent
       animationType="slide"
       onRequestClose={() => setActiveModal(null)}
@@ -850,18 +862,7 @@ export const MobileModals: React.FC = () => {
                   </View>
                 </View>
 
-                <TouchableOpacity
-                  style={styles.settingNavRow}
-                  onPress={() => setActiveModal('vip_upgrade')}
-                >
-                  <View style={styles.settingTitleRow}>
-                    <Feather name="award" size={16} color={theme.primary} />
-                    <Text style={styles.settingTitle}>
-                      Quản lý Gói thành viên Plus & Gold
-                    </Text>
-                  </View>
-                  <Feather name="chevron-right" size={16} color="#8E8074" />
-                </TouchableOpacity>
+                
 
                 <TouchableOpacity
                   style={styles.settingNavRow}
@@ -869,7 +870,7 @@ export const MobileModals: React.FC = () => {
                 >
                   <View style={styles.settingTitleRow}>
                     <Feather name="heart" size={16} color={theme.primary} />
-                    <Text style={styles.settingTitle}>Thiết lập Hồ sơ Kết nối (Tinder)</Text>
+                    <Text style={styles.settingTitle}>Thiết lập Hồ sơ Kết nối</Text>
                   </View>
                   <Feather name="chevron-right" size={16} color="#8E8074" />
                 </TouchableOpacity>

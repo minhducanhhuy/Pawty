@@ -6,31 +6,36 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '../../components/FeatherIcon';
 
 interface TinderMenuModalProps {
   visible: boolean;
   onClose: () => void;
   onRewind: () => void;
+  canRewind?: boolean;
   onOpenLikesYou: () => void;
   onOpenTinderSetup: () => void;
   likedYouCount: number;
-  isVip: boolean;
+  isVip?: boolean;
 }
 
 export const TinderMenuModal: React.FC<TinderMenuModalProps> = ({
   visible,
   onClose,
   onRewind,
+  canRewind = false,
   onOpenLikesYou,
   onOpenTinderSetup,
   likedYouCount,
-  isVip,
 }) => {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 16);
+
   return (
     <Modal
       visible={visible}
-      animationType="fade"
+      animationType="slide"
       transparent
       onRequestClose={onClose}
     >
@@ -39,7 +44,10 @@ export const TinderMenuModal: React.FC<TinderMenuModalProps> = ({
         activeOpacity={1}
         onPress={onClose}
       >
-        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+        <View
+          style={[styles.sheet, { paddingBottom: bottomInset + 16 }]}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Tùy chọn Kết nối</Text>
             <TouchableOpacity
@@ -54,28 +62,26 @@ export const TinderMenuModal: React.FC<TinderMenuModalProps> = ({
           <View style={styles.menuItemsList}>
             {/* 1. Hoàn tác lượt quẹt */}
             <TouchableOpacity
-              style={styles.menuItem}
+              style={[styles.menuItem, !canRewind && { opacity: 0.5 }]}
               onPress={() => {
                 onClose();
                 onRewind();
               }}
+              disabled={!canRewind}
               activeOpacity={0.7}
             >
-              <View style={[styles.itemIconBox, { backgroundColor: '#F0EBE3' }]}>
-                <Feather name="rotate-ccw" size={18} color="#4A3F35" />
+              <View style={[styles.itemIconBox, { backgroundColor: canRewind ? '#FEF3C7' : '#F0EBE3' }]}>
+                <Feather name="rotate-ccw" size={18} color={canRewind ? '#D97706' : '#8C827A'} />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.itemTitleRow}>
-                  <Text style={styles.itemTitle}>Hoàn tác lượt quẹt</Text>
-                  {!isVip && (
-                    <View style={styles.vipTag}>
-                      <Text style={styles.vipTagText}>Plus</Text>
-                    </View>
-                  )}
+                  <Text style={[styles.itemTitle, !canRewind && { color: '#8C827A' }]}>Hoàn tác lượt quẹt</Text>
                 </View>
-                <Text style={styles.itemDesc}>Quay lại thẻ ứng viên vừa lướt qua</Text>
+                <Text style={styles.itemDesc}>
+                  {canRewind ? 'Quay lại thẻ ứng viên vừa lướt qua' : 'Chưa có lượt quẹt nào để hoàn tác'}
+                </Text>
               </View>
-              <Feather name="chevron-right" size={16} color="#A89B8C" />
+              <Feather name="chevron-right" size={16} color={canRewind ? '#A89B8C' : '#D1C9BE'} />
             </TouchableOpacity>
 
             {/* 2. Ai đã thích bạn */}
