@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,16 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
 
 export const MobileChatScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<any>(null);
+
   const {
     theme,
     chats,
@@ -29,6 +34,40 @@ export const MobileChatScreen: React.FC = () => {
   const [chatFilter, setChatFilter] = useState<'all' | 'unread' | 'tinder' | 'service'>('all');
 
   const activeChat = chats.find((c) => c.id === activeChatId) || null;
+
+  // Tự động cuộn xuống tin nhắn cuối cùng khi mở cuộc trò chuyện
+  useEffect(() => {
+    if (activeChat) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: false });
+      }, 80);
+    }
+  }, [activeChatId]);
+
+  // Tự động cuộn xuống khi bàn phím ảo xuất hiện
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 60);
+      }
+    );
+    return () => {
+      showSub.remove();
+    };
+  }, []);
+
+  const handleSendMessage = () => {
+    const text = messageDraft.trim();
+    if (!text || !activeChat) return;
+    sendChatMessage(activeChat.id, text);
+    setMessageDraft('');
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 60);
+  };
 
   const filteredChats = chats.filter((room) => {
     const q = searchFriend.trim().toLowerCase();
@@ -53,13 +92,14 @@ export const MobileChatScreen: React.FC = () => {
     return (
       <KeyboardAvoidingView
         style={[styles.chatDetailContainer, { backgroundColor: theme.bg }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={24}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
         <View style={[styles.chatHeader, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
           <TouchableOpacity
             onPress={() => setActiveChatId(null)}
             style={[styles.backBtn, { backgroundColor: theme.bg }]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Feather name="arrow-left" size={18} color={theme.text} />
           </TouchableOpacity>
@@ -116,9 +156,14 @@ export const MobileChatScreen: React.FC = () => {
         </View>
 
         <ScrollView
+          ref={scrollViewRef}
           style={{ flex: 1 }}
-          contentContainerStyle={styles.messagesList}
+          contentContainerStyle={[styles.messagesList, { paddingBottom: 16 }]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+          onLayout={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
         >
           {activeChat.messages.map((msg) => {
             const isMe = msg.sender === 'me';
@@ -157,23 +202,37 @@ export const MobileChatScreen: React.FC = () => {
           })}
         </ScrollView>
 
-        <View style={[styles.inputBar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+        <View
+          style={[
+            styles.inputBar,
+            {
+              backgroundColor: theme.surface,
+              borderTopColor: theme.border,
+              paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 10) : 10,
+            },
+          ]}
+        >
           <TextInput
             value={messageDraft}
             onChangeText={setMessageDraft}
             placeholder="Nhập tin nhắn..."
             placeholderTextColor={theme.textMuted}
             style={[
-              styles.msgInput,
+              styles.msgInput, { maxHeight: 100 },
               { backgroundColor: theme.bg, borderColor: theme.border, color: theme.text },
             ]}
+            multiline
+            returnKeyType="send"
+            blurOnSubmit={false}
+            onSubmitEditing={handleSendMessage}
           />
           <TouchableOpacity
-            onPress={() => {
-              sendChatMessage(activeChat.id, messageDraft);
-              setMessageDraft('');
-            }}
-            style={[styles.sendBtn, { backgroundColor: theme.primary }]}
+            onPress={handleSendMessage}
+            style={[
+              styles.sendBtn,
+              { backgroundColor: messageDraft.trim() ? theme.primary : theme.border },
+            ]}
+            disabled={!messageDraft.trim()}
           >
             <Feather name="send" size={16} color="#FFFFFF" />
           </TouchableOpacity>
@@ -187,6 +246,7 @@ export const MobileChatScreen: React.FC = () => {
       style={[styles.container, { backgroundColor: theme.bg }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={[styles.topToolCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         {/* Search Input by Friend / User Name / Service */}
@@ -250,14 +310,15 @@ export const MobileChatScreen: React.FC = () => {
         </View>
       </View>
 
+      {/* Chat Rooms List */}
       {filteredChats.length === 0 ? (
         <View style={[styles.emptyBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Feather name="message-circle" size={24} color={theme.textMuted} />
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>
-            Không tìm thấy cuộc trò chuyện nào
-          </Text>
+          <Feather name="message-square" size={32} color={theme.textMuted} />
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>Không có cuộc trò chuyện nào</Text>
           <Text style={[styles.emptySub, { color: theme.textMuted }]}>
-            Hãy thử chuyển bộ lọc khác hoặc qua tab Kết nối / Dịch vụ để bắt đầu trò chuyện.
+            {searchFriend
+              ? 'Không tìm thấy kết quả phù hợp với từ khóa.'
+              : 'Hãy quẹt thẻ Kết nối hoặc đặt dịch vụ để bắt đầu trò chuyện.'}
           </Text>
         </View>
       ) : (
@@ -266,9 +327,12 @@ export const MobileChatScreen: React.FC = () => {
           return (
             <TouchableOpacity
               key={room.id}
+              style={[
+                styles.chatCard,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+              ]}
               onPress={() => setActiveChatId(room.id)}
-              style={[styles.chatCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-              activeOpacity={0.85}
+              activeOpacity={0.75}
             >
               <View style={styles.avatarWrap}>
                 <Image source={{ uri: room.partnerAvatar }} style={styles.chatAvatar} />
@@ -278,7 +342,7 @@ export const MobileChatScreen: React.FC = () => {
               <View style={{ flex: 1 }}>
                 <View style={styles.chatRowTop}>
                   <View style={styles.partnerNameRow}>
-                    <Text style={[styles.chatName, { color: theme.text }]}>
+                    <Text style={[styles.chatName, { color: theme.text }]} numberOfLines={1}>
                       {room.partnerName}
                     </Text>
                     {room.matchSource === 'tinder_match' && (
@@ -293,12 +357,14 @@ export const MobileChatScreen: React.FC = () => {
                     )}
                   </View>
                   <Text style={[styles.chatTime, { color: theme.textMuted }]}>
-                    {lastMsg?.time || 'Hôm nay'}
+                    {lastMsg?.time || ''}
                   </Text>
                 </View>
-                <Text style={[styles.chatPetSub, { color: theme.secondary }]}>
+
+                <Text style={[styles.chatPetSub, { color: theme.primary }]} numberOfLines={1}>
                   {room.petSummary} · {room.distanceLabel}
                 </Text>
+
                 <Text
                   style={[
                     styles.chatPreview,
@@ -344,11 +410,12 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 12,
     height: 40,
     borderRadius: 12,
     borderWidth: 1,
-    gap: 8,
+    marginBottom: 10,
   },
   searchInput: {
     flex: 1,
@@ -356,27 +423,27 @@ const styles = StyleSheet.create({
   },
   filterBar: {
     flexDirection: 'row',
-    padding: 4,
-    borderRadius: 12,
-    marginTop: 10,
+    borderRadius: 10,
+    padding: 3,
     gap: 4,
   },
   filterTab: {
     flex: 1,
     paddingVertical: 7,
-    paddingHorizontal: 4,
-    borderRadius: 9,
+    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   filterTabText: {
     fontSize: 11,
     fontWeight: '700',
   },
   emptyBox: {
-    padding: 28,
+    padding: 32,
     borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
   },
   emptyTitle: {
@@ -448,20 +515,21 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   chatPreview: {
-    fontSize: 12.5,
+    fontSize: 12,
     marginTop: 3,
   },
   unreadBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   unreadText: {
+    fontSize: 10,
+    fontWeight: '800',
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
   },
   chatDetailContainer: {
     flex: 1,

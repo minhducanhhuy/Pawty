@@ -77,7 +77,9 @@ const MainMobileShell: React.FC = () => {
     unreadNotificationCount,
     sosAlerts,
     chats,
+    activeChatId,
     tinderCandidates,
+    tinderFilterGoal,
     rewindLastSwipe,
     setShowLikesYouDrawer,
     cyclePassportArea,
@@ -125,8 +127,9 @@ const MainMobileShell: React.FC = () => {
     >
       <StatusBar barStyle="dark-content" />
 
-      {/* DYNAMIC CONTEXTUAL HEADER PER ACTIVE TAB */}
-      <View style={styles.header}>
+      {/* DYNAMIC CONTEXTUAL HEADER PER ACTIVE TAB (Ẩn khi đang trong chi tiết phòng chat) */}
+      {!(activeTab === 'chat' && activeChatId) && (
+        <View style={styles.header}>
         {/* 1. EXPLORE HEADER: Left '+' | Center Single Pawty Logo | Right SOS (Opens Fullscreen SOS Tab) + Notifications */}
         {activeTab === 'explore' && (
           <>
@@ -176,46 +179,51 @@ const MainMobileShell: React.FC = () => {
           </>
         )}
 
-        {/* 2. KẾT NỐI (TINDER) HEADER: Left Title 'Kết nối' | Right Rewind + Liked You + Location */}
+        {/* 2. KẾT NỐI (TINDER) HEADER: Header 1 hàng duy nhất: Tiêu đề + Nhãn mục đích, Nút Bộ lọc, Nút Menu phụ */}
         {activeTab === 'tinder' && (
           <>
             <View style={styles.contextualTitleWrap}>
-              <Feather name="heart" size={18} color={theme.primary} />
+              <Feather name="heart" size={19} color={theme.primary} />
               <Text style={styles.contextualHeaderTitle}>Kết nối</Text>
+              <View
+                style={[
+                  styles.tinderHeaderGoalBadge,
+                  { backgroundColor: theme.primarySoft },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tinderHeaderGoalText,
+                    { color: theme.primary },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {tinderFilterGoal === 'all'
+                    ? 'Tất cả'
+                    : tinderFilterGoal === 'playdate'
+                    ? 'Tìm bạn chơi'
+                    : tinderFilterGoal === 'dating'
+                    ? 'Hẹn hò'
+                    : 'Giao lưu'}
+                </Text>
+              </View>
             </View>
 
             <View style={styles.headerRightActions}>
               <TouchableOpacity
-                style={styles.contextualPillBtn}
-                onPress={rewindLastSwipe}
+                style={styles.iconSquareBtn}
+                onPress={() => setActiveModal('tinder_filter')}
+                accessibilityLabel="Mở bộ lọc kết nối"
               >
-                <Feather name="rotate-ccw" size={13} color="#4A3F35" />
-                <Text style={styles.contextualPillText}>Hoàn tác</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.contextualPillBtn,
-                  { backgroundColor: theme.primarySoft },
-                ]}
-                onPress={() => setShowLikesYouDrawer(true)}
-              >
-                <Feather name="heart" size={13} color={theme.primary} />
-                <Text
-                  style={[
-                    styles.contextualPillText,
-                    { color: theme.primary },
-                  ]}
-                >
-                  Đã thích ({likedYouCount})
-                </Text>
+                <Feather name="sliders" size={18} color="#4A3F35" />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.iconSquareBtn}
-                onPress={cyclePassportArea}
+                onPress={() => setActiveModal('tinder_menu')}
+                accessibilityLabel="Tùy chọn kết nối"
               >
-                <Feather name="map-pin" size={17} color="#2E7D5B" />
+                <Feather name="more-vertical" size={19} color="#4A3F35" />
               </TouchableOpacity>
             </View>
           </>
@@ -409,7 +417,8 @@ const MainMobileShell: React.FC = () => {
             </View>
           </>
         )}
-      </View>
+        </View>
+      )}
 
       {/* Main Content Body */}
       <View style={styles.body}>
@@ -430,8 +439,9 @@ const MainMobileShell: React.FC = () => {
         </View>
       )}
 
-      {/* 6-Tab Bottom Navigation Bar */}
-      <View style={styles.bottomBar}>
+      {/* 6-Tab Bottom Navigation Bar (Ẩn khi đang trong chi tiết phòng chat) */}
+      {!(activeTab === 'chat' && activeChatId) && (
+        <View style={styles.bottomBar}>
         {BOTTOM_TABS.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -473,7 +483,8 @@ const MainMobileShell: React.FC = () => {
             </TouchableOpacity>
           );
         })}
-      </View>
+        </View>
+      )}
 
       {/* Shared Modals */}
       <MobileModals />
@@ -570,9 +581,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contextualHeaderTitle: {
-    fontSize: 17,
-    fontWeight: '900',
+    fontSize: 18,
+    fontWeight: '800',
     color: '#1C1815',
+  },
+  tinderHeaderGoalBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginLeft: 6,
+  },
+  tinderHeaderGoalText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
   igProfileHeaderCenter: {
     flexDirection: 'row',
