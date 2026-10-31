@@ -35,8 +35,6 @@ model User {
   posts          Post[]
   comments       Comment[]
   reactions      Reaction[]
-  bookings       Booking[]
-  reviews        Review[]
   reports        Report[]
   consentRecords ConsentRecord[]
   notifications  Notification[]
@@ -94,7 +92,6 @@ model Pet {
   sosAlerts         SosAlert[]
   careTasks         CareTask[]
   careRecords       CareRecord[]
-  bookings          Booking[]
 
   @@index([householdId], map: "idx_pets_household")
   @@index([species], map: "idx_pets_species")
@@ -268,73 +265,8 @@ model Comment {
   @@map("comments")
 }
 
-model Partner {
-  id                 String    @id @default(uuid())
-  name               String    @db.VarChar(200)
-  type               String    @db.VarChar(30)
-  description        String?
-  address            String?
-  district           String?   @db.VarChar(100)
-  phone              String?   @db.VarChar(15)
-  avatarUrl          String?   @map("avatar_url")
-  coverUrl           String?   @map("cover_url")
-  operatingHours     Json?     @map("operating_hours")
-  services           Json?
-  verificationStatus String    @default("pending") @map("verification_status") @db.VarChar(20)
-  ratingAvg          Decimal   @default(0) @map("rating_avg") @db.Decimal(3, 2)
-  reviewCount        Int       @default(0) @map("review_count")
-  isActive           Boolean   @default(true) @map("is_active")
-  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  bookings           Booking[]
-  reviews            Review[]
 
-  @@map("partners")
-}
-
-model Booking {
-  id            String    @id @default(uuid())
-  userId        String    @map("user_id")
-  partnerId     String    @map("partner_id")
-  petId         String    @map("pet_id")
-  serviceName   String    @map("service_name") @db.VarChar(200)
-  servicePrice  Int       @map("service_price")
-  scheduledDate DateTime  @map("scheduled_date") @db.Date
-  note          String?
-  status        String    @default("pending") @db.VarChar(20)
-  confirmedAt   DateTime? @map("confirmed_at") @db.Timestamptz(6)
-  completedAt   DateTime? @map("completed_at") @db.Timestamptz(6)
-  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
-  cancelReason  String?   @map("cancel_reason")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  user          User      @relation(fields: [userId], references: [id])
-  partner       Partner   @relation(fields: [partnerId], references: [id])
-  pet           Pet       @relation(fields: [petId], references: [id])
-  review        Review?
-
-  @@index([userId], map: "idx_bookings_user")
-  @@index([partnerId], map: "idx_bookings_partner")
-  @@map("bookings")
-}
-
-model Review {
-  id           String   @id @default(uuid())
-  bookingId    String   @unique @map("booking_id")
-  userId       String   @map("user_id")
-  partnerId    String   @map("partner_id")
-  rating       Int      @db.SmallInt
-  textContent  String?  @map("text_content")
-  photos       String[]
-  partnerReply String?  @map("partner_reply")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  booking      Booking  @relation(fields: [bookingId], references: [id])
-  user         User     @relation(fields: [userId], references: [id])
-  partner      Partner  @relation(fields: [partnerId], references: [id])
-
-  @@map("reviews")
-}
 
 model Report {
   id          String    @id @default(uuid())
