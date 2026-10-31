@@ -5,7 +5,7 @@ export const prisma = new PrismaClient();
 
 export class DatabaseService {
   public async getBootstrapData() {
-    const [users, pets, circleMembers, tasks, posts, partners, bookings, sosAlerts] =
+    const [users, pets, circleMembers, tasks, posts, sosAlerts] =
       await Promise.all([
         prisma.user.findMany(),
         prisma.pet.findMany({
@@ -17,8 +17,6 @@ export class DatabaseService {
           include: { comments: true, reactions: true, sightingMatches: true },
           orderBy: { createdAt: 'desc' },
         }),
-        prisma.partner.findMany(),
-        prisma.booking.findMany(),
         prisma.sosAlert.findMany({
           include: { matchedPosts: true, trajectories: true },
         }),
@@ -34,10 +32,7 @@ export class DatabaseService {
       groups: [],
       radarCandidates: [],
       matches: [],
-      walkAppointments: [],
-      partners,
       places: [],
-      bookings,
       sosAlerts,
       reports: [],
       metrics: {
@@ -218,36 +213,6 @@ export class DatabaseService {
       data: { status: decision },
     });
   }
-
-  // --- Partners & Bookings ---
-  public async getPartners() {
-    return prisma.partner.findMany();
-  }
-
-  public async getBookings() {
-    return prisma.booking.findMany({
-      include: { partner: true, pet: true },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  public async createBooking(data: any) {
-    const defaultUser = await prisma.user.findFirst();
-    const defaultPet = await prisma.pet.findFirst();
-    const defaultPartner = await prisma.partner.findFirst();
-    return prisma.booking.create({
-      data: {
-        userId: data.userId || defaultUser?.id || '',
-        petId: data.petId || defaultPet?.id || '',
-        partnerId: data.partnerId || defaultPartner?.id || '',
-        serviceName: data.serviceName || 'Dịch vụ thú cưng',
-        servicePrice: Number(data.servicePrice || 200000),
-        scheduledDate: data.scheduledDate ? new Date(data.scheduledDate) : new Date(),
-        status: 'confirmed',
-      },
-    });
-  }
 }
 
 export const dbService = new DatabaseService();
-

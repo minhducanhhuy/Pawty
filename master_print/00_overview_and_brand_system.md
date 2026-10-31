@@ -1,25 +1,22 @@
 # MASTER PRINT — TẦNG 0: OVERVIEW & BRAND SYSTEM (Pawty Super App)
 
-> **Single Source of Truth (SSOT)** — Đồng bộ 100% với `plan/00_product_vision_and_positioning.md` & `plan/01_ecosystem_architecture.md`.
+> **Single Source of Truth (SSOT)** — Đồng bộ 100% với định hướng sản phẩm & hệ sinh thái Pawty.
 
 ---
 
 ## 1. Sứ Mệnh & Định Vị (Mission & Positioning)
 - **Tuyên ngôn sứ mệnh:** *"Nuôi thú cưng nhẹ đầu hơn, có người đồng hành khi cần."*
-- **Bản chất sản phẩm:** Hệ sinh thái số 5 lớp đầu tiên tại Việt Nam dành riêng cho người nuôi thú cưng tại đô thị — nối liền:
-  `Chăm sóc cá nhân (Care) → Phối hợp gia đình (Circle) → Mạng xã hội & Cộng đồng địa phương (Local) → Dịch vụ chuyên nghiệp (Services) → Công cụ đối tác (Pro)`
-- **4 Trụ cột Giá trị (Value Pillars):**
-  1. **🐾 CARE (Tổ chức chăm sóc):** Hồ sơ Boss, sổ tiêm điện tử, lịch nhắc việc, ghi chú bàn giao.
-  2. **🤝 CONNECT (Kết nối phối hợp):** Vòng chăm sóc (Circle) giao việc gia đình, Radar tìm bạn dắt dạo, hẹn dạo trung điểm.
-  3. **📸 SHARE (MXH thú cưng):** Pet Feed với 7 loại bài viết, tương tác 5 cảm xúc Paw, Hỏi đáp chuyên gia kiểm duyệt, Nhóm cộng đồng.
-  4. **💼 SERVE (Dịch vụ tin cậy):** Đặt lịch Grooming/Vet từ đối tác xác minh, theo dõi trạng thái, đánh giá từ giao dịch thật.
+- **Bản chất sản phẩm:** Hệ sinh thái số dành riêng cho người nuôi thú cưng tại đô thị — nối liền:
+  `Chăm sóc cá nhân (Care) → Phối hợp gia đình (Circle) → Mạng xã hội & Khám phá (Social) → Radar kết nối bạn dắt dạo (Radar) → Báo động tìm thú lạc (SOS AI Tracing)`
+- **3 Trụ cột Giá trị Trọng tâm (Value Pillars):**
+  1. **🐾 CARE (Tổ chức chăm sóc):** Hồ sơ Boss, sổ tiêm điện tử, lịch nhắc việc, nhật ký chăm sóc.
+  2. **🤝 CONNECT (Kết nối phối hợp & Radar dạo):** Vòng chăm sóc (Circle) gia đình, Radar tìm bạn dắt dạo cún theo khoảng cách PostGIS, ghép đôi tương tác.
+  3. **📸 SHARE & TRACE (MXH & Tìm Boss lạc SOS AI):** Pet Feed khoảnh khắc bựa, Hỏi đáp cộng đồng, Mạng lưới tìm kiếm cứu trợ thú cưng thất lạc với AI Vision Multimodal Tracking.
 
 ## 2. Đối Tượng Mục Tiêu (Target Personas)
-- **Persona chính (Chủ nuôi đô thị bận rộn):**
+- **Persona chính (Chủ nuôi đô thị):**
   - Độ tuổi: 22–38 (Gen Z & Millennials), DINK, độc thân, hoặc gia đình trẻ tại chung cư TP.HCM & Hà Nội.
   - Thú cưng: Chó & Mèo.
-- **Persona phụ (Đối tác dịch vụ - Pawty Pro):**
-  - Pet Spa, Pet Café, Phòng khám Thú y, Dog Walker, Pet Sitter.
 
 ## 3. Bộ Nhận Diện Thương Hiệu (Playful Minimalism)
 

@@ -9,9 +9,6 @@ async function main() {
   await prisma.sightingTrajectory.deleteMany();
   await prisma.petSightingMatch.deleteMany();
   await prisma.sosAlert.deleteMany();
-  await prisma.review.deleteMany();
-  await prisma.booking.deleteMany();
-  await prisma.partner.deleteMany();
   await prisma.reaction.deleteMany();
   await prisma.comment.deleteMany();
   await prisma.post.deleteMany();
@@ -249,50 +246,7 @@ async function main() {
     ],
   });
 
-  // 8. Tạo Đối Tác Dịch Vụ (Partners)
-  const partnerVet = await prisma.partner.create({
-    data: {
-      id: 'partner-vet-1',
-      name: 'Bệnh Viện Thú Y Dr. Paw Pet Care',
-      type: 'vet',
-      description: 'Phòng khám thú y quốc tế tiêu chuẩn 5 sao tại Vinhomes Grand Park.',
-      address: 'Shophouse S1.02 Vinhomes Grand Park, TP. Thủ Đức',
-      district: 'TP. Thủ Đức',
-      phone: '028 3899 1122',
-      avatarUrl: 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&w=400&q=80',
-      ratingAvg: 4.95,
-      reviewCount: 142,
-      verificationStatus: 'verified',
-      isActive: true,
-      services: [
-        { id: 'srv-1', name: 'Khám sức khỏe tổng quát', priceVnd: 250000 },
-        { id: 'srv-2', name: 'Tiêm phòng định kỳ & sổ theo dõi', priceVnd: 350000 },
-      ],
-    },
-  });
-
-  const partnerSpa = await prisma.partner.create({
-    data: {
-      id: 'partner-spa-1',
-      name: 'Paws & Bubbles Spa Grooming Salon',
-      type: 'grooming',
-      description: 'Spa tắm sấy, cắt tỉa tạo hình thú cưng chuyên nghiệp.',
-      address: 'Shophouse S2.03 Vinhomes Grand Park, TP. Thủ Đức',
-      district: 'TP. Thủ Đức',
-      phone: '0908 776 554',
-      avatarUrl: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=400&q=80',
-      ratingAvg: 4.88,
-      reviewCount: 98,
-      verificationStatus: 'verified',
-      isActive: true,
-      services: [
-        { id: 'srv-3', name: 'Tắm spa khử mùi 7 bước', priceVnd: 180000 },
-        { id: 'srv-4', name: 'Cắt tỉa tạo kiểu lông Poodle/Corgi', priceVnd: 320000 },
-      ],
-    },
-  });
-
-  // 9. Tạo Bài Đăng Mạng Xã Hội (Social Posts)
+  // 8. Tạo Bài Đăng Mạng Xã Hội (Social Posts)
   const post1 = await prisma.post.create({
     data: {
       id: 'post-1',
@@ -416,20 +370,6 @@ async function main() {
           note: 'Bé đang chạy hướng vào bãi cỏ công viên',
         },
       ],
-    },
-  });
-
-  // 13. Tạo Booking dịch vụ mẫu
-  await prisma.booking.create({
-    data: {
-      id: 'bk-1',
-      userId: userMai.id,
-      partnerId: partnerVet.id,
-      petId: petLu.id,
-      serviceName: 'Khám sức khỏe tổng quát',
-      servicePrice: 250000,
-      scheduledDate: new Date(),
-      status: 'confirmed',
     },
   });
 

@@ -13,9 +13,6 @@ import { usePawtyStore } from '../../stores/usePawtyStore';
 
 export const ProAndAdminPortal: React.FC = () => {
   const {
-    bookings,
-    updateBookingStatus,
-    partners,
     reports,
     resolveContentReport,
     metrics,
@@ -23,7 +20,7 @@ export const ProAndAdminPortal: React.FC = () => {
     setDesktopFrameMode,
   } = usePawtyStore();
 
-  const [activeTab, setActiveTab] = useState<'pro' | 'kpis' | 'moderation'>('pro');
+  const [activeTab, setActiveTab] = useState<'kpis' | 'moderation'>('kpis');
 
   const cohortRetention = [
     { day: 'D1', pct: metrics.d1Retention },
@@ -61,7 +58,6 @@ export const ProAndAdminPortal: React.FC = () => {
 
         <div className="flex items-center gap-2">
           {[
-            { id: 'pro', label: '💼 Pawty Pro (Đối tác)', icon: <Briefcase className="w-4 h-4" /> },
             { id: 'kpis', label: '📊 North Star & KPIs', icon: <BarChart3 className="w-4 h-4" /> },
             {
               id: 'moderation',
@@ -91,145 +87,6 @@ export const ProAndAdminPortal: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* TAB 1: PAWTY PRO PARTNER DASHBOARD */}
-      {activeTab === 'pro' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-3xl bg-white border border-stone-200 shadow-2xs">
-              <span className="text-xs font-bold text-stone-400">Tổng Booking trong tháng</span>
-              <p className="font-display text-2xl font-bold text-[#2D3436] mt-1">
-                {bookings.length + 48} đơn
-              </p>
-              <span className="text-[11px] font-bold text-teal-700">
-                Tỷ lệ hoàn tất: {metrics.bookingCompletionRate}% (Target ≥85%)
-              </span>
-            </div>
-
-            <div className="p-4 rounded-3xl bg-white border border-stone-200 shadow-2xs">
-              <span className="text-xs font-bold text-stone-400">
-                Hoa hồng Pawty (12% đơn hoàn tất)
-              </span>
-              <p className="font-display text-2xl font-bold text-[#FF6F61] mt-1">
-                {formatVndCurrency(metrics.bookingCommissionRevenueVnd)}
-              </p>
-              <span className="text-[11px] text-stone-500">
-                Chỉ thu khi khách xác nhận hoàn thành
-              </span>
-            </div>
-
-            <div className="p-4 rounded-3xl bg-white border border-stone-200 shadow-2xs">
-              <span className="text-xs font-bold text-stone-400">Thời gian vận hành / đơn</span>
-              <p className="font-display text-2xl font-bold text-[#2D3436] mt-1">
-                {metrics.avgOpsMinutesPerBooking} phút/đơn
-              </p>
-              <span className="text-[11px] font-bold text-teal-700">
-                ✓ Đạt ngưỡng Gate 4 (&lt;15 phút/yêu cầu)
-              </span>
-            </div>
-
-            <div className="p-4 rounded-3xl bg-white border border-stone-200 shadow-2xs">
-              <span className="text-xs font-bold text-stone-400">Điểm đánh giá Đối tác TB</span>
-              <p className="font-display text-2xl font-bold text-amber-500 mt-1">
-                ⭐ {metrics.avgPartnerRating} / 5.0
-              </p>
-              <span className="text-[11px] text-stone-500">100% từ giao dịch thật</span>
-            </div>
-          </div>
-
-          {/* Partner Booking Queue */}
-          <div className="bg-white rounded-3xl p-5 border border-stone-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-base font-bold">
-                📅 Quản lý Lịch hẹn Đối tác (Pending → Confirmed → In-Progress → Completed)
-              </h2>
-              <span className="text-xs font-semibold text-stone-500">
-                Tự động nhắc khách trước 24h
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {bookings.map((bk) => (
-                <div
-                  key={bk.id}
-                  className="p-4 rounded-2xl bg-[#FDFBF7] border border-stone-200 flex flex-wrap items-center justify-between gap-4"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-extrabold text-[#2D3436]">
-                        {bk.serviceNames.join(', ')}
-                      </span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#A3E4D7]/50 text-teal-950 text-xs font-bold uppercase">
-                        {bk.status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-stone-600">
-                      Khách: <strong>{bk.userName}</strong> · Boss: <strong>{bk.petName}</strong> ·
-                      Cơ sở: <strong>{bk.partnerName}</strong>
-                    </p>
-                    <p className="text-xs font-mono text-[#FF6F61] font-bold">
-                      ⏰ {bk.scheduledDate} lúc {bk.scheduledTime} · Giá:{' '}
-                      {formatVndCurrency(bk.totalPriceVnd)} (Hoa hồng Pawty:{' '}
-                      {formatVndCurrency(bk.commissionVnd)})
-                    </p>
-                    {bk.note && (
-                      <p className="text-xs italic text-stone-500">Lưu ý của chủ nuôi: "{bk.note}"</p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {bk.status === 'pending' && (
-                      <button
-                        onClick={() => updateBookingStatus(bk.id, 'confirmed')}
-                        className="px-3.5 py-2 rounded-xl bg-teal-600 text-white text-xs font-bold"
-                      >
-                        Xác nhận lịch
-                      </button>
-                    )}
-                    {bk.status === 'confirmed' && (
-                      <button
-                        onClick={() => updateBookingStatus(bk.id, 'in_progress')}
-                        className="px-3.5 py-2 rounded-xl bg-amber-500 text-white text-xs font-bold"
-                      >
-                        Bắt đầu làm dịch vụ
-                      </button>
-                    )}
-                    {(bk.status === 'confirmed' || bk.status === 'in_progress') && (
-                      <button
-                        onClick={() => updateBookingStatus(bk.id, 'completed')}
-                        className="px-3.5 py-2 rounded-xl bg-[#FF6F61] text-white text-xs font-bold"
-                      >
-                        Hoàn tất & Ghi nhận doanh thu ✓
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Partner Directory Overview */}
-          <div className="bg-white rounded-3xl p-5 border border-stone-200 space-y-3">
-            <h2 className="font-display text-base font-bold">
-              🏥 Danh sách Cơ sở Đối tác Đã Xác Minh ({partners.length})
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {partners.map((p) => (
-                <div key={p.id} className="p-3.5 rounded-2xl bg-[#FDFBF7] border border-stone-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold">{p.name}</span>
-                    <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                  </div>
-                  <p className="text-[11px] text-stone-500 mt-1">{p.operatingHours}</p>
-                  <p className="text-xs font-bold text-[#FF6F61] mt-1">
-                    ⭐ {p.ratingAvg} ({p.reviewCount} reviews) · Hoa hồng {p.commissionRatePercent}%
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* TAB 2: NORTH STAR METRIC & KPI DECISION GATES (Tầng 8) */}
       {activeTab === 'kpis' && (

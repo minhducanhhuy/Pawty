@@ -142,39 +142,6 @@ export interface SuggestedPersonCard {
   isFollowing: boolean;
 }
 
-export interface MobileAppointment {
-  id: string;
-  petId: string;
-  petName: string;
-  serviceName: string;
-  providerName: string;
-  category: 'Grooming & Spa' | 'Phòng khám Thú y' | 'Khách sạn Thú cưng';
-  dateLabel: string;
-  timeSlot: string;
-  status: 'confirmed' | 'pending' | 'completed' | 'cancelled';
-  priceLabel: string;
-  location: string;
-  notes?: string;
-}
-
-export interface MobileService {
-  id: string;
-  name: string;
-  category: 'Grooming & Spa' | 'Phòng khám Thú y' | 'Khách sạn Thú cưng';
-  rating: number;
-  reviewCount: number;
-  distanceKm: number;
-  priceRange: string;
-  address: string;
-  imageUrl: string;
-  promoVoucher?: string;
-  Packages: {
-    name: string;
-    price: string;
-    duration: string;
-  }[];
-}
-
 export interface MobileChatRoom {
   id: string;
   partnerName: string;
@@ -823,90 +790,6 @@ export const INITIAL_TINDER_CANDIDATES: TinderCandidate[] = [
     ],
     tags: ['Hội Samoyed', 'Cafe cuối tuần', 'Chăm lông'],
     hasLikedMe: true,
-  },
-];
-
-export const INITIAL_MOBILE_APPOINTMENTS: MobileAppointment[] = [
-  {
-    id: 'apt-1',
-    petId: 'pet-lu',
-    petName: 'Lu',
-    serviceName: 'Gói Tắm Spa Thảo Dược & Cắt Tỉa Lông',
-    providerName: 'Pawty Grooming & Spa Studio',
-    category: 'Grooming & Spa',
-    dateLabel: 'Thứ Bảy, 31/10',
-    timeSlot: '10:00 - 11:30',
-    status: 'confirmed',
-    priceLabel: '320.000đ',
-    location: 'Shophouse S2.05 Vinhomes Grand Park',
-    notes: 'Cắt gọn lông bàn chân và vệ sinh tai kỹ cho bé.',
-  },
-  {
-    id: 'apt-2',
-    petId: 'pet-miu',
-    petName: 'Miu',
-    serviceName: 'Khám sức khỏe tổng quát & Siêu âm định kỳ',
-    providerName: 'Phòng khám Thú y Quốc tế PetCare',
-    category: 'Phòng khám Thú y',
-    dateLabel: 'Chủ Nhật, 08/11',
-    timeSlot: '15:00 - 15:45',
-    status: 'pending',
-    priceLabel: '450.000đ',
-    location: 'Đường Nguyễn Xiển, TP. Thủ Đức',
-    notes: 'Kiểm tra răng miệng và tư vấn chế độ ăn kiểm soát cân nặng.',
-  },
-];
-
-export const INITIAL_MOBILE_SERVICES: MobileService[] = [
-  {
-    id: 'srv-1',
-    name: 'Pawty Grooming & Spa Studio',
-    category: 'Grooming & Spa',
-    rating: 4.9,
-    reviewCount: 248,
-    distanceKm: 0.3,
-    priceRange: '250.000đ - 550.000đ',
-    address: 'Shophouse S2.05 Vinhomes Grand Park',
-    imageUrl:
-      'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=800&q=80',
-    promoVoucher: 'Ưu đãi 35% cho lần đặt lịch đầu tiên',
-    Packages: [
-      { name: 'Tắm thảo dược khử mùi 8 bước', price: '250.000đ', duration: '60 phút' },
-      { name: 'Combo Tắm + Cắt tỉa tạo kiểu', price: '420.000đ', duration: '90 phút' },
-    ],
-  },
-  {
-    id: 'srv-2',
-    name: 'Phòng khám Thú y Quốc tế PetCare',
-    category: 'Phòng khám Thú y',
-    rating: 4.8,
-    reviewCount: 412,
-    distanceKm: 1.2,
-    priceRange: '200.000đ - 900.000đ',
-    address: '128 Nguyễn Xiển, TP. Thủ Đức',
-    imageUrl:
-      'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&w=800&q=80',
-    promoVoucher: 'Miễn phí khám lâm sàng khi đặt lịch trước',
-    Packages: [
-      { name: 'Gói tiêm phòng 7 bệnh + Dại', price: '380.000đ', duration: '30 phút' },
-      { name: 'Khám tổng quát & Xét nghiệm máu', price: '650.000đ', duration: '45 phút' },
-    ],
-  },
-  {
-    id: 'srv-3',
-    name: 'Khách sạn Thú cưng Cozy Paws Resort',
-    category: 'Khách sạn Thú cưng',
-    rating: 4.9,
-    reviewCount: 164,
-    distanceKm: 2.1,
-    priceRange: '300.000đ/đêm',
-    address: 'Khu biệt thự Manhattan, Vinhomes Grand Park',
-    imageUrl:
-      'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?auto=format&fit=crop&w=800&q=80',
-    Packages: [
-      { name: 'Phòng tiêu chuẩn có camera 24/7', price: '300.000đ/đêm', duration: '24 giờ' },
-      { name: 'Phòng VIP có sân cỏ riêng', price: '500.000đ/đêm', duration: '24 giờ' },
-    ],
   },
 ];
 

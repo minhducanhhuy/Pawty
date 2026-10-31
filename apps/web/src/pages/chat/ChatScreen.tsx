@@ -23,8 +23,6 @@ export const ChatScreen: React.FC = () => {
     setActiveConversationId,
     messagesByConversation,
     sendChatMessage,
-    walkAppointments,
-    updateWalkAppointmentStatus,
     handoverNote,
     setActiveModal,
     searchableUsers,
@@ -38,6 +36,7 @@ export const ChatScreen: React.FC = () => {
   const [categoryFilter, setCategoryFilter] =
     useState<ChatCategoryFilter>("all");
   const [draftText, setDraftText] = useState("");
+  const [confirmedInviteIds, setConfirmedInviteIds] = useState<string[]>([]);
 
   const activeConversation = conversations.find(
     (c) => c.id === activeConversationId,
@@ -395,9 +394,7 @@ export const ChatScreen: React.FC = () => {
           const isMe = msg.senderId === user.id;
 
           if (msg.messageType === "walk_invite") {
-            const apt =
-              walkAppointments.find((w) => w.id === msg.walkAppointmentId) ??
-              walkAppointments[0];
+            const isConfirmed = confirmedInviteIds.includes(msg.id);
             return (
               <div
                 key={msg.id}
@@ -421,9 +418,7 @@ export const ChatScreen: React.FC = () => {
                     }}
                     className="text-[10px] font-bold px-2 py-0.5 rounded-md"
                   >
-                    {apt?.status === "confirmed"
-                      ? "Đã xác nhận"
-                      : "Chờ xác nhận"}
+                    {isConfirmed ? "Đã xác nhận" : "Chờ xác nhận"}
                   </span>
                 </div>
                 <p
@@ -434,18 +429,13 @@ export const ChatScreen: React.FC = () => {
                     style={{ color: theme.primary }}
                     className="w-3.5 h-3.5"
                   />
-                  <span>{apt?.locationName || "Công viên nội khu"}</span>
-                </p>
-                <p style={{ color: theme.textSoft }} className="text-[11px]">
-                  {apt?.scheduledDate} · {apt?.scheduledTime}
+                  <span>{msg.textContent || "Công viên nội khu"}</span>
                 </p>
 
-                {apt?.status !== "confirmed" && (
+                {!isConfirmed && (
                   <div className="flex items-center gap-2 pt-1">
                     <button
-                      onClick={() =>
-                        apt && updateWalkAppointmentStatus(apt.id, "confirmed")
-                      }
+                      onClick={() => setConfirmedInviteIds((prev) => [...prev, msg.id])}
                       style={{ backgroundColor: theme.primary }}
                       className="flex-1 py-2 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-1"
                     >
