@@ -4,6 +4,7 @@
   "private": true,
   "description": "Pawty NestJS Backend API + Socket.io Gateway + PostGIS + Prisma",
   "scripts": {
+    "dev": "npm run start:dev",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server/src/main.js",
     "start:dev": "tsc -p tsconfig.json && node dist/server/src/main.js",
