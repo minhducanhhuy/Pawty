@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+﻿import React, { useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -301,7 +301,45 @@ export const MobileProfileScreen: React.FC = () => {
     openLightboxMedia,
     logoutUser,
     showToast,
+    ownerHandle,
+    selectedProfileHandle,
+    setSelectedProfileHandle,
+    publicProfiles,
+    resolvePublicProfile,
+    toggleFriendStatus,
+    toggleFollowUser,
+    startDirectChatWithUser,
   } = useMobilePawty();
+
+  const isViewingOther = Boolean(
+    selectedProfileHandle &&
+      selectedProfileHandle.toLowerCase() !== (ownerHandle || 'mainguyen').toLowerCase() &&
+      selectedProfileHandle.replace(/_/g, '').toLowerCase() !== (ownerHandle || 'mainguyen').replace(/_/g, '').toLowerCase()
+  );
+  const otherProfile = isViewingOther
+    ? (publicProfiles[selectedProfileHandle!] || resolvePublicProfile(selectedProfileHandle!))
+    : null;
+
+  const displayPets = isViewingOther && otherProfile
+    ? (otherProfile.pets || []).map((p, idx) => ({
+        id: "other-p-" + idx,
+        name: p.name,
+        species: p.species,
+        breed: p.breed,
+        gender: 'Đực' as const,
+        ageLabel: p.ageLabel,
+        weightKg: p.weightKg,
+        avatarUrl:
+          otherProfile.galleryUrls[idx] ||
+          'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=300&q=80',
+        bio: "Bé cưng của " + otherProfile.name,
+        isVaccinatedAndRabies: p.isVaccinatedAndRabies,
+        galleryUrls: [
+          otherProfile.galleryUrls[idx] ||
+            'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=300&q=80'
+        ],
+      }))
+    : pets;
 
   const horizontalScrollRef = useRef<ScrollView>(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
@@ -922,7 +960,7 @@ export const MobileProfileScreen: React.FC = () => {
                 });
               }}
             >
-              <Image source={{ uri: ownerCoverUrl }} style={styles.ownerCoverImg} resizeMode="cover" />
+              <Image source={{ uri: isViewingOther ? (otherProfile?.galleryUrls[0] || ownerCoverUrl) : ownerCoverUrl }} style={styles.ownerCoverImg} resizeMode="cover" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -939,7 +977,7 @@ export const MobileProfileScreen: React.FC = () => {
           {/* 2. Floating Note Bubble & Avatar Overlap (50% trên ảnh bìa) */}
           <View style={styles.avatarSectionRow}>
             {/* Note Bubble: Chỉ hiển thị khi chủ nuôi có ghi chú thực tế */}
-            {ownerNoteBubble && ownerNoteBubble.trim().length > 0 ? (
+            {!isViewingOther && ownerNoteBubble && ownerNoteBubble.trim().length > 0 ? (
               <View style={styles.noteBubbleAnchor}>
                 <TouchableOpacity
                   style={styles.noteBubbleBox}
@@ -972,7 +1010,7 @@ export const MobileProfileScreen: React.FC = () => {
                   });
                 }}
               >
-                <Image source={{ uri: ownerAvatarUrl }} style={styles.ownerAvatarImg} />
+                <Image source={{ uri: isViewingOther ? (otherProfile?.avatarUrl || ownerAvatarUrl) : ownerAvatarUrl }} style={styles.ownerAvatarImg} />
               </TouchableOpacity>
 
               {/* Note '+' badge: Di chuyển lên trên đầu phía bên phải của ảnh avt */}
@@ -1155,7 +1193,7 @@ export const MobileProfileScreen: React.FC = () => {
         {/* ========================================================= */}
         {/* PAGES 1..N: HỒ SƠ TỪNG BÉ THÚ CƯNG (FULLSCREEN PHOTO)     */}
         {/* ========================================================= */}
-        {pets.map((pet) => {
+        {(isViewingOther ? displayPets : pets).map((pet) => {
           const fallbackForPet =
             pet.species === 'Mèo' ? DEFAULT_FALLBACK_CAT : DEFAULT_FALLBACK_DOG;
           const defaultList =

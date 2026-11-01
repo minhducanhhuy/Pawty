@@ -6,7 +6,7 @@
 
 ## 1. Tổng Quan Các Bảng Dữ Liệu (PostgreSQL + PostGIS)
 
-1. **`users`**: Định danh SĐT (`phone` unique), `display_name`, `avatar_url`, `bio`, `district`, `neighborhood` (tên chung cư, không lưu số phòng), `is_vip`, `vip_expires_at`, `role` (`user | moderator | admin`), `status` (`active | suspended | banned`), `primary_need`, cài đặt quyền riêng tư (`show_location`, `show_phone`, `allow_messages`).
+1. **`users`**: Định danh tài khoản (SĐT `phone` unique hoặc `username` unique, `password` mã hóa), `display_name`, `avatar_url`, `bio`, `district`, `neighborhood` (tên chung cư, không lưu số phòng), `is_vip`, `vip_expires_at`, `role` (`user | moderator | admin`), `status` (`active | suspended | banned`), `primary_need`, cài đặt quyền riêng tư (`show_location`, `show_phone`, `allow_messages`). Đăng nhập bằng SĐT hoặc Username kết hợp Password (không bắt buộc OTP).
 2. **`households`**: Hộ nuôi thú cưng (`id`, `name`, `owner_id`).
 3. **`pets`**: Hồ sơ Boss (`household_id`, `owner_id`, `name`, `species`, `breed`, `gender`, `date_of_birth`, `weight_kg`, `size_category`, `energy_level`, `avatar_url`, `cover_photo_url`, `is_neutered`, `allergies`, `medical_notes`, `vet_name`, `vet_contact`, `vaccination_status`, `last_vaccine_date`, `is_public`, `follower_count`).
 4. **`pet_behaviors`**: Hành vi & tính cách (`pet_id`, `category`: `personality | good_habit | caution`, `label`, `description`).

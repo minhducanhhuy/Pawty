@@ -33,8 +33,10 @@ export const MobileExploreScreen: React.FC = () => {
     addComment,
     sharePost,
     openPublicUserProfile,
+    openUserProfileInTab,
     openLightboxMedia,
     setActiveModal,
+    setActiveTab,
   } = useMobilePawty();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,15 +45,20 @@ export const MobileExploreScreen: React.FC = () => {
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const [activePhotoIndexMap, setActivePhotoIndexMap] = useState<Record<string, number>>({});
 
-  const filteredPosts = posts.filter((post) => {
+    const filteredPosts = posts.filter((post) => {
+    if (!post) return false;
     const q = searchQuery.trim().toLowerCase();
-    const matchQuery =
-      !q ||
-      post.content.toLowerCase().includes(q) ||
-      post.authorName.toLowerCase().includes(q) ||
-      post.authorHandle.toLowerCase().includes(q) ||
-      post.tags.some((h) => h.toLowerCase().includes(q));
-    return matchQuery;
+    if (!q) return true;
+    const postContent = (post.content || '').toLowerCase();
+    const authorName = (post.authorName || '').toLowerCase();
+    const authorHandle = (post.authorHandle || '').toLowerCase();
+    const tags = Array.isArray(post.tags) ? post.tags : [];
+    return (
+      postContent.includes(q) ||
+      authorName.includes(q) ||
+      authorHandle.includes(q) ||
+      tags.some((h) => (h || '').toLowerCase().includes(q))
+    );
   });
 
   const handleSelectSuggestion = (keyword: string) => {
@@ -214,6 +221,7 @@ export const MobileExploreScreen: React.FC = () => {
                 <TouchableOpacity
                   style={styles.authorTouchRow}
                   onPress={() => openPublicUserProfile(post.authorHandle)}
+                  activeOpacity={0.7}
                 >
                   <Image source={{ uri: post.authorAvatar }} style={styles.authorAvatar} />
                   <View style={{ flex: 1 }}>
@@ -229,6 +237,20 @@ export const MobileExploreScreen: React.FC = () => {
                     </View>
                     <Text style={styles.postMeta}>{post.createdAt}</Text>
                   </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.viewProfileHeaderBtn,
+                    { borderColor: theme.border, backgroundColor: theme.surface },
+                  ]}
+                  onPress={() => openUserProfileInTab(post.authorHandle)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="user" size={12} color={theme.primary} />
+                  <Text style={[styles.viewProfileHeaderBtnText, { color: theme.primary }]}>
+                    Xem profile
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -944,5 +966,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#E17055',
+  },
+  viewProfileHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignSelf: 'center',
+    marginLeft: 6,
+  },
+  viewProfileHeaderBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

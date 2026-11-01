@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,17 +9,94 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
 
+const DAYS_OF_WEEK = ['CN', 'T.2', 'T.3', 'T.4', 'T.5', 'T.6', 'T.7'];
+
+function getMessageDate(msg: any): Date {
+  if (msg.createdAt) {
+    const d = new Date(msg.createdAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const now = new Date();
+  if (msg.time && typeof msg.time === 'string' && msg.time.includes(':')) {
+    const parts = msg.time.split(':').map((x: string) => parseInt(x, 10));
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      const d = new Date(now);
+      d.setHours(parts[0], parts[1], 0, 0);
+      return d;
+    }
+  }
+  return now;
+}
+
+function shouldShowSessionHeader(currentMsg: any, prevMsg: any | null): boolean {
+  if (!prevMsg) return true;
+
+  const dateCurr = getMessageDate(currentMsg);
+  const datePrev = getMessageDate(prevMsg);
+
+  if (
+    dateCurr.getFullYear() !== datePrev.getFullYear() ||
+    dateCurr.getMonth() !== datePrev.getMonth() ||
+    dateCurr.getDate() !== datePrev.getDate()
+  ) {
+    return true;
+  }
+
+  const diffMinutes = Math.abs(dateCurr.getTime() - datePrev.getTime()) / (1000 * 60);
+  return diffMinutes >= 5;
+}
+
+function formatMessengerSessionHeader(msg: any): string {
+  const d = getMessageDate(msg);
+  const now = new Date();
+  const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+
+  const isToday =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+
+  const isYesterday =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate() - 1;
+
+  if (isToday) {
+    const dayLabel = DAYS_OF_WEEK[d.getDay()];
+    return `${dayLabel} LÚC ${timeStr}`;
+  }
+
+  if (isYesterday) {
+    return `HÔM QUA LÚC ${timeStr}`;
+  }
+
+  const diffDays = Math.floor(Math.abs(now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 7) {
+    const dayLabel = DAYS_OF_WEEK[d.getDay()];
+    return `${dayLabel} LÚC ${timeStr}`;
+  }
+
+  return `${d.getDate()} THG ${d.getMonth() + 1} LÚC ${timeStr}`;
+}
+
 export const MobileChatScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<any>(null);
+
   const {
     theme,
     chats,
     activeChatId,
     setActiveChatId,
     sendChatMessage,
+    markChatRead,
     openPublicUserProfile,
     setActiveTab,
   } = useMobilePawty();
@@ -27,8 +104,64 @@ export const MobileChatScreen: React.FC = () => {
   const [messageDraft, setMessageDraft] = useState('');
   const [searchFriend, setSearchFriend] = useState('');
   const [chatFilter, setChatFilter] = useState<'all' | 'unread' | 'tinder' | 'service'>('all');
+  const [tappedMessageId, setTappedMessageId] = useState<string | null>(null);
+
+  const handleToggleMessageTimestamp = (messageId: string) => {
+    setTappedMessageId((prev) => (prev === messageId ? null : messageId));
+  };
 
   const activeChat = chats.find((c) => c.id === activeChatId) || null;
+
+  // Tự động đánh dấu đã đọc khi vào xem phòng trò chuyện
+  useEffect(() => {
+    if (activeChatId) {
+      markChatRead(activeChatId);
+    }
+  }, [activeChatId, markChatRead]);
+
+  // Tự động cuộn xuống tin nhắn cuối cùng khi mở cuộc trò chuyện
+  useEffect(() => {
+    if (activeChat) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: false });
+      }, 80);
+    }
+  }, [activeChatId]);
+
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  // Tự động cuộn xuống và cập nhật trạng thái khi bàn phím ảo xuất hiện / ẩn đi
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setIsKeyboardVisible(true);
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 60);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setIsKeyboardVisible(false);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const handleSendMessage = () => {
+    const text = messageDraft.trim();
+    if (!text || !activeChat) return;
+    sendChatMessage(activeChat.id, text);
+    setMessageDraft('');
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 60);
+  };
 
   const filteredChats = chats.filter((room) => {
     const q = searchFriend.trim().toLowerCase();
@@ -54,12 +187,17 @@ export const MobileChatScreen: React.FC = () => {
       <KeyboardAvoidingView
         style={[styles.chatDetailContainer, { backgroundColor: theme.bg }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={24}
+        keyboardVerticalOffset={
+          Platform.OS === 'ios'
+            ? insets.top
+            : (StatusBar.currentHeight || 28) + 14
+        }
       >
         <View style={[styles.chatHeader, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
           <TouchableOpacity
             onPress={() => setActiveChatId(null)}
             style={[styles.backBtn, { backgroundColor: theme.bg }]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Feather name="arrow-left" size={18} color={theme.text} />
           </TouchableOpacity>
@@ -98,64 +236,131 @@ export const MobileChatScreen: React.FC = () => {
         </View>
 
         <ScrollView
+          ref={scrollViewRef}
           style={{ flex: 1 }}
-          contentContainerStyle={styles.messagesList}
+          contentContainerStyle={[styles.messagesList, { paddingBottom: 16 }]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+          onLayout={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
         >
-          {activeChat.messages.map((msg) => {
+          {activeChat.messages.map((msg, index) => {
             const isMe = msg.sender === 'me';
+            const prevMsg = index > 0 ? activeChat.messages[index - 1] : null;
+            const nextMsg = index < activeChat.messages.length - 1 ? activeChat.messages[index + 1] : null;
+            const showHeader = shouldShowSessionHeader(msg, prevMsg);
+            const isTapped = tappedMessageId === msg.id;
+            // Khi ấn vào tin nhắn (isTapped): đẩy tin nhắn phía trên lên để hiện mốc giờ ở giữa
+            const displayHeader = showHeader || isTapped;
+            const isNextSameSender =
+              nextMsg && nextMsg.sender === msg.sender && !shouldShowSessionHeader(nextMsg, msg);
+            const isLastMyMessage =
+              isMe &&
+              (index === activeChat.messages.length - 1 ||
+                activeChat.messages.slice(index + 1).every((m) => m.sender !== 'me'));
+
             return (
-              <View
-                key={msg.id}
-                style={[styles.msgRow, isMe ? styles.msgRowMe : styles.msgRowThem]}
-              >
+              <React.Fragment key={msg.id}>
+                {displayHeader && (
+                  <View style={styles.sessionHeaderWrap}>
+                    <Text style={[styles.sessionHeaderText, { color: theme.textMuted }]}>
+                      {formatMessengerSessionHeader(msg)}
+                    </Text>
+                  </View>
+                )}
+
                 <View
                   style={[
-                    styles.msgBubble,
-                    isMe
-                      ? { backgroundColor: theme.primary }
-                      : { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 },
+                    styles.msgRow,
+                    isMe ? styles.msgRowMe : styles.msgRowThem,
+                    { marginBottom: isNextSameSender ? 2.5 : 8 },
                   ]}
                 >
-                  <Text
+                  <TouchableOpacity
+                    activeOpacity={0.82}
+                    onPress={() => handleToggleMessageTimestamp(msg.id)}
                     style={[
-                      styles.msgText,
-                      { color: isMe ? '#FFFFFF' : theme.text },
+                      styles.msgBubble,
+                      isMe
+                        ? { backgroundColor: theme.primary }
+                        : { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 },
                     ]}
                   >
-                    {msg.text}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.msgTime,
-                      { color: isMe ? 'rgba(255,255,255,0.75)' : theme.textMuted },
-                    ]}
-                  >
-                    {msg.time}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.msgText,
+                        { color: isMe ? '#FFFFFF' : theme.text },
+                      ]}
+                    >
+                      {msg.text}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Trạng thái hiển thị dưới chân tin nhắn: mặc định cho tin nhắn cuối của tôi, hoặc khi tin nhắn của tôi được ấn vào */}
+                  {(isLastMyMessage || (isTapped && isMe)) && (
+                    <View style={styles.seenReceiptRow}>
+                      {msg.isRead ? (
+                        <View style={styles.seenStatusWrap}>
+                          <Text style={[styles.seenStatusText, { color: theme.textMuted }]}>
+                            Đã xem
+                          </Text>
+                          <Image
+                            source={{ uri: activeChat.partnerAvatar }}
+                            style={styles.seenAvatar}
+                          />
+                        </View>
+                      ) : (
+                        <View style={styles.seenStatusWrap}>
+                          <Text style={[styles.seenStatusText, { color: theme.textMuted }]}>
+                            Đã gửi
+                          </Text>
+                          <Feather name="check" size={11} color={theme.textMuted} />
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </View>
-              </View>
+              </React.Fragment>
             );
           })}
         </ScrollView>
 
-        <View style={[styles.inputBar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+        <View
+          style={[
+            styles.inputBar,
+            {
+              backgroundColor: theme.surface,
+              borderTopColor: theme.border,
+              paddingBottom: isKeyboardVisible
+                ? 8
+                : Platform.OS === 'ios'
+                ? Math.max(insets.bottom, 10)
+                : Math.max(insets.bottom, 10),
+            },
+          ]}
+        >
           <TextInput
             value={messageDraft}
             onChangeText={setMessageDraft}
             placeholder="Nhập tin nhắn..."
             placeholderTextColor={theme.textMuted}
             style={[
-              styles.msgInput,
+              styles.msgInput, { maxHeight: 100 },
               { backgroundColor: theme.bg, borderColor: theme.border, color: theme.text },
             ]}
+            multiline
+            returnKeyType="send"
+            blurOnSubmit={false}
+            onSubmitEditing={handleSendMessage}
           />
           <TouchableOpacity
-            onPress={() => {
-              sendChatMessage(activeChat.id, messageDraft);
-              setMessageDraft('');
-            }}
-            style={[styles.sendBtn, { backgroundColor: theme.primary }]}
+            onPress={handleSendMessage}
+            style={[
+              styles.sendBtn,
+              { backgroundColor: messageDraft.trim() ? theme.primary : theme.border },
+            ]}
+            disabled={!messageDraft.trim()}
           >
             <Feather name="send" size={16} color="#FFFFFF" />
           </TouchableOpacity>
@@ -169,6 +374,7 @@ export const MobileChatScreen: React.FC = () => {
       style={[styles.container, { backgroundColor: theme.bg }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={[styles.topToolCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         {/* Search Input by Friend / User Name / Service */}
@@ -229,14 +435,15 @@ export const MobileChatScreen: React.FC = () => {
         </View>
       </View>
 
+      {/* Chat Rooms List */}
       {filteredChats.length === 0 ? (
         <View style={[styles.emptyBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Feather name="message-circle" size={24} color={theme.textMuted} />
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>
-            Không tìm thấy cuộc trò chuyện nào
-          </Text>
+          <Feather name="message-square" size={32} color={theme.textMuted} />
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>Không có cuộc trò chuyện nào</Text>
           <Text style={[styles.emptySub, { color: theme.textMuted }]}>
-            Hãy thử chuyển bộ lọc khác hoặc qua tab Kết nối để bắt đầu trò chuyện.
+{searchFriend
+              ? 'Không tìm thấy kết quả phù hợp với từ khóa.'
+              : 'Hãy quẹt thẻ Kết nối để bắt đầu cuộc trò chuyện mới.'}
           </Text>
         </View>
       ) : (
@@ -245,9 +452,12 @@ export const MobileChatScreen: React.FC = () => {
           return (
             <TouchableOpacity
               key={room.id}
+              style={[
+                styles.chatCard,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+              ]}
               onPress={() => setActiveChatId(room.id)}
-              style={[styles.chatCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-              activeOpacity={0.85}
+              activeOpacity={0.75}
             >
               <View style={styles.avatarWrap}>
                 <Image source={{ uri: room.partnerAvatar }} style={styles.chatAvatar} />
@@ -257,7 +467,7 @@ export const MobileChatScreen: React.FC = () => {
               <View style={{ flex: 1 }}>
                 <View style={styles.chatRowTop}>
                   <View style={styles.partnerNameRow}>
-                    <Text style={[styles.chatName, { color: theme.text }]}>
+                    <Text style={[styles.chatName, { color: theme.text }]} numberOfLines={1}>
                       {room.partnerName}
                     </Text>
                     {room.matchSource === 'tinder_match' && (
@@ -268,12 +478,14 @@ export const MobileChatScreen: React.FC = () => {
                     
                   </View>
                   <Text style={[styles.chatTime, { color: theme.textMuted }]}>
-                    {lastMsg?.time || 'Hôm nay'}
+                    {lastMsg?.time || ''}
                   </Text>
                 </View>
-                <Text style={[styles.chatPetSub, { color: theme.secondary }]}>
+
+                <Text style={[styles.chatPetSub, { color: theme.primary }]} numberOfLines={1}>
                   {room.petSummary} · {room.distanceLabel}
                 </Text>
+
                 <Text
                   style={[
                     styles.chatPreview,
@@ -319,11 +531,12 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 12,
     height: 40,
     borderRadius: 12,
     borderWidth: 1,
-    gap: 8,
+    marginBottom: 10,
   },
   searchInput: {
     flex: 1,
@@ -331,27 +544,27 @@ const styles = StyleSheet.create({
   },
   filterBar: {
     flexDirection: 'row',
-    padding: 4,
-    borderRadius: 12,
-    marginTop: 10,
+    borderRadius: 10,
+    padding: 3,
     gap: 4,
   },
   filterTab: {
     flex: 1,
     paddingVertical: 7,
-    paddingHorizontal: 4,
-    borderRadius: 9,
+    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   filterTabText: {
     fontSize: 11,
     fontWeight: '700',
   },
   emptyBox: {
-    padding: 28,
+    padding: 32,
     borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
   },
   emptyTitle: {
@@ -423,20 +636,21 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   chatPreview: {
-    fontSize: 12.5,
+    fontSize: 12,
     marginTop: 3,
   },
   unreadBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   unreadText: {
+    fontSize: 10,
+    fontWeight: '800',
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
   },
   chatDetailContainer: {
     flex: 1,
@@ -504,23 +718,68 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   messagesList: {
-    padding: 14,
-    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 16,
   },
   msgRow: {
-    flexDirection: 'row',
+    marginBottom: 6,
   },
   msgRowMe: {
-    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
   },
   msgRowThem: {
-    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  sessionHeaderWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 12,
+  },
+  sessionHeaderText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  revealedTimeRow: {
+    marginTop: 2,
+    paddingHorizontal: 4,
+  },
+  revealedTimeMe: {
+    alignSelf: 'flex-end',
+  },
+  revealedTimeThem: {
+    alignSelf: 'flex-start',
+  },
+  revealedTimeText: {
+    fontSize: 10.5,
+    fontWeight: '500',
+  },
+  seenReceiptRow: {
+    marginTop: 3,
+    marginRight: 4,
+  },
+  seenStatusWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  seenStatusText: {
+    fontSize: 10.5,
+    fontWeight: '500',
+  },
+  seenAvatar: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
   },
   msgBubble: {
     maxWidth: '78%',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 9,
-    borderRadius: 16,
+    borderRadius: 18,
   },
   msgText: {
     fontSize: 13,

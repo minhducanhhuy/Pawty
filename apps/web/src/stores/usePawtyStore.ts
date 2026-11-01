@@ -146,6 +146,7 @@ interface PawtyAppState {
     tone?: ToastBanner["tone"],
   ) => void;
   clearToast: () => void;
+  hydrateFromServer: () => Promise<void>;
   trackEvent: (
     eventType: string,
     eventData?: Record<string, string | number | boolean>,
@@ -174,6 +175,7 @@ interface PawtyAppState {
   restartOnboardingDemo: () => void;
   loginWithSavedSession: () => void;
   loginWithPhone: (phone: string) => void;
+  loginWithCredentials: (identifier: string, password?: string) => void;
   logoutSession: () => void;
   setActivePetId: (petId: string) => void;
   updateOwnerAndPetProfile: (payload: {
@@ -365,6 +367,63 @@ export const usePawtyStore = create<PawtyAppState>()(
         }, 3800);
       },
       clearToast: () => set({ toast: null }),
+      hydrateFromServer: async () => {
+        try {
+          const res = await fetch('http://localhost:3000/api/bootstrap?userId=user-mai');
+          if (!res.ok) return;
+          const data = await res.json();
+          if (Array.isArray(data.posts) && data.posts.length > 0) {
+            const mappedWebPosts: SocialPost[] = data.posts.map((p: any) => ({
+              id: p.id,
+              authorId: p.authorId || p.author?.id || 'user-mai',
+              authorName: p.author?.displayName || 'Mai Nguyễn',
+              authorUsername: (p.author?.displayName || 'mainguyen').toLowerCase().replace(/\s+/g, ''),
+              authorAvatar: p.author?.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
+              authorIsVip: Boolean(p.author?.isVip),
+              petIds: ['pet-lu'],
+              petName: 'Lu',
+              petBreed: 'Golden Retriever',
+              petAvatar: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=300&q=80',
+              contentType: p.contentType || 'moment',
+              textContent: p.textContent || '',
+              media: Array.isArray(p.media) ? p.media : [],
+              hashtags: p.hashtags || ['#PawtyLocal'],
+              location: {
+                name: p.locationName || 'Vinhomes Grand Park',
+                approximate: true,
+              },
+              speciesTags: ['dog'],
+              breedTags: ['Golden Retriever'],
+              topicTags: ['Dạo cún'],
+              visibility: 'public',
+              isExpertContent: false,
+              expertVerified: false,
+              hasHealthDisclaimer: false,
+              isSponsored: false,
+              engagement: {
+                pawCount: p.pawCount || 24,
+                commentCount: p.commentCount || 0,
+                shareCount: p.shareCount || 0,
+                saveCount: p.saveCount || 0,
+              },
+              userReaction: null,
+              userSaved: false,
+              createdAt: 'Vừa xong',
+              updatedAt: 'Vừa xong',
+            }));
+            set({ posts: mappedWebPosts });
+          }
+          if (Array.isArray(data.sosAlerts) && data.sosAlerts.length > 0) {
+            set({ sosAlerts: data.sosAlerts });
+          }
+          if (data.metrics) {
+            set({ metrics: data.metrics });
+          }
+        } catch (err) {
+          console.warn('[Web] Hydration from DB failed:', err);
+        }
+      },
+
 
       trackEvent: (eventType, eventData = {}) => {
         const newEvent: AnalyticsEventRecord = {
@@ -484,6 +543,20 @@ export const usePawtyStore = create<PawtyAppState>()(
       loginWithSavedSession: () => {
         set({ hasCompletedOnboarding: true, hasSavedSession: true, activeTab: "explore" });
         get().showToast("Chào mừng trở lại", `Đang mở phiên của ${get().user.displayName}.`);
+      },
+
+      loginWithCredentials: (identifier, password) => {
+        const clean = identifier.trim() || 'mai_nguyen';
+        set((state) => ({
+          hasCompletedOnboarding: true,
+          hasSavedSession: true,
+          activeTab: "explore",
+          user: {
+            ...state.user,
+            phone: clean.startsWith('0') ? clean : state.user.phone,
+          },
+        }));
+        get().showToast("Đăng nhập thành công", "Chào mừng quay lại Pawty!");
       },
 
       loginWithPhone: (phone) => {
