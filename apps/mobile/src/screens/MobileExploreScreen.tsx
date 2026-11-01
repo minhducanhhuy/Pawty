@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   TextInput,
   Image,
@@ -36,16 +37,28 @@ export const MobileExploreScreen: React.FC = () => {
     openUserProfileInTab,
     openLightboxMedia,
     setActiveModal,
-    setActiveTab,
+    pullToRefreshExplore,
+    showToast,
   } = useMobilePawty();
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState('');
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const [activePhotoIndexMap, setActivePhotoIndexMap] = useState<Record<string, number>>({});
 
-    const filteredPosts = posts.filter((post) => {
+  const handlePullRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await pullToRefreshExplore();
+      showToast('Đã làm mới bảng tin Khám phá!');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [pullToRefreshExplore, showToast]);
+
+  const filteredPosts = posts.filter((post) => {
     if (!post) return false;
     const q = searchQuery.trim().toLowerCase();
     if (!q) return true;
@@ -71,7 +84,9 @@ export const MobileExploreScreen: React.FC = () => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const width = event.nativeEvent.layoutMeasurement.width || CARD_MEDIA_WIDTH;
     const index = Math.round(offsetX / width);
-    setActivePhotoIndexMap((prev) => (prev[postId] === index ? prev : { ...prev, [postId]: index }));
+    setActivePhotoIndexMap((prev) =>
+      prev[postId] === index ? prev : { ...prev, [postId]: index }
+    );
   };
 
   return (
@@ -80,6 +95,16 @@ export const MobileExploreScreen: React.FC = () => {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handlePullRefresh}
+          tintColor={theme.primary}
+          colors={[theme.primary]}
+          title="Đang làm mới bảng tin..."
+          titleColor="#78706A"
+        />
+      }
     >
       {/* Search Bar with History & Trending Dropdown */}
       <View style={styles.searchSection}>
@@ -170,29 +195,11 @@ export const MobileExploreScreen: React.FC = () => {
         )}
       </View>
 
-      {/* Quick Composer Prompt Bar */}
-      <TouchableOpacity
-        style={styles.composerBar}
-        activeOpacity={0.85}
-        onPress={() => setActiveModal('new_moment')}
-      >
-        <View style={[styles.composerIconCircle, { backgroundColor: theme.primarySoft }]}>
-          <Feather name="camera" size={16} color={theme.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.composerTitle}>Chia sẻ ảnh hoặc video của thú cưng...</Text>
-          <Text style={styles.composerSub}>Chọn nhiều ảnh hoặc video trực tiếp từ điện thoại</Text>
-        </View>
-        <View style={[styles.composerBtn, { backgroundColor: theme.primary }]}>
-          <Feather name="plus" size={14} color="#FFFFFF" />
-          <Text style={styles.composerBtnText}>Đăng bài</Text>
-        </View>
-      </TouchableOpacity>
-
       {searchQuery.trim().length > 0 && (
         <View style={styles.activeFilterBanner}>
           <Text style={styles.activeFilterText}>
-            Kết quả cho: <Text style={{ fontWeight: '800' }}>{searchQuery}</Text> ({filteredPosts.length} bài)
+            Kết quả cho: <Text style={{ fontWeight: '800' }}>{searchQuery}</Text> (
+            {filteredPosts.length} bài)
           </Text>
           <TouchableOpacity onPress={() => setSearchQuery('')}>
             <Text style={[styles.clearFilterLink, { color: theme.primary }]}>Bỏ lọc</Text>
@@ -200,299 +207,317 @@ export const MobileExploreScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Instagram-style Social Feed */}
-      <View style={styles.stack}>
-        {filteredPosts.map((post) => {
-          const isCommentOpen = expandedCommentId === post.id;
-          const isPlayingVideo = playingVideoId === post.id;
-          const galleryUrls = post.mediaUrls.length > 0 ? post.mediaUrls : [];
-          const currentPhotoIdx = activePhotoIndexMap[post.id] || 0;
-          const totalLikes =
-            post.reactions.paws +
-            post.reactions.love +
-            post.reactions.haha +
-            post.reactions.wow +
-            post.reactions.helpful;
-          const isLiked = Boolean(post.userReaction);
+      {/* Empty State when no posts exist yet */}
+      {filteredPosts.length === 0 ? (
+        <View style={styles.emptyFeedCard}>
+          <View style={[styles.emptyFeedIconCircle, { backgroundColor: theme.primarySoft }]}>
+            <Feather name="paw" size={28} color={theme.primary} />
+          </View>
+          <Text style={styles.emptyFeedTitle}>
+            {searchQuery.trim()
+              ? 'Không tìm thấy bài viết phù hợp'
+              : 'Chưa có bài đăng nào trên Khám phá'}
+          </Text>
+          <Text style={styles.emptyFeedSub}>
+            {searchQuery.trim()
+              ? 'Thử tìm kiếm với từ khóa hoặc hashtag khác nhé.'
+              : 'Hãy là người đầu tiên chia sẻ hình ảnh đáng yêu của thú cưng hoặc kéo xuống để làm mới bảng tin!'}
+          </Text>
+          {!searchQuery.trim() && (
+            <TouchableOpacity
+              style={[styles.emptyFeedActionBtn, { backgroundColor: theme.primary }]}
+              onPress={() => setActiveModal('new_moment')}
+            >
+              <Feather name="plus" size={15} color="#FFFFFF" />
+              <Text style={styles.emptyFeedActionText}>Đăng khoảnh khắc đầu tiên</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : (
+        <View style={styles.stack}>
+          {filteredPosts.map((post) => {
+            const isCommentOpen = expandedCommentId === post.id;
+            const isPlayingVideo = playingVideoId === post.id;
+            const galleryUrls = post.mediaUrls.length > 0 ? post.mediaUrls : [];
+            const currentPhotoIdx = activePhotoIndexMap[post.id] || 0;
+            const totalLikes =
+              post.reactions.paws +
+              post.reactions.love +
+              post.reactions.haha +
+              post.reactions.wow +
+              post.reactions.helpful;
+            const isLiked = Boolean(post.userReaction);
 
-          return (
-            <View key={post.id} style={styles.postCard}>
-              <View style={styles.postHeader}>
-                <TouchableOpacity
-                  style={styles.authorTouchRow}
-                  onPress={() => openPublicUserProfile(post.authorHandle)}
-                  activeOpacity={0.7}
-                >
-                  <Image source={{ uri: post.authorAvatar }} style={styles.authorAvatar} />
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.authorRow}>
-                      <Text style={styles.authorName}>{post.authorName}</Text>
-                      <Text style={styles.authorHandleText}>{post.authorHandle}</Text>
-                      <View style={[styles.badgePill, { backgroundColor: theme.primarySoft }]}>
-                        <Feather name="award" size={11} color={theme.primary} />
-                        <Text style={[styles.badgeText, { color: theme.primary }]}>
-                          {post.authorNickname}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.postMeta}>{post.createdAt}</Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.viewProfileHeaderBtn,
-                    { borderColor: theme.border, backgroundColor: theme.surface },
-                  ]}
-                  onPress={() => openUserProfileInTab(post.authorHandle)}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="user" size={12} color={theme.primary} />
-                  <Text style={[styles.viewProfileHeaderBtnText, { color: theme.primary }]}>
-                    Xem profile
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {post.aiSosMatch && (
-                <View style={styles.aiMatchBanner}>
-                  <View style={styles.aiMatchHeaderRow}>
-                    <View style={styles.aiMatchBadge}>
-                      <Feather name="cpu" size={12} color="#FFFFFF" />
-                      <Text style={styles.aiMatchBadgeText}>AI RADAR PHÁT HIỆN</Text>
-                    </View>
-                    <View style={styles.aiMatchScorePill}>
-                      <Text style={styles.aiMatchScoreText}>Khớp {post.aiSosMatch.matchScore}%</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.aiMatchTitle}>
-                    Nghi vấn khớp với tin SOS của bé <Text style={{ fontWeight: '800', color: '#E17055' }}>{post.aiSosMatch.petName}</Text>
-                  </Text>
-                  <View style={styles.aiMatchMetaRow}>
-                    <Feather name="map-pin" size={12} color="#E17055" />
-                    <Text style={styles.aiMatchLocationText}>{post.aiSosMatch.detectedLocationName}</Text>
-                  </View>
-                </View>
-              )}
-
-              <Text style={styles.caption}>{post.content}</Text>
-
-              {post.tags.length > 0 && (
-                <View style={styles.hashtagRow}>
-                  {post.tags.map((tag) => (
-                    <TouchableOpacity key={tag} onPress={() => handleSelectSuggestion(tag)}>
-                      <Text style={[styles.hashtagText, { color: theme.primary }]}>{tag}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              {/* Media Render: Video Player or Horizontal Swipeable Multi-Photo Carousel */}
-              {post.mediaType === 'video' && galleryUrls.length > 0 ? (
-                <TouchableOpacity
-                  activeOpacity={0.92}
-                  style={styles.mediaContainer}
-                  onPress={() => setPlayingVideoId(isPlayingVideo ? null : post.id)}
-                >
-                  <Image source={{ uri: galleryUrls[0] }} style={styles.postImage} />
-                  <View style={styles.videoBadgeTopRight}>
-                    <Feather name="video" size={12} color="#FFFFFF" />
-                    <Text style={styles.videoBadgeText}>
-                      {isPlayingVideo ? 'Đang phát Video' : `Video · ${post.videoDuration || '0:18'}`}
-                    </Text>
-                  </View>
-                  <View style={styles.videoCenterOverlay}>
-                    <View
-                      style={[
-                        styles.videoPlayCircle,
-                        isPlayingVideo && { backgroundColor: 'rgba(62, 142, 108, 0.9)' },
-                      ]}
-                    >
-                      <Feather
-                        name={isPlayingVideo ? 'pause' : 'play'}
-                        size={22}
-                        color="#FFFFFF"
-                      />
-                    </View>
-                  </View>
+            return (
+              <View key={post.id} style={styles.postCard}>
+                <View style={styles.postHeader}>
                   <TouchableOpacity
-                    style={styles.zoomCornerBtn}
-                    onPress={() =>
-                      openLightboxMedia({
-                        postId: post.id,
-                        mediaUrls: galleryUrls,
-                        initialIndex: 0,
-                        mediaType: 'video',
-                        videoDuration: post.videoDuration,
-                        caption: post.content,
-                        authorName: post.authorName,
-                      })
-                    }
+                    style={styles.authorTouchRow}
+                    onPress={() => openPublicUserProfile(post.authorHandle)}
+                    activeOpacity={0.7}
                   >
-                    <Feather name="maximize-2" size={14} color="#FFFFFF" />
+                    {post.authorAvatar ? (
+                      <Image source={{ uri: post.authorAvatar }} style={styles.authorAvatar} />
+                    ) : (
+                      <View style={[styles.authorAvatar, styles.authorAvatarPlaceholder]}>
+                        <Feather name="user" size={18} color="#8E8074" />
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.authorRow}>
+                        <Text style={styles.authorName}>{post.authorName}</Text>
+                        <Text style={styles.authorHandleText}>{post.authorHandle}</Text>
+                      </View>
+                      <Text style={styles.postMeta}>
+                        {post.categoryLabel} · {post.createdAt}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
-                </TouchableOpacity>
-              ) : galleryUrls.length > 0 ? (
-                <View style={styles.carouselWrapper}>
-                  <ScrollView
-                    horizontal
-                    pagingEnabled
-                    showsHorizontalScrollIndicator={false}
-                    onScroll={(e) => handlePhotoScroll(post.id, e)}
-                    scrollEventThrottle={16}
+
+                  <TouchableOpacity
+                    style={[
+                      styles.viewProfileHeaderBtn,
+                      { borderColor: theme.border, backgroundColor: theme.surface },
+                    ]}
+                    onPress={() => openUserProfileInTab(post.authorHandle)}
+                    activeOpacity={0.7}
                   >
-                    {galleryUrls.map((imgUrl, idx) => (
-                      <TouchableOpacity
-                        key={`${post.id}-img-${idx}`}
-                        activeOpacity={0.95}
-                        style={{ width: CARD_MEDIA_WIDTH }}
-                        onPress={() =>
-                          openLightboxMedia({
-                            postId: post.id,
-                            mediaUrls: galleryUrls,
-                            initialIndex: idx,
-                            mediaType: 'image',
-                            caption: post.content,
-                            authorName: post.authorName,
-                          })
-                        }
-                      >
-                        <Image
-                          source={{ uri: imgUrl }}
-                          style={[styles.postImage, { width: CARD_MEDIA_WIDTH }]}
-                        />
+                    <Feather name="user" size={12} color={theme.primary} />
+                    <Text style={[styles.viewProfileHeaderBtnText, { color: theme.primary }]}>
+                      Hồ sơ
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {post.content ? <Text style={styles.caption}>{post.content}</Text> : null}
+
+                {post.tags.length > 0 && (
+                  <View style={styles.hashtagRow}>
+                    {post.tags.map((tag) => (
+                      <TouchableOpacity key={tag} onPress={() => handleSelectSuggestion(tag)}>
+                        <Text style={[styles.hashtagText, { color: theme.primary }]}>{tag}</Text>
                       </TouchableOpacity>
                     ))}
-                  </ScrollView>
+                  </View>
+                )}
 
-                  {galleryUrls.length > 1 && (
-                    <View style={styles.photoCountBadge}>
-                      <Text style={styles.photoCountText}>
-                        {currentPhotoIdx + 1}/{galleryUrls.length}
+                {/* Media Render: Video Player or Horizontal Multi-Photo Carousel */}
+                {post.mediaType === 'video' && galleryUrls.length > 0 ? (
+                  <TouchableOpacity
+                    activeOpacity={0.92}
+                    style={styles.mediaContainer}
+                    onPress={() => setPlayingVideoId(isPlayingVideo ? null : post.id)}
+                  >
+                    <Image source={{ uri: galleryUrls[0] }} style={styles.postImage} />
+                    <View style={styles.videoBadgeTopRight}>
+                      <Feather name="video" size={12} color="#FFFFFF" />
+                      <Text style={styles.videoBadgeText}>
+                        {isPlayingVideo
+                          ? 'Đang phát Video'
+                          : `Video · ${post.videoDuration || '0:18'}`}
                       </Text>
                     </View>
-                  )}
-
-                  <TouchableOpacity
-                    style={styles.zoomCornerBtn}
-                    onPress={() =>
-                      openLightboxMedia({
-                        postId: post.id,
-                        mediaUrls: galleryUrls,
-                        initialIndex: currentPhotoIdx,
-                        mediaType: 'image',
-                        caption: post.content,
-                        authorName: post.authorName,
-                      })
-                    }
-                  >
-                    <Feather name="maximize-2" size={14} color="#FFFFFF" />
-                  </TouchableOpacity>
-
-                  {galleryUrls.length > 1 && (
-                    <View style={styles.dotsRow}>
-                      {galleryUrls.map((_, idx) => (
-                        <View
-                          key={`${post.id}-dot-${idx}`}
-                          style={[
-                            styles.dot,
-                            idx === currentPhotoIdx && {
-                              backgroundColor: theme.primary,
-                              width: 16,
-                            },
-                          ]}
+                    <View style={styles.videoCenterOverlay}>
+                      <View
+                        style={[
+                          styles.videoPlayCircle,
+                          isPlayingVideo && { backgroundColor: 'rgba(62, 142, 108, 0.9)' },
+                        ]}
+                      >
+                        <Feather
+                          name={isPlayingVideo ? 'pause' : 'play'}
+                          size={22}
+                          color="#FFFFFF"
                         />
-                      ))}
+                      </View>
                     </View>
-                  )}
-                </View>
-              ) : null}
-
-              {/* Instagram-style Action Row */}
-              <View style={styles.igActionRow}>
-                <View style={styles.igActionLeft}>
-                  <TouchableOpacity
-                    style={styles.igActionBtn}
-                    onPress={() => toggleReaction(post.id)}
-                  >
-                    <Feather
-                      name="heart"
-                      size={20}
-                      color={isLiked ? '#D9534F' : '#2C2520'}
-                    />
-                    <Text
-                      style={[
-                        styles.igActionCount,
-                        isLiked && { color: '#D9534F', fontWeight: '800' },
-                      ]}
-                    >
-                      {totalLikes}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.igActionBtn}
-                    onPress={() => setExpandedCommentId(isCommentOpen ? null : post.id)}
-                  >
-                    <Feather name="message-circle" size={20} color="#2C2520" />
-                    <Text style={styles.igActionCount}>{post.comments.length}</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.igActionBtn}
-                    onPress={() => sharePost(post.id)}
-                  >
-                    <Feather name="share-2" size={19} color="#2C2520" />
-                    <Text style={styles.igActionCount}>{post.shareCount}</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                  onPress={() => toggleSavePost(post.id)}
-                  style={styles.igBookmarkBtn}
-                >
-                  <Feather
-                    name="bookmark"
-                    size={20}
-                    color={post.isSaved ? theme.primary : '#2C2520'}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {isCommentOpen && (
-                <View style={styles.commentBox}>
-                  {post.comments.map((c) => (
-                    <View key={c.id} style={styles.commentItem}>
-                      <Text style={styles.commentAuthor}>
-                        {c.authorName} <Text style={styles.commentTime}>· {c.createdAt}</Text>
-                      </Text>
-                      <Text style={styles.commentBody}>{c.content}</Text>
-                    </View>
-                  ))}
-                  <View style={styles.commentInputRow}>
-                    <TextInput
-                      style={styles.commentInput}
-                      placeholder="Viết bình luận..."
-                      placeholderTextColor="#A3968A"
-                      value={commentInput}
-                      onChangeText={setCommentInput}
-                    />
                     <TouchableOpacity
-                      style={[styles.sendBtn, { backgroundColor: theme.primary }]}
-                      onPress={() => {
-                        addComment(post.id, commentInput);
-                        setCommentInput('');
-                      }}
+                      style={styles.zoomCornerBtn}
+                      onPress={() =>
+                        openLightboxMedia({
+                          postId: post.id,
+                          mediaUrls: galleryUrls,
+                          initialIndex: 0,
+                          mediaType: 'video',
+                          videoDuration: post.videoDuration,
+                          caption: post.content,
+                          authorName: post.authorName,
+                        })
+                      }
                     >
-                      <Feather name="send" size={14} color="#FFFFFF" />
+                      <Feather name="maximize-2" size={14} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ) : galleryUrls.length > 0 ? (
+                  <View style={styles.carouselWrapper}>
+                    <ScrollView
+                      horizontal
+                      pagingEnabled
+                      showsHorizontalScrollIndicator={false}
+                      onScroll={(e) => handlePhotoScroll(post.id, e)}
+                      scrollEventThrottle={16}
+                    >
+                      {galleryUrls.map((imgUrl, idx) => (
+                        <TouchableOpacity
+                          key={`${post.id}-img-${idx}`}
+                          activeOpacity={0.95}
+                          style={{ width: CARD_MEDIA_WIDTH }}
+                          onPress={() =>
+                            openLightboxMedia({
+                              postId: post.id,
+                              mediaUrls: galleryUrls,
+                              initialIndex: idx,
+                              mediaType: 'image',
+                              caption: post.content,
+                              authorName: post.authorName,
+                            })
+                          }
+                        >
+                          <Image
+                            source={{ uri: imgUrl }}
+                            style={[styles.postImage, { width: CARD_MEDIA_WIDTH }]}
+                          />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+
+                    {galleryUrls.length > 1 && (
+                      <View style={styles.photoCountBadge}>
+                        <Text style={styles.photoCountText}>
+                          {currentPhotoIdx + 1}/{galleryUrls.length}
+                        </Text>
+                      </View>
+                    )}
+
+                    <TouchableOpacity
+                      style={styles.zoomCornerBtn}
+                      onPress={() =>
+                        openLightboxMedia({
+                          postId: post.id,
+                          mediaUrls: galleryUrls,
+                          initialIndex: currentPhotoIdx,
+                          mediaType: 'image',
+                          caption: post.content,
+                          authorName: post.authorName,
+                        })
+                      }
+                    >
+                      <Feather name="maximize-2" size={14} color="#FFFFFF" />
+                    </TouchableOpacity>
+
+                    {galleryUrls.length > 1 && (
+                      <View style={styles.dotsRow}>
+                        {galleryUrls.map((_, idx) => (
+                          <View
+                            key={`${post.id}-dot-${idx}`}
+                            style={[
+                              styles.dot,
+                              idx === currentPhotoIdx && {
+                                backgroundColor: theme.primary,
+                                width: 16,
+                              },
+                            ]}
+                          />
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : null}
+
+                {/* Action Row with Paw icon */}
+                <View style={styles.igActionRow}>
+                  <View style={styles.igActionLeft}>
+                    <TouchableOpacity
+                      style={styles.igActionBtn}
+                      onPress={() => toggleReaction(post.id)}
+                    >
+                      <Feather
+                        name="paw"
+                        size={20}
+                        color={isLiked ? theme.primary : '#2C2520'}
+                        fill={isLiked ? theme.primary : 'none'}
+                      />
+                      <Text
+                        style={[
+                          styles.igActionCount,
+                          isLiked && { color: theme.primary, fontWeight: '800' },
+                        ]}
+                      >
+                        {totalLikes}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.igActionBtn}
+                      onPress={() => setExpandedCommentId(isCommentOpen ? null : post.id)}
+                    >
+                      <Feather name="message-circle" size={20} color="#2C2520" />
+                      <Text style={styles.igActionCount}>{post.comments.length}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.igActionBtn}
+                      onPress={() => sharePost(post.id)}
+                    >
+                      <Feather name="share-2" size={19} color="#2C2520" />
+                      <Text style={styles.igActionCount}>{post.shareCount}</Text>
                     </TouchableOpacity>
                   </View>
+
+                  <TouchableOpacity
+                    onPress={() => toggleSavePost(post.id)}
+                    style={styles.igBookmarkBtn}
+                  >
+                    <Feather
+                      name="bookmark"
+                      size={20}
+                      color={post.isSaved ? theme.primary : '#2C2520'}
+                    />
+                  </TouchableOpacity>
                 </View>
-              )}
-            </View>
-          );
-        })}
-      </View>
+
+                {isCommentOpen && (
+                  <View style={styles.commentBox}>
+                    {post.comments.map((c) => (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={styles.commentItem}
+                        activeOpacity={0.8}
+                        onPress={() => openPublicUserProfile(c.authorHandle)}
+                      >
+                        <Text style={styles.commentAuthor}>
+                          {c.authorName}{' '}
+                          <Text style={styles.commentTime}>· {c.createdAt}</Text>
+                        </Text>
+                        <Text style={styles.commentBody}>{c.content}</Text>
+                      </TouchableOpacity>
+                    ))}
+                    <View style={styles.commentInputRow}>
+                      <TextInput
+                        style={styles.commentInput}
+                        placeholder="Viết bình luận..."
+                        placeholderTextColor="#A3968A"
+                        value={commentInput}
+                        onChangeText={setCommentInput}
+                        maxLength={240}
+                      />
+                      <TouchableOpacity
+                        style={[styles.sendBtn, { backgroundColor: theme.primary }]}
+                        onPress={() => {
+                          addComment(post.id, commentInput);
+                          setCommentInput('');
+                        }}
+                      >
+                        <Feather name="send" size={14} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
     </ScrollView>
   );
 };
@@ -668,6 +693,51 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
+  emptyFeedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    paddingVertical: 36,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ECE6DF',
+    marginTop: 8,
+  },
+  emptyFeedIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyFeedTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#2C2520',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  emptyFeedSub: {
+    fontSize: 13,
+    color: '#7A6E63',
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 16,
+  },
+  emptyFeedActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 14,
+  },
+  emptyFeedActionText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
   stack: {
     gap: 12,
   },
@@ -695,6 +765,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#F3EFEA',
   },
+  authorAvatarPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5DDD3',
+  },
   authorRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -710,18 +786,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#8E8074',
     fontWeight: '600',
-  },
-  badgePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
   },
   postMeta: {
     fontSize: 11,
@@ -909,63 +973,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  aiMatchBanner: {
-    marginHorizontal: 14,
-    marginBottom: 10,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: '#FFF5F0',
-    borderWidth: 1,
-    borderColor: '#FFD9CC',
-  },
-  aiMatchHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  aiMatchBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#E17055',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  aiMatchBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.4,
-  },
-  aiMatchScorePill: {
-    backgroundColor: '#FFE3D9',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  aiMatchScoreText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#E17055',
-  },
-  aiMatchTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#2C2520',
-    marginBottom: 4,
-  },
-  aiMatchMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  aiMatchLocationText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#E17055',
   },
   viewProfileHeaderBtn: {
     flexDirection: 'row',

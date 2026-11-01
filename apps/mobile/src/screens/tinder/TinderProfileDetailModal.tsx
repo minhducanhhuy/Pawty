@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '../../components/FeatherIcon';
-import { TinderCandidate } from '../../data/mobileSeedData';
+import { TinderCandidate } from '../../types/mobileTypes';
 
 interface TinderProfileDetailModalProps {
   visible: boolean;
@@ -22,7 +22,7 @@ interface TinderProfileDetailModalProps {
   onClose: () => void;
   onPass: () => void;
   onLike: () => void;
-  onOpenOwnerProfile: (handle: string) => void;
+  onOpenOwnerProfile?: (handle: string) => void;
   onShare: (name: string) => void;
 }
 
@@ -59,7 +59,7 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
     );
     const combined = [...fromPets, ...fromAlbum];
     if (combined.length > 0) return combined;
-    return [FALLBACK_PET_IMG];
+    return [candidate.avatarUrl || FALLBACK_PET_IMG];
   }, [candidate]);
 
   const currentPhoto =
@@ -215,16 +215,16 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
             <View style={styles.sectionTitleRowBetween}>
               <View style={styles.sectionTitleRow}>
                 <Feather name="user" size={16} color="#6C6055" />
-                <Text style={styles.sectionTitle}>Thông tin chủ nuôi</Text>
+                <Text style={styles.sectionTitle}>Thông tin chủ nuôi (Hẹn hò)</Text>
               </View>
 
               <TouchableOpacity
-                style={styles.viewOwnerProfileBtn}
-                onPress={() => onOpenOwnerProfile(candidate.ownerHandle)}
+                style={{ display: 'none' }}
+                onPress={undefined}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Feather name="external-link" size={12} color="#2C2520" />
-                <Text style={styles.viewOwnerProfileBtnText}>Xem hồ sơ</Text>
+                <Feather name="grid" size={12} color="#2C2520" />
+                <Text style={styles.viewOwnerProfileBtnText}>Xem trang mạng xã hội</Text>
               </TouchableOpacity>
             </View>
 

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { MobileSosScreen } from './src/screens/MobileSosScreen';
 import { MobileOnboardingScreen } from './src/screens/MobileOnboardingScreen';
 import { MobileModals } from './src/components/MobileModals';
 import { MobileAnimatedLogo } from './src/components/MobileAnimatedLogo';
+import { TINDER_PURPOSE_OPTIONS } from './src/types/mobileTypes';
 
 const PAWTY_LOGO_FULL = require('./assets/pawty-logo-full.png');
 
@@ -59,11 +60,6 @@ const MainMobileShell: React.FC = () => {
   const {
     theme,
     isAuthenticated,
-    ownerName,
-    ownerHandle,
-    isPrivateProfile,
-    isVip,
-    activeVipPlanId,
     activeTab,
     setActiveTab,
     setSelectedProfileHandle,
@@ -73,26 +69,20 @@ const MainMobileShell: React.FC = () => {
     sosAlerts,
     chats,
     activeChatId,
-    tinderCandidates,
+    likesYouCandidates,
     tinderFilterGoal,
     tinderDistanceLimit,
-    rewindLastSwipe,
     setShowLikesYouDrawer,
-    cyclePassportArea,
     toastMessage,
   } = useMobilePawty();
 
   const [isSplashDone, setIsSplashDone] = useState(false);
 
-  // Intercept Android Hardware Back Gesture / Button so it never exits the app abruptly
   useEffect(() => {
-    const subscription = BackHandler.addEventListener(
-      'hardwareBackPress',
-      () => {
-        const handledInsideApp = handleHardwareBack();
-        return handledInsideApp ? true : true;
-      }
-    );
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      const handledInsideApp = handleHardwareBack();
+      return handledInsideApp ? true : true;
+    });
     return () => subscription.remove();
   }, [handleHardwareBack]);
 
@@ -114,7 +104,12 @@ const MainMobileShell: React.FC = () => {
 
   const activeSosCount = sosAlerts.filter((s) => s.status === 'searching').length;
   const unreadChatCount = chats.reduce((acc, c) => acc + c.unreadCount, 0);
-  const likedYouCount = tinderCandidates.filter((c) => c.hasLikedMe).length;
+  const likedYouCount = likesYouCandidates.length;
+  const activeGoalLabel =
+    tinderFilterGoal === 'all'
+      ? 'Tất cả mục đích'
+      : TINDER_PURPOSE_OPTIONS.find((opt) => opt.intent === tinderFilterGoal)?.shortLabel ||
+        'Tìm bạn dắt dạo';
 
   return (
     <SafeAreaView
@@ -130,212 +125,197 @@ const MainMobileShell: React.FC = () => {
       {/* DYNAMIC CONTEXTUAL HEADER PER ACTIVE TAB (Ẩn khi ở tab Tôi hoặc đang trong chi tiết phòng chat) */}
       {activeTab !== 'profile' && !(activeTab === 'chat' && activeChatId) && (
         <View style={styles.header}>
-        {/* 1. EXPLORE HEADER: Left '+' | Center Single Pawty Logo | Right SOS (Opens Fullscreen SOS Tab) + Notifications */}
-        {activeTab === 'explore' && (
-          <>
-            <TouchableOpacity
-              style={styles.iconSquareBtn}
-              onPress={() => setActiveModal('new_moment')}
-            >
-              <Feather name="plus" size={20} color="#2C2520" />
-            </TouchableOpacity>
-
-            <View style={styles.logoCenterWrap}>
-              <Image
-                source={PAWTY_LOGO_FULL}
-                style={styles.headerSingleLogo}
-                resizeMode="contain"
-              />
-            </View>
-
-            <View style={styles.headerRightActions}>
-              <TouchableOpacity
-                style={styles.sosHeaderBtn}
-                onPress={() => setActiveTab('sos')}
-              >
-                <Feather name="alert-triangle" size={13} color="#B85D43" />
-                <Text style={styles.sosHeaderText}>SOS ({activeSosCount})</Text>
-              </TouchableOpacity>
-
+          {/* 1. EXPLORE HEADER */}
+          {activeTab === 'explore' && (
+            <>
               <TouchableOpacity
                 style={styles.iconSquareBtn}
-                onPress={() => setActiveModal('notifications')}
+                onPress={() => setActiveModal('new_moment')}
               >
-                <Feather name="bell" size={18} color="#4A3F35" />
-                {unreadNotificationCount > 0 && (
-                  <View
-                    style={[
-                      styles.notifBadge,
-                      { backgroundColor: theme.primary },
-                    ]}
-                  >
-                    <Text style={styles.notifBadgeText}>
-                      {unreadNotificationCount}
-                    </Text>
-                  </View>
-                )}
+                <Feather name="plus" size={20} color="#2C2520" />
               </TouchableOpacity>
-            </View>
-          </>
-        )}
 
-        {/* 2. KẾT NỐI (TINDER) HEADER: Header 1 hàng duy nhất: Tiêu đề + Nhãn mục đích, Nút Bộ lọc, Nút Menu phụ */}
-        {activeTab === 'tinder' && (
-          <>
-            <View style={styles.contextualTitleWrap}>
-              <Feather name="heart" size={19} color={theme.primary} />
-              <Text style={styles.contextualHeaderTitle}>Kết nối</Text>
-              <View
-                style={[
-                  styles.tinderHeaderGoalBadge,
-                  { backgroundColor: theme.primarySoft },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.tinderHeaderGoalText,
-                    { color: theme.primary },
-                  ]}
-                  numberOfLines={1}
+              <View style={styles.logoCenterWrap}>
+                <Image
+                  source={PAWTY_LOGO_FULL}
+                  style={styles.headerSingleLogo}
+                  resizeMode="contain"
+                />
+              </View>
+
+              <View style={styles.headerRightActions}>
+                <TouchableOpacity
+                  style={styles.sosHeaderBtn}
+                  onPress={() => setActiveTab('sos')}
                 >
-                  {tinderFilterGoal === 'all'
-                    ? 'Tất cả'
-                    : tinderFilterGoal === 'playdate'
-                    ? 'Tìm bạn chơi'
-                    : tinderFilterGoal === 'dating'
-                    ? 'Hẹn hò'
-                    : 'Giao lưu'}
+                  <Feather name="alert-triangle" size={13} color="#B85D43" />
+                  <Text style={styles.sosHeaderText}>SOS ({activeSosCount})</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.iconSquareBtn}
+                  onPress={() => setActiveModal('notifications')}
+                >
+                  <Feather name="bell" size={18} color="#4A3F35" />
+                  {unreadNotificationCount > 0 && (
+                    <View
+                      style={[
+                        styles.notifBadge,
+                        { backgroundColor: theme.primary },
+                      ]}
+                    >
+                      <Text style={styles.notifBadgeText}>
+                        {unreadNotificationCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {/* 2. KẾT NỐI (TINDER) HEADER - GỌN GÀNG, KHÔNG ĐÈ NHAU */}
+          {activeTab === 'tinder' && (
+            <>
+              <View style={styles.contextualTitleWrap}>
+                <Feather name="heart" size={19} color={theme.primary} />
+                <Text style={styles.contextualHeaderTitle}>Kết nối</Text>
+              </View>
+
+              <View style={styles.headerRightActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.contextualPillBtn,
+                    {
+                      backgroundColor: likedYouCount > 0 ? '#FDF2F4' : '#FAF7F2',
+                      borderColor: likedYouCount > 0 ? '#F3C8D1' : '#ECE6DF',
+                    },
+                  ]}
+                  onPress={() => setShowLikesYouDrawer(true)}
+                  accessibilityLabel="Xem ai đã thích bạn"
+                >
+                  <Feather name="heart" size={12} color="#E04F67" />
+                  <Text style={[styles.contextualPillText, { color: '#C93B52' }]}>
+                    Thích bạn ({likedYouCount})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.iconSquareBtn}
+                  onPress={() => setActiveModal('tinder_filter')}
+                  accessibilityLabel="Mở bộ lọc kết nối"
+                >
+                  <Feather name="sliders" size={18} color="#4A3F35" />
+                  {(tinderFilterGoal !== 'all' || tinderDistanceLimit !== 'all') && (
+                    <View
+                      style={[
+                        styles.notifBadge,
+                        {
+                          backgroundColor: theme.primary,
+                          width: 8,
+                          height: 8,
+                          top: 4,
+                          right: 4,
+                        },
+                      ]}
+                    />
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.iconSquareBtn}
+                  onPress={() => setActiveModal('tinder_menu')}
+                  accessibilityLabel="Tùy chọn kết nối"
+                >
+                  <Feather name="more-vertical" size={19} color="#4A3F35" />
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {/* 3. TIN NHẮN HEADER */}
+          {activeTab === 'chat' && (
+            <>
+              <View style={styles.contextualTitleWrap}>
+                <Feather name="message-circle" size={18} color={theme.primary} />
+                <Text style={styles.contextualHeaderTitle}>Tin nhắn</Text>
+              </View>
+
+              <View style={styles.headerRightActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.contextualPillBtn,
+                    { backgroundColor: theme.primarySoft },
+                  ]}
+                  onPress={() => setActiveTab('tinder')}
+                >
+                  <Feather name="heart" size={13} color={theme.primary} />
+                  <Text style={[styles.contextualPillText, { color: theme.primary }]}>
+                    Kết nối
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.iconSquareBtn}
+                  onPress={() => setActiveModal('notifications')}
+                >
+                  <Feather name="bell" size={18} color="#4A3F35" />
+                  {unreadNotificationCount > 0 && (
+                    <View
+                      style={[
+                        styles.notifBadge,
+                        { backgroundColor: theme.primary },
+                      ]}
+                    >
+                      <Text style={styles.notifBadgeText}>
+                        {unreadNotificationCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {/* 4. FULLSCREEN SOS TAB HEADER */}
+          {activeTab === 'sos' && (
+            <>
+              <View style={styles.contextualTitleWrap}>
+                <TouchableOpacity
+                  style={styles.iconSquareBtn}
+                  onPress={() => setActiveTab('explore')}
+                >
+                  <Feather name="arrow-left" size={18} color="#2C2520" />
+                </TouchableOpacity>
+                <Text style={styles.contextualHeaderTitle}>
+                  Bảng tin SOS Thú Lạc
                 </Text>
               </View>
-            </View>
 
-            <View style={styles.headerRightActions}>
-              <TouchableOpacity
-                style={styles.iconSquareBtn}
-                onPress={() => setActiveModal('tinder_filter')}
-                accessibilityLabel="Mở bộ lọc kết nối"
-              >
-                <Feather name="sliders" size={18} color="#4A3F35" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.iconSquareBtn}
-                onPress={() => setActiveModal('tinder_menu')}
-                accessibilityLabel="Tùy chọn kết nối"
-              >
-                <Feather name="more-vertical" size={19} color="#4A3F35" />
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {/* 3. TIN NHẮN HEADER */}
-        
-        {activeTab === 'chat' && (
-          <>
-            <View style={styles.contextualTitleWrap}>
-              <Feather
-                name="message-circle"
-                size={18}
-                color={theme.primary}
-              />
-              <Text style={styles.contextualHeaderTitle}>Tin nhắn</Text>
-            </View>
-
-            <View style={styles.headerRightActions}>
-              <TouchableOpacity
-                style={[
-                  styles.contextualPillBtn,
-                  { backgroundColor: theme.primarySoft },
-                ]}
-                onPress={() => setActiveTab('tinder')}
-              >
-                <Feather name="heart" size={13} color={theme.primary} />
-                <Text
-                  style={[
-                    styles.contextualPillText,
-                    { color: theme.primary },
-                  ]}
+              <View style={styles.headerRightActions}>
+                <TouchableOpacity
+                  style={styles.iconSquareBtn}
+                  onPress={() => setActiveModal('notifications')}
                 >
-                  Kết nối
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.sosHeaderBtn}
-                onPress={() => setActiveTab('sos')}
-              >
-                <Feather name="alert-triangle" size={13} color="#B85D43" />
-                <Text style={styles.sosHeaderText}>SOS</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {/* 6. FULLSCREEN SOS TAB HEADER (Opened from top-right SOS button) */}
-        {activeTab === 'sos' && (
-          <>
-            <View style={styles.contextualTitleWrap}>
-              <TouchableOpacity
-                style={styles.iconSquareBtn}
-                onPress={() => setActiveTab('explore')}
-              >
-                <Feather name="arrow-left" size={18} color="#2C2520" />
-              </TouchableOpacity>
-              <Text style={styles.contextualHeaderTitle}>
-                Bảng tin SOS Thú Lạc
-              </Text>
-            </View>
-
-            <View style={styles.headerRightActions}>
-              <TouchableOpacity
-                style={styles.iconSquareBtn}
-                onPress={() => setActiveModal('notifications')}
-              >
-                <Feather name="bell" size={18} color="#4A3F35" />
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {/* 7. TÔI: Managed inside MobileProfileScreen */}
-        {false && (
-          <>
-            <TouchableOpacity
-              style={styles.iconSquareBtn}
-              onPress={() => setActiveModal('new_moment')}
-            >
-              <Feather name="plus" size={20} color="#1C1815" />
-            </TouchableOpacity>
-
-            <View style={styles.igProfileHeaderCenter}>
-              <Text style={styles.igProfileHandleTitle}>
-                {ownerName || ownerHandle.replace('@', '')}
-              </Text>
-              {isVip && (
-                <View style={[styles.tierPill, { backgroundColor: theme.primarySoft }]}>
-                  <Feather name="award" size={11} color={theme.primary} />
-                  <Text style={[styles.tierPillText, { color: theme.primary }]}>
-                    {activeVipPlanId === 'vip_gold' ? 'GOLD' : 'PLUS'}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.headerRightActions}>
-              <TouchableOpacity
-                style={styles.iconSquareBtn}
-                onPress={() => setActiveModal('my_settings')}
-              >
-                <Feather name="menu" size={20} color="#1C1815" />
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
+                  <Feather name="bell" size={18} color="#4A3F35" />
+                  {unreadNotificationCount > 0 && (
+                    <View
+                      style={[
+                        styles.notifBadge,
+                        { backgroundColor: theme.primary },
+                      ]}
+                    >
+                      <Text style={styles.notifBadgeText}>
+                        {unreadNotificationCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
       )}
-
-
 
       {/* Main Content Body */}
       <View style={styles.body}>
@@ -345,59 +325,60 @@ const MainMobileShell: React.FC = () => {
         {activeTab === 'profile' && <MobileProfileScreen />}
         {activeTab === 'sos' && <MobileSosScreen />}
       </View>
-      {/* 6-Tab Bottom Navigation Bar (Ẩn khi đang trong chi tiết phòng chat) */}
+
+      {/* Bottom Navigation Bar (Ẩn khi đang trong chi tiết phòng chat) */}
       {!(activeTab === 'chat' && activeChatId) && (
         <View style={styles.bottomBar}>
-        {BOTTOM_TABS.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <TouchableOpacity
-              key={tab.id}
-              style={styles.tabItem}
-              onPress={() => {
-                if (tab.id === 'profile') {
-                  setSelectedProfileHandle(null);
-                }
-                setActiveTab(tab.id);
-              }}
-              activeOpacity={0.8}
-            >
-              <View style={styles.tabIconWrap}>
-                <Feather
-                  name={tab.icon}
-                  size={19}
-                  color={isActive ? theme.primary : '#9C8E80'}
-                />
-                {tab.id === 'chat' && unreadChatCount > 0 && (
-                  <View
-                    style={[
-                      styles.tabBadge,
-                      { backgroundColor: theme.primary },
-                    ]}
-                  >
-                    <Text style={styles.tabBadgeText}>{unreadChatCount}</Text>
-                  </View>
-                )}
-              </View>
-              <Text
-                style={[
-                  styles.tabLabel,
-                  isActive && {
-                    color: theme.primary,
-                    fontWeight: '800',
-                  },
-                ]}
-                numberOfLines={1}
+          {BOTTOM_TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                style={styles.tabItem}
+                onPress={() => {
+                  if (tab.id === 'profile') {
+                    setSelectedProfileHandle(null);
+                  }
+                  setActiveTab(tab.id);
+                }}
+                activeOpacity={0.8}
               >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+                <View style={styles.tabIconWrap}>
+                  <Feather
+                    name={tab.icon}
+                    size={19}
+                    color={isActive ? theme.primary : '#9C8E80'}
+                  />
+                  {tab.id === 'chat' && unreadChatCount > 0 && (
+                    <View
+                      style={[
+                        styles.tabBadge,
+                        { backgroundColor: theme.primary },
+                      ]}
+                    >
+                      <Text style={styles.tabBadgeText}>{unreadChatCount}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    isActive && {
+                      color: theme.primary,
+                      fontWeight: '800',
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
 
-      {/* Clean Minimalist Toast Banner (Floating on Top, No bottom clash) */}
+      {/* Toast Banner */}
       {toastMessage && (
         <View style={[styles.toastBar, styles.toastInfo]} pointerEvents="none">
           <Feather name="check-circle" size={16} color="#48BB78" />
@@ -445,10 +426,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EFE9E1',
     marginBottom: 14,
-  },
-  splashLogo: {
-    width: 185,
-    height: 68,
   },
   splashTagline: {
     fontSize: 18,
@@ -508,32 +485,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
-    marginLeft: 6,
+    marginLeft: 2,
+    maxWidth: 120,
   },
   tinderHeaderGoalText: {
     fontSize: 11,
-    fontWeight: '800',
-  },
-  igProfileHeaderCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  igProfileHandleTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#1C1815',
-  },
-  tierPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 99,
-  },
-  tierPillText: {
-    fontSize: 10,
     fontWeight: '800',
   },
   headerRightActions: {
@@ -556,18 +512,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: '#4A3F35',
-  },
-  plusHeaderBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 12,
-  },
-  plusHeaderBadgeText: {
-    fontSize: 11,
-    fontWeight: '900',
   },
   sosHeaderBtn: {
     flexDirection: 'row',

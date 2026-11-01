@@ -33,11 +33,11 @@ import {
 } from '@pawty/utils';
 import { usePawtyStore } from '../../stores/usePawtyStore';
 import {
-  SAMPLE_POST_PHOTOS,
+  EMPTY_WEB_PET,
   SUGGESTED_HASHTAGS,
   WEB_THEMES,
   type WebThemeId,
-} from '../../mocks/seedData';
+} from '../../config/themes';
 
 export const GlobalModals: React.FC = () => {
   const {
@@ -73,15 +73,17 @@ export const GlobalModals: React.FC = () => {
     updateOwnerAndPetProfile,
     addNewPetObject,
     logoutSession,
+    showToast,
   } = usePawtyStore();
 
   const theme = WEB_THEMES[themeId] ?? WEB_THEMES.coral;
-  const activePet = pets.find((p) => p.id === activePetId) ?? pets[0];
+  const activePet = pets.find((p) => p.id === activePetId) ?? pets[0] ?? EMPTY_WEB_PET;
 
   // Post Composer State
   const [postType, setPostType] = useState<PostContentType>('moment');
   const [postText, setPostText] = useState('');
-  const [postImage, setPostImage] = useState(SAMPLE_POST_PHOTOS[0].url);
+  const [postImages, setPostImages] = useState<string[]>([]);
+  const [customPhotoUrlDraft, setCustomPhotoUrlDraft] = useState('');
   const [selectedHashtags, setSelectedHashtags] = useState<string[]>([
     '#DiDaoChieu',
     '#ChamSocCho',
@@ -128,10 +130,7 @@ export const GlobalModals: React.FC = () => {
   const [selectedPlaceIdx, setSelectedPlaceIdx] = useState(0);
   const [walkNote, setWalkNote] = useState('Mình mang bình nước cho 2 bé nha.');
 
-  // VIP & SOS State
-  const [selectedVipPlan, setSelectedVipPlan] = useState<'basic' | 'sen_vip' | 'sen_vip_yearly'>(
-    'sen_vip'
-  );
+  // SOS State
   const [sosLocation, setSosLocation] = useState('Công viên Ánh Sáng Vinhomes Q9');
   const [sosDesc, setSosDesc] = useState(
     'Bé đeo vòng cổ màu xanh, rất thân thiện khi gọi tên.'
@@ -147,15 +146,28 @@ export const GlobalModals: React.FC = () => {
   };
 
   const handleDevicePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setPostImage(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setPostImages((prev) => [...prev, reader.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleAddPostUrl = () => {
+    const trimmed = customPhotoUrlDraft.trim();
+    if (!trimmed) return;
+    setPostImages((prev) => [...prev, trimmed]);
+    setCustomPhotoUrlDraft('');
+  };
+
+  const handleRemovePostImage = (idx: number) => {
+    setPostImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
   // Match Celebration Modal
@@ -336,11 +348,12 @@ export const GlobalModals: React.FC = () => {
                 createSocialPost({
                   contentType: postType,
                   textContent: postText || `Cập nhật hình ảnh mới của ${activePet.name}.`,
-                  imageUrl: postImage || undefined,
+                  imageUrl: postImages[0] || undefined,
                   hashtags: allTags,
                   visibility: postVisibility,
                 });
                 setPostText('');
+                setPostImages([]);
               }}
               style={{ backgroundColor: theme.primary }}
               className="px-3.5 py-1.5 rounded-xl text-white text-xs font-bold"
@@ -401,72 +414,99 @@ export const GlobalModals: React.FC = () => {
             />
           </div>
 
-          {/* Step 3: Photo Attachment (Device File Picker + Sample Photos) */}
+          {/* Step 3: Photo Attachment (Multi-Photo + Delete + URL) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label
                 style={{ color: theme.textSoft }}
                 className="block text-xs font-semibold"
               >
-                3. Hình ảnh đính kèm
+                3. Hình ảnh đính kèm ({postImages.length} ảnh đã chọn)
               </label>
               <label
                 style={{
                   backgroundColor: theme.primarySoft,
                   color: theme.primary,
                 }}
-                className="px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer inline-flex items-center gap-1"
+                className="px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer inline-flex items-center gap-1 hover:opacity-90"
               >
                 <ImageIcon className="w-3.5 h-3.5" />
-                <span>Tải ảnh từ máy</span>
+                <span>+ Thêm ảnh từ máy</span>
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleDevicePhotoUpload}
                   className="hidden"
                 />
               </label>
             </div>
 
-            {postImage && (
-              <div className="relative rounded-xl overflow-hidden h-40 bg-stone-100">
-                <img
-                  src={postImage}
-                  alt="Preview"
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => setPostImage('')}
-                  className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+            <div className="flex items-center gap-2">
+              <input
+                type="url"
+                value={customPhotoUrlDraft}
+                onChange={(e) => setCustomPhotoUrlDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddPostUrl();
+                  }
+                }}
+                placeholder="Hoặc dán liên kết URL hình ảnh..."
+                style={{
+                  backgroundColor: theme.bg,
+                  borderColor: theme.border,
+                  color: theme.text,
+                }}
+                className="flex-1 px-3 py-2 rounded-xl border text-xs focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleAddPostUrl}
+                style={{ backgroundColor: theme.primary }}
+                className="px-3 py-2 rounded-xl text-white text-xs font-bold shrink-0"
+              >
+                Thêm
+              </button>
+            </div>
+
+            {postImages.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span style={{ color: theme.textSoft }}>Bấm dấu X để xóa ảnh</span>
+                  <button
+                    type="button"
+                    onClick={() => setPostImages([])}
+                    className="text-red-500 font-bold hover:underline"
+                  >
+                    Xóa tất cả ({postImages.length})
+                  </button>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {postImages.map((url, idx) => (
+                    <div key={idx} className="relative aspect-square rounded-xl overflow-hidden bg-stone-100 group border">
+                      <img
+                        src={url}
+                        alt={`Preview ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePostImage(idx)}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs shadow-md hover:bg-red-700"
+                        title="Xóa ảnh này"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded font-bold">
+                        {idx + 1}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-
-            <div className="grid grid-cols-4 gap-1.5">
-              {SAMPLE_POST_PHOTOS.map((item) => {
-                const selected = postImage === item.url;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setPostImage(item.url)}
-                    style={{
-                      borderColor: selected ? theme.primary : theme.border,
-                    }}
-                    className="rounded-lg overflow-hidden border-2 h-14 relative"
-                  >
-                    <img
-                      src={item.url}
-                      alt={item.label}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
           {/* Step 4: 1-Tap Suggested Hashtags */}
@@ -1095,7 +1135,10 @@ export const GlobalModals: React.FC = () => {
           {/* Quick Account Actions */}
           <div style={{ borderColor: theme.border }} className="pt-3 border-t space-y-2">
             <button
-              onClick={() => setActiveModal('vip_upgrade')}
+              onClick={() => {
+                setActiveModal(null);
+                showToast('Pawty Hoàn toàn Miễn phí', 'Mọi tính năng VIP và SOS khẩn cấp đều được mở khóa miễn phí cho tất cả cư dân!');
+              }}
               style={{
                 backgroundColor: theme.primarySoft,
                 color: theme.primary,
@@ -1103,7 +1146,7 @@ export const GlobalModals: React.FC = () => {
               className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
             >
               <Crown className="w-4 h-4" />
-              <span>{user.isVip ? 'Đang dùng gói VIP' : 'Nâng cấp tài khoản VIP (49k/tháng)'}</span>
+              <span>Thành viên Pawty Toàn quyền (Miễn phí 100%)</span>
             </button>
 
             <button
@@ -1584,86 +1627,13 @@ export const GlobalModals: React.FC = () => {
     );
   }
 
-  // 12. VIP UPGRADE MODAL
+  // 12. VIP UPGRADE MODAL - TOÀN BỘ TÍNH NĂNG ĐÃ MIỄN PHÍ 100%
   if (activeModal === 'vip_upgrade') {
-    const amount =
-      selectedVipPlan === 'basic'
-        ? 29000
-        : selectedVipPlan === 'sen_vip'
-        ? 49000
-        : 399000;
-    const qrUrl = buildVietQrUrl({
-      amountVnd: amount,
-      description: `PAWTY VIP ${user.phone}`,
-    });
-
-    return (
-      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-        <div
-          style={{ backgroundColor: theme.surface, color: theme.text }}
-          className="w-full max-w-md rounded-3xl p-5 space-y-3.5 shadow-xl max-h-[90vh] overflow-y-auto"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Crown style={{ color: theme.primary }} className="w-4 h-4" />
-              <h3 className="text-base font-bold">Gói thành viên VIP</h3>
-            </div>
-            <button onClick={() => setActiveModal(null)} style={{ color: theme.textSoft }}>
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { id: 'basic', name: 'Cơ bản', price: '29k/tháng' },
-              { id: 'sen_vip', name: 'VIP Tháng', price: '49k/tháng' },
-              { id: 'sen_vip_yearly', name: 'VIP Năm', price: '399k/năm' },
-            ].map((pl) => {
-              const active = selectedVipPlan === pl.id;
-              return (
-                <button
-                  key={pl.id}
-                  onClick={() => setSelectedVipPlan(pl.id as typeof selectedVipPlan)}
-                  style={{
-                    backgroundColor: active ? theme.primarySoft : theme.bg,
-                    borderColor: active ? theme.primary : theme.border,
-                  }}
-                  className="p-2.5 rounded-xl border text-center"
-                >
-                  <p style={{ color: theme.text }} className="text-xs font-bold">
-                    {pl.name}
-                  </p>
-                  <p style={{ color: theme.primary }} className="text-[11px] font-bold">
-                    {pl.price}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex flex-col items-center p-3 rounded-2xl bg-white border">
-            <img src={qrUrl} alt="VietQR" className="w-40 h-40 object-contain" />
-          </div>
-
-          <button
-            onClick={() => upgradeToVipPlan(selectedVipPlan)}
-            style={{ backgroundColor: theme.primary }}
-            className="w-full py-3 rounded-xl text-white text-xs font-bold"
-          >
-            Xác nhận đã thanh toán ({formatVndCurrency(amount)})
-          </button>
-        </div>
-      </div>
-    );
+    return null;
   }
 
-  // 13. SOS LOST PET ALERT MODAL
+  // 13. SOS LOST PET ALERT MODAL (100% MIỄN PHÍ)
   if (activeModal === 'sos_alert') {
-    const qrUrl = buildVietQrUrl({
-      amountVnd: 39000,
-      description: `PAWTY SOS ${activePet.name}`,
-    });
-
     return (
       <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
         <div
@@ -1673,41 +1643,12 @@ export const GlobalModals: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-[#C94A4A]" />
-              <h3 className="text-base font-bold">Trung tâm SOS & AI Radar Truy Vết</h3>
+              <h3 className="text-base font-bold">Phát báo động SOS tìm thú cưng</h3>
             </div>
             <button onClick={() => setActiveModal(null)} style={{ color: theme.textSoft }}>
               <X className="w-4 h-4" />
             </button>
           </div>
-
-          {/* AI Radar Trajectory Preview Banner */}
-          {sosAlerts.length > 0 && (
-            <div className="p-3.5 rounded-2xl bg-stone-900 text-white space-y-2.5 shadow-md">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-xs font-extrabold text-[#FF6F61]">
-                  🛰️ AI SPATIOTEMPORAL RADAR
-                </span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
-                  {sosAlerts[0]?.trajectoryPoints?.length || 3} Mốc Lộ Trình
-                </span>
-              </div>
-              <p className="text-[11px] text-stone-300">
-                Đang truy vết: <strong className="text-white">{sosAlerts[0]?.petName}</strong> (Bán kính 3km)
-              </p>
-              <div className="space-y-2 pt-2 border-t border-stone-800">
-                {(sosAlerts[0]?.trajectoryPoints || []).map((pt, idx) => (
-                  <div key={pt.id || idx} className="flex items-start gap-2.5 text-[11px]">
-                    <span className="shrink-0 mt-0.5">{idx === 0 ? '🔴' : pt.source === 'ai_feed_match' ? '🟢' : '🟡'}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-stone-200 truncate">{pt.locationName}</p>
-                      <p className="text-[10px] text-stone-400 font-medium">{pt.note || pt.timestamp}</p>
-                    </div>
-                    <span className="text-[10px] text-stone-400 shrink-0 font-medium">{pt.timestamp}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="space-y-2.5">
             <div>
@@ -1761,10 +1702,12 @@ export const GlobalModals: React.FC = () => {
               />
             </div>
 
-            <div className="flex flex-col items-center p-3 rounded-2xl bg-white border">
-              <img src={qrUrl} alt="VietQR SOS" className="w-36 h-36 object-contain" />
-              <span className="text-[11px] text-stone-500 mt-1">
-                Phí phát thông báo khẩn cấp 3km: 39.000đ
+            <div className="flex flex-col items-center p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+              <span className="text-[12px] font-bold text-emerald-800">
+                Phát thông báo SOS khẩn cấp: Miễn phí 100%
+              </span>
+              <span className="text-[11px] text-emerald-600 mt-0.5 text-center">
+                Thông báo sẽ được gửi tức thì đến toàn bộ cư dân trong bán kính 3km.
               </span>
             </div>
           </div>

@@ -1,8 +1,5 @@
 import type { PostContentType } from '@pawty/types';
 
-/**
- * 4-Layer Content Moderation Pipeline (Tầng 2 Section 6 & Tầng 6 Section 7)
- */
 export interface ModerationInput {
   textContent: string;
   contentType: PostContentType;
@@ -14,7 +11,6 @@ export interface ModerationDecision {
   reason?: string;
   hasHealthDisclaimer: boolean;
   isSevereEmergency: boolean;
-  petRelevanceScore: number;
 }
 
 const FORBIDDEN_KEYWORDS = [
@@ -52,7 +48,6 @@ export class ModerationService {
           reason: `Nội dung chứa từ khóa vi phạm chính sách cộng đồng ("${badWord}")`,
           hasHealthDisclaimer: false,
           isSevereEmergency: false,
-          petRelevanceScore: 0,
         };
       }
     }
@@ -69,8 +64,6 @@ export class ModerationService {
       status: 'approved',
       hasHealthDisclaimer,
       isSevereEmergency,
-      petRelevanceScore: 0.96,
     };
   }
 }
-

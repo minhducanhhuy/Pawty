@@ -1,7 +1,7 @@
 import React from 'react';
 import { Compass, Heart, MessageCircle, User } from 'lucide-react';
 import { usePawtyStore, type BottomTabId } from '../../stores/usePawtyStore';
-import { WEB_THEMES } from '../../mocks/seedData';
+import { WEB_THEMES } from '../../config/themes';
 
 export const BottomTabBar: React.FC = () => {
   const {

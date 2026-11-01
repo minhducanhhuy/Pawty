@@ -8,6 +8,7 @@ import {
   Maximize2,
   MessageCircle,
   Move,
+  PawPrint,
   Play,
   RotateCcw,
   Search,
@@ -22,7 +23,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceLabel, formatVndCurrency } from '@pawty/utils';
 import { usePawtyStore } from '../../stores/usePawtyStore';
-import { WEB_THEMES } from '../../mocks/seedData';
+import { WEB_THEMES } from '../../config/themes';
 
 type PostCategoryFilter = 'all' | 'moment' | 'tip' | 'question';
 type TinderIntentMode = 'dating' | 'playdate' | 'community';
@@ -648,7 +649,7 @@ export const ExploreScreen: React.FC = () => {
                   }}
                   className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-colors"
                 >
-                  <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+                  <PawPrint className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
                   <span>{totalReactions}</span>
                 </button>
 

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '../../components/FeatherIcon';
-import { TinderIntent } from '../../data/mobileSeedData';
+import { TinderIntent, TINDER_PURPOSE_OPTIONS } from '../../types/mobileTypes';
 
 interface TinderFilterModalProps {
   visible: boolean;
@@ -21,42 +21,31 @@ interface TinderFilterModalProps {
   onSelectGoal: (goal: TinderIntent | 'all') => void;
   distanceLimit: number | 'all';
   onSelectDistanceLimit: (dist: number | 'all') => void;
-  activePassportArea?: string;
-  onSelectPassportArea?: (area: string) => void;
-  isVip?: boolean;
-  onUpgradeVip?: () => void;
 }
 
 const GOAL_OPTIONS: { id: TinderIntent | 'all'; label: string; desc: string; icon: string }[] = [
   {
     id: 'all',
     label: 'Tất cả mục đích',
-    desc: 'Duyệt mọi hồ sơ xung quanh bạn (Tìm bạn cún, Hẹn hò, Giao lưu)',
+    desc: 'Duyệt mọi hồ sơ trên Pawty không phân biệt mục đích kết nối',
     icon: 'grid',
   },
-  {
-    id: 'playdate',
-    label: 'Tìm bạn chơi chung (Playdate)',
-    desc: 'Ưu tiên hiển thị thông tin thú cưng để tìm bạn dắt dạo công viên',
-    icon: 'smile',
-  },
-  {
-    id: 'dating',
-    label: 'Hẹn hò chủ nuôi (Pet Dating)',
-    desc: 'Tìm bạn độc thân có chung tình yêu thương thú cưng',
-    icon: 'heart',
-  },
-  {
-    id: 'community',
-    label: 'Giao lưu nội khu (Community)',
-    desc: 'Kết nối hội nhóm cư dân trao đổi kinh nghiệm chăm sóc',
-    icon: 'users',
-  },
+  ...TINDER_PURPOSE_OPTIONS.map((opt) => ({
+    id: opt.intent,
+    label: opt.label,
+    desc: opt.desc,
+    icon:
+      opt.intent === 'playdate'
+        ? 'smile'
+        : opt.intent === 'dating'
+        ? 'heart'
+        : 'users',
+  })),
 ];
 
-// Chuẩn khoảng cách Tinder quốc tế: 2 km đến 160 km (tương đương 100 miles)
+// Không còn trần 160km: cho phép kéo rộng đến 500km hoặc chọn "Không giới hạn" ('all')
 const MIN_DIST = 2;
-const MAX_DIST = 160;
+const MAX_DIST = 500;
 
 const PRESET_DISTANCES: { id: number | 'all'; label: string }[] = [
   { id: 5, label: '5 km' },
@@ -64,8 +53,9 @@ const PRESET_DISTANCES: { id: number | 'all'; label: string }[] = [
   { id: 30, label: '30 km' },
   { id: 50, label: '50 km' },
   { id: 100, label: '100 km' },
-  { id: 160, label: '160 km' },
-  { id: 'all', label: 'Tất cả' },
+  { id: 250, label: '250 km' },
+  { id: 500, label: '500 km' },
+  { id: 'all', label: 'Không giới hạn' },
 ];
 
 export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
@@ -79,11 +69,9 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 16);
 
-  // 1. DRAFT STATE (Chỉ lưu tạm trong modal, bấm "Áp dụng" mới gửi để tránh query backend liên tục)
   const [draftGoal, setDraftGoal] = useState<TinderIntent | 'all'>(currentGoal);
   const [draftDistance, setDraftDistance] = useState<number | 'all'>(distanceLimit);
 
-  // Đồng bộ lại draft khi modal được mở
   useEffect(() => {
     if (visible) {
       setDraftGoal(currentGoal);
@@ -91,21 +79,18 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
     }
   }, [visible, currentGoal, distanceLimit]);
 
-  // 2. Chiều rộng track đo đạc từ onLayout
   const [trackWidth, setTrackWidth] = useState(280);
   const trackWidthRef = useRef(280);
   const initialRatioRef = useRef(0);
   const lastDraftDistRef = useRef<number | 'all'>(draftDistance);
   lastDraftDistRef.current = draftDistance;
 
-  // Tính tỷ lệ phần trăm lấp đầy thanh trượt (0 -> 1)
   const currentNumericDist = draftDistance === 'all' ? MAX_DIST : draftDistance;
   const progressRatio = Math.max(
     0,
     Math.min(1, (currentNumericDist - MIN_DIST) / (MAX_DIST - MIN_DIST))
   );
 
-  // 3. PanResponder tính toán delta mượt mà, triệt tiêu rung giật
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -113,7 +98,6 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
         onMoveShouldSetPanResponder: () => true,
         onPanResponderGrant: (evt: GestureResponderEvent) => {
           const w = trackWidthRef.current || 280;
-          // Lấy vị trí chạm ban đầu
           const touchX = Math.max(0, Math.min(w, evt.nativeEvent.locationX));
           const tapRatio = touchX / w;
           initialRatioRef.current = tapRatio;
@@ -142,7 +126,6 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
     []
   );
 
-  // 4. Áp dụng bộ lọc và cam kết thay đổi
   const handleApplyFilter = () => {
     onSelectGoal(draftGoal);
     onSelectDistanceLimit(draftDistance);
@@ -154,7 +137,6 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
       <View style={styles.backdrop}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         <View style={[styles.modalSheet, { paddingBottom: bottomInset + 12 }]}>
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
               <Feather name="sliders" size={18} color="#2C2520" />
@@ -174,10 +156,9 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
             contentContainerStyle={styles.bodyContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* 1. Mục đích duyệt ứng viên */}
             <Text style={styles.sectionHeading}>MỤC ĐÍCH TÌM KIẾM</Text>
             <Text style={styles.sectionSubhint}>
-              Bộ lọc chỉ áp dụng để duyệt hồ sơ, không thay đổi hồ sơ cá nhân của bạn.
+              Đồng bộ trực tiếp với thuộc tính Mục đích trong Hồ sơ Kết nối của các thành viên.
             </Text>
 
             <View style={styles.optionsList}>
@@ -211,47 +192,65 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
               })}
             </View>
 
-            {/* 2. Giới hạn khoảng cách: THANH TRƯỢT CHUẨN TINDER (2 - 160 KM) */}
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionHeading}>BÁN KÍNH TÌM KIẾM</Text>
+              <Text style={styles.sectionHeading}>KHOẢNG CÁCH TÌM KIẾM</Text>
+              <TouchableOpacity
+                style={[
+                  styles.unlimitedToggleBtn,
+                  draftDistance === 'all' && styles.unlimitedToggleBtnActive,
+                ]}
+                onPress={() => setDraftDistance(draftDistance === 'all' ? 50 : 'all')}
+              >
+                <Feather
+                  name="globe"
+                  size={12}
+                  color={draftDistance === 'all' ? '#FFFFFF' : '#2E7D5B'}
+                />
+                <Text
+                  style={[
+                    styles.unlimitedToggleText,
+                    draftDistance === 'all' && { color: '#FFFFFF' },
+                  ]}
+                >
+                  Không giới hạn
+                </Text>
+              </TouchableOpacity>
             </View>
             <Text style={styles.sectionSubhint}>
-              Kéo thanh trượt từ 2 km đến 160 km (hoặc chọn Tất cả) để tìm bạn cún quanh bạn.
+              Tự do chọn phạm vi bất kỳ hoặc bật "Không giới hạn" để kết nối toàn quốc.
             </Text>
 
-            {/* Card hiển thị khoảng cách nháp */}
             <View style={styles.sliderDisplayCard}>
               <View
                 style={[
                   styles.sliderDisplayIconBox,
-                  draftDistance === 'all' && { backgroundColor: '#F0EBE3' },
+                  draftDistance === 'all' && { backgroundColor: '#EAF7F1' },
                 ]}
               >
                 <Feather
                   name={draftDistance === 'all' ? 'globe' : 'navigation'}
                   size={20}
-                  color={draftDistance === 'all' ? '#6C6055' : '#FF6F61'}
+                  color={draftDistance === 'all' ? '#2E7D5B' : '#FF6F61'}
                 />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.sliderDisplayValue}>
                   {draftDistance === 'all'
-                    ? 'Tất cả khoảng cách'
+                    ? 'Không giới hạn khoảng cách'
                     : `Trong bán kính ${draftDistance} km`}
                 </Text>
                 <Text style={styles.sliderDisplaySub}>
                   {draftDistance === 'all'
-                    ? 'Quét và hiển thị toàn bộ hồ sơ không giới hạn cự ly'
-                    : draftDistance <= 15
-                    ? `Phạm vi nội đô lân cận (≤ ${draftDistance} km)`
-                    : draftDistance <= 50
-                    ? `Bao quát toàn thành phố & vùng ven (≤ ${draftDistance} km)`
-                    : `Mở rộng toàn vùng đô thị & liên tỉnh (≤ ${draftDistance} km)`}
+                    ? 'Hiển thị toàn bộ thành viên trên mọi khu vực & tỉnh thành'
+                    : draftDistance <= 20
+                    ? `Phạm vi lân cận nội đô (≤ ${draftDistance} km)`
+                    : draftDistance <= 100
+                    ? `Phạm vi toàn thành phố & vùng ven (≤ ${draftDistance} km)`
+                    : `Phạm vi mở rộng liên tỉnh (≤ ${draftDistance} km)`}
                 </Text>
               </View>
             </View>
 
-            {/* Khung thanh trượt tương tác mượt mà 60 FPS */}
             <View style={styles.sliderContainer}>
               <View
                 style={styles.sliderTrackWrapper}
@@ -264,28 +263,26 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
                   }
                 }}
               >
-                {/* Đường ray nền (pointerEvents="none" chống lệch tọa độ) */}
                 <View style={styles.sliderTrackBase} pointerEvents="none" />
-
-                {/* Đoạn đường ray đã kéo (Active Filled Track) */}
                 <View
                   style={[
                     styles.sliderTrackFilled,
                     {
                       width: `${progressRatio * 100}%`,
-                      backgroundColor: draftDistance === 'all' ? '#8A7D71' : '#FF6F61',
+                      backgroundColor: draftDistance === 'all' ? '#2E7D5B' : '#FF6F61',
                     },
                   ]}
                   pointerEvents="none"
                 />
-
-                {/* Nút kéo (Thumb) */}
                 <View
                   style={[
                     styles.sliderThumb,
                     {
-                      left: Math.max(0, Math.min(trackWidth - 28, progressRatio * (trackWidth - 28))),
-                      borderColor: draftDistance === 'all' ? '#8A7D71' : '#FF6F61',
+                      left: Math.max(
+                        0,
+                        Math.min(trackWidth - 28, progressRatio * (trackWidth - 28))
+                      ),
+                      borderColor: draftDistance === 'all' ? '#2E7D5B' : '#FF6F61',
                     },
                   ]}
                   pointerEvents="none"
@@ -293,22 +290,20 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
                   <View
                     style={[
                       styles.sliderThumbInner,
-                      { backgroundColor: draftDistance === 'all' ? '#8A7D71' : '#FF6F61' },
+                      { backgroundColor: draftDistance === 'all' ? '#2E7D5B' : '#FF6F61' },
                     ]}
                   />
                 </View>
               </View>
 
-              {/* Mốc chỉ số bên dưới thanh trượt */}
               <View style={styles.sliderLabelsRow} pointerEvents="none">
                 <Text style={styles.sliderLabelText}>2 km</Text>
-                <Text style={styles.sliderLabelText}>50 km</Text>
                 <Text style={styles.sliderLabelText}>100 km</Text>
-                <Text style={styles.sliderLabelText}>160 km</Text>
+                <Text style={styles.sliderLabelText}>300 km</Text>
+                <Text style={styles.sliderLabelText}>500 km+</Text>
               </View>
             </View>
 
-            {/* Các nút chọn nhanh mốc bán kính (Preset Chips) */}
             <View style={styles.presetChipsRow}>
               {PRESET_DISTANCES.map((p) => {
                 const isSelected = draftDistance === p.id;
@@ -330,7 +325,6 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
             </View>
           </ScrollView>
 
-          {/* Footer Submit Button: Bấm nút này mới áp dụng filter mới */}
           <View style={styles.footer}>
             <TouchableOpacity
               style={styles.applyBtn}
@@ -407,13 +401,22 @@ const styles = StyleSheet.create({
     marginTop: 22,
     marginBottom: 4,
   },
-  freeBadge: {
+  unlimitedToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: '#EAF7F1',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: '#CBE7DA',
   },
-  freeBadgeText: {
+  unlimitedToggleBtnActive: {
+    backgroundColor: '#2E7D5B',
+    borderColor: '#2E7D5B',
+  },
+  unlimitedToggleText: {
     fontSize: 11,
     fontWeight: '800',
     color: '#2E7D5B',

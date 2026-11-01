@@ -43,6 +43,7 @@ import {
   MessageCircle,
   Move,
   Pause,
+  PawPrint,
   Phone,
   Play,
   PlayCircle,
@@ -115,6 +116,8 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
   'more-horizontal': Ellipsis,
   move: Move,
   pause: Pause,
+  paw: PawPrint,
+  'paw-print': PawPrint,
   phone: Phone,
   play: Play,
   'play-circle': PlayCircle,
@@ -149,13 +152,14 @@ export interface FeatherIconProps {
   name: string;
   size?: number;
   color?: string;
+  fill?: string;
 }
 
 export const Feather: React.FC<FeatherIconProps> & {
   glyphMap: Record<string, number>;
-} = ({ name, size = 18, color = '#2A2522' }) => {
+} = ({ name, size = 18, color = '#2A2522', fill = 'none' }) => {
   const IconComp = ICON_MAP[name] || Compass;
-  return <IconComp size={size} color={color} strokeWidth={2.1} />;
+  return <IconComp size={size} color={color} fill={fill} strokeWidth={2.1} />;
 };
 
 Feather.glyphMap = {};

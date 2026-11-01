@@ -10,7 +10,11 @@
     "start:dev": "tsc -p tsconfig.json && node dist/server/src/main.js",
     "db:push": "prisma db push",
     "db:seed": "tsc -p tsconfig.json && node dist/server/src/data/seed-db.js",
+    "seed": "npm run db:seed",
     "typecheck": "tsc --noEmit"
+  },
+  "prisma": {
+    "seed": "npm run db:seed"
   },
   "dependencies": {
     "@pawty/types": "*",

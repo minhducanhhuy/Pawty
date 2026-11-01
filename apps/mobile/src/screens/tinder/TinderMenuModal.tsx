@@ -17,7 +17,6 @@ interface TinderMenuModalProps {
   onOpenLikesYou: () => void;
   onOpenTinderSetup: () => void;
   likedYouCount: number;
-  isVip?: boolean;
 }
 
 export const TinderMenuModal: React.FC<TinderMenuModalProps> = ({
@@ -60,7 +59,7 @@ export const TinderMenuModal: React.FC<TinderMenuModalProps> = ({
           </View>
 
           <View style={styles.menuItemsList}>
-            {/* 1. Hoàn tác lượt quẹt */}
+            {/* 1. Hoàn tác lượt quẹt (Miễn phí cho mọi thành viên) */}
             <TouchableOpacity
               style={[styles.menuItem, !canRewind && { opacity: 0.5 }]}
               onPress={() => {
@@ -74,17 +73,19 @@ export const TinderMenuModal: React.FC<TinderMenuModalProps> = ({
                 <Feather name="rotate-ccw" size={18} color={canRewind ? '#D97706' : '#8C827A'} />
               </View>
               <View style={{ flex: 1 }}>
-                <View style={styles.itemTitleRow}>
-                  <Text style={[styles.itemTitle, !canRewind && { color: '#8C827A' }]}>Hoàn tác lượt quẹt</Text>
-                </View>
+                <Text style={[styles.itemTitle, !canRewind && { color: '#8C827A' }]}>
+                  Hoàn tác lượt quẹt
+                </Text>
                 <Text style={styles.itemDesc}>
-                  {canRewind ? 'Quay lại thẻ ứng viên vừa lướt qua' : 'Chưa có lượt quẹt nào để hoàn tác'}
+                  {canRewind
+                    ? 'Quay lại thẻ ứng viên vừa lướt qua'
+                    : 'Chưa có lượt quẹt nào để hoàn tác'}
                 </Text>
               </View>
               <Feather name="chevron-right" size={16} color={canRewind ? '#A89B8C' : '#D1C9BE'} />
             </TouchableOpacity>
 
-            {/* 2. Ai đã thích bạn */}
+            {/* 2. Xem ai đã thích mình (Mở khóa hoàn toàn miễn phí) */}
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
@@ -98,7 +99,7 @@ export const TinderMenuModal: React.FC<TinderMenuModalProps> = ({
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.itemTitleRow}>
-                  <Text style={styles.itemTitle}>Ai đã thích bạn</Text>
+                  <Text style={styles.itemTitle}>Xem ai đã thích mình</Text>
                   {likedYouCount > 0 && (
                     <View style={styles.countBadge}>
                       <Text style={styles.countBadgeText}>{likedYouCount}</Text>
@@ -107,7 +108,7 @@ export const TinderMenuModal: React.FC<TinderMenuModalProps> = ({
                 </View>
                 <Text style={styles.itemDesc}>
                   {likedYouCount > 0
-                    ? `Có ${likedYouCount} người nuôi thú cưng đã thả tim bạn`
+                    ? `Có ${likedYouCount} thành viên đã thích bạn — Nhấn để xem & Match ngay`
                     : 'Chưa có lượt thích mới nào'}
                 </Text>
               </View>
@@ -127,9 +128,9 @@ export const TinderMenuModal: React.FC<TinderMenuModalProps> = ({
                 <Feather name="user-check" size={18} color="#2E7D5B" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.itemTitle}>Hồ sơ kết nối của tôi</Text>
+                <Text style={styles.itemTitle}>Thiết lập hồ sơ kết nối</Text>
                 <Text style={styles.itemDesc}>
-                  Chỉnh sửa mong muốn, phong cách sống & thông tin kết nối
+                  Chọn mục đích tìm kiếm, phong cách sống & giới thiệu bản thân
                 </Text>
               </View>
               <Feather name="chevron-right" size={16} color="#A89B8C" />
@@ -212,19 +213,6 @@ const styles = StyleSheet.create({
     color: '#7A6E63',
     marginTop: 2,
   },
-  vipTag: {
-    backgroundColor: '#FFF4E0',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#F0D597',
-  },
-  vipTagText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#B87200',
-  },
   countBadge: {
     backgroundColor: '#FF6F61',
     paddingHorizontal: 6,
@@ -237,4 +225,3 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
-

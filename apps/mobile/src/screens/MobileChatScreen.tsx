@@ -11,10 +11,14 @@ import {
   Platform,
   Keyboard,
   StatusBar,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
+import { ConfirmActionModal } from '../components/SelectorFieldModal';
+import { TinderProfileDetailModal } from './tinder/TinderProfileDetailModal';
+import { TinderCandidate } from '../types/mobileTypes';
 
 const DAYS_OF_WEEK = ['CN', 'T.2', 'T.3', 'T.4', 'T.5', 'T.6', 'T.7'];
 
@@ -56,7 +60,10 @@ function shouldShowSessionHeader(currentMsg: any, prevMsg: any | null): boolean 
 function formatMessengerSessionHeader(msg: any): string {
   const d = getMessageDate(msg);
   const now = new Date();
-  const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d
+    .getMinutes()
+    .toString()
+    .padStart(2, '0')}`;
 
   const isToday =
     d.getFullYear() === now.getFullYear() &&
@@ -96,30 +103,81 @@ export const MobileChatScreen: React.FC = () => {
     activeChatId,
     setActiveChatId,
     sendChatMessage,
+    clearChatMessages,
+    unfriendUser,
+    unmatchCandidate,
+    sendFriendRequest,
     markChatRead,
     openPublicUserProfile,
-    setActiveTab,
   } = useMobilePawty();
 
   const [messageDraft, setMessageDraft] = useState('');
   const [searchFriend, setSearchFriend] = useState('');
-  const [chatFilter, setChatFilter] = useState<'all' | 'unread' | 'tinder' | 'service'>('all');
+  const [chatSection, setChatSection] = useState<'social' | 'dating'>('social');
+  const [chatFilter, setChatFilter] = useState<'all' | 'unread'>('all');
   const [tappedMessageId, setTappedMessageId] = useState<string | null>(null);
+  const [showRoomMenu, setShowRoomMenu] = useState(false);
+  const [showDatingDetail, setShowDatingDetail] = useState(false);
+  const [confirmType, setConfirmType] = useState<null | 'clear_messages' | 'unfriend' | 'unmatch'>(null);
 
   const handleToggleMessageTimestamp = (messageId: string) => {
     setTappedMessageId((prev) => (prev === messageId ? null : messageId));
   };
 
   const activeChat = chats.find((c) => c.id === activeChatId) || null;
+  const isDatingChat = activeChat
+    ? activeChat.chatType === 'dating' || activeChat.matchSource === 'tinder_match'
+    : false;
 
-  // Tự động đánh dấu đã đọc khi vào xem phòng trò chuyện
+  // Với Mạng xã hội: nhắn tin tự do chuẩn Facebook/Pinterest, không chặn vì kết bạn
+  // Với Hẹn hò: nhắn tin khi còn tương hợp
+  const canSendInRoom = activeChat
+    ? isDatingChat
+      ? activeChat.canMessage !== false
+      : true
+    : false;
+
+  const datingCandidate: TinderCandidate | null =
+    isDatingChat && activeChat
+      ? activeChat.candidateProfile || {
+          id: activeChat.id,
+          ownerName: activeChat.partnerName,
+          ownerHandle: activeChat.partnerHandle,
+          ownerAge: 24,
+          gender: 'Nữ',
+          ownerNickname: activeChat.partnerName,
+          avatarUrl:
+            activeChat.partnerAvatar ||
+            'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=900&q=80',
+          photoUrls: activeChat.partnerAvatar
+            ? [activeChat.partnerAvatar]
+            : ['https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=900&q=80'],
+          distanceKm: 1.2,
+          area: activeChat.distanceLabel || 'Khu đô thị',
+          intent: 'dating',
+          intentLabel: 'Hẹn hò cho người yêu thú',
+          lookingFor: 'Tìm bạn cùng nuôi Boss và đi dạo',
+          bio: 'Hồ sơ người yêu thú cưng trên Pawty.',
+          lifestyle: {
+            smoking: 'Không hút thuốc',
+            workout: 'Đi bộ cùng cún',
+            drinking: 'Thỉnh thoảng',
+            petSummary: activeChat.petSummary || 'Nuôi cún',
+            zodiac: 'Kim Ngưu',
+            chatStyle: 'Nhiệt tình, thân thiện',
+          },
+          pets: [],
+          tags: ['Yêu thú cưng', 'Dắt cún mỗi ngày'],
+          hasLikedMe: true,
+        }
+      : null;
+
   useEffect(() => {
     if (activeChatId) {
       markChatRead(activeChatId);
     }
   }, [activeChatId, markChatRead]);
 
-  // Tự động cuộn xuống tin nhắn cuối cùng khi mở cuộc trò chuyện
   useEffect(() => {
     if (activeChat) {
       setTimeout(() => {
@@ -130,7 +188,6 @@ export const MobileChatScreen: React.FC = () => {
 
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
-  // Tự động cuộn xuống và cập nhật trạng thái khi bàn phím ảo xuất hiện / ẩn đi
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
@@ -155,7 +212,7 @@ export const MobileChatScreen: React.FC = () => {
 
   const handleSendMessage = () => {
     const text = messageDraft.trim();
-    if (!text || !activeChat) return;
+    if (!text || !activeChat || !canSendInRoom) return;
     sendChatMessage(activeChat.id, text);
     setMessageDraft('');
     setTimeout(() => {
@@ -163,7 +220,16 @@ export const MobileChatScreen: React.FC = () => {
     }, 60);
   };
 
-  const filteredChats = chats.filter((room) => {
+  const socialChats = chats.filter(
+    (c) => c.chatType !== 'dating' && c.matchSource !== 'tinder_match'
+  );
+  const datingChats = chats.filter(
+    (c) => c.chatType === 'dating' || c.matchSource === 'tinder_match'
+  );
+
+  const currentSectionChats = chatSection === 'social' ? socialChats : datingChats;
+
+  const filteredChats = currentSectionChats.filter((room) => {
     const q = searchFriend.trim().toLowerCase();
     const matchName =
       !q ||
@@ -172,12 +238,6 @@ export const MobileChatScreen: React.FC = () => {
       room.petSummary.toLowerCase().includes(q);
     if (chatFilter === 'unread') {
       return matchName && room.unreadCount > 0;
-    }
-    if (chatFilter === 'tinder') {
-      return matchName && room.matchSource === 'tinder_match';
-    }
-    if (chatFilter === 'service') {
-      return matchName && room.matchSource === 'service';
     }
     return matchName;
   });
@@ -188,12 +248,15 @@ export const MobileChatScreen: React.FC = () => {
         style={[styles.chatDetailContainer, { backgroundColor: theme.bg }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={
-          Platform.OS === 'ios'
-            ? insets.top
-            : (StatusBar.currentHeight || 28) + 14
+          Platform.OS === 'ios' ? insets.top : (StatusBar.currentHeight || 28) + 14
         }
       >
-        <View style={[styles.chatHeader, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+        <View
+          style={[
+            styles.chatHeader,
+            { backgroundColor: theme.surface, borderBottomColor: theme.border },
+          ]}
+        >
           <TouchableOpacity
             onPress={() => setActiveChatId(null)}
             style={[styles.backBtn, { backgroundColor: theme.bg }]}
@@ -202,36 +265,89 @@ export const MobileChatScreen: React.FC = () => {
             <Feather name="arrow-left" size={18} color={theme.text} />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.partnerTouchRow}
-            onPress={() => openPublicUserProfile(activeChat.partnerHandle)}
-          >
-            <Image source={{ uri: activeChat.partnerAvatar }} style={styles.headerAvatar} />
-            <View style={{ flex: 1 }}>
-              <View style={styles.partnerTitleRow}>
-                <Text style={[styles.headerName, { color: theme.text }]}>
-                  {activeChat.partnerName}
-                </Text>
-                {activeChat.matchSource === 'tinder_match' && (
-                  <View style={[styles.matchTag, { backgroundColor: theme.primarySoft }]}>
-                    <Feather name="heart" size={10} color={theme.primary} />
-                    <Text style={[styles.matchTagText, { color: theme.primary }]}>Kết nối</Text>
+          {isDatingChat ? (
+            /* DATING CHAT HEADER: CHỈ XEM ĐƯỢC HỒ SƠ HẸN HÒ */
+            <TouchableOpacity
+              style={styles.partnerTouchRow}
+              onPress={() => setShowDatingDetail(true)}
+              activeOpacity={0.78}
+            >
+              {activeChat.partnerAvatar ? (
+                <Image source={{ uri: activeChat.partnerAvatar }} style={styles.headerAvatar} />
+              ) : (
+                <View style={[styles.headerAvatar, styles.avatarPlaceholder]}>
+                  <Feather name="heart" size={16} color="#E11D48" />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <View style={styles.partnerTitleRow}>
+                  <Text style={[styles.headerName, { color: theme.text }]} numberOfLines={1}>
+                    {activeChat.partnerName}
+                  </Text>
+                  <View style={[styles.matchTag, { backgroundColor: '#FFE4E6' }]}>
+                    <Feather name="heart" size={10} color="#E11D48" />
+                    <Text style={[styles.matchTagText, { color: '#E11D48' }]}>Tương hợp</Text>
                   </View>
-                )}
-                
+                </View>
+                <Text style={[styles.headerSub, { color: theme.textMuted }]} numberOfLines={1}>
+                  {activeChat.petSummary} · {activeChat.distanceLabel}
+                </Text>
               </View>
-              <Text style={[styles.headerSub, { color: theme.textMuted }]} numberOfLines={1}>
-                {activeChat.petSummary} · {activeChat.distanceLabel}
-              </Text>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          ) : (
+            /* SOCIAL CHAT HEADER: XEM HỒ SƠ MẠNG XÃ HỘI */
+            <TouchableOpacity
+              style={styles.partnerTouchRow}
+              onPress={() => openPublicUserProfile(activeChat.partnerHandle)}
+              activeOpacity={0.78}
+            >
+              {activeChat.partnerAvatar ? (
+                <Image source={{ uri: activeChat.partnerAvatar }} style={styles.headerAvatar} />
+              ) : (
+                <View style={[styles.headerAvatar, styles.avatarPlaceholder]}>
+                  <Feather name="user" size={16} color="#8E8074" />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <View style={styles.partnerTitleRow}>
+                  <Text style={[styles.headerName, { color: theme.text }]} numberOfLines={1}>
+                    {activeChat.partnerName}
+                  </Text>
+                  <Text style={[styles.handleText, { color: theme.textMuted }]} numberOfLines={1}>
+                    {activeChat.partnerHandle}
+                  </Text>
+                </View>
+                <Text style={[styles.headerSub, { color: theme.textMuted }]} numberOfLines={1}>
+                  {activeChat.petSummary} · {activeChat.distanceLabel}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {isDatingChat ? (
+            <TouchableOpacity
+              onPress={() => setShowDatingDetail(true)}
+              style={[styles.profileQuickBtn, { backgroundColor: '#FFF1F2' }]}
+            >
+              <Feather name="heart" size={13} color="#E11D48" />
+              <Text style={[styles.profileQuickBtnText, { color: '#E11D48' }]}>Hồ sơ hẹn hò</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => openPublicUserProfile(activeChat.partnerHandle)}
+              style={[styles.profileQuickBtn, { backgroundColor: theme.surfaceMuted }]}
+            >
+              <Feather name="user" size={13} color={theme.text} />
+              <Text style={[styles.profileQuickBtnText, { color: theme.text }]}>Trang cá nhân</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
-            onPress={() => openPublicUserProfile(activeChat.partnerHandle)}
-            style={[styles.profileQuickBtn, { backgroundColor: theme.surfaceMuted }]}
+            onPress={() => setShowRoomMenu(true)}
+            style={[styles.moreMenuBtn, { backgroundColor: theme.surfaceMuted }]}
+            accessibilityLabel="Tùy chọn trò chuyện"
           >
-            <Feather name="user" size={14} color={theme.text} />
-            <Text style={[styles.profileQuickBtnText, { color: theme.text }]}>Trang cá nhân</Text>
+            <Feather name="more-vertical" size={17} color={theme.text} />
           </TouchableOpacity>
         </View>
 
@@ -245,126 +361,351 @@ export const MobileChatScreen: React.FC = () => {
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
           onLayout={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
         >
-          {activeChat.messages.map((msg, index) => {
-            const isMe = msg.sender === 'me';
-            const prevMsg = index > 0 ? activeChat.messages[index - 1] : null;
-            const nextMsg = index < activeChat.messages.length - 1 ? activeChat.messages[index + 1] : null;
-            const showHeader = shouldShowSessionHeader(msg, prevMsg);
-            const isTapped = tappedMessageId === msg.id;
-            // Khi ấn vào tin nhắn (isTapped): đẩy tin nhắn phía trên lên để hiện mốc giờ ở giữa
-            const displayHeader = showHeader || isTapped;
-            const isNextSameSender =
-              nextMsg && nextMsg.sender === msg.sender && !shouldShowSessionHeader(nextMsg, msg);
-            const isLastMyMessage =
-              isMe &&
-              (index === activeChat.messages.length - 1 ||
-                activeChat.messages.slice(index + 1).every((m) => m.sender !== 'me'));
+          {activeChat.messages.length === 0 ? (
+            <View style={styles.emptyConversationHint}>
+              <Feather
+                name={isDatingChat ? 'heart' : 'message-circle'}
+                size={26}
+                color={isDatingChat ? '#FDA4AF' : '#B8ACA0'}
+              />
+              <Text style={styles.emptyConversationText}>
+                {isDatingChat
+                  ? 'Hai bạn đã tương hợp! Hãy gửi tin nhắn chào mừng và hẹn cùng dắt thú cưng đi dạo nhé.'
+                  : 'Chưa có tin nhắn nào trong cuộc trò chuyện này. Hãy gửi lời chào đầu tiên!'}
+              </Text>
+            </View>
+          ) : (
+            activeChat.messages.map((msg, index) => {
+              const isMe = msg.sender === 'me';
+              const prevMsg = index > 0 ? activeChat.messages[index - 1] : null;
+              const nextMsg =
+                index < activeChat.messages.length - 1 ? activeChat.messages[index + 1] : null;
+              const showHeader = shouldShowSessionHeader(msg, prevMsg);
+              const isTapped = tappedMessageId === msg.id;
+              const displayHeader = showHeader || isTapped;
+              const isNextSameSender =
+                nextMsg && nextMsg.sender === msg.sender && !shouldShowSessionHeader(nextMsg, msg);
+              const isLastMyMessage =
+                isMe &&
+                (index === activeChat.messages.length - 1 ||
+                  activeChat.messages.slice(index + 1).every((m) => m.sender !== 'me'));
 
-            return (
-              <React.Fragment key={msg.id}>
-                {displayHeader && (
-                  <View style={styles.sessionHeaderWrap}>
-                    <Text style={[styles.sessionHeaderText, { color: theme.textMuted }]}>
-                      {formatMessengerSessionHeader(msg)}
-                    </Text>
-                  </View>
-                )}
-
-                <View
-                  style={[
-                    styles.msgRow,
-                    isMe ? styles.msgRowMe : styles.msgRowThem,
-                    { marginBottom: isNextSameSender ? 2.5 : 8 },
-                  ]}
-                >
-                  <TouchableOpacity
-                    activeOpacity={0.82}
-                    onPress={() => handleToggleMessageTimestamp(msg.id)}
-                    style={[
-                      styles.msgBubble,
-                      isMe
-                        ? { backgroundColor: theme.primary }
-                        : { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.msgText,
-                        { color: isMe ? '#FFFFFF' : theme.text },
-                      ]}
-                    >
-                      {msg.text}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Trạng thái hiển thị dưới chân tin nhắn: mặc định cho tin nhắn cuối của tôi, hoặc khi tin nhắn của tôi được ấn vào */}
-                  {(isLastMyMessage || (isTapped && isMe)) && (
-                    <View style={styles.seenReceiptRow}>
-                      {msg.isRead ? (
-                        <View style={styles.seenStatusWrap}>
-                          <Text style={[styles.seenStatusText, { color: theme.textMuted }]}>
-                            Đã xem
-                          </Text>
-                          <Image
-                            source={{ uri: activeChat.partnerAvatar }}
-                            style={styles.seenAvatar}
-                          />
-                        </View>
-                      ) : (
-                        <View style={styles.seenStatusWrap}>
-                          <Text style={[styles.seenStatusText, { color: theme.textMuted }]}>
-                            Đã gửi
-                          </Text>
-                          <Feather name="check" size={11} color={theme.textMuted} />
-                        </View>
-                      )}
+              return (
+                <React.Fragment key={msg.id}>
+                  {displayHeader && (
+                    <View style={styles.sessionHeaderWrap}>
+                      <Text style={[styles.sessionHeaderText, { color: theme.textMuted }]}>
+                        {formatMessengerSessionHeader(msg)}
+                      </Text>
                     </View>
                   )}
-                </View>
-              </React.Fragment>
-            );
-          })}
+
+                  <View
+                    style={[
+                      styles.msgRow,
+                      isMe ? styles.msgRowMe : styles.msgRowThem,
+                      { marginBottom: isNextSameSender ? 2.5 : 8 },
+                    ]}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.82}
+                      onPress={() => handleToggleMessageTimestamp(msg.id)}
+                      style={[
+                        styles.msgBubble,
+                        isMe
+                          ? { backgroundColor: isDatingChat ? '#E11D48' : theme.primary }
+                          : {
+                              backgroundColor: theme.surface,
+                              borderColor: theme.border,
+                              borderWidth: 1,
+                            },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.msgText,
+                          { color: isMe ? '#FFFFFF' : theme.text },
+                        ]}
+                      >
+                        {msg.text}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {(isLastMyMessage || (isTapped && isMe)) && (
+                      <View style={styles.seenReceiptRow}>
+                        {msg.isRead ? (
+                          <View style={styles.seenStatusWrap}>
+                            <Text style={[styles.seenStatusText, { color: theme.textMuted }]}>
+                              Đã xem
+                            </Text>
+                            {activeChat.partnerAvatar ? (
+                              <Image
+                                source={{ uri: activeChat.partnerAvatar }}
+                                style={styles.seenAvatar}
+                              />
+                            ) : null}
+                          </View>
+                        ) : (
+                          <View style={styles.seenStatusWrap}>
+                            <Text style={[styles.seenStatusText, { color: theme.textMuted }]}>
+                              Đã gửi
+                            </Text>
+                            <Feather name="check" size={11} color={theme.textMuted} />
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                </React.Fragment>
+              );
+            })
+          )}
         </ScrollView>
 
-        <View
-          style={[
-            styles.inputBar,
-            {
-              backgroundColor: theme.surface,
-              borderTopColor: theme.border,
-              paddingBottom: isKeyboardVisible
-                ? 8
-                : Platform.OS === 'ios'
-                ? Math.max(insets.bottom, 10)
-                : Math.max(insets.bottom, 10),
-            },
-          ]}
-        >
-          <TextInput
-            value={messageDraft}
-            onChangeText={setMessageDraft}
-            placeholder="Nhập tin nhắn..."
-            placeholderTextColor={theme.textMuted}
+        {/* Ô nhập tin nhắn */}
+        {canSendInRoom ? (
+          <View
             style={[
-              styles.msgInput, { maxHeight: 100 },
-              { backgroundColor: theme.bg, borderColor: theme.border, color: theme.text },
+              styles.inputBar,
+              {
+                backgroundColor: theme.surface,
+                borderTopColor: theme.border,
+                paddingBottom: isKeyboardVisible
+                  ? 8
+                  : Platform.OS === 'ios'
+                  ? Math.max(insets.bottom, 10)
+                  : Math.max(insets.bottom, 10),
+              },
             ]}
-            multiline
-            returnKeyType="send"
-            blurOnSubmit={false}
-            onSubmitEditing={handleSendMessage}
-          />
-          <TouchableOpacity
-            onPress={handleSendMessage}
-            style={[
-              styles.sendBtn,
-              { backgroundColor: messageDraft.trim() ? theme.primary : theme.border },
-            ]}
-            disabled={!messageDraft.trim()}
           >
-            <Feather name="send" size={16} color="#FFFFFF" />
+            <TextInput
+              value={messageDraft}
+              onChangeText={setMessageDraft}
+              placeholder={isDatingChat ? "Nhắn tin hẹn hò & dắt cún..." : "Nhập tin nhắn..."}
+              placeholderTextColor={theme.textMuted}
+              style={[
+                styles.msgInput,
+                { maxHeight: 100 },
+                { backgroundColor: theme.bg, borderColor: theme.border, color: theme.text },
+              ]}
+              multiline
+              returnKeyType="send"
+              blurOnSubmit={false}
+              onSubmitEditing={handleSendMessage}
+            />
+            <TouchableOpacity
+              onPress={handleSendMessage}
+              style={[
+                styles.sendBtn,
+                {
+                  backgroundColor: messageDraft.trim()
+                    ? isDatingChat
+                      ? '#E11D48'
+                      : theme.primary
+                    : theme.border,
+                },
+              ]}
+              disabled={!messageDraft.trim()}
+            >
+              <Feather name="send" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.blockedComposerCard,
+              {
+                paddingBottom: Math.max(insets.bottom, 14),
+              },
+            ]}
+          >
+            <View style={styles.blockedComposerInfoRow}>
+              <Feather name="lock" size={15} color="#B85D43" />
+              <Text style={styles.blockedComposerText}>
+                Cuộc trò chuyện này đã kết thúc do một bên đã bỏ tương hợp.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.blockedSecondaryBtn}
+              onPress={() => setConfirmType('clear_messages')}
+            >
+              <Feather name="trash-2" size={14} color="#B85D43" />
+              <Text style={styles.blockedSecondaryText}>Xóa hết tin nhắn</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Menu Tùy chọn Phòng Chat */}
+        <Modal
+          visible={showRoomMenu}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowRoomMenu(false)}
+        >
+          <TouchableOpacity
+            style={styles.menuBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowRoomMenu(false)}
+          >
+            <View style={styles.menuSheet} onStartShouldSetResponder={() => true}>
+              <View style={styles.menuHeader}>
+                <Text style={styles.menuTitle}>Tùy chọn cuộc trò chuyện</Text>
+                <TouchableOpacity onPress={() => setShowRoomMenu(false)}>
+                  <Feather name="x" size={18} color="#5C5046" />
+                </TouchableOpacity>
+              </View>
+
+              {isDatingChat ? (
+                /* MENU BÊN HẸN HÒ: TUYỆT ĐỐI CHỈ XEM HỒ SƠ HẸN HÒ & BỎ TƯƠNG HỢP */
+                <>
+                  <TouchableOpacity
+                    style={styles.menuRow}
+                    onPress={() => {
+                      setShowRoomMenu(false);
+                      setShowDatingDetail(true);
+                    }}
+                  >
+                    <View style={[styles.menuIconCircle, { backgroundColor: '#FFE4E6' }]}>
+                      <Feather name="heart" size={17} color="#E11D48" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuRowTitle}>Xem Hồ sơ Hẹn hò của {activeChat.partnerName}</Text>
+                      <Text style={styles.menuRowSub}>Xem album ảnh, mục đích kết nối và thói quen thú cưng</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.menuRow}
+                    onPress={() => {
+                      setShowRoomMenu(false);
+                      setConfirmType('clear_messages');
+                    }}
+                  >
+                    <View style={[styles.menuIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                      <Feather name="trash-2" size={17} color="#D97706" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuRowTitle}>Xóa toàn bộ tin nhắn</Text>
+                      <Text style={styles.menuRowSub}>
+                        Dọn sạch lịch sử tin nhắn trong cuộc trò chuyện này
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.menuRow}
+                    onPress={() => {
+                      setShowRoomMenu(false);
+                      setConfirmType('unmatch');
+                    }}
+                  >
+                    <View style={[styles.menuIconCircle, { backgroundColor: '#FEE2E2' }]}>
+                      <Feather name="user-x" size={17} color="#DC2626" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.menuRowTitle, { color: '#DC2626' }]}>
+                        Bỏ tương hợp & Xóa cuộc trò chuyện
+                      </Text>
+                      <Text style={styles.menuRowSub}>
+                        Xóa sạch tin nhắn và vĩnh viễn không gặp lại trên quẹt thẻ
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                /* MENU BÊN MẠNG XÃ HỘI: XEM TRANG CÁ NHÂN & XÓA TIN NHẮN */
+                <>
+                  <TouchableOpacity
+                    style={styles.menuRow}
+                    onPress={() => {
+                      setShowRoomMenu(false);
+                      openPublicUserProfile(activeChat.partnerHandle);
+                    }}
+                  >
+                    <View style={[styles.menuIconCircle, { backgroundColor: '#EAF7F1' }]}>
+                      <Feather name="user" size={17} color="#2E7D5B" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuRowTitle}>Xem Trang cá nhân của {activeChat.partnerName}</Text>
+                      <Text style={styles.menuRowSub}>Xem bài viết khoảnh khắc, follower và các bé thú cưng</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.menuRow}
+                    onPress={() => {
+                      setShowRoomMenu(false);
+                      setConfirmType('clear_messages');
+                    }}
+                  >
+                    <View style={[styles.menuIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                      <Feather name="trash-2" size={17} color="#D97706" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuRowTitle}>Xóa toàn bộ tin nhắn</Text>
+                      <Text style={styles.menuRowSub}>
+                        Dọn sạch lịch sử tin nhắn trong cuộc trò chuyện này
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
           </TouchableOpacity>
-        </View>
+        </Modal>
+
+        {/* Modal chi tiết Hồ sơ Hẹn Hò (Độc lập 100%, không chuyển sang mạng xã hội) */}
+        {datingCandidate && (
+          <TinderProfileDetailModal
+            visible={showDatingDetail}
+            candidate={datingCandidate}
+            activePhotoIdx={0}
+            onClose={() => setShowDatingDetail(false)}
+            onPass={() => setShowDatingDetail(false)}
+            onLike={() => setShowDatingDetail(false)}
+            onShare={() => {}}
+          />
+        )}
+
+        {/* Confirm Modal chống ấn nhầm khi Xóa hết tin nhắn hoặc Bỏ tương hợp */}
+        <ConfirmActionModal
+          visible={confirmType !== null}
+          title={
+            confirmType === 'unmatch'
+              ? `Bỏ tương hợp với ${activeChat.partnerName}?`
+              : confirmType === 'unfriend'
+              ? `Hủy kết bạn với ${activeChat.partnerName}?`
+              : 'Xóa toàn bộ tin nhắn?'
+          }
+          message={
+            confirmType === 'unmatch'
+              ? 'Sau khi bỏ tương hợp, toàn bộ tin nhắn sẽ bị xóa vĩnh viễn và hai bạn sẽ không còn xuất hiện trong danh sách quẹt thẻ hay tìm kiếm của nhau nữa.'
+              : confirmType === 'unfriend'
+              ? 'Sau khi hủy kết bạn, hai bạn sẽ chuyển sang nhắn tin tự do như người dùng thông thường.'
+              : 'Toàn bộ lịch sử tin nhắn trong cuộc trò chuyện này sẽ bị xóa vĩnh viễn khỏi cơ sở dữ liệu.'
+          }
+          confirmLabel={
+            confirmType === 'unmatch'
+              ? 'Xác nhận Bỏ Tương Hợp'
+              : confirmType === 'unfriend'
+              ? 'Xác nhận hủy kết bạn'
+              : 'Xóa hết tin nhắn'
+          }
+          cancelLabel="Giữ lại"
+          danger
+          onCancel={() => setConfirmType(null)}
+          onConfirm={async () => {
+            const action = confirmType;
+            setConfirmType(null);
+            if (action === 'clear_messages') {
+              await clearChatMessages(activeChat.id);
+            } else if (action === 'unmatch') {
+              await unmatchCandidate(activeChat.partnerHandle);
+            } else if (action === 'unfriend') {
+              await unfriendUser(activeChat.partnerHandle);
+            }
+          }}
+        />
       </KeyboardAvoidingView>
     );
   }
@@ -376,14 +717,79 @@ export const MobileChatScreen: React.FC = () => {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={[styles.topToolCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        {/* Search Input by Friend / User Name / Service */}
+      <View
+        style={[
+          styles.topToolCard,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+        ]}
+      >
+        {/* THANH TAB PHÂN TÁCH 2 PHẦN: MẠNG XÃ HỘI vs HẸN HÒ & KẾT NỐI */}
+        <View style={styles.segmentContainer}>
+          <TouchableOpacity
+            style={[
+              styles.segmentBtn,
+              chatSection === 'social' && [
+                styles.segmentBtnActive,
+                { backgroundColor: theme.primary, borderColor: theme.primary },
+              ],
+            ]}
+            onPress={() => setChatSection('social')}
+            activeOpacity={0.8}
+          >
+            <Feather
+              name="message-circle"
+              size={14}
+              color={chatSection === 'social' ? '#FFFFFF' : theme.textMuted}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                { color: chatSection === 'social' ? '#FFFFFF' : theme.textMuted },
+                chatSection === 'social' && styles.segmentBtnTextActive,
+              ]}
+            >
+              Mạng xã hội ({socialChats.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.segmentBtn,
+              chatSection === 'dating' && [
+                styles.segmentBtnActive,
+                { backgroundColor: '#E11D48', borderColor: '#E11D48' },
+              ],
+            ]}
+            onPress={() => setChatSection('dating')}
+            activeOpacity={0.8}
+          >
+            <Feather
+              name="heart"
+              size={14}
+              color={chatSection === 'dating' ? '#FFFFFF' : theme.textMuted}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                { color: chatSection === 'dating' ? '#FFFFFF' : theme.textMuted },
+                chatSection === 'dating' && styles.segmentBtnTextActive,
+              ]}
+            >
+              Hẹn hò ({datingChats.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={[styles.searchBox, { backgroundColor: theme.bg, borderColor: theme.border }]}>
           <Feather name="search" size={15} color={theme.textMuted} />
           <TextInput
             value={searchFriend}
             onChangeText={setSearchFriend}
-            placeholder="Tìm theo tên bạn bè, @tài_khoản, phòng khám, spa..."
+            placeholder={
+              chatSection === 'social'
+                ? "Tìm theo tên, @tài_khoản..."
+                : "Tìm theo tên bạn hẹn hò..."
+            }
             placeholderTextColor={theme.textMuted}
             style={[styles.searchInput, { color: theme.text }]}
           />
@@ -394,20 +800,14 @@ export const MobileChatScreen: React.FC = () => {
           )}
         </View>
 
-        {/* 4 Filter Tabs: Tất cả | Chưa đọc | Kết nối | Dịch vụ */}
         <View style={[styles.filterBar, { backgroundColor: theme.surfaceMuted }]}>
           {(
             [
-              { id: 'all', label: `Tất cả (${chats.length})` },
+              { id: 'all', label: `Tất cả (${currentSectionChats.length})` },
               {
                 id: 'unread',
-                label: `Chưa đọc (${chats.filter((c) => c.unreadCount > 0).length})`,
+                label: `Chưa đọc (${currentSectionChats.filter((c) => c.unreadCount > 0).length})`,
               },
-              {
-                id: 'tinder',
-                label: `Kết nối (${chats.filter((c) => c.matchSource === 'tinder_match').length})`,
-              },
-              
             ] as const
           ).map((f) => {
             const active = chatFilter === f.id;
@@ -415,10 +815,7 @@ export const MobileChatScreen: React.FC = () => {
               <TouchableOpacity
                 key={f.id}
                 onPress={() => setChatFilter(f.id)}
-                style={[
-                  styles.filterTab,
-                  active && { backgroundColor: theme.surface },
-                ]}
+                style={[styles.filterTab, active && { backgroundColor: theme.surface }]}
               >
                 <Text
                   style={[
@@ -435,20 +832,38 @@ export const MobileChatScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Chat Rooms List */}
       {filteredChats.length === 0 ? (
-        <View style={[styles.emptyBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Feather name="message-square" size={32} color={theme.textMuted} />
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>Không có cuộc trò chuyện nào</Text>
+        <View
+          style={[
+            styles.emptyBox,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          <Feather
+            name={chatSection === 'social' ? 'message-circle' : 'heart'}
+            size={34}
+            color={chatSection === 'social' ? theme.primary : '#E11D48'}
+          />
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>
+            {chatSection === 'social'
+              ? 'Không có tin nhắn mạng xã hội'
+              : 'Chưa có tương hợp hẹn hò nào'}
+          </Text>
           <Text style={[styles.emptySub, { color: theme.textMuted }]}>
-{searchFriend
+            {searchFriend
               ? 'Không tìm thấy kết quả phù hợp với từ khóa.'
-              : 'Hãy quẹt thẻ Kết nối để bắt đầu cuộc trò chuyện mới.'}
+              : chatSection === 'social'
+              ? 'Bạn có thể nhắn tin trực tiếp cho bất kỳ ai trên Pawty qua Khám phá hoặc Trang cá nhân mà không cần kết bạn trước.'
+              : 'Hãy quẹt thẻ ở mục Kết nối để tìm Boss và Sen phù hợp cùng dắt cún đi dạo!'}
           </Text>
         </View>
       ) : (
         filteredChats.map((room) => {
           const lastMsg = room.messages[room.messages.length - 1];
+          const isDatingRoom =
+            room.chatType === 'dating' || room.matchSource === 'tinder_match';
+          const roomLocked = isDatingRoom && room.canMessage === false;
+
           return (
             <TouchableOpacity
               key={room.id}
@@ -460,8 +875,18 @@ export const MobileChatScreen: React.FC = () => {
               activeOpacity={0.75}
             >
               <View style={styles.avatarWrap}>
-                <Image source={{ uri: room.partnerAvatar }} style={styles.chatAvatar} />
-                {room.isOnline && <View style={styles.onlineDot} />}
+                {room.partnerAvatar ? (
+                  <Image source={{ uri: room.partnerAvatar }} style={styles.chatAvatar} />
+                ) : (
+                  <View style={[styles.chatAvatar, styles.avatarPlaceholder]}>
+                    <Feather
+                      name={isDatingRoom ? 'heart' : 'user'}
+                      size={20}
+                      color={isDatingRoom ? '#E11D48' : '#8E8074'}
+                    />
+                  </View>
+                )}
+                {room.isOnline && !roomLocked && <View style={styles.onlineDot} />}
               </View>
 
               <View style={{ flex: 1 }}>
@@ -470,19 +895,36 @@ export const MobileChatScreen: React.FC = () => {
                     <Text style={[styles.chatName, { color: theme.text }]} numberOfLines={1}>
                       {room.partnerName}
                     </Text>
-                    {room.matchSource === 'tinder_match' && (
-                      <View style={[styles.tinderMiniBadge, { backgroundColor: theme.primarySoft }]}>
-                        <Text style={[styles.tinderMiniText, { color: theme.primary }]}>Kết nối</Text>
+                    {roomLocked ? (
+                      <View style={styles.unfriendedTag}>
+                        <Text style={styles.unfriendedTagText}>Đã bỏ tương hợp</Text>
                       </View>
+                    ) : isDatingRoom ? (
+                      <View
+                        style={[styles.tinderMiniBadge, { backgroundColor: '#FFE4E6' }]}
+                      >
+                        <Text style={[styles.tinderMiniText, { color: '#E11D48' }]}>
+                          Tương hợp
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={[styles.chatHandleText, { color: theme.textMuted }]}>
+                        {room.partnerHandle}
+                      </Text>
                     )}
-                    
                   </View>
                   <Text style={[styles.chatTime, { color: theme.textMuted }]}>
                     {lastMsg?.time || ''}
                   </Text>
                 </View>
 
-                <Text style={[styles.chatPetSub, { color: theme.primary }]} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.chatPetSub,
+                    { color: isDatingRoom ? '#E11D48' : theme.primary },
+                  ]}
+                  numberOfLines={1}
+                >
                   {room.petSummary} · {room.distanceLabel}
                 </Text>
 
@@ -490,18 +932,29 @@ export const MobileChatScreen: React.FC = () => {
                   style={[
                     styles.chatPreview,
                     {
-                      color: room.unreadCount > 0 ? theme.text : theme.textMuted,
+                      color: roomLocked
+                        ? '#B85D43'
+                        : room.unreadCount > 0
+                        ? theme.text
+                        : theme.textMuted,
                       fontWeight: room.unreadCount > 0 ? '700' : '400',
                     },
                   ]}
                   numberOfLines={1}
                 >
-                  {lastMsg?.text || 'Bắt đầu cuộc trò chuyện...'}
+                  {roomLocked
+                    ? 'Cuộc trò chuyện đã kết thúc do đã bỏ tương hợp'
+                    : lastMsg?.text || 'Bắt đầu cuộc trò chuyện...'}
                 </Text>
               </View>
 
               {room.unreadCount > 0 && (
-                <View style={[styles.unreadBadge, { backgroundColor: theme.primary }]}>
+                <View
+                  style={[
+                    styles.unreadBadge,
+                    { backgroundColor: isDatingRoom ? '#E11D48' : theme.primary },
+                  ]}
+                >
                   <Text style={styles.unreadText}>{room.unreadCount}</Text>
                 </View>
               )}
@@ -527,6 +980,38 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     marginBottom: 12,
+    gap: 10,
+  },
+  segmentContainer: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    backgroundColor: '#F3EFEA',
+    padding: 3,
+    gap: 4,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  segmentBtnActive: {
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  segmentBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  segmentBtnTextActive: {
+    fontWeight: '800',
   },
   searchBox: {
     flexDirection: 'row',
@@ -536,7 +1021,6 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 10,
   },
   searchInput: {
     flex: 1,
@@ -565,7 +1049,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
   },
   emptyTitle: {
     fontSize: 14,
@@ -575,6 +1059,7 @@ const styles = StyleSheet.create({
   emptySub: {
     fontSize: 12,
     textAlign: 'center',
+    lineHeight: 18,
   },
   chatCard: {
     flexDirection: 'row',
@@ -592,6 +1077,13 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
+  },
+  avatarPlaceholder: {
+    backgroundColor: '#F3EFEA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5DDD3',
   },
   onlineDot: {
     position: 'absolute',
@@ -613,10 +1105,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flex: 1,
+    marginRight: 6,
   },
   chatName: {
     fontSize: 14,
     fontWeight: '700',
+    flexShrink: 1,
+  },
+  handleText: {
+    fontSize: 11,
+  },
+  chatHandleText: {
+    fontSize: 11,
   },
   tinderMiniBadge: {
     paddingHorizontal: 6,
@@ -626,6 +1127,19 @@ const styles = StyleSheet.create({
   tinderMiniText: {
     fontSize: 10,
     fontWeight: '700',
+  },
+  unfriendedTag: {
+    backgroundColor: '#FDF2F2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#F5C6C6',
+  },
+  unfriendedTagText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#C9302C',
   },
   chatTime: {
     fontSize: 11,
@@ -658,8 +1172,8 @@ const styles = StyleSheet.create({
   chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
+    gap: 8,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
   },
@@ -674,7 +1188,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 9,
   },
   headerAvatar: {
     width: 38,
@@ -689,6 +1203,7 @@ const styles = StyleSheet.create({
   headerName: {
     fontSize: 14,
     fontWeight: '700',
+    flexShrink: 1,
   },
   matchTag: {
     flexDirection: 'row',
@@ -710,17 +1225,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 9,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 10,
   },
   profileQuickBtnText: {
     fontSize: 11,
     fontWeight: '700',
   },
+  moreMenuBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   messagesList: {
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 16,
+  },
+  emptyConversationHint: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    gap: 8,
+  },
+  emptyConversationText: {
+    fontSize: 13,
+    color: '#8E8074',
+    textAlign: 'center',
+    lineHeight: 19,
+    paddingHorizontal: 24,
   },
   msgRow: {
     marginBottom: 6,
@@ -740,20 +1275,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.3,
-  },
-  revealedTimeRow: {
-    marginTop: 2,
-    paddingHorizontal: 4,
-  },
-  revealedTimeMe: {
-    alignSelf: 'flex-end',
-  },
-  revealedTimeThem: {
-    alignSelf: 'flex-start',
-  },
-  revealedTimeText: {
-    fontSize: 10.5,
-    fontWeight: '500',
   },
   seenReceiptRow: {
     marginTop: 3,
@@ -785,11 +1306,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  msgTime: {
-    fontSize: 10,
-    marginTop: 4,
-    alignSelf: 'flex-end',
-  },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -813,4 +1329,97 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  blockedComposerCard: {
+    backgroundColor: '#FFF8F6',
+    borderTopWidth: 1,
+    borderTopColor: '#F3D6D3',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    gap: 10,
+  },
+  blockedComposerInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  blockedComposerText: {
+    flex: 1,
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#8C3823',
+    lineHeight: 18,
+  },
+  blockedSecondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F3D6D3',
+  },
+  blockedSecondaryText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#B85D43',
+  },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20, 16, 14, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  menuSheet: {
+    backgroundColor: '#FAF7F2',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 28,
+    gap: 10,
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ECE5DB',
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#2C2520',
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    padding: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#ECE5DB',
+  },
+  menuIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuRowTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#2C2520',
+  },
+  menuRowSub: {
+    fontSize: 11.5,
+    color: '#7A6E63',
+    marginTop: 2,
+  },
 });
+
+

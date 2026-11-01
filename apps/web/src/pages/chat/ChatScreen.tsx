@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { usePawtyStore } from "../../stores/usePawtyStore";
-import { WEB_THEMES } from "../../mocks/seedData";
+import { WEB_THEMES } from "../../config/themes";
 
 type ChatCategoryFilter = "all" | "unread" | "circle" | "friends" | "services";
 

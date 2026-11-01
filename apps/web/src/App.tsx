@@ -20,12 +20,12 @@ export const App: React.FC = () => {
     activeConversationId,
     setActiveConversationId,
     setActiveTab,
-    hydrateFromServer,
+    verifySavedSessionOnBoot,
   } = usePawtyStore();
 
   useEffect(() => {
-    hydrateFromServer?.();
-  }, [hydrateFromServer]);
+    void verifySavedSessionOnBoot?.();
+  }, [verifySavedSessionOnBoot]);
 
   useEffect(() => {
     const handlePopState = () => {

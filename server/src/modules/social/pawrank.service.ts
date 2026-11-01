@@ -70,7 +70,7 @@ export function calculatePawRankScore(
   );
 
   const authorTrustScore =
-    (post.expertVerified ? 65 : 25) + (post.authorIsVip ? 20 : 0) + (post.isExpertContent ? 15 : 0);
+    (post.expertVerified ? 65 : 25) + (post.isExpertContent ? 15 : 0);
 
   const distanceMeters = post.location.point
     ? calculateDistanceMeters(userLocation, post.location.point)
@@ -93,9 +93,6 @@ export function calculatePawRankScore(
   return Number(totalScore.toFixed(1));
 }
 
-/**
- * PawRank Feed Service & PostGIS Spatial Service (Tầng 2 Section 4 & Tầng 6 Section 6)
- */
 export class PawRankAndSpatialService {
   rankFeedForUser(
     posts: SocialPost[],
@@ -130,8 +127,6 @@ export class PawRankAndSpatialService {
     userBLocation: GeoPoint,
     places: PetFriendlyPlace[]
   ) {
-    const midpoint = calculateMidpoint(userALocation, userBLocation);
     return suggestMidpointWalkPlaces(userALocation, userBLocation, places, 3);
   }
 }
-

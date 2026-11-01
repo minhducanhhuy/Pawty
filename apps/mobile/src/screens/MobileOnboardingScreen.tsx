@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,12 @@ import {
   Platform,
   Keyboard,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
 import { MobileAnimatedLogo } from '../components/MobileAnimatedLogo';
+import { POPULAR_DOG_BREEDS, POPULAR_CAT_BREEDS } from '../types/mobileTypes';
 
 const PAWTY_LOGO_FULL = require('../../assets/pawty-logo-full.png');
 const PAWTY_ICON = require('../../assets/pawty-icon.png');
@@ -25,26 +27,51 @@ export const MobileOnboardingScreen: React.FC = () => {
     ownerName,
     ownerHandle,
     ownerBio,
+    hasSavedSession,
+    savedSessionIdentifier,
+    bootAuthError,
     loginOrRegister,
   } = useMobilePawty();
 
-  const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('welcome');
-  const [identifierInput, setIdentifierInput] = useState('mai_nguyen');
-  const [passwordInput, setPasswordInput] = useState('password123');
+  const [mode, setMode] = useState<'welcome' | 'login' | 'register'>(
+    hasSavedSession ? 'welcome' : 'login'
+  );
+  const [identifierInput, setIdentifierInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   // Register fields
-  const [fullNameInput, setFullNameInput] = useState('Mai Nguyễn');
-  const [phoneInput, setPhoneInput] = useState('0912345678');
-  const [usernameInput, setUsernameInput] = useState('mai_nguyen');
-  const [petNameInput, setPetNameInput] = useState('Lu');
+  const [fullNameInput, setFullNameInput] = useState('');
+  const [phoneInput, setPhoneInput] = useState('');
+  const [usernameInput, setUsernameInput] = useState('');
+  const [petNameInput, setPetNameInput] = useState('');
   const [petSpeciesInput, setPetSpeciesInput] = useState<'Chó' | 'Mèo'>('Chó');
-  const [petBreedInput, setPetBreedInput] = useState('Golden Retriever');
+  const [petBreedInput, setPetBreedInput] = useState('');
   const [petVaccinated, setPetVaccinated] = useState(true);
 
-  const [authError, setAuthError] = useState<string | null>(null);
+  // Breed selector modal state
+  const [isBreedPickerOpen, setIsBreedPickerOpen] = useState(false);
+  const [breedSearchQuery, setBreedSearchQuery] = useState('');
+
+  const currentBreedsList = useMemo(() => {
+    return petSpeciesInput === 'Mèo' ? POPULAR_CAT_BREEDS : POPULAR_DOG_BREEDS;
+  }, [petSpeciesInput]);
+
+  const filteredBreeds = useMemo(() => {
+    const q = breedSearchQuery.trim().toLowerCase();
+    if (!q) return currentBreedsList;
+    return currentBreedsList.filter((b) => b.toLowerCase().includes(q));
+  }, [breedSearchQuery, currentBreedsList]);
+
+  const [authError, setAuthError] = useState<string | null>(bootAuthError);
   const [isLoading, setIsLoading] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    if (bootAuthError) {
+      setAuthError(bootAuthError);
+    }
+  }, [bootAuthError]);
 
   const scrollViewRef = useRef<any>(null);
 
@@ -113,6 +140,7 @@ export const MobileOnboardingScreen: React.FC = () => {
     setIsLoading(true);
     try {
       await loginOrRegister({
+        isRegister: true,
         name: fullNameInput.trim(),
         phone: phoneInput.trim(),
         username: usernameInput.trim() || undefined,
@@ -167,36 +195,62 @@ export const MobileOnboardingScreen: React.FC = () => {
           </Text>
         </View>
 
-        {mode === 'welcome' && (
+        {mode === 'welcome' && hasSavedSession && (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Chào mừng bạn quay lại</Text>
             <Text style={styles.sectionSub}>
-              Thiết bị này đã lưu phiên đăng nhập trước đó. Bạn có thể vào thẳng ứng dụng chỉ với một chạm.
+              Thiết bị này đã lưu phiên đăng nhập trước đó. Hệ thống sẽ xác thực kết nối Database trước khi vào ứng dụng.
             </Text>
 
+            {authError && (
+              <View style={styles.errorBox}>
+                <Feather name="alert-triangle" size={15} color="#D32F2F" />
+                <Text style={styles.errorText}>{authError}</Text>
+              </View>
+            )}
+
             <TouchableOpacity
-              style={[styles.savedAccountBox, { borderColor: theme.primary }]}
-              onPress={() =>
-                loginOrRegister({
-                  name: ownerName,
-                  phone: phoneInput,
-                  identifier: 'mai_nguyen',
-                  password: 'password123',
-                })
-              }
+              style={[
+                styles.savedAccountBox,
+                { borderColor: theme.primary },
+                isLoading && { opacity: 0.7 },
+              ]}
+              disabled={isLoading}
+              onPress={async () => {
+                setAuthError(null);
+                setIsLoading(true);
+                try {
+                  await loginOrRegister({
+                    identifier: savedSessionIdentifier || ownerHandle.replace(/^@/, ''),
+                  });
+                } catch (err: any) {
+                  setAuthError(
+                    err?.message ||
+                      'Không thể kết nối Cơ sở dữ liệu PostgreSQL để đăng nhập.'
+                  );
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
             >
               <View style={[styles.savedAvatar, { backgroundColor: theme.primary }]}>
                 <Feather name="user" size={20} color="#FFFFFF" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.savedName}>{ownerName}</Text>
+                <Text style={styles.savedName}>{ownerName || savedSessionIdentifier}</Text>
                 <Text style={styles.savedMeta} numberOfLines={1}>
-                  {ownerHandle} · {ownerBio}
+                  {ownerHandle} {ownerBio ? `· ${ownerBio}` : ''}
                 </Text>
               </View>
               <View style={[styles.enterBadge, { backgroundColor: theme.primary }]}>
-                <Text style={styles.enterBadgeText}>Vào thẳng</Text>
-                <Feather name="arrow-right" size={13} color="#FFFFFF" />
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Text style={styles.enterBadgeText}>Vào thẳng</Text>
+                    <Feather name="arrow-right" size={13} color="#FFFFFF" />
+                  </>
+                )}
               </View>
             </TouchableOpacity>
 
@@ -230,16 +284,18 @@ export const MobileOnboardingScreen: React.FC = () => {
           </View>
         )}
 
-        {mode === 'login' && (
+        {(mode === 'login' || (mode === 'welcome' && !hasSavedSession)) && (
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
               <Text style={styles.sectionTitle}>Đăng nhập tài khoản</Text>
-              <TouchableOpacity onPress={() => {
-                setAuthError(null);
-                setMode('welcome');
-              }}>
-                <Text style={[styles.backLink, { color: theme.primary }]}>Quay lại</Text>
-              </TouchableOpacity>
+              {hasSavedSession && (
+                <TouchableOpacity onPress={() => {
+                  setAuthError(null);
+                  setMode('welcome');
+                }}>
+                  <Text style={[styles.backLink, { color: theme.primary }]}>Quay lại</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             <Text style={styles.sectionSub}>
@@ -248,7 +304,7 @@ export const MobileOnboardingScreen: React.FC = () => {
 
             {authError && (
               <View style={styles.errorBox}>
-                <Feather name="alert-circle" size={15} color="#D32F2F" />
+                <Feather name="alert-triangle" size={15} color="#D32F2F" />
                 <Text style={styles.errorText}>{authError}</Text>
               </View>
             )}
@@ -260,7 +316,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               onChangeText={setIdentifierInput}
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="VD: 0912345678 hoặc mai_nguyen"
+              placeholder="VD: 0900000001 hoặc test1"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(140)}
             />
@@ -308,11 +364,16 @@ export const MobileOnboardingScreen: React.FC = () => {
               )}
             </TouchableOpacity>
 
-            <View style={styles.hintBox}>
-              <Text style={styles.hintTitle}>💡 Gợi ý tài khoản kiểm thử:</Text>
-              <Text style={styles.hintText}>• SĐT: 0912345678 hoặc Username: mai_nguyen</Text>
-              <Text style={styles.hintText}>• Mật khẩu: password123</Text>
-            </View>
+            <TouchableOpacity
+              style={[styles.secondaryBtn, { marginTop: 10 }]}
+              onPress={() => {
+                setAuthError(null);
+                setMode('register');
+              }}
+            >
+              <Feather name="user-plus" size={16} color="#4A3F35" />
+              <Text style={styles.secondaryBtnText}>Chưa có tài khoản? Tạo tài khoản mới</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -322,7 +383,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               <Text style={styles.sectionTitle}>Tạo tài khoản mới</Text>
               <TouchableOpacity onPress={() => {
                 setAuthError(null);
-                setMode('welcome');
+                setMode(hasSavedSession ? 'welcome' : 'login');
               }}>
                 <Text style={[styles.backLink, { color: theme.primary }]}>Quay lại</Text>
               </TouchableOpacity>
@@ -330,7 +391,7 @@ export const MobileOnboardingScreen: React.FC = () => {
 
             {authError && (
               <View style={styles.errorBox}>
-                <Feather name="alert-circle" size={15} color="#D32F2F" />
+                <Feather name="alert-triangle" size={15} color="#D32F2F" />
                 <Text style={styles.errorText}>{authError}</Text>
               </View>
             )}
@@ -394,7 +455,7 @@ export const MobileOnboardingScreen: React.FC = () => {
 
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Hồ sơ thú cưng đầu tiên (Tối đa 3 bé miễn phí)</Text>
+              <Text style={styles.dividerText}>Hồ sơ thú cưng đầu tiên (Tùy chọn)</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -410,7 +471,9 @@ export const MobileOnboardingScreen: React.FC = () => {
                 ]}
                 onPress={() => {
                   setPetSpeciesInput('Chó');
-                  setPetBreedInput('Golden Retriever');
+                  if (!POPULAR_DOG_BREEDS.includes(petBreedInput)) {
+                    setPetBreedInput('Golden Retriever');
+                  }
                 }}
               >
                 <Feather
@@ -438,7 +501,9 @@ export const MobileOnboardingScreen: React.FC = () => {
                 ]}
                 onPress={() => {
                   setPetSpeciesInput('Mèo');
-                  setPetBreedInput('Mèo Anh Lông Ngắn');
+                  if (!POPULAR_CAT_BREEDS.includes(petBreedInput)) {
+                    setPetBreedInput('Mèo Anh lông ngắn (BSH)');
+                  }
                 }}
               >
                 <Feather
@@ -467,15 +532,26 @@ export const MobileOnboardingScreen: React.FC = () => {
               onFocus={() => scrollToOffset(360)}
             />
 
-            <Text style={styles.inputLabel}>Giống loài chi tiết</Text>
-            <TextInput
-              style={styles.input}
-              value={petBreedInput}
-              onChangeText={setPetBreedInput}
-              placeholder="VD: Golden Retriever, Corgi..."
-              placeholderTextColor="#B8AEA4"
-              onFocus={() => scrollToOffset(440)}
-            />
+            <Text style={styles.inputLabel}>Giống loài chi tiết (Chọn danh sách)</Text>
+            <TouchableOpacity
+              style={styles.breedSelectorBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                Keyboard.dismiss();
+                setBreedSearchQuery('');
+                setIsBreedPickerOpen(true);
+              }}
+            >
+              <Text
+                style={[
+                  styles.breedSelectorBtnText,
+                  !petBreedInput && { color: '#B8AEA4' },
+                ]}
+              >
+                {petBreedInput || `Chọn giống ${petSpeciesInput.toLowerCase()}...`}
+              </Text>
+              <Feather name="chevron-down" size={18} color="#7A6E63" />
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={[
@@ -526,6 +602,126 @@ export const MobileOnboardingScreen: React.FC = () => {
           </View>
         )}
       </ScrollView>
+
+      {/* BREED PICKER MODAL (SELECTOR DANH SÁCH GIỐNG THÚ CƯNG) */}
+      <Modal
+        visible={isBreedPickerOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsBreedPickerOpen(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.pickerModalOverlay}
+        >
+          <View style={styles.pickerModalContainer}>
+            {/* Header */}
+            <View style={styles.pickerModalHeader}>
+              <View>
+                <Text style={styles.pickerModalTitle}>
+                  {petSpeciesInput === 'Chó' ? 'Chọn giống chó' : 'Chọn giống mèo'}
+                </Text>
+                <Text style={styles.pickerModalSub}>
+                  Chọn từ danh mục phổ biến hoặc gõ tìm kiếm
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.pickerModalCloseBtn}
+                onPress={() => setIsBreedPickerOpen(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="x" size={18} color="#4A3F35" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search Bar */}
+            <View style={styles.pickerSearchRow}>
+              <Feather name="search" size={16} color="#8F8377" />
+              <TextInput
+                style={styles.pickerSearchInput}
+                placeholder={`Tìm kiếm tên giống ${petSpeciesInput.toLowerCase()}...`}
+                placeholderTextColor="#A89E94"
+                value={breedSearchQuery}
+                onChangeText={setBreedSearchQuery}
+                autoCorrect={false}
+              />
+              {breedSearchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setBreedSearchQuery('')}>
+                  <Feather name="x-circle" size={16} color="#A89E94" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* List options */}
+            <ScrollView
+              style={styles.pickerOptionsList}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {filteredBreeds.map((breed) => {
+                const isSelected = petBreedInput === breed;
+                return (
+                  <TouchableOpacity
+                    key={breed}
+                    style={[
+                      styles.pickerOptionItem,
+                      isSelected && {
+                        backgroundColor: '#FDF1EF',
+                        borderColor: theme.primary,
+                      },
+                    ]}
+                    onPress={() => {
+                      setPetBreedInput(breed);
+                      setIsBreedPickerOpen(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerOptionText,
+                        isSelected && { color: theme.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      {breed}
+                    </Text>
+                    {isSelected && (
+                      <Feather name="check" size={18} color={theme.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+
+              {/* If query not found, allow custom entry */}
+              {breedSearchQuery.trim().length > 0 &&
+                !currentBreedsList.some(
+                  (b) => b.toLowerCase() === breedSearchQuery.trim().toLowerCase()
+                ) && (
+                  <TouchableOpacity
+                    style={[styles.pickerOptionItem, { borderStyle: 'dashed', borderColor: theme.primary }]}
+                    onPress={() => {
+                      setPetBreedInput(breedSearchQuery.trim());
+                      setIsBreedPickerOpen(false);
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.pickerOptionText,
+                          { color: theme.primary, fontWeight: '700' },
+                        ]}
+                      >
+                        Sử dụng tên: "{breedSearchQuery.trim()}"
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#8F8377', marginTop: 2 }}>
+                        Giống thú cưng chưa có trong danh mục phổ biến
+                      </Text>
+                    </View>
+                    <Feather name="plus-circle" size={18} color={theme.primary} />
+                  </TouchableOpacity>
+                )}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -837,5 +1033,98 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#7A6E63',
     marginTop: 2,
+  },
+  breedSelectorBtn: {
+    backgroundColor: '#FAF7F2',
+    borderWidth: 1,
+    borderColor: '#E8E0D5',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  breedSelectorBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2C2520',
+  },
+  pickerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  pickerModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '75%',
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 28,
+  },
+  pickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  pickerModalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#1C1815',
+  },
+  pickerModalSub: {
+    fontSize: 12,
+    color: '#7A6E63',
+    marginTop: 2,
+  },
+  pickerModalCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#F5EFE6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FAF7F2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8E0D5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+    gap: 8,
+  },
+  pickerSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#2C2520',
+    padding: 0,
+  },
+  pickerOptionsList: {
+    maxHeight: 360,
+  },
+  pickerOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F0EAE1',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 8,
+  },
+  pickerOptionText: {
+    fontSize: 14,
+    color: '#2C2520',
+    fontWeight: '500',
   },
 });

@@ -1,49 +1,56 @@
-﻿import { apiClient } from '../services/apiClient';
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { apiClient, ApiRequestError } from '../services/apiClient';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  setupNativeNotifications,
+  sendNativePushNotification,
+} from '../services/notificationService';
+import {
   MobilePet,
-  PetWeightEntry,
   PetVaccineRecord,
   MobilePost,
   MobileChatRoom,
   MobileSosAlert,
   MobileNotificationItem,
+  NotificationCategory,
+  NotificationType,
   PublicUserProfile,
   TinderCandidate,
   TinderIntent,
   UserTinderSetupProfile,
   SuggestedPersonCard,
-  VipPlanOption,
-  INITIAL_MOBILE_PETS,
-  INITIAL_MOBILE_POSTS,
-  INITIAL_MOBILE_CHATS,
-  INITIAL_MOBILE_SOS,
-  INITIAL_MOBILE_NOTIFICATIONS,
-  INITIAL_SEARCH_HISTORY,
-  TRENDING_SEARCH_SUGGESTIONS,
-  PUBLIC_USER_PROFILES,
-  INITIAL_TINDER_CANDIDATES,
-  INITIAL_USER_TINDER_SETUP,
-  INITIAL_SUGGESTED_PEOPLE,
-  VIP_PLAN_OPTIONS,
-} from '../data/mobileSeedData';
+  EMPTY_USER_TINDER_SETUP,
+  resolveTinderIntentFromLabel,
+  getTinderPurposeLabel,
+} from '../types/mobileTypes';
 
-export const MAX_FREE_PETS = 3;
+const EMPTY_PET_PLACEHOLDER: MobilePet = {
+  id: '',
+  name: '',
+  species: 'Chó',
+  breed: '',
+  gender: 'Đực',
+  birthDate: '',
+  ageLabel: '',
+  weightKg: 0,
+  furColor: '',
+  microchipOrMark: '',
+  favoriteFood: '',
+  allergies: '',
+  avatarUrl: '',
+  coverUrl: '',
+  bio: '',
+  isVaccinatedAndRabies: false,
+  goodHabits: [],
+  cautionHabits: [],
+};
 
-export type MobileMainTab =
-  | 'explore'
-  | 'tinder'
-  | 'chat'
-  | 'profile'
-  | 'sos';
+export type MobileMainTab = 'explore' | 'tinder' | 'chat' | 'profile' | 'sos';
 
 export type MobileModalType =
   | null
   | 'new_moment'
-  | 'vip_upgrade'
   | 'notifications'
   | 'edit_profile'
   | 'my_settings'
@@ -142,13 +149,213 @@ export interface LightboxMediaState {
   caption: string;
 }
 
+function normalizeSpeciesLabel(raw?: string): 'Chó' | 'Mèo' | 'Khác' {
+  if (!raw) return 'Chó';
+  const s = raw.trim().toLowerCase();
+  if (s === 'mèo' || s === 'cat') return 'Mèo';
+  if (s === 'khác' || s === 'other') return 'Khác';
+  return 'Chó';
+}
+
+function normalizePetFromServer(p: any): MobilePet {
+  if (!p) return EMPTY_PET_PLACEHOLDER;
+
+  const vaccineRecords: PetVaccineRecord[] = Array.isArray(p.vaccineRecords)
+    ? p.vaccineRecords.map((v: any, idx: number) => ({
+        id: v.id || `vac-${idx}`,
+        vaccineName: v.vaccineName || v.name || 'Vắc-xin phòng bệnh',
+        name: v.name || v.vaccineName || 'Vắc-xin phòng bệnh',
+        date: v.date || '',
+        doseNumber: v.doseNumber || `Mũi ${idx + 1}`,
+        clinicName: v.clinicName || v.clinic || 'Phòng khám Thú Y',
+        clinic: v.clinic || v.clinicName || 'Phòng khám Thú Y',
+        isSafeVerified: v.isSafeVerified ?? true,
+      }))
+    : Array.isArray(p.vaccinations)
+    ? p.vaccinations.map((v: any, idx: number) => ({
+        id: v.id || `vac-${idx}`,
+        vaccineName: v.vaccineName || 'Vắc-xin phòng bệnh',
+        name: v.vaccineName || 'Vắc-xin phòng bệnh',
+        date: v.dateGiven ? new Date(v.dateGiven).toLocaleDateString('vi-VN') : '',
+        doseNumber: `Mũi ${idx + 1}`,
+        clinicName: v.vetName || 'Phòng khám Thú Y',
+        clinic: v.vetName || 'Phòng khám Thú Y',
+        isSafeVerified: Boolean(v.verified ?? true),
+      }))
+    : [];
+
+  const galleryUrls: string[] =
+    Array.isArray(p.galleryUrls) && p.galleryUrls.length > 0
+      ? p.galleryUrls.filter(Boolean)
+      : [p.avatarUrl, p.coverPhotoUrl || p.coverUrl].filter(Boolean);
+
+  const primaryPhoto = p.avatarUrl || galleryUrls[0] || '';
+
+  return {
+    id: String(p.id || ''),
+    ownerId: p.ownerId ? String(p.ownerId) : undefined,
+    name: p.name || 'Boss',
+    species: normalizeSpeciesLabel(p.species),
+    customSpecies: p.customSpecies || undefined,
+    breed: p.breed || 'Chưa rõ',
+    gender: p.gender === 'female' || p.gender === 'Cái' ? 'Cái' : 'Đực',
+    birthDate: p.birthDate || '01/01/2024',
+    ageLabel: p.ageLabel || '1 tuổi',
+    weightKg: Number(p.weightKg ?? 0),
+    furColor: p.furColor || 'Vàng kem',
+    microchipOrMark: p.microchipOrMark || '',
+    favoriteFood: p.favoriteFood || 'Hạt dinh dưỡng & Ức gà',
+    allergies: p.allergies || p.medicalHistory || 'Không',
+    avatarUrl: primaryPhoto,
+    coverUrl: p.coverPhotoUrl || p.coverUrl || primaryPhoto,
+    bio: p.bio || '',
+    isSterilized: Boolean(p.isSterilized ?? p.isNeutered ?? false),
+    isVaccinatedAndRabies: Boolean(
+      p.isVaccinatedAndRabies ?? (p.vaccinationStatus === 'verified' || vaccineRecords.length > 0)
+    ),
+    goodHabits: Array.isArray(p.goodHabits) ? p.goodHabits : [],
+    cautionHabits: Array.isArray(p.cautionHabits) ? p.cautionHabits : [],
+    galleryUrls,
+    weightHistory: Array.isArray(p.weightHistory) ? p.weightHistory : [],
+    vaccineRecords,
+    dewormingHistory: p.dewormingHistory || 'Định kỳ 3 tháng/lần',
+    medicalHistory: p.medicalHistory || 'Khỏe mạnh, không có bệnh nền',
+    likesCount: Number(p.likesCount ?? 0),
+    isLiked: Boolean(p.isLiked ?? false),
+  };
+}
+
+function normalizePostFromServer(post: any, currentUserId: string): MobilePost {
+  const authorHandle =
+    post.authorHandle ||
+    (post.author?.username
+      ? `@${post.author.username}`
+      : `@${(post.author?.displayName || 'cudan').toLowerCase().replace(/\s+/g, '')}`);
+
+  const mediaUrls: string[] = Array.isArray(post.mediaUrls)
+    ? post.mediaUrls.filter(Boolean)
+    : Array.isArray(post.media)
+    ? post.media.map((m: any) => (typeof m === 'string' ? m : m?.url)).filter(Boolean)
+    : [];
+
+  const isLikedByMe =
+    post.userReaction === 'paws' ||
+    Boolean(post.isLiked) ||
+    (Array.isArray(post.reactions) &&
+      post.reactions.some((r: any) => r.userId === currentUserId));
+
+  const pawCount =
+    typeof post.reactions?.paws === 'number'
+      ? post.reactions.paws
+      : Array.isArray(post.reactions)
+      ? post.reactions.length
+      : Number(post.pawCount ?? post.likes ?? 0);
+
+  return {
+    id: String(post.id),
+    authorId: post.authorId || post.author?.id,
+    authorName: post.authorName || post.author?.displayName || 'Cư dân Pawty',
+    authorHandle,
+    authorAvatar: post.authorAvatar || post.author?.avatarUrl || '',
+    authorNickname:
+      post.authorNickname ||
+      (post.author?.role === 'expert' ? 'Bác sĩ Thú Y' : post.author?.displayName || 'Cư dân'),
+    category: (post.contentType === 'tip'
+      ? 'health_tip'
+      : post.contentType === 'question'
+      ? 'qa_vet'
+      : post.category || 'moment') as MobilePost['category'],
+    categoryLabel:
+      post.categoryLabel ||
+      (post.contentType === 'tip'
+        ? 'Góc Thú Y'
+        : post.contentType === 'question'
+        ? 'Hỏi đáp'
+        : 'Khoảnh khắc'),
+    content: post.content ?? post.textContent ?? post.text ?? '',
+    tags: Array.isArray(post.tags)
+      ? post.tags
+      : Array.isArray(post.hashtags)
+      ? post.hashtags
+      : [],
+    mediaUrls,
+    mediaType:
+      post.mediaType === 'video' ||
+      (Array.isArray(post.media) && post.media[0]?.type === 'video')
+        ? 'video'
+        : 'image',
+    reactions: {
+      paws: pawCount,
+      love: 0,
+      haha: 0,
+      wow: 0,
+      helpful: 0,
+    },
+    userReaction: isLikedByMe ? 'paws' : null,
+    shareCount: Number(post.shareCount || 0),
+    isSaved: Boolean(post.isSaved),
+    comments: Array.isArray(post.comments)
+      ? post.comments.map((c: any) => ({
+          id: String(c.id),
+          authorName: c.authorName || c.author?.displayName || 'Cư dân',
+          authorHandle:
+            c.authorHandle || (c.author?.username ? `@${c.author.username}` : '@cudan'),
+          authorAvatar: c.authorAvatar || c.author?.avatarUrl || '',
+          content: c.content ?? c.textContent ?? c.text ?? '',
+          createdAt:
+            typeof c.createdAt === 'string' && !c.createdAt.includes('T')
+              ? c.createdAt
+              : c.createdAt
+              ? new Date(c.createdAt).toLocaleTimeString('vi-VN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : 'Vừa xong',
+          likesCount: Number(c.likesCount ?? c.reactionCount ?? 0),
+          isLiked: Boolean(c.isLiked),
+          replies: Array.isArray(c.replies) ? c.replies : [],
+        }))
+      : [],
+    createdAt:
+      typeof post.createdAt === 'string' && !post.createdAt.includes('T')
+        ? post.createdAt
+        : post.createdAt
+        ? new Date(post.createdAt).toLocaleDateString('vi-VN')
+        : 'Hôm nay',
+  };
+}
+
+function normalizeNotificationCategory(
+  rawType?: string,
+  rawCat?: string
+): NotificationCategory {
+  if (rawCat === 'friend' || rawCat === 'follow' || rawCat === 'sos' || rawCat === 'system') {
+    return rawCat;
+  }
+  if (rawType === 'friend_request' || rawType === 'friend_accepted' || rawType === 'match' || rawType === 'tinder') {
+    return 'friend';
+  }
+  if (rawType === 'sos_alert' || rawType === 'sos_sighting' || rawType === 'sos') {
+    return 'sos';
+  }
+  if (rawType === 'follow' || rawType === 'post_reaction' || rawType === 'post_comment' || rawType === 'new_post' || rawType === 'social') {
+    return 'follow';
+  }
+  return 'system';
+}
+
 interface MobilePawtyContextType {
-  // Auth, Single-Device Session & Onboarding
+  // Auth & Session
   isAuthLoaded: boolean;
   isAuthenticated: boolean;
+  hasSavedSession: boolean;
+  savedSessionIdentifier: string;
+  bootAuthError: string | null;
   activeDeviceSessionId: string;
   activeDeviceName: string;
   currentUserId: string;
+
+  // Owner Profile
   ownerName: string;
   ownerHandle: string;
   ownerAvatar: string;
@@ -165,11 +372,15 @@ interface MobilePawtyContextType {
   ownerEducation: string;
   ownerMajor: string;
   ownerOccupation: string;
+  ownerFollowersCount: number;
+  ownerFollowingCount: number;
   ownerCoverUrl: string;
   setOwnerCoverUrl: (url: string) => void;
   ownerAvatarUrl: string;
   setOwnerAvatarUrl: (url: string) => void;
-  togglePetLike: (petId: string) => void;
+  ownerNoteBubble: string;
+  setOwnerNoteBubble: (note: string) => void;
+  isPrivateProfile: boolean;
   ownerPrivacySettings: Record<string, boolean>;
   updateOwnerProfile: (params: {
     name?: string;
@@ -186,26 +397,8 @@ interface MobilePawtyContextType {
     coverUrl?: string;
     avatarUrl?: string;
     privacySettings?: Record<string, boolean>;
-  }) => void;
-  updatePetProfile: (petId: string, updates: Partial<MobilePet>) => void;
-  deletePost: (postId: string) => void;
-  toggleCommentLike: (postId: string, commentId: string) => void;
-  addCommentReply: (postId: string, commentId: string, content: string) => void;
-  ownerNoteBubble: string;
-  setOwnerNoteBubble: (note: string) => void;
-  isPrivateProfile: boolean;
-  loginOrRegister: (params: {
-    name?: string;
-    phone?: string;
-    username?: string;
-    password?: string;
-    identifier?: string;
-    petName?: string;
-    petSpecies?: 'Chó' | 'Mèo';
-    petBreed?: string;
   }) => Promise<void>;
-  logoutUser: () => Promise<void>;
-  forceRevokeOtherDevices: () => void;
+  togglePrivateProfile: () => void;
   updateOwnerAndPetProfile: (params: {
     ownerName: string;
     ownerNickname: string;
@@ -214,7 +407,7 @@ interface MobilePawtyContextType {
     isPrivateProfile: boolean;
     petId: string;
     petName: string;
-    petSpecies: 'Chó' | 'Mèo';
+    petSpecies: 'Chó' | 'Mèo' | 'Khác';
     petBreed: string;
     petGender: 'Đực' | 'Cái';
     petBirthDate: string;
@@ -228,22 +421,60 @@ interface MobilePawtyContextType {
     petGoodHabits: string[];
     petCautionHabits: string[];
   }) => void;
-  togglePrivateProfile: () => void;
-  togglePetVaccinationAndRabies: (petId: string) => void;
+
+  // Auth Actions
+  loginOrRegister: (params: {
+    isRegister?: boolean;
+    name?: string;
+    phone?: string;
+    username?: string;
+    password?: string;
+    identifier?: string;
+    petName?: string;
+    petSpecies?: 'Chó' | 'Mèo';
+    petBreed?: string;
+  }) => Promise<void>;
+  logoutUser: () => Promise<void>;
+  forceRevokeOtherDevices: () => void;
+
+  // Pets (Unlimited Free)
+  pets: MobilePet[];
+  activePetId: string;
+  activePet: MobilePet;
+  setActivePetId: (id: string) => void;
   addNewPetProfile: (params: {
     name: string;
-    species: 'Chó' | 'Mèo';
+    species: 'Chó' | 'Mèo' | 'Khác';
+    customSpecies?: string;
     breed: string;
+    gender?: 'Đực' | 'Cái';
     weightKg: number;
     ageLabel: string;
-  }) => void;
-  deletePetProfile: (petId: string) => void;
+    birthDate?: string;
+    furColor?: string;
+    bio?: string;
+    avatarUrl?: string;
+    galleryUrls?: string[];
+    isSterilized?: boolean;
+    isVaccinatedAndRabies?: boolean;
+    favoriteFood?: string;
+    dewormingHistory?: string;
+    medicalHistory?: string;
+    goodHabits?: string[];
+    cautionHabits?: string[];
+    weightHistory?: { month: string; weightKg: number }[];
+    vaccineRecords?: PetVaccineRecord[];
+  }) => Promise<MobilePet | null>;
+  updatePetProfile: (petId: string, updates: Partial<MobilePet>) => Promise<void>;
+  deletePetProfile: (petId: string) => Promise<void>;
+  togglePetLike: (petId: string) => void;
+  togglePetVaccinationAndRabies: (petId: string) => void;
 
-  // User Tinder Setup Profile (for `Kết nối`)
+  // Tinder Setup Profile (Mapped 1-to-1 with Tinder Purpose)
   userTinderSetup: UserTinderSetupProfile;
-  updateUserTinderSetup: (nextSetup: UserTinderSetupProfile) => void;
+  updateUserTinderSetup: (nextSetup: UserTinderSetupProfile) => Promise<void>;
 
-  // Instagram Suggested People (`Khám phá mọi người`)
+  // Suggested People
   suggestedPeople: SuggestedPersonCard[];
   toggleFollowSuggestedPerson: (id: string) => void;
   dismissSuggestedPerson: (id: string) => void;
@@ -257,18 +488,13 @@ interface MobilePawtyContextType {
   activeTab: MobileMainTab;
   setActiveTab: (tab: MobileMainTab) => void;
   isLoadingData: boolean;
-  refreshData: (userId?: string) => Promise<void>;
+  refreshData: (userId?: string, throwOnError?: boolean, silent?: boolean) => Promise<void>;
+  pullToRefreshExplore: () => Promise<void>;
   activeModal: MobileModalType;
   setActiveModal: (modal: MobileModalType) => void;
   handleHardwareBack: () => boolean;
 
-  // Pets (Max 3 Free)
-  pets: MobilePet[];
-  activePetId: string;
-  activePet: MobilePet;
-  setActivePetId: (id: string) => void;
-
-  // Explore Social Feed & Search History
+  // Explore Social Feed & Search
   posts: MobilePost[];
   searchHistory: string[];
   trendingSuggestions: string[];
@@ -277,52 +503,63 @@ interface MobilePawtyContextType {
   recordSearchQuery: (query: string) => void;
   removeSearchHistoryItem: (query: string) => void;
   clearSearchHistory: () => void;
-  toggleReaction: (postId: string, type?: keyof MobilePost['reactions']) => void;
+  toggleReaction: (postId: string, type?: keyof MobilePost['reactions']) => Promise<void>;
   toggleSavePost: (postId: string) => void;
   sharePost: (postId: string) => void;
-  addComment: (postId: string, content: string) => void;
+  addComment: (postId: string, content: string) => Promise<void>;
+  toggleCommentLike: (postId: string, commentId: string) => void;
+  addCommentReply: (postId: string, commentId: string, content: string) => void;
   createPost: (params: {
     content: string;
     tags: string[];
     mediaUrls: string[];
     mediaType: 'image' | 'video';
-  }) => void;
+    category?: 'moment' | 'health_tip' | 'qa_vet';
+  }) => Promise<boolean>;
+  deletePost: (postId: string) => Promise<void>;
 
   // Fullscreen Media Lightbox
   lightboxMedia: LightboxMediaState | null;
   openLightboxMedia: (state: LightboxMediaState) => void;
   closeLightboxMedia: () => void;
 
-  // Public User Profile (Instagram Style)
+  // Unified Public User Profile (Viewed in MobileProfileScreen)
   publicProfiles: Record<string, PublicUserProfile>;
   viewedUserHandle: string | null;
   selectedProfileHandle: string | null;
   setSelectedProfileHandle: (handle: string | null) => void;
   openUserProfileInTab: (handle: string) => void;
-  resolvePublicProfile: (handle: string) => PublicUserProfile;
   openPublicUserProfile: (handle: string) => void;
   closePublicUserProfile: () => void;
+  goBackFromOtherProfile: () => void;
+  resolvePublicProfile: (handle: string) => PublicUserProfile;
   toggleFriendStatus: (handle: string) => void;
-  sendFriendRequest: (handle: string) => void;
-  acceptFriendRequest: (handle: string, notifId?: string) => void;
-  declineFriendRequest: (handle: string, notifId?: string) => void;
-  toggleFollowUser: (handle: string) => void;
-  startDirectChatWithUser: (handle: string) => void;
+  sendFriendRequest: (handle: string) => Promise<void>;
+  acceptFriendRequest: (handle: string, notifId?: string) => Promise<void>;
+  declineFriendRequest: (handle: string, notifId?: string) => Promise<void>;
+  unfriendUser: (handle: string) => Promise<void>;
+  unmatchCandidate: (partnerHandleOrId: string) => Promise<void>;
+  toggleFollowUser: (handle: string) => Promise<void>;
+  startDirectChatWithUser: (handle: string) => Promise<void>;
 
-  // Kết nối (Tinder) Tab
+  // Kết nối (Tinder) Tab — 100% Free & Unlimited Distance
   tinderIntent: TinderIntent;
   setTinderIntent: (intent: TinderIntent) => void;
   tinderFilterGoal: TinderIntent | 'all';
   setTinderFilterGoal: (goal: TinderIntent | 'all') => void;
   setPassportArea: (area: string) => void;
   tinderCandidates: TinderCandidate[];
+  likesYouCandidates: TinderCandidate[];
   swipedCandidateHistory: TinderCandidate[];
   canRewind: boolean;
   matchedCandidateModal: TinderCandidate | null;
   closeMatchedCandidateModal: () => void;
-  swipeTinderCandidate: (candidateId: string, direction: 'left' | 'right') => void;
-  rewindLastSwipe: () => void;
-  openChatWithMatchedCandidate: (candidate: TinderCandidate) => void;
+  swipeTinderCandidate: (candidateId: string, direction: 'left' | 'right') => Promise<void>;
+  reloadTinderDeck: (silent?: boolean) => Promise<void>;
+  likeBackCandidate: (candidate: TinderCandidate) => Promise<void>;
+  passLikesYouCandidate: (candidate: TinderCandidate) => Promise<void>;
+  rewindLastSwipe: () => Promise<void>;
+  openChatWithMatchedCandidate: (candidate: TinderCandidate) => Promise<void>;
   showLikesYouDrawer: boolean;
   setShowLikesYouDrawer: (open: boolean) => void;
   tinderDistanceLimit: number | 'all';
@@ -334,43 +571,52 @@ interface MobilePawtyContextType {
   chats: MobileChatRoom[];
   activeChatId: string | null;
   setActiveChatId: (id: string | null) => void;
-  sendChatMessage: (chatId: string, text: string) => void;
+  sendChatMessage: (chatId: string, text: string) => Promise<void>;
+  clearChatMessages: (chatId: string) => Promise<void>;
   markChatRead: (chatId: string) => Promise<void>;
 
-  // SOS Fullscreen Tab
+  // SOS Fullscreen Tab (100% Free)
   sosAlerts: MobileSosAlert[];
-  createSosAlertWithFee: (params: {
+  createSosAlert: (params: {
     petName: string;
-    species: 'Chó' | 'Mèo';
+    species: 'Chó' | 'Mèo' | 'Khác';
+    customSpecies?: string;
     breed: string;
     lastSeenLocation: string;
     rewardAmount: string;
+    contactPhone?: string;
     description: string;
     imageUrl?: string;
-  }) => void;
-  reportSosSighting: (sosId: string, locationText: string, noteText?: string) => void;
-  confirmSosPetFound: (sosId: string) => void;
-
-  // VIP / Plus Plans
-  isVip: boolean;
-  activeVipPlanId: string;
-  vipPlans: VipPlanOption[];
-  selectAndActivateVipPlan: (planId: string) => void;
+  }) => Promise<boolean>;
+  createSosAlertWithFee: (params: {
+    petName: string;
+    species: 'Chó' | 'Mèo' | 'Khác';
+    customSpecies?: string;
+    breed: string;
+    lastSeenLocation: string;
+    rewardAmount: string;
+    contactPhone?: string;
+    description: string;
+    imageUrl?: string;
+  }) => Promise<boolean>;
+  reportSosSighting: (
+    sosId: string,
+    locationText: string,
+    noteText?: string,
+    reporterPhone?: string
+  ) => Promise<void>;
+  confirmSosPetFound: (sosId: string) => Promise<void>;
 
   // Notifications & Toast
   notifications: MobileNotificationItem[];
   unreadNotificationCount: number;
-  markNotificationRead: (id: string) => void;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
   toastMessage: string | null;
   showToast: (msg: string) => void;
 }
-
-const getApiBaseUrl = () => {
-  const hostIp = Constants.expoConfig?.hostUri
-    ? Constants.expoConfig.hostUri.split(':')[0]
-    : '192.168.2.7';
-  return `http://${hostIp}:3000`;
-};
 
 const STORAGE_KEY_AUTH = '@pawty_auth_single_device_v4';
 const STORAGE_KEY_THEME = '@pawty_theme_v4';
@@ -380,8 +626,11 @@ const MobilePawtyContext = createContext<MobilePawtyContextType | null>(null);
 export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthLoaded, setIsAuthLoaded] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [hasSavedSession, setHasSavedSession] = useState(false);
+  const [savedSessionIdentifier, setSavedSessionIdentifier] = useState('');
+  const [bootAuthError, setBootAuthError] = useState<string | null>(null);
   const [activeDeviceSessionId, setActiveDeviceSessionId] = useState(
-    `DEV-${Platform.OS.toUpperCase()}-8829`
+    `DEV-${Platform.OS.toUpperCase()}-0001`
   );
   const [activeDeviceName] = useState(
     Platform.OS === 'ios'
@@ -389,36 +638,32 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       : 'Điện thoại Android chính chủ (Phiên duy nhất)'
   );
 
-  const [currentUserId, setCurrentUserId] = useState<string>('user-mai');
-  const [ownerName, setOwnerName] = useState('Mai Nguyễn');
-  const [ownerHandle, setOwnerHandle] = useState('@mainguyen');
-  const [ownerAvatar, setOwnerAvatar] = useState('https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80');
-  const [ownerNickname, setOwnerNickname] = useState('Bạn thân của cún');
-  const [ownerPhone, setOwnerPhone] = useState('0909 123 456');
-  const [ownerBio, setOwnerBio] = useState(
-    'Yêu chó mèo, thích dạo bộ công viên mỗi chiều và chia sẻ khoảnh khắc thú cưng.'
-  );
-  const [ownerArea, setOwnerArea] = useState('Vinhomes Grand Park, TP. Thủ Đức');
-  const [ownerNoteBubble, setOwnerNoteBubble] = useState('Chiều nay ai ra công viên không?');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [ownerName, setOwnerName] = useState('');
+  const [ownerHandle, setOwnerHandle] = useState('');
+  const [ownerAvatar, setOwnerAvatar] = useState('');
+  const [ownerNickname, setOwnerNickname] = useState('');
+  const [ownerPhone, setOwnerPhone] = useState('');
+  const [ownerBio, setOwnerBio] = useState('');
+  const [ownerArea, setOwnerArea] = useState('');
+  const [ownerNoteBubble, setOwnerNoteBubbleState] = useState('');
   const [isPrivateProfile, setIsPrivateProfile] = useState(false);
   const [ownerGender, setOwnerGender] = useState('Nữ');
   const [ownerAge, setOwnerAge] = useState(24);
-  const [ownerBirthDate, setOwnerBirthDate] = useState('15/08/2000');
+  const [ownerBirthDate, setOwnerBirthDate] = useState('01/01/2002');
   const [ownerZodiac, setOwnerZodiac] = useState('Sư Tử');
   const [ownerMbti, setOwnerMbti] = useState('ENFP');
-  const [ownerEducation, setOwnerEducation] = useState('Đại học Quốc gia TP.HCM');
-  const [ownerMajor, setOwnerMajor] = useState('Truyền thông đa phương tiện');
-  const [ownerOccupation, setOwnerOccupation] = useState('UI/UX Designer');
-  const [ownerAvatarUrl, setOwnerAvatarUrl] = useState(
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
-  );
-  const [ownerCoverUrl, setOwnerCoverUrl] = useState(
-    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80'
-  );
+  const [ownerEducation, setOwnerEducation] = useState('');
+  const [ownerMajor, setOwnerMajor] = useState('');
+  const [ownerOccupation, setOwnerOccupation] = useState('');
+  const [ownerFollowersCount, setOwnerFollowersCount] = useState(0);
+  const [ownerFollowingCount, setOwnerFollowingCount] = useState(0);
+  const [ownerAvatarUrl, setOwnerAvatarUrlState] = useState('');
+  const [ownerCoverUrl, setOwnerCoverUrlState] = useState('');
   const [ownerPrivacySettings, setOwnerPrivacySettings] = useState<Record<string, boolean>>({
     gender: true,
     age: true,
-    birthDate: false,
+    birthDate: true,
     zodiac: true,
     mbti: true,
     education: true,
@@ -429,53 +674,66 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   });
 
   const [userTinderSetup, setUserTinderSetup] = useState<UserTinderSetupProfile>(
-    INITIAL_USER_TINDER_SETUP
+    EMPTY_USER_TINDER_SETUP
   );
-  const [suggestedPeople, setSuggestedPeople] = useState<SuggestedPersonCard[]>(
-    INITIAL_SUGGESTED_PEOPLE
-  );
+  const [suggestedPeople, setSuggestedPeople] = useState<SuggestedPersonCard[]>([]);
+  const [trendingSuggestions, setTrendingSuggestions] = useState<string[]>([]);
 
   const [themeId, setThemeIdState] = useState<ThemePresetId>('warm_cream');
 
-  // Navigation & History Stack for Hardware Back Button
+  // Navigation & Return State for Unified Profile
   const [activeTab, setActiveTabState] = useState<MobileMainTab>('explore');
   const [tabHistory, setTabHistory] = useState<MobileMainTab[]>(['explore']);
   const [activeModal, setActiveModal] = useState<MobileModalType>(null);
+  const [returnTabAfterProfile, setReturnTabAfterProfile] = useState<MobileMainTab>('explore');
+  const [returnChatIdAfterProfile, setReturnChatIdAfterProfile] = useState<string | null>(null);
 
-  const [pets, setPets] = useState<MobilePet[]>(INITIAL_MOBILE_PETS);
-  const [activePetId, setActivePetId] = useState<string>(INITIAL_MOBILE_PETS[0].id);
+  const [pets, setPets] = useState<MobilePet[]>([]);
+  const [activePetId, setActivePetId] = useState<string>('');
 
   // Explore Social Feed & Search
-  const [posts, setPosts] = useState<MobilePost[]>(INITIAL_MOBILE_POSTS);
-  const [searchHistory, setSearchHistory] = useState<string[]>(INITIAL_SEARCH_HISTORY);
+  const [posts, setPosts] = useState<MobilePost[]>([]);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false);
 
   // Lightbox & Public Profile
   const [lightboxMedia, setLightboxMedia] = useState<LightboxMediaState | null>(null);
-  const [publicProfiles, setPublicProfiles] =
-    useState<Record<string, PublicUserProfile>>(PUBLIC_USER_PROFILES);
+  const [publicProfiles, setPublicProfiles] = useState<Record<string, PublicUserProfile>>({});
   const [viewedUserHandle, setViewedUserHandle] = useState<string | null>(null);
   const [selectedProfileHandle, setSelectedProfileHandle] = useState<string | null>(null);
 
-  // Kết nối (Tinder)
-  const [tinderIntent, setTinderIntent] = useState<TinderIntent>('dating');
+  // Kết nối (Tinder) — Mặc định không giới hạn khoảng cách ('all')
+  const [tinderIntent, setTinderIntentState] = useState<TinderIntent>('playdate');
   const [tinderFilterGoal, setTinderFilterGoal] = useState<TinderIntent | 'all'>('all');
-  const [tinderCandidates, setTinderCandidates] = useState<TinderCandidate[]>(
-    INITIAL_TINDER_CANDIDATES
-  );
+  const [tinderCandidates, setTinderCandidates] = useState<TinderCandidate[]>([]);
+  const [likesYouCandidates, setLikesYouCandidates] = useState<TinderCandidate[]>([]);
   const [swipedCandidateHistory, setSwipedCandidateHistory] = useState<TinderCandidate[]>([]);
   const [matchedCandidateModal, setMatchedCandidateModal] = useState<TinderCandidate | null>(null);
   const [showLikesYouDrawer, setShowLikesYouDrawer] = useState(false);
-  const [tinderDistanceLimit, setTinderDistanceLimit] = useState<number | 'all'>(30);
-  const [activePassportArea, setActivePassportArea] = useState('Bán kính 30km');
+  const [tinderDistanceLimit, setTinderDistanceLimit] = useState<number | 'all'>('all');
+  const [activePassportArea, setActivePassportArea] = useState('Mọi khoảng cách');
 
   // Chat
-  const [chats, setChats] = useState<MobileChatRoom[]>(INITIAL_MOBILE_CHATS);
+  const [chats, setChats] = useState<MobileChatRoom[]>([]);
   const [activeChatId, setActiveChatIdState] = useState<string | null>(null);
+
+  // SOS & Notifications
+  const [sosAlerts, setSosAlerts] = useState<MobileSosAlert[]>([]);
+  const [notifications, setNotifications] = useState<MobileNotificationItem[]>([]);
+  const seenNotificationIdsRef = useRef<Set<string>>(new Set());
+  const isInitialNotifSyncDone = useRef<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((prev) => (prev === msg ? null : prev));
+    }, 2800);
+  }, []);
 
   const markChatRead = useCallback(
     async (chatId: string) => {
-      // 1. Optimistic UI update: reset unreadCount and mark all incoming messages as read
       setChats((prev) =>
         prev.map((room) => {
           if (room.id !== chatId) return room;
@@ -489,11 +747,12 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         })
       );
 
-      // 2. Persist to PostgreSQL database
       try {
-        await apiClient.markChatAsRead(chatId, currentUserId);
+        if (currentUserId) {
+          await apiClient.markChatAsRead(chatId, currentUserId);
+        }
       } catch (err) {
-        console.warn('Lỗi đồng bộ đã đọc tin nhắn:', err);
+        console.warn('[Pawty Chat] Lỗi đồng bộ trạng thái đã đọc:', err);
       }
     },
     [currentUserId]
@@ -509,185 +768,283 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [markChatRead]
   );
 
-  // SOS & VIP
-  const [sosAlerts, setSosAlerts] = useState<MobileSosAlert[]>(INITIAL_MOBILE_SOS);
-  const [isVip, setIsVip] = useState<boolean>(false);
-  const [activeVipPlanId, setActiveVipPlanId] = useState<string>('plus_monthly');
-
-  // Notifications & Toast
-  const [notifications, setNotifications] = useState<MobileNotificationItem[]>(
-    INITIAL_MOBILE_NOTIFICATIONS
-  );
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
-
-  const refreshData = useCallback(async (userId?: string) => {
-    try {
-      setIsLoadingData(true);
-      const targetUserId = userId || currentUserId || 'user-mai';
-      const bootstrap = await apiClient.getBootstrapData(targetUserId);
-      if (!bootstrap) return;
-
-      if (bootstrap.user) {
-        if (bootstrap.user.id) setCurrentUserId(bootstrap.user.id);
-        if (bootstrap.user.displayName) setOwnerName(bootstrap.user.displayName);
-        const resolvedHandle = bootstrap.user.username
-          ? `@${bootstrap.user.username}`
-          : `@${(bootstrap.user.displayName || 'user').toLowerCase().replace(/\s+/g, '')}`;
-        setOwnerHandle(resolvedHandle);
-        setOwnerNickname(bootstrap.user.displayName || 'Bạn thân của cún');
-        if (bootstrap.user.phone) setOwnerPhone(bootstrap.user.phone);
-        if (bootstrap.user.bio) setOwnerBio(bootstrap.user.bio);
-        if (bootstrap.user.neighborhood) setOwnerArea(bootstrap.user.neighborhood);
-        if (bootstrap.user.avatarUrl) setOwnerAvatar(bootstrap.user.avatarUrl);
-        if (bootstrap.user.isVip !== undefined) setIsVip(Boolean(bootstrap.user.isVip));
+  const refreshData = useCallback(
+    async (userId?: string, throwOnError = false, silent = false) => {
+      const targetUserId = userId || currentUserId;
+      if (!targetUserId) {
+        if (throwOnError) {
+          throw new Error('Không xác định được phiên tài khoản người dùng.');
+        }
+        return;
       }
 
-      if (Array.isArray(bootstrap.pets)) {
-        if (bootstrap.pets.length > 0) {
-          const mappedPets: MobilePet[] = bootstrap.pets.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            species: p.species === 'cat' || p.species === 'Mèo' ? 'Mèo' : 'Chó',
-            breed: p.breed || 'Chưa rõ',
-            gender: p.gender === 'female' || p.gender === 'Cái' ? 'Cái' : 'Đực',
-            birthDate: p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('vi-VN') : '10/08/2024',
-            ageLabel: '2 tuổi',
-            weightKg: Number(p.weightKg || 5),
-            furColor: 'Vàng kem',
-            microchipOrMark: 'Có gắn thẻ tên',
-            favoriteFood: 'Hạt dinh dưỡng, ức gà',
-            allergies: p.allergies || 'Không có',
-            avatarUrl: p.avatarUrl || 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80',
-            coverUrl: p.coverPhotoUrl || 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1000&q=80',
-            bio: `${p.name} là Boss cưng của gia đình.`,
-            isVaccinatedAndRabies: p.vaccinationStatus === 'verified' || (p.vaccinations && p.vaccinations.length > 0),
-            goodHabits: p.behaviors?.filter((b: any) => b.category === 'good_habit').map((b: any) => b.label) || ['Thân thiện', 'Nghe lời'],
-            cautionHabits: p.behaviors?.filter((b: any) => b.category === 'caution').map((b: any) => b.label) || [],
-          }));
+      try {
+        if (!silent) {
+          setIsLoadingData(true);
+        }
+        const bootstrap = await apiClient.getBootstrapData(targetUserId);
+        if (!bootstrap || !bootstrap.user) {
+          throw new Error(
+            'Tài khoản không tồn tại hoặc không thể truy vấn từ cơ sở dữ liệu PostgreSQL.'
+          );
+        }
+
+        const u = bootstrap.user;
+        setCurrentUserId(u.id);
+        setOwnerName(u.displayName || '');
+        const resolvedHandle =
+          u.handle ||
+          (u.username
+            ? `@${u.username}`
+            : `@${(u.displayName || 'user').toLowerCase().replace(/\s+/g, '')}`);
+        setOwnerHandle(resolvedHandle);
+        setOwnerNickname(u.displayName || '');
+        setOwnerPhone(u.phone || '');
+        setOwnerBio(u.bio || '');
+        setOwnerArea(u.neighborhood || u.district || '');
+        setOwnerAvatar(u.avatarUrl || '');
+        setOwnerAvatarUrlState(u.avatarUrl || '');
+        setOwnerCoverUrlState(u.coverUrl || '');
+        setOwnerGender(u.gender || 'Nữ');
+        setOwnerAge(Number(u.age || 24));
+        setOwnerBirthDate(u.birthDate || '01/01/2002');
+        setOwnerZodiac(u.zodiac || 'Sư Tử');
+        setOwnerMbti(u.mbti || 'ENFP');
+        setOwnerOccupation(u.occupation || '');
+        setOwnerEducation(u.education || '');
+        setOwnerNoteBubbleState(u.noteBubble || '');
+        setOwnerFollowersCount(Number(u.followersCount || 0));
+        setOwnerFollowingCount(Number(u.followingCount || 0));
+        setIsPrivateProfile(u.allowMessages === 'friends_only');
+        if (u.privacySettings && typeof u.privacySettings === 'object') {
+          setOwnerPrivacySettings((prev) => ({ ...prev, ...u.privacySettings }));
+        }
+
+        // Đồng bộ thiết lập kết nối (Tinder Setup) 1-1 với mục đích tìm kiếm
+        const resolvedIntent = resolveTinderIntentFromLabel(
+          u.tinderSetup?.intent || u.tinderSetup?.lookingFor || u.primaryNeed
+        );
+        const resolvedPurposeLabel = getTinderPurposeLabel(resolvedIntent);
+        setTinderIntentState(resolvedIntent);
+        setUserTinderSetup({
+          age: Number(u.tinderSetup?.age || u.age || 24),
+          gender: u.tinderSetup?.gender === 'Nam' || u.gender === 'Nam' ? 'Nam' : 'Nữ',
+          intent: resolvedIntent,
+          lookingFor: resolvedPurposeLabel,
+          smoking: u.tinderSetup?.smoking || 'Không hút thuốc',
+          workout: u.tinderSetup?.workout || 'Dắt thú đi bộ mỗi chiều',
+          drinking: u.tinderSetup?.drinking || 'Không uống rượu bia',
+          zodiac: u.tinderSetup?.zodiac || u.zodiac || 'Sư Tử',
+          chatStyle: u.tinderSetup?.chatStyle || 'Thân thiện, phản hồi nhanh',
+          promptQuote: u.tinderSetup?.promptQuote ?? u.bio ?? '',
+          photoUrls: Array.isArray(u.tinderSetup?.photoUrls) ? u.tinderSetup.photoUrls : [],
+        });
+
+        // Pets
+        if (Array.isArray(bootstrap.pets)) {
+          const mappedPets: MobilePet[] = bootstrap.pets.map((p: any) =>
+            normalizePetFromServer(p)
+          );
           setPets(mappedPets);
-          setActivePetId(mappedPets[0].id);
+          setActivePetId((prev) =>
+            mappedPets.some((pet) => pet.id === prev) ? prev : mappedPets[0]?.id || ''
+          );
         } else {
           setPets([]);
           setActivePetId('');
         }
+
+        // Posts
+        if (Array.isArray(bootstrap.posts)) {
+          const mappedPosts: MobilePost[] = bootstrap.posts.map((post: any) =>
+            normalizePostFromServer(post, u.id)
+          );
+          setPosts(mappedPosts);
+        } else {
+          setPosts([]);
+        }
+
+        // SOS Alerts (100% Free)
+        if (Array.isArray(bootstrap.sosAlerts)) {
+          const mappedAlerts: MobileSosAlert[] = bootstrap.sosAlerts.map((row: any) => {
+            const rawSightings = Array.isArray(row.sightings) ? row.sightings : [];
+            const vSig =
+              row.visualSignatures && typeof row.visualSignatures === 'object'
+                ? row.visualSignatures
+                : {};
+            const rowOwnerHandle = row.user?.username
+              ? `@${row.user.username}`
+              : `@${(row.user?.displayName || 'user').toLowerCase().replace(/\s+/g, '')}`;
+
+            return {
+              id: row.id,
+              petName: vSig.petName || row.pet?.name || 'Thú cưng',
+              species: normalizeSpeciesLabel(vSig.species || row.pet?.species),
+              customSpecies: vSig.customSpecies || undefined,
+              breed: vSig.breed || row.pet?.breed || 'Chưa rõ',
+              lastSeenLocation: (row.lastSeenLocation || '').trim(),
+              lastSeenTime: row.createdAt
+                ? new Date(row.createdAt).toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : 'Hôm nay',
+              distanceKm: Number(row.radiusKm || 3),
+              rewardAmount: row.rewardText || 'Hậu tạ từ gia đình',
+              contactPhone: vSig.ownerPhone || row.user?.phone || '',
+              ownerName: vSig.ownerName || row.user?.displayName || 'Chủ nuôi',
+              ownerHandle: rowOwnerHandle,
+              status: row.status === 'resolved' || row.status === 'found' ? 'found' : 'searching',
+              sightingsCount: rawSightings.length,
+              priorityScore: row.status === 'active' ? 160 : 10,
+              imageUrl: vSig.imageUrl || row.pet?.avatarUrl || '',
+              description: row.description || '',
+              sightingReports: rawSightings.map((s: any, idx: number) => ({
+                id: s.id || `sr-${idx}`,
+                reporterName: s.reporterName || 'Cư dân hỗ trợ',
+                reporterPhone: s.phone || s.reporterPhone || '',
+                locationNote: s.note || s.locationName || '',
+                timeLabel: s.time || s.createdAt || 'Vừa xong',
+              })),
+            };
+          });
+          setSosAlerts(mappedAlerts);
+        } else {
+          setSosAlerts([]);
+        }
+
+        // Tinder Candidates & Likes You
+        setTinderCandidates(Array.isArray(bootstrap.candidates) ? bootstrap.candidates : []);
+        setLikesYouCandidates(Array.isArray(bootstrap.likesYou) ? bootstrap.likesYou : []);
+
+        // Chats (with canMessage & isFriend)
+        setChats(Array.isArray(bootstrap.chats) ? bootstrap.chats : []);
+
+        // Notifications
+        if (Array.isArray(bootstrap.notifications)) {
+          const freshNotifs: MobileNotificationItem[] = bootstrap.notifications.map((n: any) => ({
+            id: String(n.id),
+            title: n.title || 'Thông báo mới',
+            body: n.body || '',
+            timeLabel: n.timeLabel || n.time || 'Vừa xong',
+            type: (n.type || 'system') as NotificationType,
+            category: normalizeNotificationCategory(
+              n.type,
+              n.category || n.actionPayload?.category
+            ),
+            isRead: Boolean(n.isRead),
+            actionPayload: n.actionPayload || undefined,
+          }));
+          setNotifications(freshNotifs);
+
+          if (!isInitialNotifSyncDone.current) {
+            freshNotifs.forEach((n) => seenNotificationIdsRef.current.add(n.id));
+            isInitialNotifSyncDone.current = true;
+          } else {
+            freshNotifs.forEach((n) => {
+              if (!seenNotificationIdsRef.current.has(n.id)) {
+                seenNotificationIdsRef.current.add(n.id);
+                if (!n.isRead) {
+                  sendNativePushNotification(n.title, n.body, n.actionPayload);
+                }
+              }
+            });
+          }
+        } else {
+          setNotifications([]);
+        }
+
+        // Public Profiles (normalize nested pets & posts for unified layout)
+        if (bootstrap.publicProfiles && typeof bootstrap.publicProfiles === 'object') {
+          const normalizedMap: Record<string, PublicUserProfile> = {};
+          for (const [k, rawProf] of Object.entries(bootstrap.publicProfiles)) {
+            const prof = rawProf as any;
+            if (!prof) continue;
+            normalizedMap[k] = {
+              ...prof,
+              pets: Array.isArray(prof.pets)
+                ? prof.pets.map((pt: any) => normalizePetFromServer(pt))
+                : [],
+              posts: Array.isArray(prof.posts)
+                ? prof.posts.map((po: any) => normalizePostFromServer(po, u.id))
+                : [],
+            };
+          }
+          setPublicProfiles(normalizedMap);
+        } else {
+          setPublicProfiles({});
+        }
+
+        setSuggestedPeople(
+          Array.isArray(bootstrap.suggestedPeople)
+            ? bootstrap.suggestedPeople.map((sp: any) => ({
+                id: sp.id,
+                name: sp.name,
+                handle: sp.handle,
+                avatarUrl: sp.avatarUrl || '',
+                mutualText: sp.mutualText || 'Gợi ý từ cộng đồng',
+                isFollowing: Boolean(sp.isFollowing),
+              }))
+            : []
+        );
+        setTrendingSuggestions(
+          Array.isArray(bootstrap.trendingSuggestions) ? bootstrap.trendingSuggestions : []
+        );
+      } catch (err) {
+        console.warn('[Pawty] Hydration from PostgreSQL failed:', err);
+        if (throwOnError) {
+          throw err;
+        }
+      } finally {
+        if (!silent) {
+          setIsLoadingData(false);
+        }
       }
+    },
+    [currentUserId]
+  );
 
-
-
-      if (Array.isArray(bootstrap.posts) && bootstrap.posts.length > 0) {
-        const mappedPosts: MobilePost[] = bootstrap.posts.map((post: any) => {
-          const authorHandle = post.author?.username
-            ? `@${post.author.username}`
-            : `@${(post.author?.displayName || 'cudan').toLowerCase().replace(/\s+/g, '')}`;
-          return {
-            id: post.id,
-            authorName: post.author?.displayName || 'Cư dân',
-            authorHandle,
-            authorAvatar: post.author?.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
-            authorNickname: post.author?.displayName || 'Cư dân',
-            category: (post.contentType || 'moment') as any,
-            categoryLabel: post.contentType === 'moment' ? 'Khoảnh khắc' : 'Manh mối',
-            content: post.textContent || '',
-            tags: post.hashtags || ['#Pawty'],
-            mediaUrls: post.media?.map((m: any) => m.url) || [],
-            mediaType: 'image',
-            reactions: { paws: post.pawCount || 1, love: 0, haha: 0, wow: 0, helpful: 0 },
-            userReaction: null,
-            shareCount: post.shareCount || 0,
-            isSaved: false,
-            comments: post.comments?.map((c: any) => ({
-              id: c.id,
-              authorName: c.author?.displayName || 'Cư dân',
-              authorHandle: '@cudan',
-              content: c.textContent,
-              createdAt: 'Hôm nay',
-            })) || [],
-            createdAt: 'Vừa xong',
-          };
-        });
-        setPosts(mappedPosts);
-      }
-
-      if (Array.isArray(bootstrap.candidates)) {
-        setTinderCandidates(bootstrap.candidates);
-      }
-
-      if (Array.isArray(bootstrap.chats)) {
-        setChats(bootstrap.chats);
-      }
-
-      if (Array.isArray(bootstrap.notifications)) {
-        setNotifications(bootstrap.notifications);
-      }
-
-      if (bootstrap.publicProfiles && typeof bootstrap.publicProfiles === 'object') {
-        setPublicProfiles(bootstrap.publicProfiles);
-      }
-    } catch (err) {
-      console.warn('[Pawty] Hydration from DB failed:', err);
-    } finally {
-      setIsLoadingData(false);
-    }
-  }, [currentUserId]);
+  const pullToRefreshExplore = useCallback(async () => {
+    await refreshData(currentUserId, false, true);
+  }, [currentUserId, refreshData]);
 
   useEffect(() => {
     const loadSession = async () => {
       try {
-        const [savedAuth, savedTheme] = await Promise.all([
-          AsyncStorage.getItem(STORAGE_KEY_AUTH),
-          AsyncStorage.getItem(STORAGE_KEY_THEME),
-        ]);
-        if (savedTheme && THEME_PALETTES[savedTheme as ThemePresetId]) {
-          setThemeIdState(savedTheme as ThemePresetId);
-        }
+        setupNativeNotifications();
+        const savedAuth = await AsyncStorage.getItem(STORAGE_KEY_AUTH);
+        setThemeIdState('warm_cream');
         if (savedAuth) {
           const parsed = JSON.parse(savedAuth);
-          if (parsed && parsed.isAuthenticated && parsed.deviceSessionId) {
-            setIsAuthenticated(true);
-            setActiveDeviceSessionId(parsed.deviceSessionId);
-            if (parsed.userId) setCurrentUserId(parsed.userId);
+          if (parsed && parsed.isAuthenticated && parsed.userId) {
+            setHasSavedSession(true);
+            setSavedSessionIdentifier(
+              parsed.identifier ||
+                (parsed.ownerHandle ? String(parsed.ownerHandle).replace(/^@/, '') : '') ||
+                parsed.ownerPhone ||
+                ''
+            );
             if (parsed.ownerName) setOwnerName(parsed.ownerName);
             if (parsed.ownerHandle) setOwnerHandle(parsed.ownerHandle);
-            if (parsed.ownerPhone) setOwnerPhone(parsed.ownerPhone);
-            if (parsed.ownerNickname) setOwnerNickname(parsed.ownerNickname);
             if (parsed.ownerBio) setOwnerBio(parsed.ownerBio);
-            if (parsed.ownerArea) setOwnerArea(parsed.ownerArea);
-            if (parsed.ownerAvatar) setOwnerAvatar(parsed.ownerAvatar);
-            refreshData(parsed.userId).catch(() => {});
-          }
-        }
 
-        // Tự động kéo danh sách tin SOS thật từ database PostgreSQL
-        try {
-          const resp = await fetch(`${getApiBaseUrl()}/api/sos`);
-          if (resp.ok) {
-            const data = await resp.json();
-            if (Array.isArray(data.sosAlerts) && data.sosAlerts.length > 0) {
-              const mappedAlerts: MobileSosAlert[] = data.sosAlerts.map((row: any) => ({
-                id: row.id,
-                petName: row.pet?.name || 'Thú cưng',
-                species: (row.pet?.species === 'Mèo' ? 'Mèo' : 'Chó') as 'Chó' | 'Mèo',
-                breed: row.pet?.breed || 'Chưa rõ',
-                lastSeenLocation: (row.lastSeenLocation || "Quanh khu vực chung cư").replace(/^(Quanh khu vực\s*)+/gi, "Quanh khu vực ").trim(),
-                lastSeenTime: 'Hôm nay',
-                distanceKm: 0.2,
-                rewardAmount: row.rewardText || '1.000.000đ',
-                contactPhone: row.user?.phone || '0909 123 456',
-                ownerName: row.user?.displayName || 'Chủ nuôi',
-                ownerHandle: `@${(row.user?.displayName || 'user').toLowerCase().replace(/\s+/g, '')}`,
-                status: row.status === 'resolved' ? 'found' : 'searching',
-                sightingsCount: Array.isArray(row.sightings) ? row.sightings.length : 0,
-                priorityScore: 160,
-                imageUrl: row.pet?.avatarUrl || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80',
-                description: row.description,
-                sightingReports: [],
-              }));
-              setSosAlerts(mappedAlerts);
+            try {
+              await refreshData(parsed.userId, true);
+              setActiveDeviceSessionId(
+                parsed.deviceSessionId ||
+                  `DEV-${Platform.OS.toUpperCase()}-${Date.now().toString().slice(-6)}`
+              );
+              setBootAuthError(null);
+              setIsAuthenticated(true);
+            } catch (dbErr: any) {
+              console.warn('[Pawty Auth] Không thể kết nối DB khi khôi phục phiên:', dbErr);
+              setIsAuthenticated(false);
+              setBootAuthError(
+                dbErr?.message ||
+                  'Không thể kết nối Cơ sở dữ liệu PostgreSQL. Vui lòng kiểm tra kết nối và đăng nhập lại.'
+              );
             }
           }
-        } catch {
-          // Giữ seed data nếu server chưa bật
         }
       } catch (err) {
         console.warn('Không thể đọc phiên đăng nhập:', err);
@@ -698,25 +1055,77 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     loadSession();
   }, []);
 
-  const showToast = useCallback((msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage((prev) => (prev === msg ? null : prev));
-    }, 2800);
-  }, []);
+  // REAL-TIME NATIVE PUSH NOTIFICATION POLLING (Kiểm tra và bắn thông báo điện thoại tức thì)
+  useEffect(() => {
+    if (!currentUserId || !isAuthenticated) return;
 
-  const setActiveTab = useCallback((nextTab: MobileMainTab) => {
-    setActiveChatId(null);
-    setIsSearchPanelOpen(false);
-    setActiveTabState((prev) => {
-      if (prev !== nextTab) {
-        setTabHistory((history) => [...history.slice(-8), nextTab]);
+    const notifPoller = setInterval(async () => {
+      try {
+        const res = await apiClient.getNotifications(currentUserId);
+        if (res && Array.isArray(res.notifications)) {
+          const freshNotifs: MobileNotificationItem[] = res.notifications.map((n: any) => ({
+            id: String(n.id),
+            title: n.title || 'Thông báo mới',
+            body: n.body || '',
+            timeLabel: n.timeLabel || n.time || 'Vừa xong',
+            type: (n.type || 'system') as NotificationType,
+            category: normalizeNotificationCategory(
+              n.type,
+              n.category || n.actionPayload?.category
+            ),
+            isRead: Boolean(n.isRead),
+            actionPayload: n.actionPayload || undefined,
+          }));
+
+          setNotifications(freshNotifs);
+
+          freshNotifs.forEach((n) => {
+            if (!seenNotificationIdsRef.current.has(n.id)) {
+              seenNotificationIdsRef.current.add(n.id);
+              if (!n.isRead) {
+                sendNativePushNotification(n.title, n.body, n.actionPayload);
+              }
+            }
+          });
+        }
+      } catch {
+        // Im lặng bắt lỗi khi background poll
       }
-      return nextTab;
-    });
-  }, []);
+    }, 3500);
 
-  // Hardware Back Handler
+    return () => clearInterval(notifPoller);
+  }, [currentUserId, isAuthenticated]);
+
+  const setActiveTab = useCallback(
+    (nextTab: MobileMainTab) => {
+      setActiveChatId(null);
+      setIsSearchPanelOpen(false);
+      // Khi nhấn trực tiếp vào Tab "Tôi" dưới thanh điều hướng -> mở hồ sơ bản thân
+      if (nextTab === 'profile') {
+        setSelectedProfileHandle(null);
+        setViewedUserHandle(null);
+      }
+      setActiveTabState((prev) => {
+        if (prev !== nextTab) {
+          setTabHistory((history) => [...history.slice(-8), nextTab]);
+        }
+        return nextTab;
+      });
+    },
+    [setActiveChatId]
+  );
+
+  const goBackFromOtherProfile = useCallback(() => {
+    setSelectedProfileHandle(null);
+    setViewedUserHandle(null);
+    const targetTab = returnTabAfterProfile || 'explore';
+    setActiveTabState(targetTab);
+    if (targetTab === 'chat' && returnChatIdAfterProfile) {
+      setActiveChatIdState(returnChatIdAfterProfile);
+    }
+    setReturnChatIdAfterProfile(null);
+  }, [returnTabAfterProfile, returnChatIdAfterProfile]);
+
   const handleHardwareBack = useCallback((): boolean => {
     if (lightboxMedia) {
       setLightboxMedia(null);
@@ -726,8 +1135,16 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setMatchedCandidateModal(null);
       return true;
     }
+    if (showLikesYouDrawer) {
+      setShowLikesYouDrawer(false);
+      return true;
+    }
     if (activeModal) {
       setActiveModal(null);
+      return true;
+    }
+    if (activeTab === 'profile' && selectedProfileHandle) {
+      goBackFromOtherProfile();
       return true;
     }
     if (viewedUserHandle) {
@@ -738,12 +1155,13 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setIsSearchPanelOpen(false);
       return true;
     }
-    if (activeChatId) {
+    if (activeTab === 'chat' && activeChatId) {
       setActiveChatId(null);
       return true;
     }
     if (tabHistory.length > 1) {
-      const nextHistory = tabHistory.slice(0, -1);
+      const nextHistory = [...tabHistory];
+      nextHistory.pop();
       const previousTab = nextHistory[nextHistory.length - 1] || 'explore';
       setTabHistory(nextHistory);
       setActiveTabState(previousTab);
@@ -758,235 +1176,688 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [
     lightboxMedia,
     matchedCandidateModal,
+    showLikesYouDrawer,
     activeModal,
+    activeTab,
+    selectedProfileHandle,
+    goBackFromOtherProfile,
     viewedUserHandle,
     isSearchPanelOpen,
     activeChatId,
+    setActiveChatId,
     tabHistory,
-    activeTab,
   ]);
 
-  const setThemeId = async (id: ThemePresetId) => {
-    setThemeIdState(id);
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_THEME, id);
-      showToast(`Đã đổi giao diện: ${THEME_PALETTES[id].name}`);
-    } catch (err) {
-      console.warn('Không thể lưu giao diện:', err);
-    }
-  };
-
-  // Single-Device Login Enforcement
-  const loginOrRegister = async (params: {
-    name?: string;
-    phone?: string;
-    username?: string;
-    password?: string;
-    identifier?: string;
-    petName?: string;
-    petSpecies?: 'Chó' | 'Mèo';
-    petBreed?: string;
-  }) => {
-    let cleanName = params.name?.trim() || 'Mai Nguyễn';
-    let cleanPhone = params.phone?.trim() || '0912345678';
-    let cleanHandle = '@mainguyen';
-    let cleanBio = '';
-    let cleanArea = '';
-    let cleanAvatar = '';
-    let loggedInUserId = 'user-mai';
-    const identifier = (params.identifier || params.username || params.phone || '').trim();
-    const password = params.password?.trim() || '';
-
-    if (identifier) {
+  const setThemeId = useCallback(
+    async (id: ThemePresetId) => {
+      setThemeIdState(id);
       try {
-        const res = await apiClient.login(identifier, password);
-        if (res.user) {
-          loggedInUserId = res.user.id || loggedInUserId;
-          cleanName = res.user.displayName || cleanName;
-          cleanPhone = res.user.phone || cleanPhone;
-          cleanHandle = res.user.username
-            ? `@${res.user.username}`
-            : `@${cleanName.toLowerCase().replace(/\s+/g, '')}`;
-          cleanBio = res.user.bio || '';
-          cleanArea = res.user.neighborhood || '';
-          cleanAvatar = res.user.avatarUrl || '';
-
-          setCurrentUserId(loggedInUserId);
-          setOwnerName(cleanName);
-          setOwnerHandle(cleanHandle);
-          setOwnerNickname(cleanName);
-          setOwnerPhone(cleanPhone);
-          if (cleanBio) setOwnerBio(cleanBio);
-          if (cleanArea) setOwnerArea(cleanArea);
-          if (cleanAvatar) setOwnerAvatar(cleanAvatar);
-          if (res.user.isVip !== undefined) setIsVip(Boolean(res.user.isVip));
-
-          await refreshData(loggedInUserId);
-        }
-      } catch (err: any) {
-        console.warn('[Pawty Auth] Login error:', err);
-        throw err;
+        await AsyncStorage.setItem(STORAGE_KEY_THEME, id);
+        showToast(`Đã áp dụng chủ đề "${THEME_PALETTES[id].name}"`);
+      } catch (err) {
+        console.warn(err);
       }
-    }
+    },
+    [showToast]
+  );
 
-    const newDeviceSessionId = `DEV-${Platform.OS.toUpperCase()}-${Date.now().toString().slice(-6)}`;
-    setOwnerName(cleanName);
-    setOwnerPhone(cleanPhone);
-    setActiveDeviceSessionId(newDeviceSessionId);
+  // =========================================================================
+  // AUTHENTICATION
+  // =========================================================================
+  const loginOrRegister = useCallback(
+    async (params: {
+      isRegister?: boolean;
+      name?: string;
+      phone?: string;
+      username?: string;
+      password?: string;
+      identifier?: string;
+      petName?: string;
+      petSpecies?: 'Chó' | 'Mèo';
+      petBreed?: string;
+    }) => {
+      let authRes: { success: boolean; token: string; user: any; message: string };
+      if (params.isRegister) {
+        authRes = await apiClient.register({
+          phone: params.phone || '',
+          username: params.username,
+          password: params.password,
+          displayName: params.name,
+          petName: params.petName,
+          petSpecies: params.petSpecies,
+          petBreed: params.petBreed,
+        });
+      } else {
+        authRes = await apiClient.login(
+          params.identifier || params.username || params.phone || '',
+          params.password
+        );
+      }
 
-    if (params.petName && params.petName.trim()) {
-      const species = params.petSpecies || 'Chó';
-      const newPet: MobilePet = {
-        id: `pet-${Date.now()}`,
-        name: params.petName.trim(),
-        species,
-        breed: params.petBreed?.trim() || (species === 'Chó' ? 'Corgi' : 'Mèo Anh lông ngắn'),
-        gender: 'Đực',
-        birthDate: '10/08/2024',
-        ageLabel: '1 tuổi',
-        weightKg: species === 'Chó' ? 10 : 4,
-        furColor: 'Vàng trắng',
-        microchipOrMark: 'Đeo bảng tên số điện thoại ở cổ',
-        favoriteFood: 'Ức gà luộc, súp thưởng',
-        allergies: 'Không có',
-        avatarUrl:
-          species === 'Chó'
-            ? 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80'
-            : 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80',
-        coverUrl:
-          'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1000&q=80',
-        bio: `${params.petName.trim()} rất ngoan và thích làm quen bạn mới.`,
-        isVaccinatedAndRabies: true,
-        goodHabits: ['Thân thiện', 'Nghe lời'],
-        cautionHabits: [],
-      };
-      setPets((prev) => [newPet, ...prev].slice(0, MAX_FREE_PETS));
-      setActivePetId(newPet.id);
-    }
+      const dbUser = authRes?.user;
+      if (!dbUser || !dbUser.id) {
+        throw new Error('Không thể xác thực tài khoản từ Cơ sở dữ liệu PostgreSQL.');
+      }
 
-    setIsAuthenticated(true);
-    setActiveTabState('explore');
-    setTabHistory(['explore']);
-    try {
-      await AsyncStorage.setItem(
-        STORAGE_KEY_AUTH,
-        JSON.stringify({
-          isAuthenticated: true,
-          userId: loggedInUserId,
-          ownerName: cleanName,
-          ownerHandle: cleanHandle,
-          ownerPhone: cleanPhone,
-          ownerBio: cleanBio,
-          ownerArea: cleanArea,
-          ownerAvatar: cleanAvatar,
-          deviceSessionId: newDeviceSessionId,
-          singleDeviceLock: true,
-        })
-      );
-    } catch (err) {
-      console.warn('Không thể lưu phiên đăng nhập:', err);
-    }
-    showToast(`Đăng nhập thành công trên 1 thiết bị duy nhất (${newDeviceSessionId})`);
+      const nextSessionId = `DEV-${Platform.OS.toUpperCase()}-${Date.now().toString().slice(-6)}`;
+      const resolvedHandle = dbUser.username
+        ? `@${dbUser.username}`
+        : `@${(dbUser.displayName || 'user').toLowerCase().replace(/\s+/g, '')}`;
 
-    // Đồng bộ tài khoản và thú cưng vào database PostgreSQL
-    fetch(`${getApiBaseUrl()}/api/auth/register-or-sync`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: cleanName,
-        phone: cleanPhone,
-        petName: params.petName,
-        petSpecies: params.petSpecies,
-        petBreed: params.petBreed,
-      }),
-    }).catch((e) => console.log('[MobileContext] Sync user to DB skipped:', e.message));
-  };
+      await refreshData(dbUser.id, true);
 
-  const forceRevokeOtherDevices = () => {
-    const refreshedId = `DEV-${Platform.OS.toUpperCase()}-${Date.now().toString().slice(-6)}`;
-    setActiveDeviceSessionId(refreshedId);
-    showToast('Đã thu hồi mọi phiên cũ. Chỉ thiết bị hiện tại được phép truy cập!');
-  };
+      setBootAuthError(null);
+      setActiveDeviceSessionId(nextSessionId);
+      setHasSavedSession(true);
+      setSavedSessionIdentifier(dbUser.username || dbUser.phone || '');
+      setIsAuthenticated(true);
+      setSelectedProfileHandle(null);
+      setActiveTabState('explore');
+      setTabHistory(['explore']);
 
-  const logoutUser = async () => {
+      try {
+        await AsyncStorage.setItem(
+          STORAGE_KEY_AUTH,
+          JSON.stringify({
+            isAuthenticated: true,
+            userId: dbUser.id,
+            identifier: dbUser.username || dbUser.phone || '',
+            deviceSessionId: nextSessionId,
+            ownerName: dbUser.displayName,
+            ownerHandle: resolvedHandle,
+            ownerPhone: dbUser.phone,
+            ownerBio: dbUser.bio || '',
+          })
+        );
+      } catch (storageErr) {
+        console.warn('[Pawty Auth] Không thể lưu phiên vào bộ nhớ máy:', storageErr);
+      }
+
+      showToast(authRes.message || `Chào mừng ${dbUser.displayName} quay lại Pawty!`);
+    },
+    [refreshData, showToast]
+  );
+
+  const logoutUser = useCallback(async () => {
     setIsAuthenticated(false);
-    setActiveModal(null);
+    setHasSavedSession(false);
+    setSavedSessionIdentifier('');
+    setBootAuthError(null);
     setCurrentUserId('');
-    setOwnerName('');
-    setOwnerHandle('');
-    setOwnerNickname('');
-    setOwnerPhone('');
-    setOwnerBio('');
-    setOwnerArea('');
-    setOwnerAvatar('');
     setPets([]);
-    setActivePetId('');
+    setPosts([]);
+    setChats([]);
+    setSosAlerts([]);
+    setTinderCandidates([]);
+    setLikesYouCandidates([]);
+    setNotifications([]);
+    setPublicProfiles({});
+    setSelectedProfileHandle(null);
+    setActiveModal(null);
+    setActiveChatId(null);
     try {
       await AsyncStorage.removeItem(STORAGE_KEY_AUTH);
     } catch (err) {
-      console.warn('Không thể xóa phiên đăng nhập:', err);
+      console.warn(err);
     }
-  };
+    showToast('Đã đăng xuất tài khoản an toàn.');
+  }, [setActiveChatId, showToast]);
 
-  const updateOwnerProfile = useCallback((params: {
-    name?: string;
-    gender?: string;
-    area?: string;
-    age?: number;
-    birthDate?: string;
-    zodiac?: string;
-    mbti?: string;
-    education?: string;
-    major?: string;
-    occupation?: string;
-    bio?: string;
-    coverUrl?: string;
-    avatarUrl?: string;
-    privacySettings?: Record<string, boolean>;
-  }) => {
-    if (params.name !== undefined) setOwnerName(params.name);
-    if (params.gender !== undefined) setOwnerGender(params.gender);
-    if (params.area !== undefined) setOwnerArea(params.area);
-    if (params.age !== undefined) setOwnerAge(params.age);
-    if (params.birthDate !== undefined) setOwnerBirthDate(params.birthDate);
-    if (params.zodiac !== undefined) setOwnerZodiac(params.zodiac);
-    if (params.mbti !== undefined) setOwnerMbti(params.mbti);
-    if (params.education !== undefined) setOwnerEducation(params.education);
-    if (params.major !== undefined) setOwnerMajor(params.major);
-    if (params.occupation !== undefined) setOwnerOccupation(params.occupation);
-    if (params.bio !== undefined) setOwnerBio(params.bio);
-    if (params.coverUrl !== undefined) setOwnerCoverUrl(params.coverUrl);
-    if (params.avatarUrl !== undefined) setOwnerAvatarUrl(params.avatarUrl);
-    if (params.privacySettings !== undefined) setOwnerPrivacySettings(params.privacySettings);
-    showToast('Da luu thong tin ho so con sen');
+  const forceRevokeOtherDevices = useCallback(() => {
+    const rotated = `DEV-${Platform.OS.toUpperCase()}-${Date.now().toString().slice(-6)}`;
+    setActiveDeviceSessionId(rotated);
+    showToast('Đã thu hồi toàn bộ phiên lạ — Chỉ giữ lại thiết bị hiện tại.');
   }, [showToast]);
 
-  const togglePetLike = useCallback((petId: string) => {
-    setPets((prev) =>
-      prev.map((pet) => {
-        if (pet.id !== petId) return pet;
-        const wasLiked = pet.isLiked || false;
-        const currentCount = pet.likesCount !== undefined ? pet.likesCount : 148;
-        return {
-          ...pet,
-          isLiked: !wasLiked,
-          likesCount: wasLiked ? Math.max(0, currentCount - 1) : currentCount + 1,
-        };
-      })
-    );
+  // =========================================================================
+  // OWNER & PET PROFILE PERSISTENCE (PostgreSQL)
+  // =========================================================================
+  const setOwnerCoverUrl = useCallback(
+    (url: string) => {
+      setOwnerCoverUrlState(url);
+      if (currentUserId) {
+        apiClient
+          .updateMyProfile({ userId: currentUserId, coverUrl: url })
+          .catch((err) => console.warn('[Pawty Profile] Lỗi lưu ảnh bìa:', err));
+      }
+    },
+    [currentUserId]
+  );
+
+  const setOwnerAvatarUrl = useCallback(
+    (url: string) => {
+      setOwnerAvatarUrlState(url);
+      setOwnerAvatar(url);
+      if (currentUserId) {
+        apiClient
+          .updateMyProfile({ userId: currentUserId, avatarUrl: url })
+          .catch((err) => console.warn('[Pawty Profile] Lỗi lưu ảnh đại diện:', err));
+      }
+    },
+    [currentUserId]
+  );
+
+  const setOwnerNoteBubble = useCallback(
+    (note: string) => {
+      const trimmed = note.slice(0, 60);
+      setOwnerNoteBubbleState(trimmed);
+      if (currentUserId) {
+        apiClient
+          .updateMyProfile({ userId: currentUserId, noteBubble: trimmed })
+          .catch((err) => console.warn('[Pawty Profile] Lỗi lưu ghi chú:', err));
+      }
+    },
+    [currentUserId]
+  );
+
+  const updateOwnerProfile = useCallback(
+    async (params: {
+      name?: string;
+      gender?: string;
+      area?: string;
+      age?: number;
+      birthDate?: string;
+      zodiac?: string;
+      mbti?: string;
+      education?: string;
+      major?: string;
+      occupation?: string;
+      bio?: string;
+      coverUrl?: string;
+      avatarUrl?: string;
+      privacySettings?: Record<string, boolean>;
+    }) => {
+      if (params.name !== undefined) {
+        setOwnerName(params.name);
+        setOwnerNickname(params.name);
+      }
+      if (params.gender !== undefined) setOwnerGender(params.gender);
+      if (params.area !== undefined) setOwnerArea(params.area);
+      if (params.age !== undefined) setOwnerAge(params.age);
+      if (params.birthDate !== undefined) setOwnerBirthDate(params.birthDate);
+      if (params.zodiac !== undefined) setOwnerZodiac(params.zodiac);
+      if (params.mbti !== undefined) setOwnerMbti(params.mbti);
+      if (params.education !== undefined) setOwnerEducation(params.education);
+      if (params.major !== undefined) setOwnerMajor(params.major);
+      if (params.occupation !== undefined) setOwnerOccupation(params.occupation);
+      if (params.bio !== undefined) setOwnerBio(params.bio);
+      if (params.coverUrl !== undefined) setOwnerCoverUrlState(params.coverUrl);
+      if (params.avatarUrl !== undefined) {
+        setOwnerAvatarUrlState(params.avatarUrl);
+        setOwnerAvatar(params.avatarUrl);
+      }
+      if (params.privacySettings !== undefined) {
+        setOwnerPrivacySettings(params.privacySettings);
+      }
+
+      if (!currentUserId) return;
+
+      try {
+        await apiClient.updateMyProfile({
+          userId: currentUserId,
+          displayName: params.name,
+          gender: params.gender,
+          neighborhood: params.area,
+          age: params.age,
+          birthDate: params.birthDate,
+          zodiac: params.zodiac,
+          mbti: params.mbti,
+          education: params.education,
+          occupation: params.occupation,
+          bio: params.bio,
+          coverUrl: params.coverUrl,
+          avatarUrl: params.avatarUrl,
+          privacySettings: params.privacySettings,
+        });
+        showToast('Đã lưu hồ sơ cá nhân lên cơ sở dữ liệu.');
+      } catch (err: any) {
+        console.warn('[Pawty Profile] Lỗi cập nhật hồ sơ chủ nuôi:', err);
+        showToast(err?.message || 'Không thể lưu hồ sơ lên máy chủ.');
+      }
+    },
+    [currentUserId, showToast]
+  );
+
+  const togglePrivateProfile = useCallback(() => {
+    setIsPrivateProfile((prev) => {
+      const next = !prev;
+      if (currentUserId) {
+        apiClient
+          .updateMyProfile({
+            userId: currentUserId,
+            allowMessages: next ? 'friends_only' : 'everyone',
+          })
+          .catch((err) => console.warn('[Pawty Privacy] Lỗi cập nhật quyền riêng tư:', err));
+      }
+      showToast(
+        next
+          ? 'Đã bật chế độ Tài khoản Riêng tư.'
+          : 'Đã chuyển sang chế độ Tài khoản Công khai.'
+      );
+      return next;
+    });
+  }, [currentUserId, showToast]);
+
+  const addNewPetProfile = useCallback(
+    async (params: {
+      name: string;
+      species: 'Chó' | 'Mèo' | 'Khác';
+      customSpecies?: string;
+      breed: string;
+      gender?: 'Đực' | 'Cái';
+      weightKg: number;
+      ageLabel: string;
+      birthDate?: string;
+      furColor?: string;
+      bio?: string;
+      avatarUrl?: string;
+      galleryUrls?: string[];
+      isSterilized?: boolean;
+      isVaccinatedAndRabies?: boolean;
+      favoriteFood?: string;
+      dewormingHistory?: string;
+      medicalHistory?: string;
+      goodHabits?: string[];
+      cautionHabits?: string[];
+      weightHistory?: { month: string; weightKg: number }[];
+      vaccineRecords?: PetVaccineRecord[];
+    }): Promise<MobilePet | null> => {
+      if (!currentUserId) {
+        showToast('Vui lòng đăng nhập trước khi tạo hồ sơ thú cưng.');
+        return null;
+      }
+      if (!params.name.trim()) {
+        showToast('Vui lòng nhập tên thú cưng.');
+        return null;
+      }
+
+      try {
+        const defaultPhoto =
+          params.species === 'Mèo'
+            ? 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80'
+            : 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80';
+        const avatarUrl =
+          params.avatarUrl ||
+          (params.galleryUrls && params.galleryUrls[0]) ||
+          defaultPhoto;
+
+        const res = await apiClient.createPet({
+          ownerId: currentUserId,
+          name: params.name.trim(),
+          species: params.species,
+          customSpecies: params.species === 'Khác' ? params.customSpecies : undefined,
+          breed: params.breed || 'Chưa rõ',
+          gender: params.gender || 'Đực',
+          weightKg: Number(params.weightKg || 4.5),
+          ageLabel: params.ageLabel || '1 tuổi',
+          birthDate: params.birthDate || '01/01/2024',
+          furColor: params.furColor || 'Vàng kem',
+          bio: (params.bio || '').slice(0, 160),
+          avatarUrl,
+          galleryUrls:
+            params.galleryUrls && params.galleryUrls.length > 0
+              ? params.galleryUrls
+              : [avatarUrl],
+          isSterilized: Boolean(params.isSterilized ?? false),
+          isVaccinatedAndRabies: Boolean(params.isVaccinatedAndRabies ?? true),
+          favoriteFood: params.favoriteFood || 'Hạt dinh dưỡng & Ức gà',
+          dewormingHistory: params.dewormingHistory || 'Định kỳ 3 tháng/lần',
+          medicalHistory: params.medicalHistory || 'Khỏe mạnh, không có bệnh nền',
+          goodHabits: params.goodHabits || [],
+          cautionHabits: params.cautionHabits || [],
+          weightHistory:
+            params.weightHistory && params.weightHistory.length > 0
+              ? params.weightHistory
+              : [{ month: 'Hiện tại', weightKg: Number(params.weightKg || 4.5) }],
+          vaccineRecords: params.vaccineRecords || [],
+        });
+
+        const createdPet = normalizePetFromServer(res.pet);
+        setPets((prev) => [...prev, createdPet]);
+        setActivePetId(createdPet.id);
+        showToast(`Đã tạo hồ sơ bé ${createdPet.name} thành công!`);
+        return createdPet;
+      } catch (err: any) {
+        console.warn('[Pawty Pets] Lỗi tạo hồ sơ thú cưng:', err);
+        showToast(err?.message || 'Không thể tạo hồ sơ thú cưng. Vui lòng thử lại.');
+        return null;
+      }
+    },
+    [currentUserId, showToast]
+  );
+
+  const updatePetProfile = useCallback(
+    async (petId: string, updates: Partial<MobilePet>) => {
+      if (!petId) return;
+      setPets((prev) => prev.map((p) => (p.id === petId ? { ...p, ...updates } : p)));
+      try {
+        const res = await apiClient.updatePet(petId, updates as Record<string, any>);
+        if (res?.pet) {
+          const normalized = normalizePetFromServer(res.pet);
+          setPets((prev) => prev.map((p) => (p.id === petId ? normalized : p)));
+        }
+      } catch (err: any) {
+        console.warn('[Pawty Pets] Lỗi cập nhật hồ sơ thú cưng:', err);
+        showToast(err?.message || 'Không thể lưu thay đổi hồ sơ thú cưng.');
+      }
+    },
+    [showToast]
+  );
+
+  const deletePetProfile = useCallback(
+    async (petId: string) => {
+      if (!petId) return;
+      const target = pets.find((p) => p.id === petId);
+      try {
+        await apiClient.deletePet(petId);
+        const remaining = pets.filter((p) => p.id !== petId);
+        setPets(remaining);
+        if (activePetId === petId) {
+          setActivePetId(remaining[0]?.id || '');
+        }
+        showToast(`Đã xóa hồ sơ bé ${target?.name || ''}.`);
+      } catch (err: any) {
+        console.warn('[Pawty Pets] Lỗi xóa hồ sơ thú cưng:', err);
+        showToast(err?.message || 'Không thể xóa hồ sơ thú cưng.');
+      }
+    },
+    [pets, activePetId, showToast]
+  );
+
+  const togglePetLike = useCallback(
+    (petId: string) => {
+      setPets((prev) =>
+        prev.map((p) => {
+          if (p.id !== petId) return p;
+          const nextLiked = !p.isLiked;
+          const baseCount = p.likesCount ?? 0;
+          const nextCount = nextLiked ? baseCount + 1 : Math.max(0, baseCount - 1);
+          apiClient
+            .updatePet(petId, { likesCount: nextCount })
+            .catch((e) => console.warn('[Pawty Pet Like] Lỗi lưu lượt thích:', e));
+          return {
+            ...p,
+            isLiked: nextLiked,
+            likesCount: nextCount,
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const togglePetVaccinationAndRabies = useCallback(
+    (petId: string) => {
+      const found = pets.find((p) => p.id === petId);
+      if (!found) return;
+      const nextStatus = !found.isVaccinatedAndRabies;
+      updatePetProfile(petId, { isVaccinatedAndRabies: nextStatus });
+      showToast(
+        nextStatus
+          ? 'Đã bật trạng thái Tiêm chủng đầy đủ & Phòng dại.'
+          : 'Đã cập nhật trạng thái Sổ tiêm chủng.'
+      );
+    },
+    [pets, updatePetProfile, showToast]
+  );
+
+  const updateOwnerAndPetProfile = useCallback(
+    (params: {
+      ownerName: string;
+      ownerNickname: string;
+      ownerBio: string;
+      ownerArea: string;
+      isPrivateProfile: boolean;
+      petId: string;
+      petName: string;
+      petSpecies: 'Chó' | 'Mèo' | 'Khác';
+      petBreed: string;
+      petGender: 'Đực' | 'Cái';
+      petBirthDate: string;
+      petAgeLabel: string;
+      petWeightKg: number;
+      petFurColor: string;
+      petMicrochipOrMark: string;
+      petFavoriteFood: string;
+      petAllergies: string;
+      petIsVaccinatedAndRabies: boolean;
+      petGoodHabits: string[];
+      petCautionHabits: string[];
+    }) => {
+      updateOwnerProfile({
+        name: params.ownerName,
+        bio: params.ownerBio,
+        area: params.ownerArea,
+      });
+      if (params.petId) {
+        updatePetProfile(params.petId, {
+          name: params.petName,
+          species: params.petSpecies,
+          breed: params.petBreed,
+          gender: params.petGender,
+          birthDate: params.petBirthDate,
+          ageLabel: params.petAgeLabel,
+          weightKg: params.petWeightKg,
+          furColor: params.petFurColor,
+          microchipOrMark: params.petMicrochipOrMark,
+          favoriteFood: params.petFavoriteFood,
+          allergies: params.petAllergies,
+          isVaccinatedAndRabies: params.petIsVaccinatedAndRabies,
+          goodHabits: params.petGoodHabits,
+          cautionHabits: params.petCautionHabits,
+        });
+      }
+      setActiveModal(null);
+    },
+    [updateOwnerProfile, updatePetProfile]
+  );
+
+  // =========================================================================
+  // TINDER SETUP (1-TO-1 PURPOSE MAPPING)
+  // =========================================================================
+  const setTinderIntent = useCallback(
+    (intent: TinderIntent) => {
+      setTinderIntentState(intent);
+      const label = getTinderPurposeLabel(intent);
+      setUserTinderSetup((prev) => ({
+        ...prev,
+        intent,
+        lookingFor: label,
+      }));
+    },
+    []
+  );
+
+  const updateUserTinderSetup = useCallback(
+    async (nextSetup: UserTinderSetupProfile) => {
+      const normalizedIntent = resolveTinderIntentFromLabel(
+        nextSetup.intent || nextSetup.lookingFor
+      );
+      const normalizedPayload: UserTinderSetupProfile = {
+        ...nextSetup,
+        intent: normalizedIntent,
+        lookingFor: getTinderPurposeLabel(normalizedIntent),
+        promptQuote: (nextSetup.promptQuote || '').slice(0, 140),
+      };
+
+      setUserTinderSetup(normalizedPayload);
+      setTinderIntentState(normalizedIntent);
+
+      if (!currentUserId) return;
+      try {
+        await apiClient.updateMyProfile({
+          userId: currentUserId,
+          primaryNeed: normalizedIntent,
+          age: normalizedPayload.age,
+          gender: normalizedPayload.gender,
+          zodiac: normalizedPayload.zodiac,
+          tinderSetup: normalizedPayload,
+        });
+        showToast('Đã đồng bộ Hồ sơ Kết nối & Mục đích tìm kiếm!');
+      } catch (err: any) {
+        console.warn('[Pawty Tinder Setup] Lỗi lưu thiết lập:', err);
+        showToast(err?.message || 'Không thể lưu thiết lập kết nối.');
+      }
+    },
+    [currentUserId, showToast]
+  );
+
+  // =========================================================================
+  // SUGGESTED PEOPLE & SEARCH
+  // =========================================================================
+  const toggleFollowSuggestedPerson = useCallback(
+    async (personId: string) => {
+      const target = suggestedPeople.find((p) => p.id === personId);
+      if (!target || !currentUserId) return;
+      try {
+        const res = await apiClient.toggleFollow(currentUserId, target.handle);
+        setSuggestedPeople((prev) =>
+          prev.map((item) =>
+            item.id === personId ? { ...item, isFollowing: res.isFollowing } : item
+          )
+        );
+        await refreshData(currentUserId, false, true);
+        showToast(
+          res.isFollowing
+            ? `Đã theo dõi ${target.name}.`
+            : `Đã bỏ theo dõi ${target.name}.`
+        );
+      } catch (err: any) {
+        showToast(err?.message || 'Không thể cập nhật theo dõi.');
+      }
+    },
+    [suggestedPeople, currentUserId, refreshData, showToast]
+  );
+
+  const dismissSuggestedPerson = useCallback((personId: string) => {
+    setSuggestedPeople((prev) => prev.filter((item) => item.id !== personId));
   }, []);
 
-  const updatePetProfile = useCallback((petId: string, updates: Partial<MobilePet>) => {
-    setPets((prev) =>
-      prev.map((pet) => (pet.id === petId ? { ...pet, ...updates } : pet))
-    );
-    showToast('Da cap nhat ho so be cung');
-  }, [showToast]);
+  const recordSearchQuery = useCallback((query: string) => {
+    const clean = query.trim();
+    if (!clean) return;
+    setSearchHistory((prev) => [
+      clean,
+      ...prev.filter((item) => item.toLowerCase() !== clean.toLowerCase()),
+    ].slice(0, 8));
+  }, []);
 
-  const deletePost = useCallback((postId: string) => {
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
-    showToast('Da xoa bai viet khoi bang tin');
-  }, [showToast]);
+  const removeSearchHistoryItem = useCallback((query: string) => {
+    setSearchHistory((prev) => prev.filter((item) => item !== query));
+  }, []);
+
+  const clearSearchHistory = useCallback(() => {
+    setSearchHistory([]);
+  }, []);
+
+  // =========================================================================
+  // EXPLORE POSTS, REACTIONS & COMMENTS (PostgreSQL)
+  // =========================================================================
+  const toggleReaction = useCallback(
+    async (postId: string, _type: keyof MobilePost['reactions'] = 'paws') => {
+      if (!currentUserId) return;
+
+      // Optimistic UI update
+      setPosts((prev) =>
+        prev.map((post) => {
+          if (post.id !== postId) return post;
+          const isUnreacting = post.userReaction === 'paws';
+          return {
+            ...post,
+            userReaction: isUnreacting ? null : 'paws',
+            reactions: {
+              ...post.reactions,
+              paws: isUnreacting
+                ? Math.max(0, post.reactions.paws - 1)
+                : post.reactions.paws + 1,
+            },
+          };
+        })
+      );
+
+      try {
+        const res = await apiClient.togglePostReaction(postId, currentUserId);
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  userReaction: res.isLiked ? 'paws' : null,
+                  reactions: { ...post.reactions, paws: res.likes },
+                }
+              : post
+          )
+        );
+      } catch (err) {
+        console.warn('[Pawty Post Reaction] Lỗi thả Paw:', err);
+      }
+    },
+    [currentUserId]
+  );
+
+  const toggleSavePost = useCallback(
+    (postId: string) => {
+      setPosts((prev) =>
+        prev.map((post) => {
+          if (post.id !== postId) return post;
+          const nextSaved = !post.isSaved;
+          showToast(nextSaved ? 'Đã lưu bài viết vào bộ sưu tập.' : 'Đã bỏ lưu bài viết.');
+          return { ...post, isSaved: nextSaved };
+        })
+      );
+    },
+    [showToast]
+  );
+
+  const sharePost = useCallback(
+    (postId: string) => {
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId ? { ...post, shareCount: post.shareCount + 1 } : post
+        )
+      );
+      showToast('Đã sao chép liên kết bài viết để chia sẻ.');
+    },
+    [showToast]
+  );
+
+  const addComment = useCallback(
+    async (postId: string, content: string) => {
+      const clean = content.trim();
+      if (!clean || !currentUserId) return;
+
+      try {
+        const res = await apiClient.addPostComment(postId, currentUserId, clean);
+        const createdComment = res.comment;
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  comments: [
+                    ...post.comments,
+                    {
+                      id: createdComment?.id || `cm-${Date.now()}`,
+                      authorName: createdComment?.authorName || ownerName,
+                      authorHandle: createdComment?.authorHandle || ownerHandle,
+                      authorAvatar: createdComment?.authorAvatar || ownerAvatarUrl,
+                      content: createdComment?.text || clean,
+                      createdAt: createdComment?.createdAt || 'Vừa xong',
+                      likesCount: 0,
+                      isLiked: false,
+                      replies: [],
+                    },
+                  ],
+                }
+              : post
+          )
+        );
+      } catch (err: any) {
+        showToast(err?.message || 'Không thể gửi bình luận.');
+      }
+    },
+    [currentUserId, ownerName, ownerHandle, ownerAvatarUrl, showToast]
+  );
 
   const toggleCommentLike = useCallback((postId: string, commentId: string) => {
     setPosts((prev) =>
@@ -994,14 +1865,14 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         if (post.id !== postId) return post;
         return {
           ...post,
-          comments: post.comments.map((c) => {
-            if (c.id !== commentId) return c;
-            const wasLiked = c.isLiked || false;
-            const currentCount = c.likesCount || 0;
+          comments: post.comments.map((cm) => {
+            if (cm.id !== commentId) return cm;
+            const nextLiked = !cm.isLiked;
+            const baseCount = cm.likesCount ?? 0;
             return {
-              ...c,
-              isLiked: !wasLiked,
-              likesCount: wasLiked ? Math.max(0, currentCount - 1) : currentCount + 1,
+              ...cm,
+              isLiked: nextLiked,
+              likesCount: nextLiked ? baseCount + 1 : Math.max(0, baseCount - 1),
             };
           }),
         };
@@ -1009,1224 +1880,839 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     );
   }, []);
 
-  const addCommentReply = useCallback((postId: string, commentId: string, content: string) => {
-    if (!content.trim()) return;
-    setPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== postId) return post;
-        return {
-          ...post,
-          comments: post.comments.map((c) => {
-            if (c.id !== commentId) return c;
-            const currentReplies = c.replies || [];
-            return {
-              ...c,
-              replies: [
-                ...currentReplies,
-                {
-                  id: "reply-" + Date.now(),
-                  authorName: ownerName,
-                  authorHandle: ownerHandle,
-                  authorAvatar: pets[0]?.avatarUrl,
-                  createdAt: 'Vừa xong',
-                  likesCount: 0,
-                  isLiked: false,
-                },
-              ],
-            };
-          }),
-        };
-      })
-    );
-    showToast('Đã gửi phản hồi bình luận');
-  }, [ownerName, ownerHandle, pets, showToast]);
-
-  const activePet = pets.find((p) => p.id === activePetId) || pets[0];
-  const unreadNotificationCount = notifications.filter((n) => !n.isRead).length;
-
-  const updateOwnerAndPetProfile = (params: {
-    ownerName: string;
-    ownerNickname: string;
-    ownerBio: string;
-    ownerArea: string;
-    isPrivateProfile: boolean;
-    petId: string;
-    petName: string;
-    petSpecies: 'Chó' | 'Mèo';
-    petBreed: string;
-    petGender: 'Đực' | 'Cái';
-    petBirthDate: string;
-    petAgeLabel: string;
-    petWeightKg: number;
-    petFurColor: string;
-    petMicrochipOrMark: string;
-    petFavoriteFood: string;
-    petAllergies: string;
-    petIsVaccinatedAndRabies: boolean;
-    petGoodHabits: string[];
-    petCautionHabits: string[];
-  }) => {
-    setOwnerName(params.ownerName.trim() || ownerName);
-    setOwnerNickname(params.ownerNickname.trim() || ownerNickname);
-    setOwnerBio(params.ownerBio.trim() || ownerBio);
-    setOwnerArea(params.ownerArea.trim() || ownerArea);
-    setIsPrivateProfile(params.isPrivateProfile);
-
-    setPets((prev) =>
-      prev.map((p) =>
-        p.id === params.petId
-          ? {
-              ...p,
-              name: params.petName.trim() || p.name,
-              species: params.petSpecies,
-              breed: params.petBreed.trim() || p.breed,
-              gender: params.petGender,
-              birthDate: params.petBirthDate.trim() || p.birthDate,
-              ageLabel: params.petAgeLabel.trim() || p.ageLabel,
-              weightKg: Number(params.petWeightKg) || p.weightKg,
-              furColor: params.petFurColor.trim() || p.furColor,
-              microchipOrMark: params.petMicrochipOrMark.trim() || p.microchipOrMark,
-              favoriteFood: params.petFavoriteFood.trim() || p.favoriteFood,
-              allergies: params.petAllergies.trim() || p.allergies,
-              isVaccinatedAndRabies: params.petIsVaccinatedAndRabies,
-              goodHabits: params.petGoodHabits,
-              cautionHabits: params.petCautionHabits,
-            }
-          : p
-      )
-    );
-    setActiveModal(null);
-    showToast('Đã lưu cập nhật hồ sơ thành công');
-  };
-
-  const togglePrivateProfile = () => {
-    setIsPrivateProfile((prev) => {
-      const next = !prev;
-      showToast(
-        next
-          ? 'Đã bật Hồ sơ riêng tư (Chỉ bạn bè & người đã Match Kết nối xem được)'
-          : 'Đã chuyển sang Hồ sơ công khai'
+  const addCommentReply = useCallback(
+    (postId: string, commentId: string, content: string) => {
+      if (!content.trim()) return;
+      setPosts((prev) =>
+        prev.map((post) => {
+          if (post.id !== postId) return post;
+          return {
+            ...post,
+            comments: post.comments.map((cm) => {
+              if (cm.id !== commentId) return cm;
+              const prevReplies = cm.replies || [];
+              return {
+                ...cm,
+                replies: [
+                  ...prevReplies,
+                  {
+                    id: `rp-${Date.now()}`,
+                    authorName: ownerName,
+                    authorHandle: ownerHandle,
+                    authorAvatar: ownerAvatarUrl || ownerAvatar,
+                    content: content.trim(),
+                    createdAt: 'Vừa xong',
+                    likesCount: 0,
+                    isLiked: false,
+                  },
+                ],
+              };
+            }),
+          };
+        })
       );
-      return next;
-    });
-  };
+    },
+    [ownerName, ownerHandle, ownerAvatarUrl, ownerAvatar]
+  );
 
-  const togglePetVaccinationAndRabies = (petId: string) => {
-    setPets((prev) =>
-      prev.map((p) => {
-        if (p.id !== petId) return p;
-        const nextVal = !p.isVaccinatedAndRabies;
-        showToast(
-          nextVal
-            ? `Đã đánh dấu bé ${p.name} tiêm chủng & phòng dại đầy đủ`
-            : `Đã bỏ đánh dấu tiêm chủng của bé ${p.name}`
-        );
-        return { ...p, isVaccinatedAndRabies: nextVal };
-      })
-    );
-  };
+  const createPost = useCallback(
+    async (params: {
+      content: string;
+      tags: string[];
+      mediaUrls: string[];
+      mediaType: 'image' | 'video';
+      category?: 'moment' | 'health_tip' | 'qa_vet';
+    }): Promise<boolean> => {
+      const cleanContent = params.content.trim();
+      const validMedia = Array.isArray(params.mediaUrls)
+        ? params.mediaUrls.filter(Boolean)
+        : [];
 
-  // Max 3 Pets Free for All Users (Not tied to Plus)
-  const addNewPetProfile = (params: {
-    name: string;
-    species: 'Chó' | 'Mèo';
-    breed: string;
-    weightKg: number;
-    ageLabel: string;
-  }) => {
-    if (pets.length >= MAX_FREE_PETS) {
-      showToast(`Mỗi tài khoản được tạo tối đa ${MAX_FREE_PETS} hồ sơ thú cưng (Miễn phí)`);
-      return;
-    }
-    const newPet: MobilePet = {
-      id: `pet-${Date.now()}`,
-      name: params.name.trim(),
-      species: params.species,
-      breed: params.breed.trim() || (params.species === 'Chó' ? 'Corgi' : 'Mèo Anh lông ngắn'),
-      gender: 'Cái',
-      birthDate: '01/06/2024',
-      ageLabel: params.ageLabel.trim() || '1 tuổi',
-      weightKg: params.weightKg || 5,
-      furColor: 'Trắng kem',
-      microchipOrMark: 'Có vòng cổ bảng tên',
-      favoriteFood: 'Hạt dinh dưỡng, pate',
-      allergies: 'Không có',
-      avatarUrl:
-        params.species === 'Chó'
-          ? 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=800&q=80'
-          : 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80',
-      coverUrl:
-        'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1000&q=80',
-      bio: `${params.name.trim()} là thành viên đáng yêu trong gia đình.`,
-      isVaccinatedAndRabies: true,
-      goodHabits: ['Ngoan ngoãn', 'Quấn người'],
-      cautionHabits: [],
-    };
-    setPets((prev) => [...prev, newPet]);
-    setActivePetId(newPet.id);
-    showToast(`Đã thêm hồ sơ thú cưng: ${newPet.name} (${pets.length + 1}/${MAX_FREE_PETS})`);
-  };
+      if (!cleanContent && validMedia.length === 0) {
+        showToast('Vui lòng nhập nội dung chia sẻ hoặc chọn ít nhất 1 ảnh.');
+        return false;
+      }
+      if (!currentUserId) {
+        showToast('Vui lòng đăng nhập lại để đăng bài viết.');
+        return false;
+      }
 
-  const deletePetProfile = (petId: string) => {
-    if (pets.length <= 1) {
-      showToast('Cần giữ lại ít nhất 1 hồ sơ thú cưng trong tài khoản');
-      return;
-    }
-    const target = pets.find((p) => p.id === petId);
-    const remaining = pets.filter((p) => p.id !== petId);
-    setPets(remaining);
-    if (activePetId === petId && remaining[0]) {
-      setActivePetId(remaining[0].id);
-    }
-    showToast(`Đã xóa hồ sơ thú cưng ${target ? target.name : ''}`);
-  };
+      const contentType: 'moment' | 'tip' | 'question' =
+        params.category === 'health_tip'
+          ? 'tip'
+          : params.category === 'qa_vet'
+          ? 'question'
+          : 'moment';
 
-  const updateUserTinderSetup = (nextSetup: UserTinderSetupProfile) => {
-    setUserTinderSetup(nextSetup);
-    setActiveModal(null);
-    showToast('Đã cập nhật Hồ sơ Kết nối của bạn!');
-  };
+      try {
+        const res = await apiClient.createPost({
+          authorId: currentUserId,
+          content: cleanContent,
+          contentType,
+          mediaUrls: validMedia,
+          tags: params.tags,
+          locationDistrict: ownerArea,
+        });
 
-  const toggleFollowSuggestedPerson = (id: string) => {
-    setSuggestedPeople((prev) =>
-      prev.map((person) => {
-        if (person.id !== id) return person;
-        const nextFollow = !person.isFollowing;
-        showToast(
-          nextFollow ? `Đã theo dõi ${person.name}` : `Đã bỏ theo dõi ${person.name}`
-        );
-        return { ...person, isFollowing: nextFollow };
-      })
-    );
-  };
-
-  const dismissSuggestedPerson = (id: string) => {
-    setSuggestedPeople((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  // Search History
-  const recordSearchQuery = (query: string) => {
-    const clean = query.trim();
-    if (!clean) return;
-    setSearchHistory((prev) =>
-      [clean, ...prev.filter((item) => item.toLowerCase() !== clean.toLowerCase())].slice(0, 10)
-    );
-  };
-
-  const removeSearchHistoryItem = (query: string) => {
-    setSearchHistory((prev) => prev.filter((item) => item !== query));
-  };
-
-  const clearSearchHistory = () => {
-    setSearchHistory([]);
-    showToast('Đã xóa lịch sử tìm kiếm');
-  };
-
-  // Social Feed Actions
-  const toggleReaction = (postId: string, type: keyof MobilePost['reactions'] = 'paws') => {
-    setPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== postId) return post;
-        const isSame = post.userReaction === type;
-        const updatedReactions = { ...post.reactions };
-        if (post.userReaction) {
-          updatedReactions[post.userReaction] = Math.max(
-            0,
-            updatedReactions[post.userReaction] - 1
-          );
+        if (res?.post) {
+          const newPost = normalizePostFromServer(res.post, currentUserId);
+          setPosts((prev) => [newPost, ...prev]);
+        } else {
+          await refreshData(currentUserId, false, true);
         }
-        if (!isSame) {
-          updatedReactions[type] += 1;
-        }
-        return {
-          ...post,
-          reactions: updatedReactions,
-          userReaction: isSame ? null : type,
-        };
-      })
-    );
-  };
 
-  const toggleSavePost = (postId: string) => {
-    setPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== postId) return post;
-        const nextSaved = !post.isSaved;
-        showToast(nextSaved ? 'Đã lưu bài viết vào mục yêu thích' : 'Đã bỏ lưu bài viết');
-        return { ...post, isSaved: nextSaved };
-      })
-    );
-  };
+        setActiveModal(null);
+        showToast('Đã đăng bài viết mới lên bảng tin Khám phá!');
+        return true;
+      } catch (err: any) {
+        console.warn('[Pawty CreatePost] Lỗi đăng bài:', err);
+        showToast(err?.message || 'Không thể đăng bài viết. Vui lòng thử lại.');
+        return false;
+      }
+    },
+    [currentUserId, ownerArea, refreshData, showToast]
+  );
 
-  const sharePost = (postId: string) => {
-    setPosts((prev) =>
-      prev.map((post) =>
-        post.id === postId ? { ...post, shareCount: post.shareCount + 1 } : post
-      )
-    );
-    showToast('Đã sao chép liên kết chia sẻ bài viết!');
-  };
+  const deletePost = useCallback(
+    async (postId: string) => {
+      try {
+        await apiClient.deletePost(postId, currentUserId);
+        setPosts((prev) => prev.filter((p) => p.id !== postId));
+        showToast('Đã xóa bài viết khỏi hồ sơ và bảng tin.');
+      } catch (err: any) {
+        showToast(err?.message || 'Không thể xóa bài viết.');
+      }
+    },
+    [currentUserId, showToast]
+  );
 
-  const addComment = (postId: string, content: string) => {
-    if (!content.trim()) return;
-    setPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== postId) return post;
-        return {
-          ...post,
-          comments: [
-            ...post.comments,
-            {
-              id: `c-${Date.now()}`,
-              authorName: ownerName,
-              authorHandle: ownerHandle,
-              content: content.trim(),
-              createdAt: 'Vừa xong',
-            },
-          ],
-        };
-      })
-    );
-    showToast('Đã gửi bình luận');
-  };
-
-  const createPost = (params: {
-    content: string;
-    tags: string[];
-    mediaUrls: string[];
-    mediaType: 'image' | 'video';
-  }) => {
-    if (!params.content.trim() && params.mediaUrls.length === 0) return;
-    const fallbackImages = [activePet.avatarUrl];
-    const finalMediaUrls = params.mediaUrls.length > 0 ? params.mediaUrls : fallbackImages;
-    const newPost: MobilePost = {
-      id: `post-${Date.now()}`,
-      authorName: ownerName,
-      authorHandle: ownerHandle,
-      authorAvatar:
-        'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
-      authorNickname: ownerNickname,
-      category: 'moment',
-      categoryLabel: params.mediaType === 'video' ? 'Video' : 'Khoảnh khắc',
-      content: params.content.trim() || `Khoảnh khắc mới cùng bé ${activePet.name}`,
-      tags: params.tags.length > 0 ? params.tags : [`#${activePet.species}`, '#Pawty'],
-      mediaUrls: finalMediaUrls,
-      mediaType: params.mediaType,
-      videoDuration: params.mediaType === 'video' ? '0:24' : undefined,
-      reactions: { paws: 1, love: 0, haha: 0, wow: 0, helpful: 0 },
-      userReaction: 'paws',
-      shareCount: 0,
-      isSaved: false,
-      comments: [],
-      createdAt: 'Vừa xong',
-    };
-    setPosts((prev) => [newPost, ...prev]);
-    setActiveModal(null);
-    showToast('Đã đăng bài mới lên Khám phá!');
-  };
-
-  // Lightbox & Public User Profile
-  const openLightboxMedia = (state: LightboxMediaState) => {
+  // =========================================================================
+  // LIGHTBOX & UNIFIED PUBLIC PROFILE NAVIGATION
+  // =========================================================================
+  const openLightboxMedia = useCallback((state: LightboxMediaState) => {
     setLightboxMedia(state);
-  };
+  }, []);
 
-  const closeLightboxMedia = () => {
+  const closeLightboxMedia = useCallback(() => {
     setLightboxMedia(null);
-  };
+  }, []);
 
-  const resolvePublicProfile = useCallback((handle: string): PublicUserProfile => {
-    if (!handle) {
+  const resolvePublicProfile = useCallback(
+    (handle: string): PublicUserProfile => {
+      const normalized = handle.startsWith('@') ? handle : `@${handle}`;
+      const rawKey = normalized.replace(/^@/, '');
+      const existing =
+        publicProfiles[normalized] ||
+        publicProfiles[rawKey] ||
+        Object.values(publicProfiles).find(
+          (p) => p.handle.toLowerCase() === normalized.toLowerCase()
+        );
+
+      if (existing) return existing;
+
       return {
-        handle: '@cudan',
-        name: 'Cư dân Pawty',
-        nickname: 'Thành viên',
-        avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
-        bio: 'Yêu thương thú cưng và kết nối bạn bè dắt dạo.',
-        area: 'Vinhomes Central Park',
+        handle: normalized,
+        name: normalized.replace('@', ''),
+        nickname: 'Thành viên Pawty',
+        avatarUrl: '',
+        coverUrl: '',
+        bio: 'Chưa cập nhật lời giới thiệu.',
+        area: 'Cộng đồng Pawty',
         isPrivate: false,
         isFriend: false,
         friendStatus: 'none',
         isFollowing: false,
         isMatchedOnTinder: false,
-        followersCount: 142,
-        friendsCount: 56,
-        pets: [
-          {
-            name: 'Bé cưng',
-            species: 'Chó',
-            breed: 'Poodle',
-            ageLabel: '1 tuổi',
-            weightKg: 4.5,
-            isVaccinatedAndRabies: true,
-          },
-        ],
+        followersCount: 0,
+        followingCount: 0,
+        friendsCount: 0,
+        likesCount: 0,
+        pets: [],
+        posts: [],
         galleryUrls: [],
       };
-    }
+    },
+    [publicProfiles]
+  );
 
-    if (publicProfiles[handle]) return publicProfiles[handle];
+  const openUnifiedProfile = useCallback(
+    async (handle: string) => {
+      if (!handle) return;
+      const normalized = handle.startsWith('@') ? handle : `@${handle}`;
 
-    const cleanHandle = handle.replace(/^@/, '');
-    const withAt = `@${cleanHandle}`;
-    const noUnderscore = withAt.replace(/_/g, '');
+      // Đóng mọi modal đang mở để chuyển mượt sang giao diện Hồ sơ thống nhất
+      setActiveModal(null);
+      setViewedUserHandle(null);
+      setShowLikesYouDrawer(false);
 
-    const matchKey = Object.keys(publicProfiles).find(
-      (k) =>
-        k.toLowerCase() === withAt.toLowerCase() ||
-        k.toLowerCase() === cleanHandle.toLowerCase() ||
-        k.replace(/_/g, '').toLowerCase() === noUnderscore.toLowerCase()
-    );
-    if (matchKey && publicProfiles[matchKey]) {
-      return publicProfiles[matchKey];
-    }
-
-    const candidate = tinderCandidates.find(
-      (c) =>
-        c.ownerHandle.toLowerCase() === withAt.toLowerCase() ||
-        c.ownerHandle.replace(/_/g, '').toLowerCase() === noUnderscore.toLowerCase()
-    );
-
-    const authorPost = posts.find(
-      (p) =>
-        p.authorHandle.toLowerCase() === withAt.toLowerCase() ||
-        p.authorHandle.replace(/_/g, '').toLowerCase() === noUnderscore.toLowerCase()
-    );
-
-    const chatPartner = chats.find(
-      (c) =>
-        c.partnerHandle.toLowerCase() === withAt.toLowerCase() ||
-        c.partnerHandle.replace(/_/g, '').toLowerCase() === noUnderscore.toLowerCase()
-    );
-
-    const fallbackName =
-      candidate?.ownerName ||
-      authorPost?.authorName ||
-      chatPartner?.partnerName ||
-      cleanHandle
-        .split('_')
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ');
-
-    const fallbackAvatar =
-      candidate?.avatarUrl ||
-      authorPost?.authorAvatar ||
-      chatPartner?.partnerAvatar ||
-      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80';
-
-    const fallbackBio =
-      candidate?.bio ||
-      authorPost?.content ||
-      'Thành viên cộng đồng thú cưng Pawty. Thích dắt cún dạo mát và giao lưu bạn mới.';
-
-    const fallbackArea =
-      (candidate?.tags && candidate.tags[0]) ||
-      authorPost?.authorNickname ||
-      'Vinhomes Central Park';
-
-    const gallery = posts
-      .filter(
-        (p) =>
-          p.authorHandle.toLowerCase() === withAt.toLowerCase() ||
-          p.authorHandle.replace(/_/g, '').toLowerCase() === noUnderscore.toLowerCase()
-      )
-      .flatMap((p) => p.mediaUrls);
-
-    const candidatePets = candidate?.pets?.map((pet) => ({
-      name: pet.name,
-      species: pet.species,
-      breed: pet.breed,
-      ageLabel: pet.ageLabel,
-      weightKg: pet.weightKg,
-      isVaccinatedAndRabies: pet.isVaccinatedAndRabies,
-    }));
-
-    const newProfile: PublicUserProfile = {
-      handle: withAt,
-      name: fallbackName,
-      nickname: authorPost?.authorNickname || 'Cư dân Pawty',
-      avatarUrl: fallbackAvatar,
-      bio: fallbackBio,
-      area: fallbackArea,
-      isPrivate: false,
-      isFriend: false,
-      friendStatus: 'none',
-      isFollowing: false,
-      isMatchedOnTinder: false,
-      followersCount: 218,
-      friendsCount: 75,
-      pets:
-        candidatePets && candidatePets.length > 0
-          ? candidatePets
-          : [
-              {
-                name: 'Bông',
-                species: 'Chó',
-                breed: 'Poodle',
-                ageLabel: '1.5 tuổi',
-                weightKg: 4.0,
-                isVaccinatedAndRabies: true,
-              },
-            ],
-      galleryUrls: gallery.length > 0 ? gallery : [fallbackAvatar],
-    };
-
-    return newProfile;
-  }, [publicProfiles, tinderCandidates, posts, chats]);
-
-  const openPublicUserProfile = async (handle: string) => {
-    const isOwner =
-      handle.toLowerCase() === ownerHandle.toLowerCase() ||
-      handle.replace(/_/g, '').toLowerCase() === ownerHandle.replace(/_/g, '').toLowerCase();
-
-    if (isOwner) {
-      showToast('Đang mở trang cá nhân của bạn');
-      setSelectedProfileHandle(null);
-      setActiveTab('profile');
-      return;
-    }
-
-    let prof = publicProfiles[handle] || publicProfiles[handle.replace(/^@/, '')];
-    if (!prof) {
-      try {
-        const fetched = await apiClient.getUserProfile(handle, currentUserId);
-        if (fetched) {
-          prof = fetched;
-        }
-      } catch (e) {
-        // Fallback to resolvePublicProfile
+      // Nếu người dùng bấm vào chính mình -> Mở thẳng tab Hồ sơ bản thân
+      if (normalized.toLowerCase() === ownerHandle.toLowerCase()) {
+        setSelectedProfileHandle(null);
+        setActiveTabState('profile');
+        return;
       }
-    }
 
-    if (!prof) {
-      prof = resolvePublicProfile(handle);
-    }
+      if (!selectedProfileHandle) {
+        setReturnTabAfterProfile(activeTab);
+        setReturnChatIdAfterProfile(activeTab === 'chat' ? activeChatId : null);
+      }
 
-    setPublicProfiles((prev) => ({ ...prev, [handle]: prof, [prof.handle]: prof }));
-    setViewedUserHandle(prof.handle);
-  };
+      setSelectedProfileHandle(normalized);
+      setActiveTabState('profile');
 
-  const closePublicUserProfile = () => {
-    setViewedUserHandle(null);
-  };
-
-  const openUserProfileInTab = async (handle: string) => {
-    const isOwner =
-      handle.toLowerCase() === ownerHandle.toLowerCase() ||
-      handle.replace(/_/g, '').toLowerCase() === ownerHandle.replace(/_/g, '').toLowerCase();
-
-    if (isOwner) {
-      showToast('Đang mở trang cá nhân của bạn');
-      setSelectedProfileHandle(null);
-    } else {
-      let prof = publicProfiles[handle] || publicProfiles[handle.replace(/^@/, '')];
-      if (!prof) {
+      if (currentUserId) {
         try {
-          const fetched = await apiClient.getUserProfile(handle, currentUserId);
-          if (fetched) {
-            prof = fetched;
-          }
-        } catch (e) {
-          // Fallback to resolvePublicProfile
-        }
-      }
-
-      if (!prof) {
-        prof = resolvePublicProfile(handle);
-      }
-
-      setPublicProfiles((prev) => ({ ...prev, [handle]: prof, [prof.handle]: prof }));
-      setSelectedProfileHandle(prof.handle);
-    }
-    setViewedUserHandle(null);
-    setActiveTab('profile');
-  };
-
-  const toggleFriendStatus = (handle: string) => {
-    setPublicProfiles((prev) => {
-      const current = prev[handle];
-      if (!current) return prev;
-
-      if (current.friendStatus === 'accepted' || current.isFriend) {
-        // Hủy kết bạn
-        showToast(`Đã hủy kết bạn với ${current.name}`);
-        return {
-          ...prev,
-          [handle]: {
-            ...current,
-            isFriend: false,
-            friendStatus: 'none',
-            friendsCount: Math.max(0, current.friendsCount - 1),
-          },
-        };
-      } else if (current.friendStatus === 'pending') {
-        // Hủy lời mời kết bạn đã gửi
-        showToast(`Đã thu hồi lời mời kết bạn với ${current.name}`);
-        return {
-          ...prev,
-          [handle]: {
-            ...current,
-            friendStatus: 'none',
-          },
-        };
-      } else {
-        // Gửi lời mời kết bạn
-        showToast(
-          `Đã gửi lời mời kết bạn đến ${current.name}! Cần người ấy chấp nhận để có thể nhắn tin.`
-        );
-        // Bắn thông báo đến hệ thống (mô phỏng nhận được lời mời kết bạn)
-        const friendRequestNotif: MobileNotificationItem = {
-          id: `notif-fr-${Date.now()}`,
-          title: 'Lời mời kết bạn đã gửi',
-          body: `Bạn đã gửi lời mời kết bạn đến ${current.name} (${current.handle}). Khi đối phương chấp nhận, hai bạn có thể nhắn tin.`,
-          timeLabel: 'Vừa xong',
-          type: 'friend_request',
-          isRead: false,
-          actionPayload: {
-            senderHandle: current.handle,
-            senderName: current.name,
-            status: 'pending',
-          },
-        };
-        setNotifications((nPrev) => [friendRequestNotif, ...nPrev]);
-
-        return {
-          ...prev,
-          [handle]: {
-            ...current,
-            friendStatus: 'pending',
-          },
-        };
-      }
-    });
-  };
-
-  const sendFriendRequest = (handle: string) => {
-    toggleFriendStatus(handle);
-  };
-
-  const acceptFriendRequest = (handle: string, notifId?: string) => {
-    setPublicProfiles((prev) => {
-      const current = prev[handle];
-      if (!current) return prev;
-      return {
-        ...prev,
-        [handle]: {
-          ...current,
-          isFriend: true,
-          friendStatus: 'accepted',
-          friendsCount: current.friendsCount + 1,
-        },
-      };
-    });
-
-    setNotifications((prev) =>
-      prev.map((n) => {
-        if (n.id === notifId || (n.actionPayload && n.actionPayload.senderHandle === handle)) {
-          return {
-            ...n,
-            isRead: true,
-            title: '✓ Đã trở thành bạn bè',
-            body: `Bạn và ${n.actionPayload?.senderName || handle} đã kết bạn thành công! Giờ hai bạn có thể nhắn tin cho nhau.`,
-            actionPayload: {
-              ...n.actionPayload,
-              status: 'accepted',
-            },
-          };
-        }
-        return n;
-      })
-    );
-
-    showToast('🎉 Đã chấp nhận lời mời kết bạn! Giờ hai bạn đã có thể nhắn tin.');
-  };
-
-  const declineFriendRequest = (handle: string, notifId?: string) => {
-    setPublicProfiles((prev) => {
-      const current = prev[handle];
-      if (!current) return prev;
-      return {
-        ...prev,
-        [handle]: {
-          ...current,
-          friendStatus: 'none',
-          isFriend: false,
-        },
-      };
-    });
-
-    setNotifications((prev) =>
-      prev.map((n) => {
-        if (n.id === notifId || (n.actionPayload && n.actionPayload.senderHandle === handle)) {
-          return {
-            ...n,
-            isRead: true,
-            title: 'Đã từ chối lời mời',
-            body: `Bạn đã từ chối lời mời kết bạn từ ${n.actionPayload?.senderName || handle}.`,
-            actionPayload: {
-              ...n.actionPayload,
-              status: 'declined',
-            },
-          };
-        }
-        return n;
-      })
-    );
-
-    showToast('Đã từ chối lời mời kết bạn.');
-  };
-
-  const toggleFollowUser = (handle: string) => {
-    setPublicProfiles((prev) => {
-      const current = prev[handle];
-      if (!current) return prev;
-      const nextFollowing = !current.isFollowing;
-
-      if (nextFollowing) {
-        showToast(
-          `Đã theo dõi ${current.name}! Bạn sẽ nhận được thông báo khi người này đăng bài mới.`
-        );
-        // Tự động bắn thông báo xác nhận theo dõi và nhận tin bài mới
-        const followNotif: MobileNotificationItem = {
-          id: `notif-follow-${Date.now()}`,
-          title: `Đang theo dõi ${current.name}`,
-          body: `Bạn sẽ nhận được thông báo ngay khi ${current.name} (${current.handle}) đăng tải bài viết mới trên Khám phá.`,
-          timeLabel: 'Vừa xong',
-          type: 'social',
-          isRead: false,
-        };
-        // Giả lập thông báo bài đăng mới từ người vừa theo dõi sau 2.5s để user trải nghiệm
-        setTimeout(() => {
-          const newPostNotif: MobileNotificationItem = {
-            id: `notif-newpost-${Date.now()}`,
-            title: `Bài viết mới từ ${current.name}`,
-            body: `${current.name} (${current.handle}) vừa đăng một khoảnh khắc mới trên trang Khám phá! Nhấn để xem ngay.`,
-            timeLabel: 'Vừa xong',
-            type: 'new_post',
-            isRead: false,
-          };
-          setNotifications((nPrev) => [newPostNotif, ...nPrev]);
-        }, 2500);
-
-        setNotifications((nPrev) => [followNotif, ...nPrev]);
-      } else {
-        showToast(`Đã hủy theo dõi ${current.name}`);
-      }
-
-      return {
-        ...prev,
-        [handle]: {
-          ...current,
-          isFollowing: nextFollowing,
-          followersCount: nextFollowing
-            ? current.followersCount + 1
-            : Math.max(0, current.followersCount - 1),
-        },
-      };
-    });
-  };
-
-  const startDirectChatWithUser = (handle: string) => {
-    const profile = publicProfiles[handle];
-
-    // KIỂM TRA RÀNG BUỘC KẾT BẠN: Chưa là bạn bè thì CHẶN nhắn tin
-    if (profile && !profile.isFriend) {
-      showToast(
-        `⚠️ Bạn và ${profile.name} cần kết bạn và được chấp nhận trước mới có thể nhắn tin!`
-      );
-      return;
-    }
-
-    const existingChat = chats.find((c) => c.partnerHandle === handle);
-    setViewedUserHandle(null);
-    setActiveTab('chat');
-
-    if (existingChat) {
-      setActiveChatId(existingChat.id);
-      return;
-    }
-
-    const newChatId = `chat-${Date.now()}`;
-    const newChat: MobileChatRoom = {
-      id: newChatId,
-      partnerName: profile ? profile.name : handle,
-      partnerHandle: handle,
-      partnerNickname: profile ? profile.nickname : 'Bạn yêu thú cưng',
-      partnerAvatar:
-        profile?.avatarUrl ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-      petSummary:
-        profile && profile.pets[0]
-          ? `${profile.pets.map((p) => p.name).join(', ')}`
-          : 'Yêu thú cưng',
-      distanceLabel: profile?.area || 'Gần bạn',
-      isOnline: true,
-      unreadCount: 0,
-      matchSource: 'friend',
-      messages: [
-        {
-          id: `m-${Date.now()}`,
-          sender: 'me',
-          text: `Chào ${profile ? profile.name : 'bạn'}, rất vui được kết bạn cùng bạn trên Pawty!`,
-          time: 'Vừa xong',
-        },
-      ],
-    };
-    setChats((prev) => [newChat, ...prev]);
-    setActiveChatId(newChatId);
-  };
-
-  // Kết nối (Tinder) Swipe & Match Logic
-  const swipeTinderCandidate = async (candidateId: string, direction: 'left' | 'right') => {
-    const target = tinderCandidates.find((c) => c.id === candidateId);
-    if (!target) return;
-
-    setSwipedCandidateHistory((prev) => [target, ...prev]);
-    setTinderCandidates((prev) => prev.filter((c) => c.id !== candidateId));
-
-    try {
-      const res = await apiClient.recordSwipe(candidateId, direction, currentUserId);
-      if (direction === 'right') {
-        if (res && res.isMatch) {
-          setPublicProfiles((prev) => {
-            const existing = prev[target.ownerHandle];
-            if (!existing) return prev;
-            return {
+          const freshProfile = await apiClient.getUserProfile(normalized, currentUserId);
+          if (freshProfile) {
+            const formattedProfile: PublicUserProfile = {
+              ...freshProfile,
+              pets: Array.isArray(freshProfile.pets)
+                ? freshProfile.pets.map((pt: any) => normalizePetFromServer(pt))
+                : [],
+              posts: Array.isArray(freshProfile.posts)
+                ? freshProfile.posts.map((po: any) =>
+                    normalizePostFromServer(po, currentUserId)
+                  )
+                : [],
+            };
+            const cleanKey = formattedProfile.handle.replace(/^@/, '');
+            setPublicProfiles((prev) => ({
               ...prev,
-              [target.ownerHandle]: {
-                ...existing,
-                isMatchedOnTinder: true,
-              },
-            };
-          });
-          setMatchedCandidateModal({
-            ...target,
-            conversationId: res.conversationId,
-          } as any);
-        } else {
-          showToast(
-            `Đã thả tim cho ${target.ownerName} (${target.pets.map((p) => p.name).join(', ')})`
-          );
+              [normalized]: formattedProfile,
+              [formattedProfile.handle]: formattedProfile,
+              [cleanKey]: formattedProfile,
+            }));
+          }
+        } catch (err) {
+          console.warn('[Pawty Profile] Không tải được hồ sơ mới nhất:', err);
         }
       }
-    } catch (err) {
-      console.warn('Lỗi đồng bộ swipe lên server:', err);
-      if (direction === 'right') {
-        if (target.hasLikedMe) {
-          setMatchedCandidateModal(target);
-        } else {
-          showToast(
-            `Đã thả tim cho ${target.ownerName} (${target.pets.map((p) => p.name).join(', ')})`
-          );
-        }
-      }
-    }
-  };
+    },
+    [ownerHandle, selectedProfileHandle, activeTab, activeChatId, currentUserId]
+  );
 
-  const rewindLastSwipe = async () => {
-    if (swipedCandidateHistory.length === 0) {
-      showToast('Chưa có lượt quẹt nào để hoàn tác');
-      return;
-    }
-    const [lastCandidate, ...rest] = swipedCandidateHistory;
-    setSwipedCandidateHistory(rest);
-    setTinderCandidates((prev) => [lastCandidate, ...prev]);
+  const openPublicUserProfile = useCallback(
+    (handle: string) => {
+      openUnifiedProfile(handle);
+    },
+    [openUnifiedProfile]
+  );
 
-    // Nếu trước đó đối phương từng được đánh dấu isMatchedOnTinder, revert lại
-    setPublicProfiles((prev) => {
-      const existing = prev[lastCandidate.ownerHandle];
-      if (!existing || !existing.isMatchedOnTinder) return prev;
-      return {
-        ...prev,
-        [lastCandidate.ownerHandle]: {
-          ...existing,
-          isMatchedOnTinder: false,
-        },
-      };
-    });
+  const openUserProfileInTab = useCallback(
+    (handle: string) => {
+      openUnifiedProfile(handle);
+    },
+    [openUnifiedProfile]
+  );
 
-    // Đồng bộ hoàn tác vào database (xóa match record)
-    try {
-      await apiClient.rewindSwipe(lastCandidate.id, currentUserId);
-    } catch (err) {
-      console.warn('Lỗi đồng bộ hoàn tác vào database:', err);
-    }
+  const closePublicUserProfile = useCallback(() => {
+    goBackFromOtherProfile();
+  }, [goBackFromOtherProfile]);
 
-    showToast(`Đã hoàn tác thẻ của ${lastCandidate.ownerName}`);
-  };
-
-  const setTinderDistanceLimitHandler = (dist: number | 'all') => {
-    setTinderDistanceLimit(dist);
-    const label = dist === 'all' ? 'Tất cả khoảng cách' : `Bán kính ${dist}km`;
-    setActivePassportArea(label);
-    showToast(`Đã cập nhật phạm vi tìm kiếm: ${label}`);
-  };
-
-  const setPassportArea = (area: string) => {
-    if (area.includes('3km') || area === '3') setTinderDistanceLimit(3);
-    else if (area.includes('5km') || area === '5') setTinderDistanceLimit(5);
-    else if (area.includes('10km') || area === '10') setTinderDistanceLimit(10);
-    else if (area.includes('20km') || area === '20') setTinderDistanceLimit(20);
-    else if (area.includes('30km') || area === '30') setTinderDistanceLimit(30);
-    else if (area.includes('Tất cả') || area === 'all') setTinderDistanceLimit('all');
-    setActivePassportArea(area);
-  };
-
-  const cyclePassportArea = () => {
-    const distances: (number | 'all')[] = [3, 5, 10, 20, 30, 'all'];
-    const currentIdx = distances.indexOf(tinderDistanceLimit);
-    const nextDist = distances[(currentIdx + 1) % distances.length];
-    setTinderDistanceLimitHandler(nextDist);
-  };
-
-  const closeMatchedCandidateModal = () => {
-    setMatchedCandidateModal(null);
-  };
-
-  const openChatWithMatchedCandidate = async (candidate: TinderCandidate) => {
-    setMatchedCandidateModal(null);
-    setActiveTab('chat');
-
-    const targetConvId = (candidate as any).conversationId;
-
-    // 1. Tải danh sách chat mới nhất từ Database PostgreSQL
-    let latestChats = chats;
-    try {
-      const res = await apiClient.getChats(currentUserId);
-      if (res && Array.isArray(res.chats) && res.chats.length > 0) {
-        latestChats = res.chats;
-        setChats(res.chats);
-      }
-    } catch (err) {
-      console.warn('Lỗi tải chats:', err);
-    }
-
-    // 2. Tìm cuộc trò chuyện tương ứng
-    const existing = latestChats.find(
-      (c) =>
-        (targetConvId && c.id === targetConvId) ||
-        c.partnerHandle === candidate.ownerHandle ||
-        c.partnerName === candidate.ownerName
-    );
-
-    if (existing) {
-      setActiveChatId(existing.id);
-      return;
-    }
-
-    if (targetConvId) {
-      setActiveChatId(targetConvId);
-      return;
-    }
-
-    const petNames = candidate.pets.map((p) => p.name).join(' & ');
-    const fallbackId = `conv-${currentUserId}-${candidate.id}`;
-    const newChat: MobileChatRoom = {
-      id: fallbackId,
-      partnerName: candidate.ownerName,
-      partnerHandle: candidate.ownerHandle,
-      partnerNickname: candidate.ownerNickname,
-      partnerAvatar: candidate.avatarUrl,
-      petSummary: `Bé ${petNames}`,
-      distanceLabel: `Cách ${candidate.distanceKm}km`,
-      isOnline: true,
-      unreadCount: 0,
-      matchSource: 'tinder_match',
-      messages: [
-        {
-          id: `m-${Date.now()}`,
-          sender: 'them',
-          text: `Chào ${ownerName}! Hai tụi mình vừa tương hợp trên mục Kết nối Pawty nè. Hôm nào rảnh cho ${petNames} và ${activePet ? activePet.name : 'cún'} gặp nhau nhé!`,
-          time: 'Vừa xong',
-        },
-      ],
-    };
-    setChats((prev) => [newChat, ...prev]);
-    setActiveChatId(fallbackId);
-  };
-
-  // Chat Messages — Lưu trực tiếp vào Database PostgreSQL & Optimistic UI
-  const sendChatMessage = async (chatId: string, text: string) => {
-    const cleanText = text.trim();
-    if (!cleanText) return;
-
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    const tempId = `m-${Date.now()}`;
-
-    // 1. Optimistic Update (hiển thị ngay tức thì trên máy người gửi)
-    setChats((prev) =>
-      prev.map((room) => {
-        if (room.id !== chatId) return room;
-        return {
-          ...room,
-          messages: [
-            ...room.messages,
-            {
-              id: tempId,
-              sender: 'me',
-              text: cleanText,
-              time: timeStr,
-              isRead: false,
-              createdAt: now.toISOString(),
-            },
-          ],
-        };
-      })
-    );
-
-    // 2. Gửi và lưu vĩnh viễn vào Database PostgreSQL
-    try {
-      const res = await apiClient.sendChatMessage(chatId, cleanText, undefined, currentUserId);
-      if (res && res.message) {
-        setChats((prev) =>
-          prev.map((room) => {
-            if (room.id !== chatId) return room;
-            return {
-              ...room,
-              messages: room.messages.map((m) =>
-                m.id === tempId ? { ...m, id: res.message.id } : m
-              ),
-            };
-          })
-        );
-      }
-    } catch (err) {
-      console.warn('Lỗi gửi tin nhắn vào database:', err);
-    }
-  };
-
-  // 3. Real-time Chat Sync: Tự động đồng bộ tin nhắn 2 chiều mỗi 2.5s khi ở tab Chat
-  useEffect(() => {
-    if (!isAuthenticated || activeTab !== 'chat') return;
-
-    let isMounted = true;
-    const syncInterval = setInterval(async () => {
+  // =========================================================================
+  // SOCIAL GRAPH: FRIEND REQUEST, ACCEPT, DECLINE, UNFRIEND, FOLLOW
+  // =========================================================================
+  const sendFriendRequest = useCallback(
+    async (handle: string) => {
+      if (!currentUserId) return;
+      const normalized = handle.startsWith('@') ? handle : `@${handle}`;
       try {
-        const res = await apiClient.getChats(currentUserId);
-        if (isMounted && res && Array.isArray(res.chats)) {
-          setChats((prev) => {
-            const prevTotal = prev.reduce((acc, c) => acc + c.messages.length, 0);
-            const nextTotal = res.chats.reduce((acc: number, c: any) => acc + c.messages.length, 0);
-            const prevUnread = prev.reduce((acc, c) => acc + c.unreadCount, 0);
-            const nextUnread = res.chats.reduce((acc: number, c: any) => acc + (c.unreadCount || 0), 0);
-            const prevRead = prev.reduce((acc, c) => acc + c.messages.filter((m) => m.isRead).length, 0);
-            const nextRead = res.chats.reduce(
-              (acc: number, c: any) => acc + (c.messages?.filter((m: any) => m.isRead)?.length || 0),
-              0
-            );
+        const res = await apiClient.sendFriendRequest(currentUserId, normalized);
+        await refreshData(currentUserId, false, true);
+        if (res.isFriend) {
+          showToast(`Hai bạn đã trở thành bạn bè trên Pawty!`);
+          sendNativePushNotification(
+            'Pawty - Kết bạn thành công! 🎉',
+            `Bạn và ${normalized} đã trở thành bạn bè. Hãy bắt đầu trò chuyện ngay!`
+          );
+        } else {
+          showToast(`Đã gửi lời mời kết bạn tới ${normalized}.`);
+          sendNativePushNotification(
+            'Pawty - Lời mời kết bạn 🐾',
+            `Đã gửi lời mời kết bạn tới ${normalized}. Chờ đối phương phản hồi.`
+          );
+        }
+      } catch (err: any) {
+        showToast(err?.message || 'Không thể gửi lời mời kết bạn.');
+      }
+    },
+    [currentUserId, refreshData, showToast]
+  );
 
-            if (
-              prevTotal !== nextTotal ||
-              prev.length !== res.chats.length ||
-              prevUnread !== nextUnread ||
-              prevRead !== nextRead
-            ) {
-              return res.chats;
-            }
-            return prev;
-          });
+  const acceptFriendRequest = useCallback(
+    async (handle: string, notifId?: string) => {
+      if (!currentUserId) return;
+      const normalized = handle.startsWith('@') ? handle : `@${handle}`;
+      try {
+        await apiClient.respondFriendRequest(currentUserId, normalized, 'accept', notifId);
+        await refreshData(currentUserId, false, true);
+        showToast(`Đã chấp nhận lời mời kết bạn từ ${normalized}!`);
+        sendNativePushNotification(
+          'Pawty - Bạn bè mới! 🐾',
+          `Bạn đã chấp nhận lời mời kết bạn từ ${normalized}. Giờ hai bạn có thể nhắn tin cho nhau!`
+        );
+      } catch (err: any) {
+        showToast(err?.message || 'Không thể chấp nhận lời mời kết bạn.');
+      }
+    },
+    [currentUserId, refreshData, showToast]
+  );
 
-          // Nếu đang mở một phòng chat, tự động đánh dấu đã đọc nếu có tin nhắn mới từ đối phương
-          if (activeChatId) {
-            const currentRoom = res.chats.find((c: any) => c.id === activeChatId);
-            if (currentRoom && currentRoom.unreadCount > 0) {
-              markChatRead(activeChatId);
-            }
+  const declineFriendRequest = useCallback(
+    async (handle: string, notifId?: string) => {
+      if (!currentUserId) return;
+      const normalized = handle.startsWith('@') ? handle : `@${handle}`;
+      try {
+        await apiClient.respondFriendRequest(currentUserId, normalized, 'decline', notifId);
+        await refreshData(currentUserId, false, true);
+        showToast('Đã từ chối lời mời kết bạn.');
+      } catch (err: any) {
+        showToast(err?.message || 'Không thể từ chối lời mời kết bạn.');
+      }
+    },
+    [currentUserId, refreshData, showToast]
+  );
+
+  const unfriendUser = useCallback(
+    async (handle: string) => {
+      if (!currentUserId) return;
+      const normalized = handle.startsWith('@') ? handle : `@${handle}`;
+      try {
+        await apiClient.unfriendUser(currentUserId, normalized);
+        // Khóa nhắn tin ngay lập tức ở client và đồng bộ lại từ DB
+        setChats((prev) =>
+          prev.map((room) =>
+            room.partnerHandle.toLowerCase() === normalized.toLowerCase()
+              ? { ...room, canMessage: false, isFriend: false }
+              : room
+          )
+        );
+        await refreshData(currentUserId, false, true);
+        showToast(`Đã hủy kết bạn với ${normalized}. Hai bên không thể tiếp tục nhắn tin.`);
+      } catch (err: any) {
+        showToast(err?.message || 'Không thể hủy kết bạn.');
+      }
+    },
+    [currentUserId, refreshData, showToast]
+  );
+
+  const unmatchCandidate = useCallback(
+    async (partnerHandleOrId: string) => {
+      if (!currentUserId) return;
+      const normalized = partnerHandleOrId.startsWith('@')
+        ? partnerHandleOrId
+        : `@${partnerHandleOrId}`;
+      try {
+        await apiClient.unmatchCandidate(currentUserId, normalized);
+        // Xóa ngay lập tức phòng chat khỏi state
+        setChats((prev) =>
+          prev.filter(
+            (c) =>
+              c.partnerHandle.toLowerCase() !== normalized.toLowerCase() &&
+              c.partnerId !== partnerHandleOrId
+          )
+        );
+        setActiveChatIdState(null);
+        await refreshData(currentUserId, false, true);
+        showToast(`Đã hủy tương hợp và xóa toàn bộ tin nhắn.`);
+      } catch (err: any) {
+        showToast(err?.message || 'Không thể hủy tương hợp.');
+      }
+    },
+    [currentUserId, refreshData, showToast]
+  );
+
+  const toggleFriendStatus = useCallback(
+    (handle: string) => {
+      const current = resolvePublicProfile(handle);
+      if (current.friendStatus === 'none') {
+        sendFriendRequest(handle);
+      } else if (current.friendStatus === 'pending_incoming') {
+        acceptFriendRequest(handle);
+      } else if (current.friendStatus === 'pending_outgoing') {
+        showToast('Lời mời kết bạn đang chờ đối phương xác nhận.');
+      }
+    },
+    [resolvePublicProfile, sendFriendRequest, acceptFriendRequest, showToast]
+  );
+
+  const toggleFollowUser = useCallback(
+    async (handle: string) => {
+      if (!currentUserId) return;
+      const normalized = handle.startsWith('@') ? handle : `@${handle}`;
+      try {
+        const res = await apiClient.toggleFollow(currentUserId, normalized);
+        await refreshData(currentUserId, false, true);
+        showToast(
+          res.isFollowing
+            ? `Đang theo dõi ${normalized}`
+            : `Đã bỏ theo dõi ${normalized}`
+        );
+      } catch (err: any) {
+        showToast(err?.message || 'Không thể cập nhật theo dõi.');
+      }
+    },
+    [currentUserId, refreshData, showToast]
+  );
+
+  const startDirectChatWithUser = useCallback(
+    async (handle: string) => {
+      if (!currentUserId) return;
+      const normalized = handle.startsWith('@') ? handle : `@${handle}`;
+
+      const existingRoom = chats.find(
+        (c) => c.partnerHandle.toLowerCase() === normalized.toLowerCase()
+      );
+
+      try {
+        const opened = await apiClient.openDirectChat(currentUserId, normalized);
+        await refreshData(currentUserId, false, true);
+        setSelectedProfileHandle(null);
+        setViewedUserHandle(null);
+        setActiveModal(null);
+        setActiveTabState('chat');
+        setActiveChatId(opened.conversationId);
+      } catch (err: any) {
+        if (existingRoom) {
+          setSelectedProfileHandle(null);
+          setViewedUserHandle(null);
+          setActiveModal(null);
+          setActiveTabState('chat');
+          setActiveChatId(existingRoom.id);
+        } else {
+          showToast(err?.message || 'Không thể mở cuộc trò chuyện.');
+        }
+      }
+    },
+    [currentUserId, chats, refreshData, setActiveChatId, showToast]
+  );
+
+  // =========================================================================
+  // TINDER SWIPE, LIKES YOU & MATCHES (100% Free & Unlimited Distance)
+  // =========================================================================
+  const reloadTinderDeck = useCallback(
+    async (silent = false) => {
+      if (!currentUserId) return;
+      try {
+        const res = await apiClient.getTinderCandidates(
+          currentUserId,
+          tinderFilterGoal !== 'all' ? tinderFilterGoal : undefined
+        );
+        const fresh = res?.candidates;
+        if (Array.isArray(fresh) && fresh.length > 0) {
+          setTinderCandidates(fresh);
+          setSwipedCandidateHistory([]);
+          if (!silent) {
+            showToast(`Đã làm mới ${fresh.length} hồ sơ kết nối!`);
+          }
+        } else if (swipedCandidateHistory.length > 0) {
+          setTinderCandidates(swipedCandidateHistory);
+          setSwipedCandidateHistory([]);
+          if (!silent) {
+            showToast('Đã làm mới lại hồ sơ phù hợp!');
           }
         }
-      } catch {
-        // bỏ qua lỗi polling
+      } catch (err) {
+        console.warn('[Pawty Tinder] Lỗi làm mới cọc thẻ:', err);
       }
-    }, 2500);
+    },
+    [currentUserId, tinderFilterGoal, swipedCandidateHistory, showToast]
+  );
 
-    return () => {
-      isMounted = false;
-      clearInterval(syncInterval);
-    };
-  }, [isAuthenticated, activeTab, currentUserId, activeChatId, markChatRead]);
+  // Định kỳ tự động làm mới cọc thẻ hẹn hò sau mỗi 2 phút (chỉ lấy người chưa match)
+  useEffect(() => {
+    if (!isAuthenticated || !currentUserId) return;
+    const timer = setInterval(() => {
+      reloadTinderDeck(true);
+    }, 120000);
+    return () => clearInterval(timer);
+  }, [isAuthenticated, currentUserId, reloadTinderDeck]);
 
-  // SOS Fullscreen Tab Actions (Author-Only Found Confirmation)
-  const createSosAlertWithFee = (params: {
-    petName: string;
-    species: 'Chó' | 'Mèo';
-    breed: string;
-    lastSeenLocation: string;
-    rewardAmount: string;
-    description: string;
-    imageUrl?: string;
-  }) => {
-    const newSos: MobileSosAlert = {
-      id: `sos-${Date.now()}`,
-      petName: params.petName.trim() || activePet.name,
-      species: params.species || activePet.species,
-      breed: params.breed.trim() || activePet.breed,
-      lastSeenLocation: params.lastSeenLocation.trim() || ownerArea,
-      lastSeenTime: 'Vừa xong',
-      distanceKm: 0.1,
-      rewardAmount: params.rewardAmount.trim() || '2.000.000đ',
-      contactPhone: ownerPhone,
-      ownerName,
-      ownerHandle,
-      status: 'searching',
-      sightingsCount: 0,
-      priorityScore: 160,
-      imageUrl: params.imageUrl || activePet.avatarUrl,
-      description:
-        params.description.trim() || 'Bé có đeo vòng cổ ghi số điện thoại của gia đình.',
-      sightingReports: [],
-    };
+  const swipeTinderCandidate = useCallback(
+    async (candidateId: string, direction: 'left' | 'right') => {
+      const target =
+        tinderCandidates.find((c) => c.id === candidateId) ||
+        likesYouCandidates.find((c) => c.id === candidateId);
 
-    // Cập nhật UI ngay lập tức
-    setSosAlerts((prev) => [newSos, ...prev]);
-    showToast('Đã xác thực phí chống spam (39.000đ) & đẩy tin SOS lên đầu khu vực!');
-
-    // Gửi lưu trực tiếp vào cơ sở dữ liệu PostgreSQL qua Server API
-    fetch(`${getApiBaseUrl()}/api/sos`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: newSos.id,
-        petName: newSos.petName,
-        species: newSos.species,
-        breed: newSos.breed,
-        lastSeenLocation: newSos.lastSeenLocation,
-        description: newSos.description,
-        rewardText: newSos.rewardAmount,
-        imageUrl: newSos.imageUrl,
-        userPhone: ownerPhone,
-        userName: ownerName,
-        userHandle: ownerHandle,
-      }),
-    })
-      .then((res) => {
-        if (res.ok) {
-          console.log('[MobileContext] Đã lưu bài đăng SOS vào PostgreSQL thành công!');
+      setTinderCandidates((prev) => {
+        const next = prev.filter((c) => c.id !== candidateId);
+        // Khi cọc thẻ chạm đáy hoặc chỉ còn 1 thẻ: Tự động nạp lại ứng viên chưa match
+        if (next.length <= 1) {
+          setTimeout(() => {
+            reloadTinderDeck(true);
+          }, 350);
         }
-      })
-      .catch((err) => {
-        console.warn('[MobileContext] Không thể kết nối server để lưu SOS vào PostgreSQL:', err.message);
+        return next;
       });
-  };
+      setLikesYouCandidates((prev) => prev.filter((c) => c.id !== candidateId));
 
-  const reportSosSighting = (sosId: string, locationText: string, noteText?: string) => {
-    const targetAlert = sosAlerts.find((s) => s.id === sosId);
-    if (
-      targetAlert &&
-      (targetAlert.ownerHandle === ownerHandle ||
-        (Boolean(targetAlert.ownerName) && targetAlert.ownerName === ownerName))
-    ) {
-      showToast('Bạn là người tạo bài đăng này, chỉ người khác mới có thể báo vị trí nhìn thấy.');
+      if (!target) return;
+      setSwipedCandidateHistory((prev) => [...prev, target]);
+
+      try {
+        const res = await apiClient.recordSwipe(
+          candidateId,
+          direction,
+          currentUserId || 'user-test1'
+        );
+
+        if (direction === 'right') {
+          if (res?.isMatch) {
+            setMatchedCandidateModal(target);
+            await refreshData(currentUserId, false, true);
+          } else {
+            showToast(`Đã thả tim làm quen với ${target.ownerName}!`);
+          }
+        }
+      } catch (err: any) {
+        console.warn('[Pawty Tinder] Lỗi lưu lượt quẹt thẻ:', err);
+        showToast(err?.message || 'Không thể ghi nhận lượt quẹt thẻ.');
+      }
+    },
+    [tinderCandidates, likesYouCandidates, currentUserId, refreshData, showToast, reloadTinderDeck]
+  );
+
+  const likeBackCandidate = useCallback(
+    async (candidate: TinderCandidate) => {
+      setShowLikesYouDrawer(false);
+      await swipeTinderCandidate(candidate.id, 'right');
+    },
+    [swipeTinderCandidate]
+  );
+
+  const passLikesYouCandidate = useCallback(
+    async (candidate: TinderCandidate) => {
+      await swipeTinderCandidate(candidate.id, 'left');
+      showToast(`Đã bỏ qua ${candidate.ownerName}.`);
+    },
+    [swipeTinderCandidate, showToast]
+  );
+
+  const rewindLastSwipe = useCallback(async () => {
+    if (swipedCandidateHistory.length === 0) {
+      showToast('Chưa có lượt quẹt nào trước đó để hoàn tác.');
       return;
     }
 
-    let cleanLoc = (locationText || '').trim();
-    cleanLoc = cleanLoc.replace(/^(Quanh khu vực\s*)+/gi, 'Quanh khu vực ').trim() || 'Gần công viên nội khu';
-    setSosAlerts((prev) =>
-      prev
-        .map((s) => {
-          if (s.id !== sosId) return s;
-          const updatedReport = {
-            id: `sr-${Date.now()}`,
-            reporterName: ownerName,
-            reporterPhone: ownerPhone,
-            locationNote: `${cleanLoc}${noteText ? ` - ${noteText.trim()}` : ''}`,
-            timeLabel: 'Vừa xong',
-          };
-          return {
-            ...s,
-            lastSeenLocation: cleanLoc,
-            lastSeenTime: 'Vừa cập nhật vị trí mới',
-            sightingsCount: s.sightingsCount + 1,
-            priorityScore: s.priorityScore + 50,
-            sightingReports: [updatedReport, ...s.sightingReports],
-          };
-        })
-        .sort((a, b) => b.priorityScore - a.priorityScore)
-    );
+    const lastCandidate = swipedCandidateHistory[swipedCandidateHistory.length - 1];
+    setSwipedCandidateHistory((prev) => prev.slice(0, -1));
+    setTinderCandidates((prev) => [
+      lastCandidate,
+      ...prev.filter((c) => c.id !== lastCandidate.id),
+    ]);
 
-    if (targetAlert) {
-      const newNotif: MobileNotificationItem = {
-        id: `notif-sos-${Date.now()}`,
-        title: `Đã gửi manh mối tìm bé ${targetAlert.petName}`,
-        body: `Chủ nuôi ${targetAlert.ownerName} đã nhận được tọa độ "${cleanLoc}" và số điện thoại của bạn ngay lập tức.`,
-        timeLabel: 'Vừa xong',
-        type: 'sos',
-        isRead: false,
-      };
-      setNotifications((prev) => [newNotif, ...prev]);
+    try {
+      await apiClient.rewindSwipe(lastCandidate.id, currentUserId || 'user-test1');
+      showToast(`Đã khôi phục thẻ của ${lastCandidate.ownerName}`);
+    } catch (err) {
+      console.warn('[Pawty Rewind] Lỗi hoàn tác quẹt thẻ:', err);
     }
-    showToast('Đã báo vị trí nhìn thấy! Tin đã được ưu tiên đẩy lên đầu khu vực.');
-  };
+  }, [swipedCandidateHistory, currentUserId, showToast]);
 
-  const confirmSosPetFound = (sosId: string) => {
-    const targetAlert = sosAlerts.find((s) => s.id === sosId);
-    if (!targetAlert) return;
+  const setPassportArea = useCallback(
+    (area: string) => {
+      setActivePassportArea(area);
+      showToast(`Đang khám phá khu vực: ${area}`);
+    },
+    [showToast]
+  );
 
-    // Enforce: ONLY the post author can confirm "Đã đón về"
-    if (targetAlert.ownerHandle !== ownerHandle) {
-      showToast('Chỉ chính người đăng tin mới được phép xác nhận Đã đón về!');
-      return;
-    }
+  const cyclePassportArea = useCallback(() => {
+    const areas = [
+      'Mọi khoảng cách',
+      'Vinhomes Grand Park, TP. Thủ Đức',
+      'Thảo Điền, TP. Thủ Đức (Quận 2)',
+      'Phú Mỹ Hưng, Quận 7',
+      'Vinhomes Ocean Park, Hà Nội',
+    ];
+    setActivePassportArea((prev) => {
+      const next = areas[(areas.indexOf(prev) + 1) % areas.length];
+      showToast(`Đã chuyển vị trí sang: ${next}`);
+      return next;
+    });
+  }, [showToast]);
 
-    setSosAlerts((prev) =>
-      prev.map((s) => (s.id === sosId ? { ...s, status: 'found', priorityScore: 10 } : s))
+  const closeMatchedCandidateModal = useCallback(() => {
+    setMatchedCandidateModal(null);
+  }, []);
+
+  const openChatWithMatchedCandidate = useCallback(
+    async (candidate: TinderCandidate) => {
+      setMatchedCandidateModal(null);
+      await startDirectChatWithUser(candidate.ownerHandle);
+    },
+    [startDirectChatWithUser]
+  );
+
+  // =========================================================================
+  // CHAT MESSAGES & CLEAR CONVERSATION (PostgreSQL)
+  // =========================================================================
+  const sendChatMessage = useCallback(
+    async (chatId: string, text: string) => {
+      const clean = text.trim();
+      if (!clean || !currentUserId) return;
+
+      const room = chats.find((r) => r.id === chatId);
+      if (room && room.canMessage === false) {
+        showToast('Hai bạn đã hủy kết bạn nên không thể tiếp tục nhắn tin cho nhau.');
+        return;
+      }
+
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(
+        now.getMinutes()
+      ).padStart(2, '0')}`;
+      const tempId = `temp-msg-${Date.now()}`;
+
+      setChats((prev) =>
+        prev.map((r) =>
+          r.id === chatId
+            ? {
+                ...r,
+                messages: [
+                  ...r.messages,
+                  { id: tempId, sender: 'me', text: clean, time: timeStr, isRead: true },
+                ],
+              }
+            : r
+        )
+      );
+
+      try {
+        const res = await apiClient.sendChatMessage(chatId, clean, undefined, currentUserId);
+        if (res?.message) {
+          setChats((prev) =>
+            prev.map((r) =>
+              r.id === chatId
+                ? {
+                    ...r,
+                    messages: r.messages.map((m) =>
+                      m.id === tempId
+                        ? {
+                            id: res.message.id,
+                            sender: 'me',
+                            text: res.message.text || clean,
+                            time: res.message.time || timeStr,
+                            isRead: true,
+                          }
+                        : m
+                    ),
+                  }
+                : r
+            )
+          );
+        }
+      } catch (err: any) {
+        // Rollback tin nhắn tạm khi bị chặn do hủy kết bạn (HTTP 403) hoặc lỗi mạng
+        setChats((prev) =>
+          prev.map((r) =>
+            r.id === chatId
+              ? {
+                  ...r,
+                  canMessage:
+                    err instanceof ApiRequestError && err.status === 403
+                      ? false
+                      : r.canMessage,
+                  messages: r.messages.filter((m) => m.id !== tempId),
+                }
+              : r
+          )
+        );
+        showToast(err?.message || 'Không thể gửi tin nhắn.');
+      }
+    },
+    [chats, currentUserId, showToast]
+  );
+
+  const clearChatMessages = useCallback(
+    async (chatId: string) => {
+      if (!chatId || !currentUserId) return;
+      try {
+        await apiClient.clearChatMessages(chatId, currentUserId);
+        setChats((prev) =>
+          prev.map((room) => (room.id === chatId ? { ...room, messages: [] } : room))
+        );
+        showToast('Đã xóa toàn bộ tin nhắn trong cuộc trò chuyện.');
+      } catch (err: any) {
+        showToast(err?.message || 'Không thể xóa tin nhắn.');
+      }
+    },
+    [currentUserId, showToast]
+  );
+
+  // =========================================================================
+  // SOS ALERTS (100% FREE)
+  // =========================================================================
+  const createSosAlert = useCallback(
+    async (params: {
+      petName: string;
+      species: 'Chó' | 'Mèo' | 'Khác';
+      customSpecies?: string;
+      breed: string;
+      lastSeenLocation: string;
+      rewardAmount: string;
+      contactPhone?: string;
+      description: string;
+      imageUrl?: string;
+    }): Promise<boolean> => {
+      if (!currentUserId) {
+        showToast('Vui lòng đăng nhập để đăng tin SOS khẩn cấp.');
+        return false;
+      }
+
+      try {
+        await apiClient.createSosAlert({
+          userId: currentUserId,
+          petName: params.petName.trim(),
+          species: params.species,
+          customSpecies: params.customSpecies,
+          breed: params.breed,
+          lastSeenLocation: params.lastSeenLocation,
+          rewardText: params.rewardAmount || 'Gia đình xin hậu tạ',
+          ownerPhone: params.contactPhone || ownerPhone,
+          ownerName,
+          description: params.description,
+          imageUrl: params.imageUrl,
+          radiusKm: 3,
+        });
+
+        await refreshData(currentUserId, false, true);
+        showToast('Đã phát tín hiệu SOS khẩn cấp miễn phí tới cộng đồng!');
+        return true;
+      } catch (err: any) {
+        console.warn('[Pawty SOS] Lỗi đăng tin SOS:', err);
+        showToast(err?.message || 'Không thể phát tin SOS. Vui lòng thử lại.');
+        return false;
+      }
+    },
+    [currentUserId, ownerPhone, ownerName, refreshData, showToast]
+  );
+
+  const reportSosSighting = useCallback(
+    async (
+      sosId: string,
+      locationText: string,
+      noteText?: string,
+      reporterPhone?: string
+    ) => {
+      const cleanLoc = locationText.trim();
+      if (!cleanLoc) return;
+
+      const combinedNote = noteText?.trim()
+        ? `${cleanLoc} — ${noteText.trim()}`
+        : cleanLoc;
+
+      try {
+        await apiClient.reportSosSighting(sosId, {
+          reporterName: ownerName || 'Cư dân hỗ trợ',
+          phone: reporterPhone || ownerPhone,
+          note: combinedNote,
+          reporterId: currentUserId || undefined,
+        });
+        await refreshData(currentUserId, false, true);
+        showToast('Cảm ơn bạn! Manh mối nhìn thấy đã được gửi ngay tới chủ nuôi.');
+      } catch (err: any) {
+        showToast(err?.message || 'Không thể gửi báo tin nhìn thấy.');
+      }
+    },
+    [ownerName, ownerPhone, currentUserId, refreshData, showToast]
+  );
+
+  const confirmSosPetFound = useCallback(
+    async (sosId: string) => {
+      try {
+        await apiClient.markSosFound(sosId);
+        setSosAlerts((prev) =>
+          prev.map((a) => (a.id === sosId ? { ...a, status: 'found', priorityScore: 10 } : a))
+        );
+        showToast('Chúc mừng gia đình đã tìm thấy bé an toàn!');
+      } catch (err: any) {
+        showToast(err?.message || 'Không thể cập nhật trạng thái SOS.');
+      }
+    },
+    [showToast]
+  );
+
+  // =========================================================================
+  // NOTIFICATIONS MANAGEMENT (PostgreSQL)
+  // =========================================================================
+  const markNotificationRead = useCallback(async (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );
-    const helperCount = targetAlert.sightingReports.length;
-    const thankYouNotif: MobileNotificationItem = {
-      id: `notif-found-${Date.now()}`,
-      title: `Tin vui: Bé ${targetAlert.petName} đã về nhà an toàn!`,
-      body: `Chủ nuôi ${targetAlert.ownerName} gửi lời cảm ơn chân thành tới ${helperCount} bạn hàng xóm đã gửi manh mối hỗ trợ tìm bé.`,
-      timeLabel: 'Vừa xong',
-      type: 'sos',
-      isRead: false,
-    };
-    setNotifications((prev) => [thankYouNotif, ...prev]);
-    showToast('Chúc mừng gia đình! Đã đóng tin SOS và gửi thông báo cảm ơn cộng đồng.');
-  };
+    try {
+      await apiClient.markNotificationRead(id);
+    } catch (err) {
+      console.warn('[Pawty Notifications] Lỗi đánh dấu đã đọc:', err);
+    }
+  }, []);
 
-  const selectAndActivateVipPlan = (planId: string) => {
-    const chosen = VIP_PLAN_OPTIONS.find((p) => p.id === planId);
-    setIsVip(true);
-    setActiveVipPlanId(planId);
-    showToast(`Đã kích hoạt ${chosen ? chosen.name : 'gói Pawty Plus'} thành công!`);
-  };
+  const markAllNotificationsRead = useCallback(async () => {
+    if (!currentUserId) return;
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    try {
+      await apiClient.markAllNotificationsRead(currentUserId);
+      showToast('Đã đánh dấu đọc tất cả thông báo.');
+    } catch (err) {
+      console.warn('[Pawty Notifications] Lỗi đọc tất cả:', err);
+    }
+  }, [currentUserId, showToast]);
 
-  const markNotificationRead = (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
-  };
+  const deleteNotification = useCallback(async (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await apiClient.deleteNotification(id);
+    } catch (err) {
+      console.warn('[Pawty Notifications] Lỗi xóa thông báo:', err);
+    }
+  }, []);
+
+  const clearAllNotifications = useCallback(async () => {
+    if (!currentUserId) return;
+    setNotifications([]);
+    try {
+      await apiClient.clearAllNotifications(currentUserId);
+      showToast('Đã xóa toàn bộ danh sách thông báo.');
+    } catch (err) {
+      console.warn('[Pawty Notifications] Lỗi xóa toàn bộ thông báo:', err);
+    }
+  }, [currentUserId, showToast]);
+
+  // =========================================================================
+  // FILTERED TINDER CANDIDATES (Purpose + Unlimited Distance)
+  // =========================================================================
+  const activePet = pets.find((p) => p.id === activePetId) || pets[0] || EMPTY_PET_PLACEHOLDER;
+  const unreadNotificationCount = notifications.filter((n) => !n.isRead).length;
+  const theme = THEME_PALETTES[themeId];
+
+  const filteredTinderCandidates = tinderCandidates.filter((c) => {
+    const passDistance =
+      tinderDistanceLimit === 'all' ? true : c.distanceKm <= tinderDistanceLimit;
+    const candidateIntent = resolveTinderIntentFromLabel(c.intent || c.lookingFor);
+    const passGoal =
+      tinderFilterGoal === 'all' ? true : candidateIntent === tinderFilterGoal;
+    return passDistance && passGoal;
+  });
 
   return (
     <MobilePawtyContext.Provider
       value={{
-        isLoadingData,
-        refreshData,
         isAuthLoaded,
         isAuthenticated,
+        hasSavedSession,
+        savedSessionIdentifier,
+        bootAuthError,
         activeDeviceSessionId,
         activeDeviceName,
         currentUserId,
         ownerName,
         ownerHandle,
-        setOwnerHandle,
         ownerAvatar,
+        setOwnerHandle,
         ownerNickname,
         ownerPhone,
         ownerBio,
         ownerArea,
-        ownerNoteBubble,
-        setOwnerNoteBubble,
-        isPrivateProfile,
-        loginOrRegister,
-        logoutUser,
-        forceRevokeOtherDevices,
-        updateOwnerAndPetProfile,
-        togglePrivateProfile,
-        togglePetVaccinationAndRabies,
-        addNewPetProfile,
-        deletePetProfile,
         ownerGender,
         ownerAge,
         ownerBirthDate,
@@ -2235,37 +2721,50 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         ownerEducation,
         ownerMajor,
         ownerOccupation,
+        ownerFollowersCount,
+        ownerFollowingCount,
         ownerCoverUrl,
         setOwnerCoverUrl,
         ownerAvatarUrl,
         setOwnerAvatarUrl,
-        togglePetLike,
+        ownerNoteBubble,
+        setOwnerNoteBubble,
+        isPrivateProfile,
         ownerPrivacySettings,
         updateOwnerProfile,
+        togglePrivateProfile,
+        updateOwnerAndPetProfile,
+        loginOrRegister,
+        logoutUser,
+        forceRevokeOtherDevices,
+        pets,
+        activePetId,
+        activePet,
+        setActivePetId,
+        addNewPetProfile,
         updatePetProfile,
-        deletePost,
-        toggleCommentLike,
-        addCommentReply,
+        deletePetProfile,
+        togglePetLike,
+        togglePetVaccinationAndRabies,
         userTinderSetup,
         updateUserTinderSetup,
         suggestedPeople,
         toggleFollowSuggestedPerson,
         dismissSuggestedPerson,
         themeId,
-        theme: THEME_PALETTES[themeId],
+        theme,
         setThemeId,
         activeTab,
         setActiveTab,
+        isLoadingData,
+        refreshData,
+        pullToRefreshExplore,
         activeModal,
         setActiveModal,
         handleHardwareBack,
-        pets,
-        activePetId,
-        activePet,
-        setActivePetId,
         posts,
         searchHistory,
-        trendingSuggestions: TRENDING_SEARCH_SUGGESTIONS,
+        trendingSuggestions,
         isSearchPanelOpen,
         setIsSearchPanelOpen,
         recordSearchQuery,
@@ -2275,7 +2774,10 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         toggleSavePost,
         sharePost,
         addComment,
+        toggleCommentLike,
+        addCommentReply,
         createPost,
+        deletePost,
         lightboxMedia,
         openLightboxMedia,
         closeLightboxMedia,
@@ -2284,13 +2786,16 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         selectedProfileHandle,
         setSelectedProfileHandle,
         openUserProfileInTab,
-        resolvePublicProfile,
         openPublicUserProfile,
         closePublicUserProfile,
+        goBackFromOtherProfile,
+        resolvePublicProfile,
         toggleFriendStatus,
         sendFriendRequest,
         acceptFriendRequest,
         declineFriendRequest,
+        unfriendUser,
+        unmatchCandidate,
         toggleFollowUser,
         startDirectChatWithUser,
         tinderIntent,
@@ -2298,36 +2803,41 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         tinderFilterGoal,
         setTinderFilterGoal,
         setPassportArea,
-        tinderCandidates,
+        tinderCandidates: filteredTinderCandidates,
+        likesYouCandidates,
         swipedCandidateHistory,
         canRewind: swipedCandidateHistory.length > 0,
         matchedCandidateModal,
         closeMatchedCandidateModal,
         swipeTinderCandidate,
+        reloadTinderDeck,
+        likeBackCandidate,
+        passLikesYouCandidate,
         rewindLastSwipe,
         openChatWithMatchedCandidate,
         showLikesYouDrawer,
         setShowLikesYouDrawer,
         tinderDistanceLimit,
-        setTinderDistanceLimit: setTinderDistanceLimitHandler,
+        setTinderDistanceLimit,
         activePassportArea,
         cyclePassportArea,
         chats,
         activeChatId,
         setActiveChatId,
         sendChatMessage,
+        clearChatMessages,
         markChatRead,
         sosAlerts,
-        createSosAlertWithFee,
+        createSosAlert,
+        createSosAlertWithFee: createSosAlert,
         reportSosSighting,
         confirmSosPetFound,
-        isVip,
-        activeVipPlanId,
-        vipPlans: VIP_PLAN_OPTIONS,
-        selectAndActivateVipPlan,
         notifications,
         unreadNotificationCount,
         markNotificationRead,
+        markAllNotificationsRead,
+        deleteNotification,
+        clearAllNotifications,
         toastMessage,
         showToast,
       }}

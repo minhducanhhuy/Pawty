@@ -1,60 +1,59 @@
 # MASTER PRINT — TẦNG 3: API & WEBSOCKET CONTRACTS
 
-> **Single Source of Truth (SSOT)** — Đồng bộ với các API và sự kiện WebSocket của Pawty.
+> **Single Source of Truth (SSOT)** — Đồng bộ với các API thực tế của Pawty (100% Free Platform).
 
 ---
 
-## 1. REST Endpoints (API Gateway: `0.0.0.0:3000`)
+## 1. REST Endpoints (API Gateway: `0.0.0.0:3000`, Max Body: `25MB`)
 
 ### 1.1 Auth & Onboarding
-- `POST /api/auth/login` (`identifier` [SĐT hoặc Username], `password`) → Trả về `{ success, token, user, message }`.
+- `POST /api/auth/login` (`identifier` [SĐT hoặc Username], `password`) → Xác thực trực tiếp trên PostgreSQL, trả về `{ success, token, user, message }`.
 - `POST /api/auth/register` (`phone`, `username`, `password`, `displayName`, `district`, `neighborhood`, `petName`, `petSpecies`, `petBreed`) → Trả về `{ success, token, user, message }`.
-- `POST /api/auth/verify-otp` (`phone`, `otp`) → Trả về `{ token, refresh_token, user, is_new }`.
-- `POST /api/auth/refresh` & `DELETE /api/auth/logout`.
 
-### 1.2 Users, Profiles & Privacy (Luật BVDLCN 91/2025/QH15)
-- `GET /api/users/me` & `PUT /api/users/me` (`display_name`, `bio`, `district`, `neighborhood`).
-- `GET /api/users/profile/:handle?currentUserId=` — Lấy hồ sơ công khai (Instagram style) của người dùng từ PostgreSQL (bao gồm thông tin cá nhân, danh sách thú cưng, sổ tiêm chủng, bài viết đã đăng, trạng thái theo dõi và kết bạn).
-- `PUT /api/users/me/location` (`lat`, `lng`, `district`, `neighborhood`) & `PUT /api/users/me/privacy`.
-- `POST /api/users/me/data-export` & `DELETE /api/users/me` (quyền được lãng quên).
+### 1.2 Users, Unified Profiles & Tinder Setup
+- `GET /api/users/me?userId=` & `PUT /api/users/me` (`userId`, `displayName`, `avatarUrl`, `coverUrl`, `bio`, `district`, `neighborhood`, `gender`, `age`, `birthDate`, `zodiac`, `mbti`, `occupation`, `education`, `noteBubble`, `privacySettings`, `tinderSetup` gồm `lookingFor` chọn 1 mục đích duy nhất).
+- `GET /api/users/profile/:handle?currentUserId=` — Lấy đầy đủ hồ sơ đồng nhất của bất kỳ người dùng nào (thông tin chủ nuôi đầy đủ, danh sách thú cưng kèm sổ tiêm/cân nặng/thói quen, danh sách bài viết, trạng thái `friendStatus` & `isFollowing`).
 
-### 1.3 Pets, Care Tasks & Handover
-- `GET /api/pets`, `POST /api/pets`, `GET /api/pets/:id`, `PUT /api/pets/:id`, `DELETE /api/pets/:id`.
-- `POST /api/pets/:id/vaccinations` & `POST /api/pets/:id/behaviors`.
-- `GET /api/circle/members`, `POST /api/circle/invite`, `PUT /api/circle/members/:id`, `DELETE /api/circle/members/:id`.
-- `GET /api/tasks`, `POST /api/tasks`, `PUT /api/tasks/:id`, `DELETE /api/tasks/:id`.
-- `PUT /api/tasks/:id/complete` — Đánh dấu hoàn thành kèm `note` và `photo`, kích hoạt sự kiện `task:completed`.
+### 1.3 Pets CRUD (Không giới hạn số lượng thú cưng)
+- `GET /api/pets?userId=` — Danh sách thú cưng của người dùng.
+- `POST /api/pets` — Tạo mới hồ sơ thú cưng trong PostgreSQL (tự động tạo `Household` nếu tài khoản chưa có, lưu đầy đủ `goodHabits`, `cautionHabits`, `vaccineRecords`, `weightHistory`, `favoriteFood`, `dewormingHistory`, `medicalHistory`, `galleryUrls`).
+- `PUT /api/pets/:id` — Cập nhật toàn diện hồ sơ thú cưng trong PostgreSQL.
+- `DELETE /api/pets/:id` — Xóa hồ sơ thú cưng khỏi PostgreSQL.
 
-### 1.4 Social Feed, Posts, Reactions, Comments & Groups
-- `GET /api/posts/feed` — Bảng tin sắp xếp theo thuật toán **PawRank** (Circle 40%, Local 30%, Discovery 20%, Expert 10%).
-- `GET /api/posts/explore` — Khám phá theo loài, hashtag, gần bạn, mẹo chuyên gia.
-- `POST /api/posts` — Đăng bài mới qua `ModerationService` (tự động chặn nội dung vi phạm, gắn `has_health_disclaimer`).
-- `POST /api/posts/:id/reactions` (`paw | heart_eyes | laughing | worried | helpful`) & `DELETE /api/posts/:id/reactions`.
-- `GET /api/posts/:id/comments`, `POST /api/posts/:id/comments` (hỗ trợ reply 1 cấp & highlight Expert).
-- `POST /api/posts/:id/bookmark`, `DELETE /api/posts/:id/bookmark`, `GET /api/bookmarks`.
-- `GET /api/groups`, `POST /api/groups`, `GET /api/groups/:id`, `POST /api/groups/:id/join`, `DELETE /api/groups/:id/leave`.
+### 1.4 Social Feed, Posts, Reactions, Comments, Friends & Follows
+- `GET /api/posts/feed` & `GET /api/posts/explore` — Danh sách bài viết từ PostgreSQL (hỗ trợ Pull-to-refresh).
+- `POST /api/posts` (`authorId`/`userId`, `content`/`text`, `mediaUrls`, `mediaType`, `tags`/`hashtags`, `category`) — Lưu bài viết mới vào PostgreSQL và tự động gửi thông báo `new_post` cho toàn bộ người đang theo dõi tác giả.
+- `DELETE /api/posts/:id` — Xóa bài viết khỏi PostgreSQL.
+- `POST /api/posts/:id/reactions` (`userId`, `reactionType`) — Thả cảm xúc Paw / Tim và tạo thông báo `post_reaction` cho tác giả.
+- `POST /api/posts/:id/comments` (`userId`, `content`, `parentId`) — Bình luận bài viết và tạo thông báo `post_comment` cho tác giả.
+- `POST /api/social/friend-request` (`fromUserId`, `toHandle` / `toUserId`) — Gửi lời mời kết bạn, lưu vào DB và tạo thông báo `friend_request` (`status: 'pending'`) cho người nhận.
+- `POST /api/social/friend-respond` (`userId`, `requesterId` / `notificationId`, `action: 'accept' | 'decline'`) — Chấp nhận hoặc từ chối lời mời kết bạn; nếu chấp nhận, tạo `Conversation` chung và bắn thông báo `friend_accepted` cho người gửi!
+- `POST /api/social/unfriend` (`userId`, `targetHandle` / `targetUserId`) — Hủy kết bạn (`status = 'unfriended'`), khóa quyền gửi tin nhắn mới giữa hai người.
+- `POST /api/social/follow` (`followerId`, `targetHandle` / `targetUserId`) — Theo dõi / Bỏ theo dõi người dùng; khi theo dõi mới, gửi thông báo `follow` cho đối phương.
 
-### 1.5 Radar & Matching (Kết nối & Quẹt thẻ)
-- GET /api/radar?lat=&lng=&radius=&species=&vaccinated_only= — Tìm Boss gần bạn bằng PostGIS ST_DWithin.
-- GET /api/tinder/candidates?intent=&userId= — Lấy danh sách ứng viên kết nối thực tế từ database (chủ nuôi + các pet, sổ tiêm chủng, thói quen).
-- POST /api/matches/swipe (candidateId, direction: 'left' | 'right', userId) — Ghi nhận lượt quẹt thích/bỏ qua, tự động khớp lệnh Match nếu cả hai cùng thích.
-- POST /api/matches/rewind (candidateId, userId) — Hoàn tác lượt quẹt gần nhất, xóa bản ghi match trong database PostgreSQL, đảo ngược trạng thái nếu đối phương từng match về pending, xóa conversation rỗng nếu có.
+### 1.5 Kết Nối Hẹn Dạo (`Tinder` — Miễn phí 100%, Không giới hạn 160km)
+- `GET /api/tinder/candidates?intent=&userId=&maxDistanceKm=` — Trả về danh sách ứng viên kèm `hasLikedMe` thực tế từ bảng `matches`, `lookingFor` đồng bộ từ `primaryNeed`/`tinderSetup`, hỗ trợ lọc không giới hạn khoảng cách (`all` hoặc bất kỳ km nào). **Quy tắc nạp cọc thẻ:** Chỉ loại trừ các tài khoản đang có trạng thái `matched` hoạt động với `userId`; các tài khoản từng bị từ chối (`rejected`/swipe left) vẫn được tuần hoàn nạp lại trong các chu kỳ làm mới để đảm bảo không bao giờ hết thẻ quẹt khi demo.
+- `GET /api/tinder/likes-you?userId=` — Danh sách những người đã thả tim người dùng hiện tại (mở khóa miễn phí 100%).
+- `POST /api/matches/swipe` (`userId`, `candidateId`, `direction: 'left' | 'right'`) — Ghi nhận lượt quẹt; khi cả 2 cùng thích (`matched`), cập nhật cả 2 chiều `Match` thành `matched`, khởi tạo `Conversation` phân loại hẹn hò (`type: 'dating'`), và **tạo thông báo `match` trong PostgreSQL cho cả 2 người dùng**!
+- `POST /api/tinder/unmatch` (`userId`, `targetIdentifier` / `partnerHandle`) — **Hủy tương hợp (Bỏ Match):** Xóa sạch 100% tin nhắn trong PostgreSQL, xóa cuộc trò chuyện và cập nhật trạng thái `status: 'unmatched'` cho cả 2 bên. Khi làm mới cọc thẻ demo, đối phương được đưa trở lại danh sách chưa match để có thể quẹt lại.
+- `POST /api/matches/rewind` (`userId`, `candidateId`) — Hoàn tác lượt quẹt miễn phí.
 
-### 1.6 Chat & Realtime Messaging
-- `GET /api/chats?userId=` — Lấy danh sách các phòng chat hiện có của người dùng kèm tin nhắn mới nhất, định dạng sender ('me' | 'them'), trạng thái đã đọc `isRead` của từng tin nhắn và số lượng tin nhắn chưa đọc `unreadCount`.
-- `GET /api/chats/:id/messages` — Lấy lịch sử tin nhắn trong phòng chat.
-- `POST /api/chats/:id/messages` (senderId, text, mediaUrl) — Gửi tin nhắn mới vào database PostgreSQL, tự động liên kết hoặc khởi tạo conversation nếu chưa tồn tại.
-- `POST /api/chats/:id/read` & `PUT /api/chats/:id/read` (userId) — Đánh dấu đã đọc toàn bộ tin nhắn nhận được trong cuộc trò chuyện, cập nhật `isRead = true` trong database PostgreSQL và reset `unreadCount = 0`.
+### 1.6 Chat Mạng Xã Hội (Mô Hình Mở) & Chat Hẹn Hò (Cô Lập Danh Tính)
+- `GET /api/chats?userId=` — Trả về danh sách cuộc trò chuyện phân loại rõ `chatType: 'social' | 'dating'`:
+  - `social` (Mạng xã hội): Nhắn tin tự do không cần kết bạn (`canMessage: true`), xem trang cá nhân xã hội.
+  - `dating` (Hẹn hò): Bắt nguồn từ Tinder Match, chỉ cho phép xem Hồ sơ Hẹn hò, hỗ trợ hủy Match xóa sạch tin nhắn.
+- `POST /api/chats/:id/messages` (`senderId`, `text`, `mediaUrl`) — Gửi tin nhắn mới.
+- `DELETE /api/chats/:id/messages?userId=` — Xóa sạch toàn bộ tin nhắn trong phòng chat theo yêu cầu người dùng.
+- `POST /api/chats/:id/read` — Đánh dấu đã đọc tin nhắn.
 
-### 1.7 Monetization, SOS, AI Smart Description, Moderation & Analytics
-- `POST /api/sos` & `POST /api/sos/:id/sighting` — Phát tín hiệu SOS 3km (39.000đ VietQR) và gửi manh mối nhìn thấy Boss.
-- `POST /api/ai/describe-pet` (`{ imageUrl?: string, imageBase64?: string, mimeType?: string }`) — Phân tích ảnh đa phương thức qua Gemini 2.5 Flash Vision (hỗ trợ cả Base64 từ thiết bị di động và URL từ xa) để tự động sinh thông số nhận diện `{ success, species, breed, primaryColor, description, distinctiveFeatures }` cho form đăng tin SOS.
-- `POST /api/vip/subscribe` — Nâng cấp gói Cơ bản (29k), Sen VIP (49k/tháng), Sen VIP Năm (399k/năm).
-- `POST /api/reports`, `POST /api/users/:id/block`, `GET /api/admin/metrics` (North Star & KPI Dashboard).
+### 1.7 SOS Miễn Phí & AI Đọc Ảnh Tạo Mô Tả Duy Nhất
+- `POST /api/sos` — Đăng bài SOS hoàn toàn miễn phí (`feePaidVnd = 0`), phát thông báo `sos_alert` cho cộng đồng.
+- `POST /api/sos/:id/sighting` — Cộng đồng gửi báo cáo nhìn thấy thú lạc, tạo thông báo `sos_sighting` cho chủ nuôi.
+- `POST /api/sos/:id/found` — Chủ nuôi xác nhận đã đón bé về nhà an toàn (`status = 'resolved'`).
+- `POST /api/ai/describe-pet` (`{ imageUrl?: string, imageBase64?: string, mimeType?: string }`) — **Chức năng AI duy nhất của hệ thống:** Đọc ảnh thú cưng chủ nuôi gửi lên bằng Gemini 2.5 Flash Vision để tự động viết mô tả nhận dạng.
 
-### 1.8 Bootstrap & Data Sync
-- `GET /api/bootstrap` — Tải toàn bộ dữ liệu khởi tạo thực tế 100% từ PostgreSQL cho Mobile và Web Client (User, Pets, Feed Posts, Tinder Candidates, Chats, SOS Alerts, Notifications, Public Profiles của toàn bộ cư dân trong database).
-
-## 2. WebSocket Events (Socket.io)
-- **Client → Server:** `chat:send`, `chat:typing`, `chat:read`.
-- **Server → Client:** `chat:new_message`, `chat:typing`, `chat:read_receipt`, `notification:new`, `task:completed`, `task:reminder`, `match:new`, `circle:activity`, `post:new`, `post:reaction`, `post:comment`, `sos:alert`.
+### 1.8 Quản Lý Thông Báo (`Notifications`) & Bootstrap
+- `GET /api/notifications?userId=` — Lấy danh sách thông báo đầy đủ kèm `data` JSON (`actionPayload`).
+- `POST /api/notifications/:id/read` & `POST /api/notifications/read-all` (`userId`) — Đánh dấu đã đọc 1 hoặc toàn bộ thông báo.
+- `DELETE /api/notifications/:id` & `DELETE /api/notifications?userId=` — Xóa từng thông báo hoặc xóa sạch danh sách thông báo.
+- `GET /api/bootstrap?userId=` — Đồng bộ toàn bộ trạng thái ứng dụng từ PostgreSQL.

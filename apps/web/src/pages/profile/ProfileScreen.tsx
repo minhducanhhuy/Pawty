@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { formatSizeCategoryLabel } from '@pawty/utils';
 import { usePawtyStore } from '../../stores/usePawtyStore';
-import { WEB_THEMES } from '../../mocks/seedData';
+import { EMPTY_WEB_PET, WEB_THEMES } from '../../config/themes';
 
 export const ProfileScreen: React.FC = () => {
   const {
@@ -37,19 +37,20 @@ export const ProfileScreen: React.FC = () => {
   const [isVaccinatedAndRabies, setIsVaccinatedAndRabies] = useState(true);
   const [newCautionChip, setNewCautionChip] = useState('');
 
-  const activePet = pets.find((p) => p.id === activePetId) ?? pets[0];
+  const activePet = pets.find((p) => p.id === activePetId) ?? pets[0] ?? EMPTY_WEB_PET;
   const petPosts = posts.filter(
     (p) => p.petIds.includes(activePet.id) || p.authorId === user.id
   );
 
-  const momentPhotos = [
-    activePet.avatarUrl,
-    activePet.coverPhotoUrl,
-    'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=500&q=80',
-    'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=500&q=80',
-    'https://images.unsplash.com/photo-1534361960057-19889db9621e?auto=format&fit=crop&w=500&q=80',
-    'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=500&q=80',
-  ];
+  const momentPhotos = Array.from(
+    new Set(
+      [
+        activePet.avatarUrl,
+        activePet.coverPhotoUrl,
+        ...petPosts.flatMap((p) => p.media.map((m) => m.url)),
+      ].filter(Boolean)
+    )
+  );
 
   const goodHabits = activePet.behaviors.filter(
     (b) => b.category === 'good_habit' || b.category === 'personality'

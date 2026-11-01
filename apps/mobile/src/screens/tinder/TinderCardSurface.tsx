@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '../../components/FeatherIcon';
-import { TinderCandidate } from '../../data/mobileSeedData';
+import { TinderCandidate, getTinderPurposeLabel } from '../../types/mobileTypes';
 
 interface TinderCardSurfaceProps {
   candidate: TinderCandidate;
@@ -22,8 +22,6 @@ interface TinderCardSurfaceProps {
 
 const FALLBACK_PET_IMG =
   'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=900&q=80';
-const FALLBACK_OWNER_IMG =
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=80';
 
 export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
   candidate,
@@ -35,22 +33,20 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
 }) => {
   const [imageError, setImageError] = useState(false);
 
-  // Xây dựng danh sách ảnh: 100% ảnh thú cưng, không lấy avatar to của chủ nhân
   const primaryPet = candidate.pets && candidate.pets.length > 0 ? candidate.pets[0] : null;
 
   const candidatePhotos = React.useMemo(() => {
-    // 1. Tập hợp ảnh từ tất cả các bé thú cưng trong hồ sơ
     const petPhotos = (candidate.pets || [])
       .map((p) => p.imageUrl)
       .filter(Boolean);
 
-    // 2. Thu thập thêm ảnh thú cưng từ album (loại trừ avatar người)
-    const albumPetPhotos = (candidate.photoUrls || []).filter(
-      (u) => u !== candidate.avatarUrl && !petPhotos.includes(u)
+    const albumPhotos = (candidate.photoUrls || []).filter(
+      (u) => Boolean(u) && !petPhotos.includes(u)
     );
 
-    const merged = [...petPhotos, ...albumPetPhotos];
+    const merged = [...petPhotos, ...albumPhotos];
     if (merged.length > 0) return merged;
+    if (candidate.avatarUrl) return [candidate.avatarUrl];
     return [FALLBACK_PET_IMG];
   }, [candidate]);
 
@@ -58,12 +54,11 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
     candidatePhotos[photoIdx % Math.max(candidatePhotos.length, 1)] || FALLBACK_PET_IMG;
 
   const displayPhotoUrl = imageError ? FALLBACK_PET_IMG : activePhotoUrl;
-
   const extraPetsCount = Math.max(0, candidate.pets.length - 1);
+  const purposeLabel = candidate.lookingFor || getTinderPurposeLabel(candidate.intent);
 
   return (
     <View style={styles.cardContainer}>
-      {/* 1. Main Photo */}
       <Image
         source={{ uri: displayPhotoUrl }}
         style={styles.cardImage}
@@ -71,7 +66,6 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
         onError={() => setImageError(true)}
       />
 
-      {/* 2. Top Segmented Progress Bar (Chỉ báo số ảnh trong album) */}
       {candidatePhotos.length > 1 && (
         <View style={styles.segmentedBarRow}>
           {candidatePhotos.map((_, idx) => (
@@ -86,7 +80,6 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
         </View>
       )}
 
-      {/* 3. Stamp "THÍCH" và "BỎ QUA" khi quẹt (Chỉ hiển thị trên thẻ đang tương tác) */}
       {!isBackground && likeBadgeOpacity !== undefined && (
         <Animated.View
           style={[styles.stampBase, styles.likeStamp, { opacity: likeBadgeOpacity }]}
@@ -105,32 +98,37 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
         </Animated.View>
       )}
 
-      {/* 4. Bottom Dark Gradient Overlay (Expo Linear Gradient) */}
       <LinearGradient
-        colors={['transparent', 'rgba(18, 16, 15, 0.42)', 'rgba(18, 16, 15, 0.92)']}
+        colors={['transparent', 'rgba(18, 16, 15, 0.45)', 'rgba(18, 16, 15, 0.93)']}
         locations={[0, 0.42, 1]}
         style={styles.bottomGradient}
       >
-        {/* Intent Badge */}
         <View style={styles.badgeRow}>
+          {candidate.hasLikedMe && (
+            <View style={styles.likedMeBadge}>
+              <Feather name="heart" size={11} color="#FFFFFF" />
+              <Text style={styles.likedMeBadgeText}>Đã thích bạn</Text>
+            </View>
+          )}
+
           {candidate.intent === 'playdate' && (
             <View style={[styles.intentBadge, styles.playdateBadge]}>
               <Feather name="smile" size={11} color="#0E4833" />
-              <Text style={styles.playdateBadgeText}>Tìm bạn chơi chung</Text>
+              <Text style={styles.playdateBadgeText}>{purposeLabel}</Text>
             </View>
           )}
 
           {candidate.intent === 'dating' && (
             <View style={[styles.intentBadge, styles.datingBadge]}>
               <Feather name="heart" size={11} color="#FFFFFF" />
-              <Text style={styles.datingBadgeText}>Hẹn hò chủ nuôi</Text>
+              <Text style={styles.datingBadgeText}>{purposeLabel}</Text>
             </View>
           )}
 
           {candidate.intent === 'community' && (
             <View style={[styles.intentBadge, styles.communityBadge]}>
               <Feather name="users" size={11} color="#382E25" />
-              <Text style={styles.communityBadgeText}>Giao lưu nội khu</Text>
+              <Text style={styles.communityBadgeText}>{purposeLabel}</Text>
             </View>
           )}
 
@@ -145,7 +143,6 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
           )}
         </View>
 
-        {/* Thông tin thẻ luôn ưu tiên Thú cưng làm trọng tâm */}
         <View style={styles.infoContentRow}>
           <View style={styles.infoTextColumn}>
             {primaryPet ? (
@@ -159,25 +156,24 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
                   {primaryPet.breed} {primaryPet.weightKg ? `· ${primaryPet.weightKg} kg` : ''}
                 </Text>
                 <Text style={styles.tertiarySub} numberOfLines={1}>
-                  Đi cùng {candidate.ownerName} · cách {candidate.distanceKm} km
+                  Đi cùng {candidate.ownerName} ({candidate.ownerAge}t) · cách {candidate.distanceKm} km
                 </Text>
               </>
             ) : (
               <>
                 <Text style={styles.primaryTitle} numberOfLines={1}>
-                  {candidate.ownerName}
+                  {candidate.ownerName}, {candidate.ownerAge}
                 </Text>
                 <Text style={styles.secondaryMeta} numberOfLines={1}>
-                  Cách xa {candidate.distanceKm} km
+                  {candidate.area || 'Cộng đồng Pawty'} · cách {candidate.distanceKm} km
                 </Text>
                 <Text style={styles.tertiarySub} numberOfLines={1}>
-                  {candidate.lookingFor || candidate.bio || 'Yêu thích thú cưng'}
+                  {candidate.bio || purposeLabel}
                 </Text>
               </>
             )}
           </View>
 
-          {/* Nút mở hồ sơ chi tiết (Vùng chạm >= 44x44) */}
           <TouchableOpacity
             style={styles.expandCircleBtn}
             onPress={onOpenDetails}
@@ -274,9 +270,24 @@ const styles = StyleSheet.create({
   },
   badgeRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     marginBottom: 8,
+  },
+  likedMeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#E04F67',
+  },
+  likedMeBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   intentBadge: {
     flexDirection: 'row',
@@ -332,7 +343,7 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
   primaryTitle: {
-    fontSize: 26,
+    fontSize: 25,
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: -0.3,
@@ -360,4 +371,3 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.35)',
   },
 });
-

@@ -15,6 +15,7 @@ import { TinderActionBar } from './tinder/TinderActionBar';
 import { TinderProfileDetailModal } from './tinder/TinderProfileDetailModal';
 import { TinderFilterModal } from './tinder/TinderFilterModal';
 import { TinderMenuModal } from './tinder/TinderMenuModal';
+import { TINDER_PURPOSE_OPTIONS } from '../types/mobileTypes';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD = 85;
@@ -23,49 +24,47 @@ export const MobileTinderScreen: React.FC = () => {
   const {
     theme,
     tinderCandidates,
+    likesYouCandidates,
     tinderFilterGoal,
     setTinderFilterGoal,
     tinderDistanceLimit,
     setTinderDistanceLimit,
     swipeTinderCandidate,
+    reloadTinderDeck,
     rewindLastSwipe,
     canRewind,
-    activePassportArea,
-    setPassportArea,
-    cyclePassportArea,
     setShowLikesYouDrawer,
     activeModal,
     setActiveModal,
     openPublicUserProfile,
     showToast,
-    isVip,
   } = useMobilePawty();
 
-  // 1. Lọc ứng viên theo mục đích & bán kính khoảng cách (Miễn phí 100%)
-  const filteredCandidates = useMemo(() => {
-    return tinderCandidates.filter((c) => {
-      const matchGoal = tinderFilterGoal === 'all' || c.intent === tinderFilterGoal;
-      const matchDistance =
-        tinderDistanceLimit === 'all' || c.distanceKm <= Number(tinderDistanceLimit);
-      return matchGoal && matchDistance;
-    });
-  }, [tinderCandidates, tinderFilterGoal, tinderDistanceLimit]);
-
-  // Quản lý deck nhất quán: Đỉnh deck luôn là phần tử 0, thẻ kế tiếp là phần tử 1
+  const filteredCandidates = tinderCandidates;
   const currentCandidate = filteredCandidates.length > 0 ? filteredCandidates[0] : null;
   const nextCandidate = filteredCandidates.length > 1 ? filteredCandidates[1] : null;
 
-  // 2. State cục bộ
+  const activeGoalLabel =
+    tinderFilterGoal === 'all'
+      ? 'Tất cả mục đích'
+      : TINDER_PURPOSE_OPTIONS.find((opt) => opt.intent === tinderFilterGoal)?.shortLabel ||
+        'Mục đích kết nối';
+
   const [photoIdx, setPhotoIdx] = useState(0);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
 
-  // Reset photo index khi candidate thay đổi
   const currentCandidateId = currentCandidate ? currentCandidate.id : null;
   useEffect(() => {
     setPhotoIdx(0);
   }, [currentCandidateId]);
 
-  // 3. Animation & Cử chỉ vuốt thẻ
+  // Tự động làm mới cọc thẻ nếu danh sách trống
+  useEffect(() => {
+    if (filteredCandidates.length === 0) {
+      reloadTinderDeck(true);
+    }
+  }, [filteredCandidates.length, reloadTinderDeck]);
+
   const pan = useRef(new Animated.ValueXY()).current;
   const isSwipingRef = useRef(false);
   const touchStartTimeRef = useRef(0);
@@ -76,7 +75,6 @@ export const MobileTinderScreen: React.FC = () => {
       return;
     }
     const candidateId = currentCandidate.id;
-    // Gọi swipe trong context (context sẽ xóa candidateId khỏi mảng tinderCandidates)
     swipeTinderCandidate(candidateId, direction);
     pan.setValue({ x: 0, y: 0 });
     setPhotoIdx(0);
@@ -95,7 +93,6 @@ export const MobileTinderScreen: React.FC = () => {
     }).start(() => commitSwipe(direction));
   };
 
-  // 4. PanResponder phân biệt rạch ròi Tap (đổi ảnh) và Drag (quẹt thẻ)
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -122,27 +119,23 @@ export const MobileTinderScreen: React.FC = () => {
             Math.abs(gestureState.dy) < 12 &&
             elapsed < 280;
 
-          // Xử lý cử chỉ Chạm (Tap) nửa trái/nửa phải để chuyển ảnh thú cưng
           if (isTap && currentCandidate) {
             const petPhotosList = (currentCandidate.pets || [])
               .map((p) => p.imageUrl)
               .filter(Boolean);
-            const otherPetPhotos = (currentCandidate.photoUrls || []).filter(
-              (u) => u !== currentCandidate.avatarUrl && !petPhotosList.includes(u)
+            const extraPhotos = (currentCandidate.photoUrls || []).filter(
+              (u) => Boolean(u) && !petPhotosList.includes(u)
             );
-            const photosCount = Math.max(petPhotosList.length + otherPetPhotos.length, 1);
+            const photosCount = Math.max(petPhotosList.length + extraPhotos.length, 1);
 
             if (gestureState.x0 < SCREEN_WIDTH / 2) {
-              // Nửa trái -> lùi ảnh
               setPhotoIdx((prev) => (prev > 0 ? prev - 1 : Math.max(photosCount - 1, 0)));
             } else {
-              // Nửa phải -> tiến ảnh
               setPhotoIdx((prev) => (prev + 1) % photosCount);
             }
             return;
           }
 
-          // Xử lý cử chỉ Kéo (Drag) quẹt thẻ
           if (gestureState.dx > SWIPE_THRESHOLD) {
             isSwipingRef.current = true;
             Animated.timing(pan, {
@@ -158,7 +151,6 @@ export const MobileTinderScreen: React.FC = () => {
               useNativeDriver: false,
             }).start(() => commitSwipe('left'));
           } else {
-            // Chưa vượt ngưỡng -> Nhẹ nhàng đàn hồi về vị trí cũ
             Animated.spring(pan, {
               toValue: { x: 0, y: 0 },
               friction: 6,
@@ -168,7 +160,6 @@ export const MobileTinderScreen: React.FC = () => {
           }
         },
         onPanResponderTerminate: () => {
-          // Xử lý khi cử chỉ bị ngắt ngang bởi hệ thống
           isSwipingRef.current = false;
           Animated.spring(pan, {
             toValue: { x: 0, y: 0 },
@@ -180,14 +171,12 @@ export const MobileTinderScreen: React.FC = () => {
     [currentCandidate, filteredCandidates]
   );
 
-  // Hiệu ứng xoay thẻ khi kéo
   const rotateCard = pan.x.interpolate({
     inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
     outputRange: ['-9deg', '0deg', '9deg'],
     extrapolate: 'clamp',
   });
 
-  // Hiệu ứng mờ/hiện của Stamp Thích & Bỏ qua
   const likeBadgeOpacity = pan.x.interpolate({
     inputRange: [18, SWIPE_THRESHOLD],
     outputRange: [0, 1],
@@ -200,20 +189,62 @@ export const MobileTinderScreen: React.FC = () => {
     extrapolate: 'clamp',
   });
 
-  const likedYouCount = tinderCandidates.filter((c) => c.hasLikedMe).length;
+  const likedYouCount = likesYouCandidates.length;
 
   return (
     <View style={styles.rootContainer}>
-      {/* 1. Deck Area: Co giãn chiếm trọn chiều cao khả dụng (Không dùng ScrollView ngoài) */}
+      {/* Banner thông báo khi có người đã thích mình (Mở miễn phí 100%) */}
+      {likedYouCount > 0 && (
+        <TouchableOpacity
+          style={styles.likesYouTopBanner}
+          activeOpacity={0.85}
+          onPress={() => setShowLikesYouDrawer(true)}
+        >
+          <View style={styles.likesYouIconCircle}>
+            <Feather name="heart" size={14} color="#FFFFFF" />
+          </View>
+          <Text style={styles.likesYouTopText} numberOfLines={1}>
+            Có <Text style={{ fontWeight: '900' }}>{likedYouCount} người</Text> đã thích hồ sơ của bạn
+          </Text>
+          <View style={styles.likesYouViewPill}>
+            <Text style={styles.likesYouViewPillText}>Xem ngay</Text>
+            <Feather name="chevron-right" size={13} color="#C93B52" />
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Thanh định vị Mục đích & Lối tắt riêng cho Hồ sơ Hẹn hò */}
+      <View style={styles.tinderSubBar}>
+        <TouchableOpacity
+          style={[styles.tinderSubGoalBtn, { backgroundColor: theme.primarySoft }]}
+          onPress={() => setActiveModal('tinder_filter')}
+          activeOpacity={0.8}
+        >
+          <Feather name="target" size={12} color={theme.primary} />
+          <Text style={[styles.tinderSubGoalText, { color: theme.primary }]} numberOfLines={1}>
+            {activeGoalLabel} · {tinderDistanceLimit === 'all' ? 'Toàn quốc' : `< ${tinderDistanceLimit}km`}
+          </Text>
+          <Feather name="chevron-down" size={12} color={theme.primary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.myDatingProfileBtn}
+          onPress={() => setActiveModal('tinder_setup')}
+          activeOpacity={0.8}
+        >
+          <Feather name="user-check" size={12} color="#5C5046" />
+          <Text style={styles.myDatingProfileBtnText}>Hồ sơ hẹn hò của tôi</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 1. Deck Area */}
       <View style={styles.deckArea}>
-        {/* Next Card Background Preview */}
         {nextCandidate && (
           <View style={[styles.cardAbsoluteWrap, styles.nextCardWrap]} pointerEvents="none">
             <TinderCardSurface candidate={nextCandidate} isBackground />
           </View>
         )}
 
-        {/* Current Active Card Foreground */}
         {currentCandidate ? (
           <Animated.View
             {...panResponder.panHandlers}
@@ -237,43 +268,56 @@ export const MobileTinderScreen: React.FC = () => {
             />
           </Animated.View>
         ) : (
-          /* Empty State khi duyệt hết hồ sơ */
           <View style={styles.emptyStateBox}>
             <View style={styles.emptyIconBox}>
               <Feather name="compass" size={32} color="#B8ABA0" />
             </View>
             <Text style={styles.emptyTitle}>Đã xem hết hồ sơ phù hợp</Text>
             <Text style={styles.emptySub}>
-              {tinderFilterGoal !== 'all'
-                ? 'Hãy thử chuyển sang xem Tất cả mục đích hoặc mở rộng vị trí tìm kiếm.'
-                : 'Hãy thử đổi khu vực kết nối hoặc quay lại sau ít phút nhé!'}
+              {tinderFilterGoal !== 'all' || tinderDistanceLimit !== 'all'
+                ? 'Hãy thử chuyển sang Tất cả mục đích hoặc chọn Không giới hạn khoảng cách.'
+                : 'Bạn có thể kiểm tra danh sách Ai đã thích bạn hoặc thiết lập hồ sơ kết nối của mình!'}
             </Text>
 
             <View style={styles.emptyActionsRow}>
-              {tinderFilterGoal !== 'all' && (
+              <TouchableOpacity
+                style={[styles.emptyBtn, { backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', gap: 6 }]}
+                onPress={() => reloadTinderDeck(false)}
+                activeOpacity={0.8}
+              >
+                <Feather name="refresh-cw" size={13} color="#FFFFFF" />
+                <Text style={styles.emptyBtnText}>Làm mới danh sách ngay</Text>
+              </TouchableOpacity>
+
+              {(tinderFilterGoal !== 'all' || tinderDistanceLimit !== 'all') && (
                 <TouchableOpacity
-                  style={[styles.emptyBtn, { backgroundColor: theme.primary }]}
-                  onPress={() => setTinderFilterGoal('all')}
+                  style={[styles.emptyBtn, { backgroundColor: '#6B7280' }]}
+                  onPress={() => {
+                    setTinderFilterGoal('all');
+                    setTinderDistanceLimit('all');
+                  }}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.emptyBtnText}>Xem tất cả mục đích</Text>
+                  <Text style={styles.emptyBtnText}>Bỏ giới hạn lọc</Text>
                 </TouchableOpacity>
               )}
 
               <TouchableOpacity
                 style={styles.emptySecondaryBtn}
-                onPress={() => setActiveModal('tinder_filter')}
+                onPress={() => setShowLikesYouDrawer(true)}
                 activeOpacity={0.8}
               >
-                <Feather name="sliders" size={13} color="#2E7D5B" />
-                <Text style={styles.emptySecondaryBtnText}>Mở rộng khoảng cách</Text>
+                <Feather name="heart" size={13} color="#C93B52" />
+                <Text style={styles.emptySecondaryBtnText}>
+                  Ai đã thích bạn ({likedYouCount})
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
       </View>
 
-      {/* 2. Hàng nút thao tác Hoàn tác, Bỏ qua & Thích cố định ở chân màn hình */}
+      {/* 2. Action Bar */}
       <TinderActionBar
         disabled={isDetailModalVisible}
         isCardActive={Boolean(currentCandidate)}
@@ -283,7 +327,7 @@ export const MobileTinderScreen: React.FC = () => {
         onLike={() => triggerSwipe('right')}
       />
 
-      {/* 3. Modal Hồ sơ chi tiết phủ toàn màn hình */}
+      {/* 3. Modal Hồ sơ chi tiết */}
       <TinderProfileDetailModal
         visible={isDetailModalVisible}
         candidate={currentCandidate}
@@ -298,21 +342,17 @@ export const MobileTinderScreen: React.FC = () => {
         onShare={(name) => showToast(`Đã sao chép liên kết hồ sơ của ${name}`)}
       />
 
-      {/* 4. Modal Bộ lọc (Mục đích duyệt + Giới hạn khoảng cách) */}
+      {/* 4. Modal Bộ lọc (Mục đích 1-1 + Không giới hạn khoảng cách) */}
       <TinderFilterModal
         visible={activeModal === 'tinder_filter'}
         onClose={() => setActiveModal(null)}
         currentGoal={tinderFilterGoal}
-        onSelectGoal={(goal) => {
-          setTinderFilterGoal(goal);
-        }}
+        onSelectGoal={(goal) => setTinderFilterGoal(goal)}
         distanceLimit={tinderDistanceLimit}
-        onSelectDistanceLimit={(dist) => {
-          setTinderDistanceLimit(dist);
-        }}
+        onSelectDistanceLimit={(dist) => setTinderDistanceLimit(dist)}
       />
 
-      {/* 5. Modal Menu phụ (Hoàn tác miễn phí, Ai thích bạn, Hồ sơ kết nối) */}
+      {/* 5. Modal Menu phụ (Mở khóa 100% miễn phí) */}
       <TinderMenuModal
         visible={activeModal === 'tinder_menu'}
         onClose={() => setActiveModal(null)}
@@ -330,6 +370,88 @@ const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
     backgroundColor: '#FAF7F2',
+  },
+  likesYouTopBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 12,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 14,
+    backgroundColor: '#FFF2F4',
+    borderWidth: 1,
+    borderColor: '#F6CCD4',
+  },
+  likesYouIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#E04F67',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  likesYouTopText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4A252C',
+  },
+  likesYouViewPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: '#F3C8D1',
+  },
+  likesYouViewPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#C93B52',
+  },
+  tinderSubBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingTop: 4,
+    paddingBottom: 4,
+    gap: 8,
+  },
+  tinderSubGoalBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 99,
+  },
+  tinderSubGoalText: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  myDatingProfileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F5EFE6',
+    borderWidth: 1,
+    borderColor: '#ECE4DB',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 99,
+  },
+  myDatingProfileBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4A3F35',
   },
   deckArea: {
     flex: 1,
@@ -391,6 +513,8 @@ const styles = StyleSheet.create({
   },
   emptyActionsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
   },

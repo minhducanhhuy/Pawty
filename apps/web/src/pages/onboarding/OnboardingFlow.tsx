@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  AlertTriangle,
   ArrowRight,
   Cat,
   Check,
@@ -7,7 +8,6 @@ import {
   MapPin,
   PawPrint,
   Phone,
-  ShieldCheck,
   User,
   Lock,
   Eye,
@@ -15,15 +15,64 @@ import {
 } from 'lucide-react';
 import { usePawtyStore } from '../../stores/usePawtyStore';
 import { PawtyAnimatedLogo } from '../../components/common/PawtyAnimatedLogo';
-import { WEB_THEMES } from '../../mocks/seedData';
+import { WEB_THEMES } from '../../config/themes';
+
+const POPULAR_DOG_BREEDS = [
+  'Golden Retriever',
+  'Corgi',
+  'Poodle',
+  'Phốc Sóc (Pomeranian)',
+  'Husky Sibir',
+  'Alaska Malamute',
+  'Shiba Inu',
+  'Chó Ta (Bản địa / Chó cỏ)',
+  'Chó Phú Quốc',
+  'Chó Bắc Hà',
+  'Chó H\'Mông cộc đuôi',
+  'Pug',
+  'Bulldog Pháp',
+  'Bulldog Anh',
+  'Samoyed',
+  'Chihuahua',
+  'Dachshund (Lạp xưởng)',
+  'Beagle',
+  'Rottweiler',
+  'Doberman',
+  'Border Collie',
+  'Labrador Retriever',
+  'Bichon Frise',
+  'Chó cỏ lai',
+  'Chó Becgie (German Shepherd)',
+  'Chó Akita',
+  'Khác',
+];
+
+const POPULAR_CAT_BREEDS = [
+  'Mèo Anh lông ngắn (BSH)',
+  'Mèo Anh lông dài (BLH)',
+  'Mèo Ba Tư (Persian)',
+  'Mèo Mướp (Bản địa)',
+  'Mèo Vàng (Bản địa)',
+  'Mèo Munchkin',
+  'Mèo Ragdoll',
+  'Mèo Scottish Fold',
+  'Mèo Xiêm (Siamese)',
+  'Mèo Bengal',
+  'Mèo Sphynx',
+  'Mèo Maine Coon',
+  'Mèo Nga mắt xanh',
+  'Mèo Tam thể',
+  'Mèo Mướp lai',
+  'Khác',
+];
 
 export const OnboardingFlow: React.FC = () => {
   const {
     user,
     pets,
     hasSavedSession,
+    bootAuthError,
     loginWithSavedSession,
-    loginWithPhone,
     loginWithCredentials,
     completeOnboardingWizard,
     themeId,
@@ -32,34 +81,86 @@ export const OnboardingFlow: React.FC = () => {
   const theme = WEB_THEMES[themeId] ?? WEB_THEMES.coral;
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [identifier, setIdentifier] = useState('mai_nguyen');
-  const [password, setPassword] = useState('password123');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [username, setUsername] = useState('mai_nguyen');
-  const [phone, setPhone] = useState(user.phone || '0912345678');
+  const [username, setUsername] = useState('');
+  const [phone, setPhone] = useState('');
 
-  const [ownerName, setOwnerName] = useState('Mai Nguyễn');
-  const [neighborhood, setNeighborhood] = useState('Vinhomes Grand Park - Quận 9');
-  const [petName, setPetName] = useState('Lu');
+  const [ownerName, setOwnerName] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+  const [petName, setPetName] = useState('');
   const [species, setSpecies] = useState<'dog' | 'cat'>('dog');
-  const [breed, setBreed] = useState('Golden Retriever');
-  const [weightKg, setWeightKg] = useState<number>(28);
+  const [breed, setBreed] = useState('');
+  const [weightKg, setWeightKg] = useState<number>(8);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const displayedError = authError || bootAuthError;
+
+  const handleSavedSessionLogin = async () => {
+    setAuthError(null);
+    setIsLoading(true);
+    try {
+      await loginWithSavedSession();
+    } catch (err: any) {
+      setAuthError(
+        err?.message ||
+          'Không thể kết nối cơ sở dữ liệu PostgreSQL để đăng nhập.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
+
     if (mode === 'login') {
-      loginWithCredentials(identifier, password);
-    } else {
-      completeOnboardingWizard({
+      if (!identifier.trim()) {
+        setAuthError('Vui lòng nhập Số điện thoại hoặc Tên đăng nhập.');
+        return;
+      }
+      if (!password.trim()) {
+        setAuthError('Vui lòng nhập mật khẩu.');
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        await loginWithCredentials(identifier, password);
+      } catch (err: any) {
+        setAuthError(
+          err?.message ||
+            'Đăng nhập thất bại: Không thể kết nối cơ sở dữ liệu PostgreSQL.'
+        );
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    if (!phone.trim() || !ownerName.trim() || !password.trim()) {
+      setAuthError('Vui lòng điền đầy đủ Số điện thoại, Mật khẩu và Họ tên.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await completeOnboardingWizard({
         phone,
+        username,
+        password,
         displayName: ownerName,
-        district: 'TP. Thủ Đức (Quận 9)',
+        district: '',
         neighborhood,
-        petName,
+        petName: petName || 'Thú cưng',
         species,
-        breed,
+        breed: breed || (species === 'dog' ? 'Chó cưng' : 'Mèo cưng'),
         gender: 'male',
-        weightKg: Number(weightKg) || 10,
+        weightKg: Number(weightKg) || 8,
         vaccinationStatus: 'full',
         isNeutered: true,
         allergies: 'Không có',
@@ -69,6 +170,13 @@ export const OnboardingFlow: React.FC = () => {
         cautions: [],
         primaryNeeds: ['care_management', 'family_circle', 'walk_buddy'],
       });
+    } catch (err: any) {
+      setAuthError(
+        err?.message ||
+          'Đăng ký thất bại: Không thể kết nối cơ sở dữ liệu PostgreSQL.'
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -100,8 +208,16 @@ export const OnboardingFlow: React.FC = () => {
           </div>
         </div>
 
+        {/* Strict DB / Auth Error Banner */}
+        {displayedError && (
+          <div className="p-3.5 rounded-2xl border border-red-200 bg-red-50 text-red-700 text-xs font-semibold flex items-start gap-2.5 mb-4">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+            <span>{displayedError}</span>
+          </div>
+        )}
+
         {/* Saved Session Fast Entry */}
-        {hasSavedSession && (
+        {hasSavedSession && user.displayName && (
           <div
             style={{
               backgroundColor: theme.primarySoft,
@@ -125,18 +241,21 @@ export const OnboardingFlow: React.FC = () => {
                 <p style={{ color: theme.text }} className="text-sm font-bold truncate">
                   {user.displayName} ({user.phone})
                 </p>
-                <p style={{ color: theme.textSoft }} className="text-xs truncate">
-                  Hồ sơ thú cưng: {pets.map((p) => p.name).join(', ')}
-                </p>
+                {pets.length > 0 && (
+                  <p style={{ color: theme.textSoft }} className="text-xs truncate">
+                    Hồ sơ thú cưng: {pets.map((p) => p.name).join(', ')}
+                  </p>
+                )}
               </div>
             </div>
             <button
               type="button"
-              onClick={loginWithSavedSession}
+              disabled={isLoading}
+              onClick={handleSavedSessionLogin}
               style={{ backgroundColor: theme.primary }}
-              className="w-full py-2.5 px-4 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-2 hover:opacity-95 transition-opacity"
+              className="w-full py-2.5 px-4 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-2 hover:opacity-95 transition-opacity disabled:opacity-60"
             >
-              <span>Vào thẳng ứng dụng</span>
+              <span>{isLoading ? 'Đang kết nối Database...' : 'Vào thẳng ứng dụng'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -149,7 +268,10 @@ export const OnboardingFlow: React.FC = () => {
         >
           <button
             type="button"
-            onClick={() => setMode('login')}
+            onClick={() => {
+              setMode('login');
+              setAuthError(null);
+            }}
             style={{
               backgroundColor: mode === 'login' ? theme.primary : 'transparent',
               color: mode === 'login' ? '#FFFFFF' : theme.textSoft,
@@ -160,7 +282,10 @@ export const OnboardingFlow: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => setMode('register')}
+            onClick={() => {
+              setMode('register');
+              setAuthError(null);
+            }}
             style={{
               backgroundColor: mode === 'register' ? theme.primary : 'transparent',
               color: mode === 'register' ? '#FFFFFF' : theme.textSoft,
@@ -195,7 +320,7 @@ export const OnboardingFlow: React.FC = () => {
                     type="text"
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="VD: 0912345678 hoặc mai_nguyen"
+                    placeholder="VD: 0900000001 hoặc test1..."
                     style={{ color: theme.text }}
                     className="w-full bg-transparent text-sm font-medium focus:outline-none"
                   />
@@ -230,21 +355,6 @@ export const OnboardingFlow: React.FC = () => {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-              </div>
-
-              <div
-                style={{ backgroundColor: theme.primarySoft }}
-                className="p-3 rounded-xl text-xs space-y-1"
-              >
-                <p style={{ color: theme.primary }} className="font-extrabold">
-                  💡 Tài khoản kiểm thử có sẵn:
-                </p>
-                <p style={{ color: theme.textSoft }}>
-                  • SĐT: <strong>0912345678</strong> hoặc Username: <strong>mai_nguyen</strong>
-                </p>
-                <p style={{ color: theme.textSoft }}>
-                  • Mật khẩu: <strong>password123</strong>
-                </p>
               </div>
             </>
           ) : (
@@ -288,7 +398,7 @@ export const OnboardingFlow: React.FC = () => {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="VD: mai_nguyen"
+                    placeholder="Nhập username..."
                     style={{ color: theme.text }}
                     className="w-full bg-transparent text-sm font-medium focus:outline-none"
                   />
@@ -341,7 +451,7 @@ export const OnboardingFlow: React.FC = () => {
                     type="text"
                     value={ownerName}
                     onChange={(e) => setOwnerName(e.target.value)}
-                    placeholder="VD: Mai Nguyễn"
+                    placeholder="Nhập họ tên của bạn"
                     style={{ color: theme.text }}
                     className="w-full bg-transparent text-sm font-medium focus:outline-none"
                   />
@@ -364,7 +474,7 @@ export const OnboardingFlow: React.FC = () => {
                     type="text"
                     value={neighborhood}
                     onChange={(e) => setNeighborhood(e.target.value)}
-                    placeholder="VD: Vinhomes Grand Park"
+                    placeholder="Nhập khu chung cư / khu vực"
                     style={{ color: theme.text }}
                     className="w-full bg-transparent text-sm font-medium focus:outline-none"
                   />
@@ -405,7 +515,7 @@ export const OnboardingFlow: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setSpecies('cat');
-                      setBreed('Mèo Anh Lông Ngắn');
+                      setBreed('Mèo Anh lông ngắn (BSH)');
                     }}
                     style={{
                       backgroundColor:
@@ -438,6 +548,7 @@ export const OnboardingFlow: React.FC = () => {
                         type="text"
                         value={petName}
                         onChange={(e) => setPetName(e.target.value)}
+                        placeholder="Tên bé..."
                         style={{ color: theme.text }}
                         className="w-full bg-transparent text-xs font-medium focus:outline-none"
                       />
@@ -463,6 +574,30 @@ export const OnboardingFlow: React.FC = () => {
                       className="w-full px-3 py-2 rounded-xl border text-xs font-medium focus:outline-none"
                     />
                   </div>
+                  <div className="col-span-2 mt-1">
+                    <label
+                      style={{ color: theme.textSoft }}
+                      className="block text-xs font-semibold mb-1"
+                    >
+                      Giống loài (Chọn từ danh sách)
+                    </label>
+                    <select
+                      value={breed || (species === 'dog' ? 'Golden Retriever' : 'Mèo Anh lông ngắn (BSH)')}
+                      onChange={(e) => setBreed(e.target.value)}
+                      style={{
+                        backgroundColor: theme.bg,
+                        borderColor: theme.border,
+                        color: theme.text,
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border text-xs font-medium focus:outline-none"
+                    >
+                      {(species === 'dog' ? POPULAR_DOG_BREEDS : POPULAR_CAT_BREEDS).map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             </>
@@ -470,12 +605,17 @@ export const OnboardingFlow: React.FC = () => {
 
           <button
             type="submit"
+            disabled={isLoading}
             style={{ backgroundColor: theme.primary }}
-            className="w-full py-3 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-2 hover:opacity-95 transition-opacity mt-2"
+            className="w-full py-3 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-2 hover:opacity-95 transition-opacity mt-2 disabled:opacity-60"
           >
             <Check className="w-4 h-4" />
             <span>
-              {mode === 'login' ? 'Đăng nhập vào Pawty' : 'Hoàn tất & Vào ứng dụng'}
+              {isLoading
+                ? 'Đang kết nối Database...'
+                : mode === 'login'
+                ? 'Đăng nhập vào Pawty'
+                : 'Hoàn tất & Vào ứng dụng'}
             </span>
           </button>
         </form>

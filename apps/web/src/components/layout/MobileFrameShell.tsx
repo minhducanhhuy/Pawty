@@ -11,7 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { usePawtyStore } from '../../stores/usePawtyStore';
-import { WEB_THEMES, type WebThemeId } from '../../mocks/seedData';
+import { WEB_THEMES, type WebThemeId } from '../../config/themes';
 import { BottomTabBar } from './BottomTabBar';
 import { PawtyAnimatedLogo } from '../common/PawtyAnimatedLogo';
 

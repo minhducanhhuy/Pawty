@@ -1,5 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,23 +11,138 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  ActivityIndicator,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Feather } from './FeatherIcon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from './FeatherIcon';
+import { SelectorPickerModal, ConfirmActionModal } from './SelectorFieldModal';
 import {
   useMobilePawty,
-  THEME_PALETTES,
-  ThemePresetId,
 } from '../context/MobilePawtyContext';
 import {
   SUGGESTED_HASHTAGS,
-  SAMPLE_UPLOAD_GALLERY,
-} from '../data/mobileSeedData';
+  TINDER_PURPOSE_OPTIONS,
+  TinderIntent,
+  resolveTinderIntentFromLabel,
+  getTinderPurposeLabel,
+  OWNER_AGE_OPTIONS,
+  ZODIAC_OPTIONS,
+  SMOKING_OPTIONS,
+  WORKOUT_OPTIONS,
+  DRINKING_OPTIONS,
+  CHAT_STYLE_OPTIONS,
+  LIVING_AREA_OPTIONS,
+  POPULAR_DOG_BREEDS,
+  POPULAR_CAT_BREEDS,
+  PET_AGE_OPTIONS,
+  PET_WEIGHT_OPTIONS,
+  OTHER_SPECIES_OPTIONS,
+  MobileNotificationItem,
+} from '../types/mobileTypes';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+
+type NotificationFilterTab = 'all' | 'friend' | 'follow' | 'sos';
+
+function getNotificationBadgeMeta(n: MobileNotificationItem): {
+  icon: string;
+  label: string;
+  bgColor: string;
+  textColor: string;
+} {
+  switch (n.type) {
+    case 'friend_request':
+      return {
+        icon: 'user-plus',
+        label: 'Lời mời kết bạn',
+        bgColor: '#FFF0ED',
+        textColor: '#D9534F',
+      };
+    case 'friend_accepted':
+      return {
+        icon: 'user-check',
+        label: 'Đã kết bạn',
+        bgColor: '#EAF7F1',
+        textColor: '#2E7D5B',
+      };
+    case 'match':
+    case 'tinder':
+      return {
+        icon: 'heart',
+        label: 'Tương hợp mới',
+        bgColor: '#FDECEF',
+        textColor: '#D6456B',
+      };
+    case 'follow':
+      return {
+        icon: 'users',
+        label: 'Theo dõi mới',
+        bgColor: '#EEF4FC',
+        textColor: '#2E66A6',
+      };
+    case 'sos_alert':
+    case 'sos_sighting':
+    case 'sos':
+      return {
+        icon: 'alert-triangle',
+        label: 'Khẩn cấp SOS',
+        bgColor: '#FDF2F2',
+        textColor: '#C9302C',
+      };
+    case 'post_reaction':
+    case 'post_comment':
+    case 'new_post':
+    case 'social':
+      return {
+        icon: 'message-circle',
+        label: 'Tương tác bảng tin',
+        bgColor: '#F5EFE6',
+        textColor: '#6E5A47',
+      };
+    default:
+      return {
+        icon: 'bell',
+        label: 'Hệ thống',
+        bgColor: '#F2EFEA',
+        textColor: '#5C5046',
+      };
+  }
+}
+
+function matchesNotificationTab(n: MobileNotificationItem, tab: NotificationFilterTab): boolean {
+  if (tab === 'all') return true;
+  if (tab === 'friend') {
+    return (
+      n.category === 'friend' ||
+      n.type === 'friend_request' ||
+      n.type === 'friend_accepted' ||
+      n.type === 'match' ||
+      n.type === 'tinder'
+    );
+  }
+  if (tab === 'follow') {
+    return (
+      n.category === 'follow' ||
+      n.type === 'follow' ||
+      n.type === 'post_reaction' ||
+      n.type === 'post_comment' ||
+      n.type === 'new_post' ||
+      n.type === 'social'
+    );
+  }
+  if (tab === 'sos') {
+    return (
+      n.category === 'sos' ||
+      n.type === 'sos_alert' ||
+      n.type === 'sos_sighting' ||
+      n.type === 'sos'
+    );
+  }
+  return true;
+}
 
 export const MobileModals: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -37,11 +151,9 @@ export const MobileModals: React.FC = () => {
   const {
     themeId,
     theme,
-    setThemeId,
     activeModal,
     setActiveModal,
     ownerName,
-    ownerHandle,
     ownerNickname,
     ownerBio,
     ownerArea,
@@ -56,27 +168,16 @@ export const MobileModals: React.FC = () => {
     activePet,
     deletePetProfile,
     createPost,
-    isVip,
-    activeVipPlanId,
-    vipPlans,
-    selectAndActivateVipPlan,
     userTinderSetup,
     updateUserTinderSetup,
-    publicProfiles,
-    resolvePublicProfile,
-    viewedUserHandle,
-    closePublicUserProfile,
-    openUserProfileInTab,
-    toggleFriendStatus,
-    sendFriendRequest,
+    openPublicUserProfile,
     acceptFriendRequest,
     declineFriendRequest,
-    toggleFollowUser,
     startDirectChatWithUser,
     setActiveTab,
-    tinderCandidates,
-    posts,
-    openLightboxMedia,
+    likesYouCandidates,
+    likeBackCandidate,
+    passLikesYouCandidate,
     showLikesYouDrawer,
     setShowLikesYouDrawer,
     matchedCandidateModal,
@@ -86,86 +187,110 @@ export const MobileModals: React.FC = () => {
     closeLightboxMedia,
     notifications,
     markNotificationRead,
+    markAllNotificationsRead,
+    deleteNotification,
+    clearAllNotifications,
     logoutUser,
     showToast,
   } = useMobilePawty();
 
-  // 1. New Post Composer State (Unified Media + Custom Free Hashtags + Phone Gallery Picker)
+  // 1. New Post Composer State (Device Gallery & Camera only — NO URL input)
   const [postCaption, setPostCaption] = useState('');
-  const [selectedMediaUrls, setSelectedMediaUrls] = useState<string[]>([
-    SAMPLE_UPLOAD_GALLERY[0].url,
-    SAMPLE_UPLOAD_GALLERY[1].url,
-  ]);
+  const [selectedMediaUrls, setSelectedMediaUrls] = useState<string[]>([]);
   const [isSelectedVideo, setIsSelectedVideo] = useState(false);
+  const [savedHashtags, setSavedHashtags] = useState<string[]>([
+    '#KhoanhKhacThuCung',
+    '#DiDaoChieu',
+    '#BossDangYeu',
+    '#ChamSocBoss',
+    '#ChoMeoSaiGon',
+  ]);
   const [selectedHashtags, setSelectedHashtags] = useState<string[]>([
-    '#GoldenRetriever',
+    '#KhoanhKhacThuCung',
     '#DiDaoChieu',
   ]);
-  const [customHashtagDraft, setCustomHashtagDraft] = useState('');
+  const [customHashtagText, setCustomHashtagText] = useState('');
+  const [isSubmittingPost, setIsSubmittingPost] = useState(false);
 
-  // 2. Edit Owner & Active Pet Profile State
+  // 2. Edit Owner & Active Pet Quick Modal State (Selector-first)
   const [editOwnerName, setEditOwnerName] = useState(ownerName);
-  const [editOwnerNickname, setEditOwnerNickname] = useState(ownerNickname);
   const [editOwnerBio, setEditOwnerBio] = useState(ownerBio);
   const [editOwnerArea, setEditOwnerArea] = useState(ownerArea);
   const [editOwnerNote, setEditOwnerNote] = useState(ownerNoteBubble);
   const [editPetName, setEditPetName] = useState(activePet.name);
-  const [editPetSpecies, setEditPetSpecies] = useState<'Chó' | 'Mèo'>(activePet.species);
+  const [editPetSpecies, setEditPetSpecies] = useState<'Chó' | 'Mèo' | 'Khác'>(activePet.species);
+  const [editPetCustomSpecies, setEditPetCustomSpecies] = useState(activePet.customSpecies || '');
   const [editPetBreed, setEditPetBreed] = useState(activePet.breed);
   const [editPetGender, setEditPetGender] = useState<'Đực' | 'Cái'>(activePet.gender);
-  const [editPetAge, setEditPetAge] = useState(activePet.ageLabel);
-  const [editPetWeight, setEditPetWeight] = useState(String(activePet.weightKg));
+  const [editPetAge, setEditPetAge] = useState(activePet.ageLabel || '1 tuổi');
+  const [editPetWeight, setEditPetWeight] = useState(String(activePet.weightKg || '4.8'));
   const [editPetVaccinated, setEditPetVaccinated] = useState(activePet.isVaccinatedAndRabies);
 
-  // 3. User Tinder Setup State
-  const [tinderAgeInput, setTinderAgeInput] = useState(String(userTinderSetup.age));
+  // 3. Tinder Setup State (Single-select Purpose 1-to-1 + Selectors + Self-description limit)
+  const [tinderAgeInput, setTinderAgeInput] = useState(String(userTinderSetup.age || 24));
   const [tinderGenderInput, setTinderGenderInput] = useState<'Nam' | 'Nữ'>(
-    userTinderSetup.gender
+    userTinderSetup.gender || 'Nữ'
   );
-  const [tinderLookingForInput, setTinderLookingForInput] = useState(userTinderSetup.lookingFor);
+  const [tinderIntentInput, setTinderIntentInput] = useState<TinderIntent>(
+    resolveTinderIntentFromLabel(userTinderSetup.intent || userTinderSetup.lookingFor)
+  );
   const [tinderSmokingInput, setTinderSmokingInput] = useState(userTinderSetup.smoking);
   const [tinderWorkoutInput, setTinderWorkoutInput] = useState(userTinderSetup.workout);
   const [tinderDrinkingInput, setTinderDrinkingInput] = useState(userTinderSetup.drinking);
   const [tinderZodiacInput, setTinderZodiacInput] = useState(userTinderSetup.zodiac);
   const [tinderChatStyleInput, setTinderChatStyleInput] = useState(userTinderSetup.chatStyle);
+  const [tinderPromptInput, setTinderPromptInput] = useState(userTinderSetup.promptQuote || '');
 
-  // 4. Book Service State
+  // 4. Notifications Filter & Confirm State
+  const [notifFilterTab, setNotifFilterTab] = useState<NotificationFilterTab>('all');
+  const [confirmClearNotifs, setConfirmClearNotifs] = useState(false);
+  const [confirmLogoutVisible, setConfirmLogoutVisible] = useState(false);
 
-  // 5. Lightbox Index State
+  // 5. Shared Selector Picker Modal State inside MobileModals
+  const [selectorState, setSelectorState] = useState<{
+    visible: boolean;
+    title: string;
+    options: string[];
+    selectedValue: string;
+    onSelect: (val: string) => void;
+  }>({
+    visible: false,
+    title: '',
+    options: [],
+    selectedValue: '',
+    onSelect: () => {},
+  });
+
+  // 6. Lightbox Index State
   const [lightboxIdx, setLightboxIdx] = useState(0);
 
   useEffect(() => {
     setEditOwnerName(ownerName);
-    setEditOwnerNickname(ownerNickname);
     setEditOwnerBio(ownerBio);
     setEditOwnerArea(ownerArea);
     setEditOwnerNote(ownerNoteBubble);
     setEditPetName(activePet.name);
     setEditPetSpecies(activePet.species);
+    setEditPetCustomSpecies(activePet.customSpecies || '');
     setEditPetBreed(activePet.breed);
     setEditPetGender(activePet.gender);
-    setEditPetAge(activePet.ageLabel);
-    setEditPetWeight(String(activePet.weightKg));
+    setEditPetAge(activePet.ageLabel || '1 tuổi');
+    setEditPetWeight(String(activePet.weightKg || '4.8'));
     setEditPetVaccinated(activePet.isVaccinatedAndRabies);
-  }, [
-    ownerName,
-    ownerNickname,
-    ownerBio,
-    ownerArea,
-    ownerNoteBubble,
-    activePet,
-    activeModal,
-  ]);
+  }, [ownerName, ownerBio, ownerArea, ownerNoteBubble, activePet, activeModal]);
 
   useEffect(() => {
-    setTinderAgeInput(String(userTinderSetup.age));
-    setTinderGenderInput(userTinderSetup.gender);
-    setTinderLookingForInput(userTinderSetup.lookingFor);
-    setTinderSmokingInput(userTinderSetup.smoking);
-    setTinderWorkoutInput(userTinderSetup.workout);
-    setTinderDrinkingInput(userTinderSetup.drinking);
-    setTinderZodiacInput(userTinderSetup.zodiac);
-    setTinderChatStyleInput(userTinderSetup.chatStyle);
+    setTinderAgeInput(String(userTinderSetup.age || 24));
+    setTinderGenderInput(userTinderSetup.gender === 'Nam' ? 'Nam' : 'Nữ');
+    setTinderIntentInput(
+      resolveTinderIntentFromLabel(userTinderSetup.intent || userTinderSetup.lookingFor)
+    );
+    setTinderSmokingInput(userTinderSetup.smoking || SMOKING_OPTIONS[0]);
+    setTinderWorkoutInput(userTinderSetup.workout || WORKOUT_OPTIONS[0]);
+    setTinderDrinkingInput(userTinderSetup.drinking || DRINKING_OPTIONS[0]);
+    setTinderZodiacInput(userTinderSetup.zodiac || ZODIAC_OPTIONS[4]);
+    setTinderChatStyleInput(userTinderSetup.chatStyle || CHAT_STYLE_OPTIONS[0]);
+    setTinderPromptInput(userTinderSetup.promptQuote || '');
   }, [userTinderSetup, activeModal]);
 
   useEffect(() => {
@@ -174,6 +299,21 @@ export const MobileModals: React.FC = () => {
     }
   }, [lightboxMedia]);
 
+  const openSelector = (
+    title: string,
+    options: string[],
+    selectedValue: string,
+    onSelect: (val: string) => void
+  ) => {
+    setSelectorState({
+      visible: true,
+      title,
+      options,
+      selectedValue,
+      onSelect,
+    });
+  };
+
   const toggleHashtag = (tag: string) => {
     setSelectedHashtags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
@@ -181,31 +321,50 @@ export const MobileModals: React.FC = () => {
   };
 
   const handleAddCustomHashtag = () => {
-    const raw = customHashtagDraft.trim().replace(/\s+/g, '');
+    const raw = customHashtagText.trim();
     if (!raw) return;
-    const formatted = raw.startsWith('#') ? raw : `#${raw}`;
-    if (!selectedHashtags.includes(formatted)) {
-      setSelectedHashtags((prev) => [...prev, formatted]);
+    const cleanTag = raw.startsWith('#')
+      ? `#${raw.slice(1).replace(/[\s\W]+/g, '')}`
+      : `#${raw.replace(/[\s\W]+/g, '')}`;
+    if (cleanTag.length <= 1) return;
+
+    if (!savedHashtags.includes(cleanTag)) {
+      setSavedHashtags((prev) => [cleanTag, ...prev]);
     }
-    setCustomHashtagDraft('');
+    if (!selectedHashtags.includes(cleanTag)) {
+      setSelectedHashtags((prev) => [...prev, cleanTag]);
+    }
+    setCustomHashtagText('');
+    showToast(`Đã thêm hashtag ${cleanTag}`);
   };
 
   const handlePickMediaFromDevice = async () => {
     try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        showToast('Vui lòng cấp quyền truy cập Thư viện ảnh để chọn ảnh.');
+        return;
+      }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images', 'videos'],
+        mediaTypes: ['images'],
         allowsMultipleSelection: true,
-        quality: 0.85,
+        selectionLimit: 6,
+        base64: true,
+        quality: 0.45,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const pickedUris = result.assets.map((asset) => asset.uri);
-        const hasVideo = result.assets.some((asset) => asset.type === 'video');
-        setSelectedMediaUrls(pickedUris);
-        setIsSelectedVideo(hasVideo);
-        showToast(`Đã chọn ${pickedUris.length} tệp từ điện thoại.`);
+        const pickedDataUrls = result.assets.map((asset) =>
+          asset.base64
+            ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
+            : asset.uri
+        );
+        setSelectedMediaUrls((prev) => [...prev, ...pickedDataUrls].slice(0, 8));
+        setIsSelectedVideo(false);
+        showToast(`Đã thêm ${pickedDataUrls.length} ảnh từ điện thoại.`);
       }
-    } catch {
-      showToast('Không thể mở thư viện phương tiện trên máy.');
+    } catch (err) {
+      console.warn('[Post Media Picker] Lỗi chọn ảnh:', err);
+      showToast('Không thể mở thư viện ảnh trên thiết bị.');
     }
   };
 
@@ -213,52 +372,91 @@ export const MobileModals: React.FC = () => {
     try {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        showToast('Vui lòng cấp quyền Máy ảnh để chụp ảnh hoặc quay video.');
+        showToast('Vui lòng cấp quyền Máy ảnh để chụp ảnh khoảnh khắc.');
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images', 'videos'],
-        quality: 0.85,
+        mediaTypes: ['images'],
+        base64: true,
+        quality: 0.45,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        setSelectedMediaUrls((prev) => [asset.uri, ...prev]);
-        setIsSelectedVideo(asset.type === 'video');
-        showToast('Đã thêm ảnh/video vừa chụp.');
+        const dataUrl = asset.base64
+          ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
+          : asset.uri;
+        setSelectedMediaUrls((prev) => [dataUrl, ...prev].slice(0, 8));
+        setIsSelectedVideo(false);
+        showToast('Đã thêm ảnh vừa chụp.');
       }
-    } catch {
+    } catch (err) {
+      console.warn('[Post Camera] Lỗi chụp ảnh:', err);
       showToast('Không thể mở máy ảnh trên thiết bị.');
     }
   };
 
-  const toggleSampleMediaItem = (url: string, isVideo = false) => {
-    if (isVideo) {
-      setIsSelectedVideo(true);
-      setSelectedMediaUrls([url]);
-      return;
-    }
-    setIsSelectedVideo(false);
+  const handleRemoveMediaAt = (index: number) => {
     setSelectedMediaUrls((prev) => {
-      if (prev.includes(url)) {
-        return prev.length > 1 ? prev.filter((u) => u !== url) : prev;
-      }
-      return [...prev, url];
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) setIsSelectedVideo(false);
+      return next;
     });
   };
+
+  const handleClearAllMedia = () => {
+    setSelectedMediaUrls([]);
+    setIsSelectedVideo(false);
+    showToast('Đã xóa tất cả ảnh đã chọn.');
+  };
+
+  const handleSubmitNewPost = async () => {
+    if (isSubmittingPost) return;
+    setIsSubmittingPost(true);
+    try {
+      const ok = await createPost({
+        content: postCaption,
+        tags: selectedHashtags,
+        mediaUrls: selectedMediaUrls,
+        mediaType: isSelectedVideo ? 'video' : 'image',
+        category: 'moment',
+      });
+      if (ok) {
+        setPostCaption('');
+        setSelectedMediaUrls([]);
+        setIsSelectedVideo(false);
+        // Lưu lại toàn bộ hashtag đã dùng vào danh sách lịch sử
+        setSavedHashtags((prev) => Array.from(new Set([...selectedHashtags, ...prev])));
+      }
+    } finally {
+      setIsSubmittingPost(false);
+    }
+  };
+
+  const filteredNotifications = useMemo(
+    () => notifications.filter((n) => matchesNotificationTab(n, notifFilterTab)),
+    [notifications, notifFilterTab]
+  );
+
+  const notifCounts = useMemo(
+    () => ({
+      all: notifications.length,
+      friend: notifications.filter((n) => matchesNotificationTab(n, 'friend')).length,
+      follow: notifications.filter((n) => matchesNotificationTab(n, 'follow')).length,
+      sos: notifications.filter((n) => matchesNotificationTab(n, 'sos')).length,
+    }),
+    [notifications]
+  );
 
   // 1. FULLSCREEN SWIPEABLE MEDIA LIGHTBOX MODAL
   if (lightboxMedia) {
     const urls: string[] = Array.isArray(lightboxMedia.mediaUrls)
-      ? lightboxMedia.mediaUrls
-      : Array.isArray(lightboxMedia)
-      ? (lightboxMedia as any)
-      : typeof (lightboxMedia as any).url === 'string'
-      ? [(lightboxMedia as any).url]
+      ? lightboxMedia.mediaUrls.filter(Boolean)
       : [];
 
     if (urls.length === 0) {
       return null;
     }
+
     const handleLightboxScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
       if (idx >= 0 && idx < urls.length && idx !== lightboxIdx) {
@@ -280,12 +478,10 @@ export const MobileModals: React.FC = () => {
 
             <View style={{ flex: 1, marginHorizontal: 8 }}>
               <Text style={styles.lightboxAuthor}>
-                {lightboxMedia.authorName || 'Xem phương tiện'}
+                {lightboxMedia.authorName || 'Xem ảnh'}
               </Text>
               <Text style={styles.lightboxCounter}>
-                {lightboxMedia.mediaType === 'video'
-                  ? 'Đang phát Video ngắn'
-                  : `Ảnh ${lightboxIdx + 1} / ${urls.length} (Chạm để đóng · Gạt xem tiếp)`}
+                {`Ảnh ${lightboxIdx + 1} / ${urls.length} · Vuốt ngang để xem tiếp`}
               </Text>
             </View>
 
@@ -322,19 +518,12 @@ export const MobileModals: React.FC = () => {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-
-            {lightboxMedia.mediaType === 'video' && (
-              <View style={styles.lightboxVideoTag}>
-                <Feather name="video" size={14} color="#FFFFFF" />
-                <Text style={styles.lightboxVideoTagText}>Đang phát ở chế độ toàn màn hình</Text>
-              </View>
-            )}
           </View>
 
           {urls.length > 1 && (
             <View style={styles.lightboxThumbRow}>
               {urls.map((u, idx) => (
-                <TouchableOpacity key={`${u}-${idx}`} onPress={() => setLightboxIdx(idx)}>
+                <TouchableOpacity key={`${idx}`} onPress={() => setLightboxIdx(idx)}>
                   <Image
                     source={{ uri: u }}
                     style={[
@@ -351,15 +540,23 @@ export const MobileModals: React.FC = () => {
           )}
 
           {lightboxMedia.caption ? (
-            <TouchableOpacity activeOpacity={1} onPress={closeLightboxMedia} style={styles.lightboxFooter}>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={closeLightboxMedia}
+              style={styles.lightboxFooter}
+            >
               <Text style={styles.lightboxCaption} numberOfLines={3}>
                 {lightboxMedia.caption}
               </Text>
-              <Text style={styles.lightboxDismissHint}>Chạm vào màn hình để quay lại bảng tin</Text>
+              <Text style={styles.lightboxDismissHint}>Chạm vào màn hình để đóng</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity activeOpacity={1} onPress={closeLightboxMedia} style={{ alignItems: 'center', paddingBottom: 12 }}>
-              <Text style={styles.lightboxDismissHint}>Chạm vào màn hình để quay lại bảng tin</Text>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={closeLightboxMedia}
+              style={{ alignItems: 'center', paddingBottom: 12 }}
+            >
+              <Text style={styles.lightboxDismissHint}>Chạm vào màn hình để đóng</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -389,19 +586,23 @@ export const MobileModals: React.FC = () => {
             </View>
             <View style={styles.sheetBody}>
               <View style={styles.matchCenterBox}>
-                <Image
-                  source={{ uri: matchedCandidateModal.avatarUrl }}
-                  style={styles.matchAvatarLarge}
-                />
+                {matchedCandidateModal.avatarUrl ? (
+                  <Image
+                    source={{ uri: matchedCandidateModal.avatarUrl }}
+                    style={styles.matchAvatarLarge}
+                  />
+                ) : (
+                  <View style={[styles.matchAvatarLarge, styles.avatarFallbackCircle]}>
+                    <Feather name="heart" size={32} color={theme.primary} />
+                  </View>
+                )}
                 <Text style={styles.publicName}>
-                  Bạn và {matchedCandidateModal.ownerName} đã thích nhau!
+                  Bạn và {matchedCandidateModal.ownerName} đã tương hợp!
                 </Text>
-                <Text style={styles.subHintText}>
+                <Text style={[styles.subHintText, { textAlign: 'center' }]}>
                   {matchedCandidateModal.pets.length > 0
-                    ? matchedCandidateModal.pets.every((p) => p.isVaccinatedAndRabies)
-                      ? `Chủ nuôi đã khai báo tiêm ngừa cho ${matchedCandidateModal.pets.map((p) => p.name).join(' & ')}, sẵn sàng hẹn đi dạo.`
-                      : `Các bé ${matchedCandidateModal.pets.map((p) => p.name).join(' & ')} đang chờ làm quen cùng bé nhà bạn.`
-                    : 'Cả hai bạn đã sẵn sàng trò chuyện và làm quen!'}
+                    ? `Các bé ${matchedCandidateModal.pets.map((p) => p.name).join(' & ')} đã sẵn sàng làm quen cùng bé nhà bạn. Thông báo Match cũng đã được lưu vào Trung tâm Thông báo.`
+                    : 'Cả hai đã trở thành bạn bè trên Pawty và có thể nhắn tin ngay!'}
                 </Text>
                 <TouchableOpacity
                   style={[styles.primaryBtn, { backgroundColor: theme.primary, width: '100%' }]}
@@ -409,6 +610,17 @@ export const MobileModals: React.FC = () => {
                 >
                   <Feather name="message-circle" size={16} color="#FFFFFF" />
                   <Text style={styles.primaryBtnText}>Nhắn tin làm quen ngay</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryOutlineBtn}
+                  onPress={() => {
+                    const targetHandle = matchedCandidateModal.ownerHandle;
+                    closeMatchedCandidateModal();
+                    openPublicUserProfile(targetHandle);
+                  }}
+                >
+                  <Feather name="user" size={15} color="#4A3F35" />
+                  <Text style={styles.secondaryOutlineBtnText}>Xem trang cá nhân</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -418,9 +630,8 @@ export const MobileModals: React.FC = () => {
     );
   }
 
-  // 3. LIKES YOU DRAWER MODAL
+  // 3. LIKES YOU DRAWER MODAL (100% FREE — UNLOCKED FOR ALL MEMBERS)
   if (showLikesYouDrawer) {
-    const likedCandidates = tinderCandidates.filter((c) => c.hasLikedMe);
     return (
       <Modal
         visible
@@ -431,9 +642,12 @@ export const MobileModals: React.FC = () => {
         <View style={styles.backdrop}>
           <View style={[styles.sheet, { paddingBottom: bottomInset + 18 }]}>
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>
-                Đã thích bạn ({likedCandidates.length})
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Feather name="heart" size={18} color={theme.primary} />
+                <Text style={styles.sheetTitle}>
+                  Ai đã thích bạn ({likesYouCandidates.length})
+                </Text>
+              </View>
               <TouchableOpacity
                 onPress={() => setShowLikesYouDrawer(false)}
                 style={styles.closeBtn}
@@ -441,48 +655,80 @@ export const MobileModals: React.FC = () => {
                 <Feather name="x" size={18} color="#5C5046" />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={styles.sheetBody}>
-              {!isVip ? (
-                <View style={styles.lockedBox}>
-                  <Feather name="lock" size={24} color={theme.primary} />
-                  <Text style={styles.lockedTitle}>
-                    Có {likedCandidates.length} người đã thả tim hồ sơ của bạn
+
+            <ScrollView
+              contentContainerStyle={styles.sheetBody}
+              showsVerticalScrollIndicator={false}
+            >
+              {likesYouCandidates.length === 0 ? (
+                <View style={styles.emptyCenterBox}>
+                  <View style={styles.emptyIconCircle}>
+                    <Feather name="heart" size={26} color={theme.primary} />
+                  </View>
+                  <Text style={styles.emptyBoxTitle}>Chưa có lượt thích mới</Text>
+                  <Text style={styles.emptyBoxSub}>
+                    Khi có chủ nuôi quẹt phải hồ sơ của bạn trên Radar Kết nối, danh sách sẽ hiển thị miễn phí tại đây để bạn thích lại ngay.
                   </Text>
-                  <Text style={styles.lockedSub}>
-                    Nâng cấp gói Pawty Plus / Gold để xem rõ mặt và kết nối trò chuyện ngay lập tức.
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
-                    onPress={() => {
-                      setShowLikesYouDrawer(false);
-                      setActiveModal('vip_upgrade');
-                    }}
-                  >
-                    <Text style={styles.primaryBtnText}>Mở khóa bằng Pawty Plus / Gold</Text>
-                  </TouchableOpacity>
                 </View>
               ) : (
-                <View style={{ gap: 10 }}>
-                  {likedCandidates.map((item) => (
-                    <View key={item.id} style={styles.likedRow}>
-                      <Image source={{ uri: item.avatarUrl }} style={styles.likedAvatar} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.optionTitle}>
-                          {item.ownerName}, {item.ownerAge}
-                        </Text>
-                        <Text style={styles.optionSub}>
-                          {item.pets.map((p) => `${p.name} (${p.breed})`).join(', ')}
-                        </Text>
-                      </View>
+                <View style={{ gap: 12 }}>
+                  <Text style={styles.subHintText}>
+                    Chạm vào ảnh/tên để xem trang cá nhân đồng nhất hoặc nhấn Thích lại để kết nối trò chuyện ngay.
+                  </Text>
+                  {likesYouCandidates.map((item) => (
+                    <View key={item.id} style={styles.likesYouCard}>
                       <TouchableOpacity
-                        style={[styles.matchSmallBtn, { backgroundColor: theme.primary }]}
+                        style={styles.likesYouTopTouch}
+                        activeOpacity={0.8}
                         onPress={() => {
                           setShowLikesYouDrawer(false);
-                          openChatWithMatchedCandidate(item);
+                          openPublicUserProfile(item.ownerHandle);
                         }}
                       >
-                        <Text style={styles.matchSmallBtnText}>Nhắn tin</Text>
+                        {item.avatarUrl ? (
+                          <Image source={{ uri: item.avatarUrl }} style={styles.likedAvatar} />
+                        ) : (
+                          <View style={[styles.likedAvatar, styles.avatarFallbackCircle]}>
+                            <Feather name="user" size={20} color="#7A6E63" />
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.optionTitle}>
+                              {item.ownerName}, {item.ownerAge}
+                            </Text>
+                            <Text style={styles.distanceBadgeText}>
+                              · {item.distanceKm} km
+                            </Text>
+                          </View>
+                          <Text style={styles.purposeInlineTag} numberOfLines={1}>
+                            {item.lookingFor}
+                          </Text>
+                          <Text style={styles.optionSub} numberOfLines={1}>
+                            {item.pets.length > 0
+                              ? `Boss: ${item.pets.map((p) => `${p.name} (${p.breed})`).join(', ')}`
+                              : item.area || 'Cư dân yêu thú cưng'}
+                          </Text>
+                        </View>
+                        <Feather name="chevron-right" size={16} color="#9A8D82" />
                       </TouchableOpacity>
+
+                      <View style={styles.likesYouActionRow}>
+                        <TouchableOpacity
+                          style={styles.passOutlineBtn}
+                          onPress={() => passLikesYouCandidate(item)}
+                        >
+                          <Feather name="x" size={14} color="#6E6257" />
+                          <Text style={styles.passOutlineBtnText}>Bỏ qua</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.likeBackPrimaryBtn, { backgroundColor: theme.primary }]}
+                          onPress={() => likeBackCandidate(item)}
+                        >
+                          <Feather name="heart" size={14} color="#FFFFFF" />
+                          <Text style={styles.likeBackPrimaryBtnText}>Thích lại & Kết nối</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   ))}
                 </View>
@@ -494,462 +740,158 @@ export const MobileModals: React.FC = () => {
     );
   }
 
-  // 4. PUBLIC USER PROFILE MODAL — FULLSCREEN INSTAGRAM STYLE
-  if (viewedUserHandle) {
-    const profile = publicProfiles[viewedUserHandle] || resolvePublicProfile(viewedUserHandle);
-    const userPosts = posts ? posts.filter((p) => p.authorHandle === profile.handle) : [];
-    const galleryItems =
-      userPosts.length > 0
-        ? userPosts
-        : profile.galleryUrls.map((url, idx) => ({
-            id: `gal-${idx}`,
-            mediaUrls: [url],
-            mediaType: 'image' as const,
-            authorName: profile.name,
-            content: '',
-          }));
+  const modalTitleMap: Record<string, string> = {
+    new_moment: 'Đăng bài lên Khám phá',
+    my_settings: 'Cài đặt & Bảo mật',
+    tinder_setup: 'Hồ sơ Hẹn hò & Kết nối',
+    edit_profile: 'Chỉnh sửa nhanh Hồ sơ',
+    notifications: 'Trung tâm Thông báo',
+  };
 
-    return (
-      <Modal
-        visible
-        animationType="slide"
-        onRequestClose={closePublicUserProfile}
-      >
-        <SafeAreaView style={styles.igFullScreenContainer} edges={['top', 'bottom']}>
-          {/* TOP INSTAGRAM APP BAR */}
-          <View style={styles.igTopAppBar}>
-            <TouchableOpacity
-              onPress={closePublicUserProfile}
-              style={styles.igBackBtn}
-              activeOpacity={0.7}
-            >
-              <Feather name="arrow-left" size={22} color="#1C1815" />
-            </TouchableOpacity>
+  if (!activeModal || !modalTitleMap[activeModal]) return null;
 
-            <View style={styles.igHeaderUserRow}>
-              {profile.isPrivate && (
-                <View style={{ marginRight: 5 }}><Feather name="lock" size={13} color="#1C1815" /></View>
-              )}
-              <Text style={styles.igHeaderUsername}>{profile.handle}</Text>
-            </View>
-
-            <View style={styles.igHeaderRightActions}>
-              <TouchableOpacity
-                style={styles.igHeaderActionBtn}
-                onPress={() => toggleFollowUser(profile.handle)}
-                activeOpacity={0.7}
-              >
-                <Feather
-                  name={profile.isFollowing ? 'bell-off' : 'bell'}
-                  size={19}
-                  color={profile.isFollowing ? theme.primary : '#1C1815'}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.igHeaderActionBtn}
-                onPress={() => showToast(`Chia sẻ trang cá nhân của ${profile.name}`)}
-                activeOpacity={0.7}
-              >
-                <Feather name="share-2" size={19} color="#1C1815" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            {/* INSTAGRAM AVATAR + STATS ROW */}
-            <View style={styles.igProfileHeaderSection}>
-              <View style={styles.igAvatarRow}>
-                {/* Avatar with Instagram Ring */}
-                <View style={[styles.igAvatarRing, { borderColor: theme.primary }]}>
-                  <Image source={{ uri: profile.avatarUrl }} style={styles.igProfileAvatarImg} />
-                </View>
-
-                {/* 3 Stats Columns */}
-                <View style={styles.igStatsColumnsWrap}>
-                  <View style={styles.igStatCol}>
-                    <Text style={styles.igStatNumber}>{galleryItems.length}</Text>
-                    <Text style={styles.igStatText}>bài viết</Text>
-                  </View>
-                  <View style={styles.igStatCol}>
-                    <Text style={styles.igStatNumber}>{profile.followersCount}</Text>
-                    <Text style={styles.igStatText}>người theo dõi</Text>
-                  </View>
-                  <View style={styles.igStatCol}>
-                    <Text style={styles.igStatNumber}>{profile.friendsCount}</Text>
-                    <Text style={styles.igStatText}>đang theo dõi</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Name & Title Badge */}
-              <View style={styles.igNameBadgeRow}>
-                <Text style={styles.igFullNameText}>{profile.name}</Text>
-                <View style={[styles.igNicknameBadge, { backgroundColor: theme.primarySoft }]}>
-                  <Feather name="award" size={11} color={theme.primary} />
-                  <Text style={[styles.igNicknameText, { color: theme.primary }]}>
-                    {profile.nickname}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Location Mini Tag */}
-              <View style={styles.igLocationRow}>
-                <Feather name="map-pin" size={12} color="#7A6E63" />
-                <Text style={styles.igLocationText}>{profile.area}</Text>
-              </View>
-
-              {/* Bio */}
-              <Text style={styles.igBioTextContent}>{profile.bio}</Text>
-
-              {/* INSTAGRAM ACTION BUTTONS ROW */}
-              <View style={styles.igActionBtnsRow}>
-                {/* Nút 1: Theo dõi */}
-                <TouchableOpacity
-                  style={[
-                    styles.igMainBtn,
-                    profile.isFollowing
-                      ? styles.igBtnFollowing
-                      : [styles.igBtnFollow, { backgroundColor: theme.primary }],
-                  ]}
-                  onPress={() => toggleFollowUser(profile.handle)}
-                  activeOpacity={0.8}
-                >
-                  <Feather
-                    name={profile.isFollowing ? 'check' : 'bell'}
-                    size={14}
-                    color={profile.isFollowing ? '#1C1815' : '#FFFFFF'}
-                  />
-                  <Text
-                    style={[
-                      styles.igMainBtnText,
-                      { color: profile.isFollowing ? '#1C1815' : '#FFFFFF' },
-                    ]}
-                  >
-                    {profile.isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Nút 2: Kết bạn */}
-                <TouchableOpacity
-                  style={[
-                    styles.igMainBtn,
-                    profile.friendStatus === 'accepted' || profile.isFriend
-                      ? styles.igBtnFriendAccepted
-                      : profile.friendStatus === 'pending'
-                      ? styles.igBtnFriendPending
-                      : styles.igBtnFriendDefault,
-                  ]}
-                  onPress={() => toggleFriendStatus(profile.handle)}
-                  activeOpacity={0.8}
-                >
-                  <Feather
-                    name={
-                      profile.friendStatus === 'accepted' || profile.isFriend
-                        ? 'check'
-                        : profile.friendStatus === 'pending'
-                        ? 'clock'
-                        : 'user-plus'
-                    }
-                    size={14}
-                    color={
-                      profile.friendStatus === 'accepted' || profile.isFriend
-                        ? '#2E7D5B'
-                        : profile.friendStatus === 'pending'
-                        ? '#856404'
-                        : '#1C1815'
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.igMainBtnText,
-                      {
-                        color:
-                          profile.friendStatus === 'accepted' || profile.isFriend
-                            ? '#2E7D5B'
-                            : profile.friendStatus === 'pending'
-                            ? '#856404'
-                            : '#1C1815',
-                      },
-                    ]}
-                  >
-                    {profile.friendStatus === 'accepted' || profile.isFriend
-                      ? 'Bạn bè'
-                      : profile.friendStatus === 'pending'
-                      ? 'Đã gửi lời mời'
-                      : 'Kết bạn'}
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Nút 3: Nhắn tin (nếu là bạn bè) */}
-                {(profile.friendStatus === 'accepted' || profile.isFriend) && (
-                  <TouchableOpacity
-                    style={styles.igDirectChatBtn}
-                    onPress={() => {
-                      closePublicUserProfile();
-                      startDirectChatWithUser(profile.handle);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Feather name="message-circle" size={16} color="#1C1815" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-
-            {/* INSTAGRAM PET HIGHLIGHTS (Khoanh Tròn Thú Cưng) */}
-            {profile.pets && profile.pets.length > 0 && (
-              <View style={styles.igHighlightsSection}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
-                  {profile.pets.map((p, idx) => (
-                    <View key={`${p.name}-${idx}`} style={styles.igHighlightItem}>
-                      <View style={[styles.igHighlightRing, { borderColor: p.isVaccinatedAndRabies ? '#2E7D5B' : '#E8DED1' }]}>
-                        <View style={styles.igHighlightCircle}>
-                          <Feather name="award" size={24} color={theme.primary} />
-                        </View>
-                        {p.isVaccinatedAndRabies && (
-                          <View style={styles.igVaccineVerifiedBadge}>
-                            <Feather name="check" size={9} color="#FFFFFF" />
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.igHighlightName} numberOfLines={1}>
-                        {p.name}
-                      </Text>
-                      <Text style={styles.igHighlightMeta} numberOfLines={1}>
-                        {p.species} · {p.weightKg}kg
-                      </Text>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            {/* INSTAGRAM GRID TAB BAR (Biểu tượng Lưới bài viết) */}
-            <View style={styles.igMediaTabBar}>
-              <View style={[styles.igMediaTabItem, styles.igMediaTabActive]}>
-                <Feather name="grid" size={20} color="#1C1815" />
-              </View>
-              <View style={styles.igMediaTabItem}>
-                <Feather name="user" size={20} color="#9C8E80" />
-              </View>
-            </View>
-
-            {/* INSTAGRAM 3-COLUMN PHOTO GRID */}
-            <View style={styles.igGridPhotoContainer}>
-              {galleryItems.map((item, idx) => {
-                const urls = item.mediaUrls || [item];
-                return (
-                  <TouchableOpacity
-                    key={`ig-feed-${idx}`}
-                    style={styles.igGridCell}
-                    activeOpacity={0.9}
-                    onPress={() =>
-                      openLightboxMedia({
-                        postId: item.id || `lightbox-${idx}`,
-                        mediaUrls: urls,
-                        initialIndex: 0,
-                        mediaType: item.mediaType || 'image',
-                        authorName: profile.name,
-                        caption: item.content || `Khoảnh khắc của ${profile.name}`,
-                      })
-                    }
-                  >
-                    <Image source={{ uri: urls[0] }} style={styles.igGridCellImage} />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-    );
-  }
-
-  const isGeneralModalActive =
-    activeModal === 'new_moment' ||
-    activeModal === 'my_settings' ||
-    activeModal === 'tinder_setup' ||
-    activeModal === 'vip_upgrade' ||
-    activeModal === 'edit_profile' ||
-    activeModal === 'notifications';
-
-  if (!isGeneralModalActive) return null;
+  const titleText = modalTitleMap[activeModal];
 
   return (
     <Modal
-      visible={isGeneralModalActive}
+      visible={Boolean(activeModal)}
       transparent
       animationType="slide"
       onRequestClose={() => setActiveModal(null)}
     >
       <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: bottomInset + 18 }]}>
           <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>
-              {activeModal === 'new_moment' && 'Đăng bài mới lên Khám phá'}
-              {activeModal === 'my_settings' && 'Cài đặt của tôi & Quyền riêng tư'}
-              {activeModal === 'tinder_setup' && 'Thiết lập Hồ sơ Kết nối'}
-              {activeModal === 'vip_upgrade' && 'Gói thành viên Pawty Plus & Gold'}
-              {activeModal === 'edit_profile' && 'Chỉnh sửa Trang cá nhân & Thú cưng'}
-              {activeModal === 'notifications' && 'Thông báo hoạt động'}
-            </Text>
+            <Text style={styles.sheetTitle}>{titleText}</Text>
             <TouchableOpacity onPress={() => setActiveModal(null)} style={styles.closeBtn}>
               <Feather name="x" size={18} color="#5C5046" />
             </TouchableOpacity>
           </View>
 
           <ScrollView
-            showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.sheetBody}
             keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            {/* MODAL 1: NEW EXPLORE POST (UNIFIED MEDIA PICKER + PHONE GALLERY + FREE HASHTAGS) */}
+            {/* =============================================================== */}
+            {/* MODAL 1: NEW POST COMPOSER (NO URL INPUT, MULTI-PHOTO + DB)     */}
+            {/* =============================================================== */}
             {activeModal === 'new_moment' && (
               <View>
-                <Text style={styles.label}>
-                  Chọn ảnh hoặc video từ điện thoại ({selectedMediaUrls.length} tệp đang chọn)
-                </Text>
+                <Text style={styles.label}>Hình ảnh đính kèm (Chọn nhiều ảnh hoặc chụp mới)</Text>
                 <View style={styles.twoCol}>
                   <TouchableOpacity
                     style={[
                       styles.deviceUploadBtn,
-                      { backgroundColor: theme.primarySoft, borderColor: theme.primary },
+                      {
+                        borderColor: theme.primary,
+                        backgroundColor: theme.primarySoft,
+                      },
                     ]}
                     onPress={handlePickMediaFromDevice}
+                    activeOpacity={0.85}
                   >
                     <Feather name="image" size={16} color={theme.primary} />
                     <Text style={[styles.deviceUploadBtnText, { color: theme.primary }]}>
-                      Thư viện Ảnh / Video
+                      Chọn ảnh từ máy
                     </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={styles.deviceCameraBtn}
                     onPress={handleCaptureCameraMedia}
+                    activeOpacity={0.85}
                   >
                     <Feather name="camera" size={16} color="#2C2520" />
-                    <Text style={styles.deviceCameraBtnText}>Máy ảnh / Quay</Text>
+                    <Text style={styles.deviceCameraBtnText}>Chụp ảnh</Text>
                   </TouchableOpacity>
                 </View>
 
                 {selectedMediaUrls.length > 0 && (
                   <View style={styles.selectedPreviewSection}>
-                    <Text style={styles.subHintText}>
-                      Gạt ngang để xem các ảnh/video đã chọn · Chạm vào dấu X để bỏ bớt
-                    </Text>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text style={styles.label}>
+                        Đã chọn ({selectedMediaUrls.length}/8 ảnh)
+                      </Text>
+                      <TouchableOpacity onPress={handleClearAllMedia}>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#C9302C' }}>
+                          Xóa tất cả
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
                       contentContainerStyle={styles.selectedMediaScroll}
                     >
                       {selectedMediaUrls.map((uri, idx) => (
-                        <View key={`${uri}-${idx}`} style={styles.selectedPreviewCard}>
+                        <View key={`sel-${idx}`} style={styles.selectedPreviewCard}>
                           <Image source={{ uri }} style={styles.selectedPreviewImg} />
                           <View style={styles.selectedOrderBadge}>
-                            <Text style={styles.selectedOrderText}>
-                              {isSelectedVideo ? 'Video' : `${idx + 1}/${selectedMediaUrls.length}`}
-                            </Text>
+                            <Text style={styles.selectedOrderText}>Ảnh {idx + 1}</Text>
                           </View>
-                          {selectedMediaUrls.length > 1 && (
-                            <TouchableOpacity
-                              style={styles.removeSelectedMediaBtn}
-                              onPress={() =>
-                                setSelectedMediaUrls((prev) => prev.filter((_, i) => i !== idx))
-                              }
-                            >
-                              <Feather name="x" size={12} color="#FFFFFF" />
-                            </TouchableOpacity>
-                          )}
+                          <TouchableOpacity
+                            style={styles.removeSelectedMediaBtn}
+                            onPress={() => handleRemoveMediaAt(idx)}
+                          >
+                            <Feather name="x" size={13} color="#FFFFFF" />
+                          </TouchableOpacity>
                         </View>
                       ))}
                     </ScrollView>
                   </View>
                 )}
 
-                <Text style={styles.label}>
-                  Hoặc chạm để chọn nhanh ảnh / video mẫu có sẵn
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.mediaGalleryScroll}
-                  contentContainerStyle={styles.mediaGalleryContent}
-                >
-                  {SAMPLE_UPLOAD_GALLERY.map((item) => {
-                    const isVideoItem = item.type === 'video';
-                    const idx = !isSelectedVideo ? selectedMediaUrls.indexOf(item.url) : -1;
-                    const isSelected = isVideoItem
-                      ? isSelectedVideo && selectedMediaUrls[0] === item.url
-                      : idx !== -1;
-
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={[
-                          styles.mediaPickCard,
-                          isSelected && {
-                            borderColor: theme.primary,
-                            borderWidth: 2.5,
-                          },
-                        ]}
-                        onPress={() => toggleSampleMediaItem(item.url, isVideoItem)}
-                      >
-                        <Image source={{ uri: item.url }} style={styles.mediaPickImg} />
-                        {isSelected && !isVideoItem && (
-                          <View
-                            style={[
-                              styles.mediaPickCheck,
-                              { backgroundColor: theme.primary },
-                            ]}
-                          >
-                            <Text style={styles.mediaPickOrderText}>{idx + 1}</Text>
-                          </View>
-                        )}
-                        {isVideoItem && (
-                          <View style={styles.videoDurationPill}>
-                            <Feather name="video" size={10} color="#FFFFFF" />
-                            <Text style={styles.videoDurationText}>Video</Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-
-                <Text style={styles.label}>Nội dung chia sẻ</Text>
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.label}>Nội dung chia sẻ</Text>
+                  <Text style={styles.counterText}>{postCaption.length}/500</Text>
+                </View>
                 <TextInput
-                  style={[styles.input, { height: 84, textAlignVertical: 'top' }]}
+                  style={[styles.input, { height: 92, textAlignVertical: 'top' }]}
                   multiline
-                  placeholder="Chia sẻ khoảnh khắc đáng yêu của bé..."
+                  maxLength={500}
+                  placeholder="Chia sẻ khoảnh khắc đáng yêu hoặc câu chuyện của bé..."
                   placeholderTextColor="#A3968A"
                   value={postCaption}
                   onChangeText={setPostCaption}
                 />
 
-                <Text style={styles.label}>Hashtag (Nhập tự do hoặc chọn gợi ý bên dưới)</Text>
+                <Text style={styles.label}>Chủ đề Hashtag (Chọn hoặc tự nhập thêm)</Text>
+                
+                {/* Custom Hashtag Input Row */}
                 <View style={styles.customHashtagRow}>
                   <TextInput
-                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                    placeholder="Nhập hashtag tự do (VD: #CorgiThuDuc)..."
+                    style={styles.customHashtagInput}
+                    placeholder="Nhập hashtag mới (VD: #CorgiBeo)..."
                     placeholderTextColor="#A3968A"
-                    value={customHashtagDraft}
-                    onChangeText={setCustomHashtagDraft}
+                    value={customHashtagText}
+                    onChangeText={setCustomHashtagText}
+                    autoCapitalize="none"
+                    returnKeyType="done"
                     onSubmitEditing={handleAddCustomHashtag}
                   />
                   <TouchableOpacity
-                    style={[styles.addHashtagBtn, { backgroundColor: theme.primary }]}
+                    style={[styles.customHashtagAddBtn, { backgroundColor: theme.primary }]}
                     onPress={handleAddCustomHashtag}
                   >
-                    <Feather name="plus" size={15} color="#FFFFFF" />
-                    <Text style={styles.addHashtagBtnText}>Thêm</Text>
+                    <Feather name="plus" size={14} color="#FFFFFF" />
+                    <Text style={styles.customHashtagAddBtnText}>Thêm</Text>
                   </TouchableOpacity>
                 </View>
 
-                <View style={[styles.hashtagWrap, { marginTop: 10 }]}>
-                  {Array.from(new Set([...selectedHashtags, ...SUGGESTED_HASHTAGS])).map((tag) => {
+                {/* Saved & Suggested Hashtags Chips */}
+                <View style={styles.hashtagWrap}>
+                  {savedHashtags.map((tag) => {
                     const active = selectedHashtags.includes(tag);
                     return (
                       <TouchableOpacity
@@ -977,24 +919,28 @@ export const MobileModals: React.FC = () => {
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
-                  onPress={() => {
-                    createPost({
-                      content: postCaption,
-                      tags: selectedHashtags,
-                      mediaUrls: selectedMediaUrls,
-                      mediaType: isSelectedVideo ? 'video' : 'image',
-                    });
-                    setPostCaption('');
-                  }}
+                  style={[
+                    styles.primaryBtn,
+                    { backgroundColor: theme.primary, opacity: isSubmittingPost ? 0.7 : 1 },
+                  ]}
+                  disabled={isSubmittingPost}
+                  onPress={handleSubmitNewPost}
                 >
-                  <Feather name="check" size={16} color="#FFFFFF" />
-                  <Text style={styles.primaryBtnText}>Đăng bài lên Khám phá</Text>
+                  {isSubmittingPost ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Feather name="send" size={16} color="#FFFFFF" />
+                  )}
+                  <Text style={styles.primaryBtnText}>
+                    {isSubmittingPost ? 'Đang đăng bài...' : 'Đăng bài lên Khám phá'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
 
-            {/* MODAL 2: MY SETTINGS (PRIVATE PROFILE TOGGLE + SINGLE DEVICE + THEME + PLUS + LOGOUT) */}
+            {/* =============================================================== */}
+            {/* MODAL 2: MY SETTINGS (ZERO VIP — ALL FEATURES FREE)             */}
+            {/* =============================================================== */}
             {activeModal === 'my_settings' && (
               <View style={{ gap: 14 }}>
                 <View style={styles.settingSectionCard}>
@@ -1005,7 +951,7 @@ export const MobileModals: React.FC = () => {
                         <Text style={styles.settingTitle}>Chế độ Tài khoản Riêng tư</Text>
                       </View>
                       <Text style={styles.settingDesc}>
-                        Khi bật, chỉ bạn bè đã kết bạn mới xem được bài viết và danh sách thú cưng của bạn.
+                        Khi bật, chỉ bạn bè đã kết bạn mới có thể nhắn tin và xem đầy đủ hoạt động của bạn.
                       </Text>
                     </View>
                     <TouchableOpacity
@@ -1030,12 +976,10 @@ export const MobileModals: React.FC = () => {
                 <View style={styles.settingSectionCard}>
                   <View style={styles.settingTitleRow}>
                     <Feather name="smartphone" size={15} color="#2E7D5B" />
-                    <Text style={styles.settingTitle}>
-                      Bảo mật Đăng nhập 1 Thiết bị duy nhất
-                    </Text>
+                    <Text style={styles.settingTitle}>Bảo mật phiên thiết bị</Text>
                   </View>
                   <Text style={styles.settingDesc}>
-                    Thiết bị: {activeDeviceName} ({activeDeviceSessionId}). Tài khoản chỉ được đăng nhập trên 1 thiết bị tại một thời điểm.
+                    Thiết bị hiện tại: {activeDeviceName} ({activeDeviceSessionId})
                   </Text>
                   <TouchableOpacity
                     style={styles.revokeDeviceBtn}
@@ -1043,38 +987,10 @@ export const MobileModals: React.FC = () => {
                   >
                     <Feather name="shield" size={14} color="#2E7D5B" />
                     <Text style={styles.revokeDeviceBtnText}>
-                      Làm mới phiên & Đăng xuất mọi thiết bị khác
+                      Làm mới phiên & Đăng xuất thiết bị khác
                     </Text>
                   </TouchableOpacity>
                 </View>
-
-                <View style={styles.settingSectionCard}>
-                  <Text style={styles.settingTitle}>Màu sắc giao diện cá nhân hóa</Text>
-                  <View style={[styles.twoCol, { marginTop: 10, flexWrap: 'wrap' }]}>
-                    {(Object.keys(THEME_PALETTES) as ThemePresetId[]).map((id) => {
-                      const t = THEME_PALETTES[id];
-                      const active = themeId === id;
-                      return (
-                        <TouchableOpacity
-                          key={id}
-                          style={[
-                            styles.themePickCard,
-                            active && {
-                              borderColor: t.primary,
-                              backgroundColor: '#FAF7F2',
-                            },
-                          ]}
-                          onPress={() => setThemeId(id)}
-                        >
-                          <View style={[styles.themeColorDot, { backgroundColor: t.primary }]} />
-                          <Text style={styles.themePickText}>{t.name}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-
-
 
                 <TouchableOpacity
                   style={styles.settingNavRow}
@@ -1089,10 +1005,7 @@ export const MobileModals: React.FC = () => {
 
                 <TouchableOpacity
                   style={styles.logoutFullBtn}
-                  onPress={() => {
-                    setActiveModal(null);
-                    logoutUser();
-                  }}
+                  onPress={() => setConfirmLogoutVisible(true)}
                 >
                   <Feather name="log-out" size={16} color="#C9302C" />
                   <Text style={styles.logoutFullBtnText}>Đăng xuất khỏi thiết bị này</Text>
@@ -1100,26 +1013,74 @@ export const MobileModals: React.FC = () => {
               </View>
             )}
 
-            {/* MODAL 3: USER TINDER SETUP PROFILE */}
+            {/* =============================================================== */}
+            {/* MODAL 3: USER TINDER SETUP (1-TO-1 PURPOSE + SELECTOR INPUTS)   */}
+            {/* =============================================================== */}
             {activeModal === 'tinder_setup' && (
               <View>
                 <Text style={styles.subHintText}>
-                  Thiết lập thông tin cá nhân & phong cách sống hiển thị trên thẻ của bạn ở mục Kết nối.
+                  Mục đích tìm kiếm được chọn duy nhất 1 mục và đồng bộ trực tiếp với bộ lọc trên Radar Kết nối.
                 </Text>
 
+                {/* MỤC ĐÍCH TÌM KIẾM — CHỈ ĐƯỢC CHỌN 1 (SINGLE-SELECT) */}
+                <Text style={styles.label}>Mục đích tìm kiếm của bạn (Chọn 1)</Text>
+                <View style={{ gap: 8, marginBottom: 14 }}>
+                  {TINDER_PURPOSE_OPTIONS.map((opt) => {
+                    const isSelected = tinderIntentInput === opt.intent;
+                    return (
+                      <TouchableOpacity
+                        key={opt.intent}
+                        style={[
+                          styles.purposeRadioCard,
+                          isSelected && {
+                            borderColor: theme.primary,
+                            backgroundColor: theme.primarySoft,
+                          },
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => setTinderIntentInput(opt.intent)}
+                      >
+                        <View style={{ flex: 1, paddingRight: 8 }}>
+                          <Text
+                            style={[
+                              styles.purposeRadioTitle,
+                              isSelected && { color: theme.primary },
+                            ]}
+                          >
+                            {opt.label}
+                          </Text>
+                          <Text style={styles.purposeRadioDesc}>{opt.desc}</Text>
+                        </View>
+                        <Feather
+                          name={isSelected ? 'check-circle' : 'circle'}
+                          size={20}
+                          color={isSelected ? theme.primary : '#C4B9AE'}
+                        />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* TUỔI & GIỚI TÍNH (SELECTOR) */}
                 <View style={styles.twoCol}>
-                  <View style={{ width: 100 }}>
-                    <Text style={styles.label}>Tuổi của bạn</Text>
-                    <TextInput
-                      style={styles.input}
-                      keyboardType="number-pad"
-                      value={tinderAgeInput}
-                      onChangeText={setTinderAgeInput}
-                    />
+                  <View style={{ width: 115 }}>
+                    <Text style={styles.label}>Độ tuổi</Text>
+                    <TouchableOpacity
+                      style={styles.selectorFieldBtn}
+                      onPress={() =>
+                        openSelector('Chọn độ tuổi của bạn', OWNER_AGE_OPTIONS, tinderAgeInput, (v) =>
+                          setTinderAgeInput(v)
+                        )
+                      }
+                    >
+                      <Text style={styles.selectorFieldText}>{tinderAgeInput} tuổi</Text>
+                      <Feather name="chevron-down" size={15} color="#7A6E63" />
+                    </TouchableOpacity>
                   </View>
+
                   <View style={{ flex: 1 }}>
                     <Text style={styles.label}>Giới tính</Text>
-                    <View style={styles.twoCol}>
+                    <View style={[styles.twoCol, { marginBottom: 0 }]}>
                       {(['Nữ', 'Nam'] as const).map((g) => (
                         <TouchableOpacity
                           key={g}
@@ -1146,72 +1107,125 @@ export const MobileModals: React.FC = () => {
                   </View>
                 </View>
 
-                <Text style={styles.label}>Đang tìm kiếm (Hiển thị nổi bật)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={tinderLookingForInput}
-                  onChangeText={setTinderLookingForInput}
-                  placeholder="VD: Tìm bạn dắt thú cưng đi dạo & Hẹn hò cà phê"
-                />
-
-                <Text style={styles.label}>Bạn có hay hút thuốc không?</Text>
-                <TextInput
-                  style={styles.input}
-                  value={tinderSmokingInput}
-                  onChangeText={setTinderSmokingInput}
-                  placeholder="VD: Không hút thuốc / Đang cố gắng bỏ"
-                />
-
-                <Text style={styles.label}>Thói quen tập luyện</Text>
-                <TextInput
-                  style={styles.input}
-                  value={tinderWorkoutInput}
-                  onChangeText={setTinderWorkoutInput}
-                  placeholder="VD: Hằng ngày / Thỉnh thoảng"
-                />
-
-                <Text style={styles.label}>Về việc uống bia rượu</Text>
-                <TextInput
-                  style={styles.input}
-                  value={tinderDrinkingInput}
-                  onChangeText={setTinderDrinkingInput}
-                  placeholder="VD: Uống giao lưu vào cuối tuần / Không uống"
-                />
-
+                {/* CUNG HOÀNG ĐẠO & PHONG CÁCH TRÒ CHUYỆN (SELECTOR) */}
                 <View style={styles.twoCol}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.label}>Cung hoàng đạo</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={tinderZodiacInput}
-                      onChangeText={setTinderZodiacInput}
-                      placeholder="VD: Thiên Bình"
-                    />
+                    <TouchableOpacity
+                      style={styles.selectorFieldBtn}
+                      onPress={() =>
+                        openSelector('Chọn cung hoàng đạo', ZODIAC_OPTIONS, tinderZodiacInput, (v) =>
+                          setTinderZodiacInput(v)
+                        )
+                      }
+                    >
+                      <Text style={styles.selectorFieldText} numberOfLines={1}>
+                        {tinderZodiacInput}
+                      </Text>
+                      <Feather name="chevron-down" size={15} color="#7A6E63" />
+                    </TouchableOpacity>
                   </View>
+
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Phong cách trò chuyện</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={tinderChatStyleInput}
-                      onChangeText={setTinderChatStyleInput}
-                      placeholder="VD: Nghiện nhắn tin"
-                    />
+                    <Text style={styles.label}>Phong cách chat</Text>
+                    <TouchableOpacity
+                      style={styles.selectorFieldBtn}
+                      onPress={() =>
+                        openSelector(
+                          'Chọn phong cách trò chuyện',
+                          CHAT_STYLE_OPTIONS,
+                          tinderChatStyleInput,
+                          (v) => setTinderChatStyleInput(v)
+                        )
+                      }
+                    >
+                      <Text style={styles.selectorFieldText} numberOfLines={1}>
+                        {tinderChatStyleInput}
+                      </Text>
+                      <Feather name="chevron-down" size={15} color="#7A6E63" />
+                    </TouchableOpacity>
                   </View>
                 </View>
 
+                {/* LỐI SỐNG (ALL SELECTORS) */}
+                <Text style={styles.label}>Thói quen vận động & Dắt dạo</Text>
+                <TouchableOpacity
+                  style={[styles.selectorFieldBtn, { marginBottom: 12 }]}
+                  onPress={() =>
+                    openSelector('Chọn thói quen vận động', WORKOUT_OPTIONS, tinderWorkoutInput, (v) =>
+                      setTinderWorkoutInput(v)
+                    )
+                  }
+                >
+                  <Text style={styles.selectorFieldText}>{tinderWorkoutInput}</Text>
+                  <Feather name="chevron-down" size={15} color="#7A6E63" />
+                </TouchableOpacity>
+
+                <View style={styles.twoCol}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.label}>Hút thuốc</Text>
+                    <TouchableOpacity
+                      style={styles.selectorFieldBtn}
+                      onPress={() =>
+                        openSelector('Thói quen hút thuốc', SMOKING_OPTIONS, tinderSmokingInput, (v) =>
+                          setTinderSmokingInput(v)
+                        )
+                      }
+                    >
+                      <Text style={styles.selectorFieldText} numberOfLines={1}>
+                        {tinderSmokingInput}
+                      </Text>
+                      <Feather name="chevron-down" size={15} color="#7A6E63" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.label}>Đồ uống / Rượu bia</Text>
+                    <TouchableOpacity
+                      style={styles.selectorFieldBtn}
+                      onPress={() =>
+                        openSelector('Thói quen đồ uống', DRINKING_OPTIONS, tinderDrinkingInput, (v) =>
+                          setTinderDrinkingInput(v)
+                        )
+                      }
+                    >
+                      <Text style={styles.selectorFieldText} numberOfLines={1}>
+                        {tinderDrinkingInput}
+                      </Text>
+                      <Feather name="chevron-down" size={15} color="#7A6E63" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* TỰ MÔ TẢ NGẮN (CÓ GIỚI HẠN KÝ TỰ) */}
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.label}>Tự mô tả ngắn trên thẻ Kết nối</Text>
+                  <Text style={styles.counterText}>{tinderPromptInput.length}/140</Text>
+                </View>
+                <TextInput
+                  style={[styles.input, { height: 72, textAlignVertical: 'top' }]}
+                  multiline
+                  maxLength={140}
+                  value={tinderPromptInput}
+                  onChangeText={setTinderPromptInput}
+                  placeholder="Viết vài dòng ngắn giới thiệu bản thân & Boss khi hẹn đi dạo..."
+                  placeholderTextColor="#A3968A"
+                />
+
                 <TouchableOpacity
                   style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
-                  onPress={() => {
-                    updateUserTinderSetup({
-                      age: parseInt(tinderAgeInput, 10) || 25,
+                  onPress={async () => {
+                    await updateUserTinderSetup({
+                      age: parseInt(tinderAgeInput, 10) || 24,
                       gender: tinderGenderInput,
-                      lookingFor: tinderLookingForInput,
+                      intent: tinderIntentInput,
+                      lookingFor: getTinderPurposeLabel(tinderIntentInput),
                       smoking: tinderSmokingInput,
                       workout: tinderWorkoutInput,
                       drinking: tinderDrinkingInput,
                       zodiac: tinderZodiacInput,
                       chatStyle: tinderChatStyleInput,
-                      promptQuote: userTinderSetup.promptQuote,
+                      promptQuote: tinderPromptInput.trim(),
                     });
                     setActiveModal(null);
                   }}
@@ -1222,236 +1236,202 @@ export const MobileModals: React.FC = () => {
               </View>
             )}
 
-            {/* MODAL 4: REDESIGNED PAWTY PLUS & GOLD PLANS */}
-            {activeModal === 'vip_upgrade' && (
-              <View style={{ gap: 12 }}>
-                <Text style={styles.subHintText}>
-                  Mọi tài khoản đều được nuôi tối đa 3 bé thú cưng miễn phí. Nâng cấp Plus hoặc Gold để mở khóa đặc quyền Kết nối (Tinder) và ưu tiên đặt lịch dịch vụ.
-                </Text>
-
-                {vipPlans.map((plan) => {
-                  const isCurrent = activeVipPlanId === plan.id && isVip;
-                  return (
-                    <View
-                      key={plan.id}
-                      style={[
-                        styles.cleanPlanCard,
-                        isCurrent && {
-                          borderColor: theme.primary,
-                          borderWidth: 2,
-                        },
-                      ]}
-                    >
-                      <View style={styles.cleanPlanTopRow}>
-                        <View style={{ flex: 1 }}>
-                          <View style={styles.planTitleBadgeRow}>
-                            <Text style={[styles.cleanPlanName, { color: plan.highlightColor }]}>
-                              {plan.name}
-                            </Text>
-                            <View
-                              style={[
-                                styles.popularBadge,
-                                { backgroundColor: theme.primarySoft },
-                              ]}
-                            >
-                              <Text style={[styles.popularBadgeText, { color: theme.primary }]}>
-                                {plan.badge}
-                              </Text>
-                            </View>
-                          </View>
-                          <Text style={styles.cleanPlanPrice}>
-                            {plan.priceLabel} · {plan.durationLabel}
-                          </Text>
-                        </View>
-                        {isCurrent && (
-                          <View
-                            style={[
-                              styles.currentPlanTag,
-                              { backgroundColor: theme.primarySoft },
-                            ]}
-                          >
-                            <Text style={[styles.currentPlanTagText, { color: theme.primary }]}>
-                              Đang dùng
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-
-                      <View style={styles.cleanPlanBulletList}>
-                        {plan.features.map((feat) => (
-                          <Text key={feat} style={styles.cleanPlanBullet}>
-                            • {feat}
-                          </Text>
-                        ))}
-                      </View>
-
-                      {!isCurrent && (
-                        <TouchableOpacity
-                          style={[
-                            styles.selectPlanBtn,
-                            { backgroundColor: plan.highlightColor || theme.primary },
-                          ]}
-                          onPress={() => selectAndActivateVipPlan(plan.id)}
-                        >
-                          <Text style={styles.selectPlanBtnText}>
-                            Chọn gói {plan.name} ({plan.priceLabel})
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* MODAL 5: EDIT OWNER & ACTIVE PET PROFILE (WITH DELETE PET) */}
+            {/* =============================================================== */}
+            {/* MODAL 4: QUICK EDIT OWNER & PET (SELECTOR-FIRST)                */}
+            {/* =============================================================== */}
             {activeModal === 'edit_profile' && (
               <View>
-                <Text style={styles.label}>Ghi chú bong bóng trên ảnh đại diện (Instagram Note)</Text>
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.label}>Ghi chú trên ảnh đại diện</Text>
+                  <Text style={styles.counterText}>{editOwnerNote.length}/60</Text>
+                </View>
                 <TextInput
                   style={styles.input}
+                  maxLength={60}
                   value={editOwnerNote}
                   onChangeText={setEditOwnerNote}
-                  placeholder="Hỏi bạn bè bất cứ điều gì..."
+                  placeholder="Chia sẻ suy nghĩ ngắn..."
                 />
 
-                <Text style={styles.label}>Họ và tên của bạn</Text>
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.label}>Tên hiển thị</Text>
+                  <Text style={styles.counterText}>{editOwnerName.length}/35</Text>
+                </View>
                 <TextInput
                   style={styles.input}
+                  maxLength={35}
                   value={editOwnerName}
                   onChangeText={setEditOwnerName}
                 />
 
                 <Text style={styles.label}>Khu vực sinh sống</Text>
-                <TextInput
-                  style={styles.input}
-                  value={editOwnerArea}
-                  onChangeText={setEditOwnerArea}
-                />
+                <TouchableOpacity
+                  style={[styles.selectorFieldBtn, { marginBottom: 12 }]}
+                  onPress={() =>
+                    openSelector('Chọn khu vực sinh sống', LIVING_AREA_OPTIONS, editOwnerArea, (v) =>
+                      setEditOwnerArea(v)
+                    )
+                  }
+                >
+                  <Text style={styles.selectorFieldText} numberOfLines={1}>
+                    {editOwnerArea || 'Chọn khu vực sinh sống...'}
+                  </Text>
+                  <Feather name="chevron-down" size={15} color="#7A6E63" />
+                </TouchableOpacity>
 
-                <Text style={styles.label}>Giới thiệu bản thân</Text>
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.label}>Tự mô tả bản thân</Text>
+                  <Text style={styles.counterText}>{editOwnerBio.length}/150</Text>
+                </View>
                 <TextInput
-                  style={[styles.input, { height: 64, textAlignVertical: 'top' }]}
+                  style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
                   multiline
+                  maxLength={150}
                   value={editOwnerBio}
                   onChangeText={setEditOwnerBio}
                 />
 
-                <Text style={[styles.label, { marginTop: 6 }]}>
-                  Chỉnh sửa thú cưng đang chọn: {activePet.name}
-                </Text>
-                <View style={styles.twoCol}>
-                  <TouchableOpacity
-                    style={[
-                      styles.chipBtn,
-                      editPetSpecies === 'Chó' && {
-                        backgroundColor: theme.primary,
-                        borderColor: theme.primary,
-                      },
-                    ]}
-                    onPress={() => setEditPetSpecies('Chó')}
-                  >
-                    <Text
+                {activePet.id ? (
+                  <>
+                    <Text style={[styles.label, { marginTop: 6 }]}>
+                      Thú cưng đang chọn: {activePet.name}
+                    </Text>
+                    <View style={styles.twoCol}>
+                      {(['Chó', 'Mèo', 'Khác'] as const).map((sp) => (
+                        <TouchableOpacity
+                          key={sp}
+                          style={[
+                            styles.chipBtn,
+                            editPetSpecies === sp && {
+                              backgroundColor: theme.primary,
+                              borderColor: theme.primary,
+                            },
+                          ]}
+                          onPress={() => {
+                            setEditPetSpecies(sp);
+                            if (sp === 'Chó') setEditPetBreed(POPULAR_DOG_BREEDS[0]);
+                            else if (sp === 'Mèo') setEditPetBreed(POPULAR_CAT_BREEDS[0]);
+                            else setEditPetBreed(OTHER_SPECIES_OPTIONS[0]);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.chipText,
+                              editPetSpecies === sp && { color: '#FFFFFF' },
+                            ]}
+                          >
+                            {sp}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <View style={styles.twoCol}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.label}>Tên thú cưng</Text>
+                        <TextInput
+                          style={styles.input}
+                          maxLength={30}
+                          value={editPetName}
+                          onChangeText={setEditPetName}
+                        />
+                      </View>
+                      <View style={{ width: 120 }}>
+                        <Text style={styles.label}>Cân nặng</Text>
+                        <TouchableOpacity
+                          style={styles.selectorFieldBtn}
+                          onPress={() =>
+                            openSelector(
+                              'Chọn cân nặng (kg)',
+                              PET_WEIGHT_OPTIONS,
+                              editPetWeight,
+                              (v) => setEditPetWeight(v)
+                            )
+                          }
+                        >
+                          <Text style={styles.selectorFieldText}>{editPetWeight} kg</Text>
+                          <Feather name="chevron-down" size={15} color="#7A6E63" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View style={styles.twoCol}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.label}>Giống loài</Text>
+                        <TouchableOpacity
+                          style={styles.selectorFieldBtn}
+                          onPress={() =>
+                            openSelector(
+                              'Chọn giống loài',
+                              editPetSpecies === 'Chó'
+                                ? POPULAR_DOG_BREEDS
+                                : editPetSpecies === 'Mèo'
+                                ? POPULAR_CAT_BREEDS
+                                : OTHER_SPECIES_OPTIONS,
+                              editPetBreed,
+                              (v) => {
+                                setEditPetBreed(v);
+                                if (editPetSpecies === 'Khác') setEditPetCustomSpecies(v);
+                              }
+                            )
+                          }
+                        >
+                          <Text style={styles.selectorFieldText} numberOfLines={1}>
+                            {editPetBreed || 'Chọn giống'}
+                          </Text>
+                          <Feather name="chevron-down" size={15} color="#7A6E63" />
+                        </TouchableOpacity>
+                      </View>
+                      <View style={{ width: 120 }}>
+                        <Text style={styles.label}>Độ tuổi</Text>
+                        <TouchableOpacity
+                          style={styles.selectorFieldBtn}
+                          onPress={() =>
+                            openSelector('Chọn độ tuổi', PET_AGE_OPTIONS, editPetAge, (v) =>
+                              setEditPetAge(v)
+                            )
+                          }
+                        >
+                          <Text style={styles.selectorFieldText}>{editPetAge}</Text>
+                          <Feather name="chevron-down" size={15} color="#7A6E63" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
                       style={[
-                        styles.chipText,
-                        editPetSpecies === 'Chó' && { color: '#FFFFFF' },
+                        styles.unifiedTickBox,
+                        editPetVaccinated && {
+                          backgroundColor: '#EAF7F1',
+                          borderColor: '#3E8E6C',
+                        },
                       ]}
+                      onPress={() => setEditPetVaccinated(!editPetVaccinated)}
                     >
-                      Loài Chó
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.chipBtn,
-                      editPetSpecies === 'Mèo' && {
-                        backgroundColor: theme.primary,
-                        borderColor: theme.primary,
-                      },
-                    ]}
-                    onPress={() => setEditPetSpecies('Mèo')}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        editPetSpecies === 'Mèo' && { color: '#FFFFFF' },
-                      ]}
-                    >
-                      Loài Mèo
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.twoCol}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Tên thú cưng</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={editPetName}
-                      onChangeText={setEditPetName}
-                    />
-                  </View>
-                  <View style={{ width: 110 }}>
-                    <Text style={styles.label}>Cân nặng (kg)</Text>
-                    <TextInput
-                      style={styles.input}
-                      keyboardType="decimal-pad"
-                      value={editPetWeight}
-                      onChangeText={setEditPetWeight}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.twoCol}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Giống loài</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={editPetBreed}
-                      onChangeText={setEditPetBreed}
-                    />
-                  </View>
-                  <View style={{ width: 110 }}>
-                    <Text style={styles.label}>Độ tuổi</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={editPetAge}
-                      onChangeText={setEditPetAge}
-                    />
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  style={[
-                    styles.unifiedTickBox,
-                    editPetVaccinated && {
-                      backgroundColor: '#EAF7F1',
-                      borderColor: '#3E8E6C',
-                    },
-                  ]}
-                  onPress={() => setEditPetVaccinated(!editPetVaccinated)}
-                >
-                  <View
-                    style={[
-                      styles.tickSquare,
-                      editPetVaccinated && {
-                        backgroundColor: '#3E8E6C',
-                        borderColor: '#3E8E6C',
-                      },
-                    ]}
-                  >
-                    {editPetVaccinated && (
-                      <Feather name="check" size={14} color="#FFFFFF" />
-                    )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.tickTitle}>
-                      Đã tiêm chủng & Phòng bệnh dại đầy đủ
-                    </Text>
-                    <Text style={styles.tickSub}>
-                      Hiển thị dấu tích xanh trực tiếp trên hồ sơ của bé {editPetName}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                      <View
+                        style={[
+                          styles.tickSquare,
+                          editPetVaccinated && {
+                            backgroundColor: '#3E8E6C',
+                            borderColor: '#3E8E6C',
+                          },
+                        ]}
+                      >
+                        {editPetVaccinated && (
+                          <Feather name="check" size={14} color="#FFFFFF" />
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.tickTitle}>
+                          Đã tiêm chủng & Phòng bệnh dại đầy đủ
+                        </Text>
+                        <Text style={styles.tickSub}>
+                          Hiển thị chứng nhận an toàn trên hồ sơ của bé {editPetName}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </>
+                ) : null}
 
                 <TouchableOpacity
                   style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
@@ -1459,14 +1439,17 @@ export const MobileModals: React.FC = () => {
                     setOwnerNoteBubble(editOwnerNote);
                     updateOwnerAndPetProfile({
                       ownerName: editOwnerName,
-                      ownerNickname: editOwnerNickname,
+                      ownerNickname: ownerNickname,
                       ownerBio: editOwnerBio,
                       ownerArea: editOwnerArea,
                       isPrivateProfile,
                       petId: activePet.id,
                       petName: editPetName,
                       petSpecies: editPetSpecies,
-                      petBreed: editPetBreed,
+                      petBreed:
+                        editPetSpecies === 'Khác'
+                          ? editPetCustomSpecies || editPetBreed
+                          : editPetBreed,
                       petGender: editPetGender,
                       petBirthDate: activePet.birthDate,
                       petAgeLabel: editPetAge,
@@ -1485,97 +1468,369 @@ export const MobileModals: React.FC = () => {
                   <Text style={styles.primaryBtnText}>Lưu hồ sơ</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.deletePetModalBtn}
-                  onPress={() => {
-                    deletePetProfile(activePet.id);
-                    setActiveModal(null);
-                  }}
-                >
-                  <Feather name="trash-2" size={15} color="#C9302C" />
-                  <Text style={styles.deletePetModalBtnText}>
-                    Xóa hồ sơ bé {activePet.name}
-                  </Text>
-                </TouchableOpacity>
+                {activePet.id ? (
+                  <TouchableOpacity
+                    style={styles.deletePetModalBtn}
+                    onPress={() => {
+                      deletePetProfile(activePet.id);
+                      setActiveModal(null);
+                    }}
+                  >
+                    <Feather name="trash-2" size={15} color="#C9302C" />
+                    <Text style={styles.deletePetModalBtnText}>
+                      Xóa hồ sơ bé {activePet.name}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             )}
 
-            {/* MODAL 7: NOTIFICATIONS */}
+            {/* =============================================================== */}
+            {/* MODAL 5: REDESIGNED NOTIFICATION CENTER (CATEGORIZED + ACTIONS) */}
+            {/* =============================================================== */}
             {activeModal === 'notifications' && (
-              <View style={{ gap: 10 }}>
-                {notifications.map((n) => (
-                  <TouchableOpacity
-                    key={n.id}
-                    style={[
-                      styles.notifItem,
-                      !n.isRead && {
-                        backgroundColor: theme.primarySoft,
-                        borderColor: theme.primary,
-                      },
-                    ]}
-                    onPress={() => markNotificationRead(n.id)}
-                  >
-                    <View style={styles.notifTopRow}>
-                      <Text style={styles.optionTitle}>{n.title}</Text>
-                      <Text style={styles.notifTime}>{n.timeLabel}</Text>
-                    </View>
-                    <Text style={styles.optionSub}>{n.body}</Text>
-                    {n.type === 'friend_request' && n.actionPayload?.status === 'pending' && (
-                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                        <TouchableOpacity
-                          style={{
-                            backgroundColor: theme.primary,
-                            paddingHorizontal: 14,
-                            paddingVertical: 6,
-                            borderRadius: 8,
-                          }}
-                          onPress={() => n.actionPayload?.senderHandle && acceptFriendRequest(n.actionPayload.senderHandle, n.id)}
-                        >
-                          <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>
-                            Chấp nhận
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={{
-                            backgroundColor: '#ECE6DF',
-                            paddingHorizontal: 14,
-                            paddingVertical: 6,
-                            borderRadius: 8,
-                          }}
-                          onPress={() => n.actionPayload?.senderHandle && declineFriendRequest(n.actionPayload.senderHandle, n.id)}
-                        >
-                          <Text style={{ color: '#5C5046', fontSize: 12, fontWeight: '700' }}>
-                            Từ chối
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                    {n.type === 'new_post' && (
+              <View>
+                {/* Category Filter Tabs */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.notifFilterRow}
+                >
+                  {(
+                    [
+                      { id: 'all', label: `Tất cả (${notifCounts.all})` },
+                      { id: 'friend', label: `Kết bạn & Match (${notifCounts.friend})` },
+                      { id: 'follow', label: `Theo dõi & Tương tác (${notifCounts.follow})` },
+                      { id: 'sos', label: `SOS (${notifCounts.sos})` },
+                    ] as const
+                  ).map((tab) => {
+                    const active = notifFilterTab === tab.id;
+                    return (
                       <TouchableOpacity
-                        style={{
-                          marginTop: 8,
-                          alignSelf: 'flex-start',
-                          backgroundColor: theme.primarySoft,
-                          paddingHorizontal: 10,
-                          paddingVertical: 4,
-                          borderRadius: 6,
-                        }}
-                        onPress={() => {
-                          setActiveModal(null);
-                          setActiveTab('explore');
-                        }}
+                        key={tab.id}
+                        style={[
+                          styles.notifFilterPill,
+                          active && {
+                            backgroundColor: theme.primary,
+                            borderColor: theme.primary,
+                          },
+                        ]}
+                        onPress={() => setNotifFilterTab(tab.id)}
                       >
-                        <Text style={{ color: theme.primary, fontSize: 11, fontWeight: '700' }}>
-                          Xem bài viết ngay →
+                        <Text
+                          style={[
+                            styles.notifFilterPillText,
+                            active && { color: '#FFFFFF', fontWeight: '800' },
+                          ]}
+                        >
+                          {tab.label}
                         </Text>
                       </TouchableOpacity>
-                    )}
-                  </TouchableOpacity>
-                ))}
+                    );
+                  })}
+                </ScrollView>
+
+                {/* Management Toolbar */}
+                {notifications.length > 0 && (
+                  <View style={styles.notifManageBar}>
+                    <TouchableOpacity
+                      style={styles.notifManageBtn}
+                      onPress={markAllNotificationsRead}
+                    >
+                      <Feather name="check-circle" size={13} color="#2E7D5B" />
+                      <Text style={[styles.notifManageText, { color: '#2E7D5B' }]}>
+                        Đọc tất cả
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.notifManageBtn}
+                      onPress={() => setConfirmClearNotifs(true)}
+                    >
+                      <Feather name="trash-2" size={13} color="#C9302C" />
+                      <Text style={[styles.notifManageText, { color: '#C9302C' }]}>
+                        Xóa tất cả
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Notification List */}
+                {filteredNotifications.length === 0 ? (
+                  <View style={styles.emptyCenterBox}>
+                    <View style={styles.emptyIconCircle}>
+                      <Feather name="bell" size={24} color="#8E8074" />
+                    </View>
+                    <Text style={styles.emptyBoxTitle}>Chưa có thông báo nào</Text>
+                    <Text style={styles.emptyBoxSub}>
+                      Các thông báo lời mời kết bạn, chấp nhận kết bạn, theo dõi mới, tương hợp hẹn dạo và SOS sẽ xuất hiện tại đây.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ gap: 10 }}>
+                    {filteredNotifications.map((n) => {
+                      const badge = getNotificationBadgeMeta(n);
+                      const senderHandle = n.actionPayload?.senderHandle;
+                      const reqStatus = n.actionPayload?.status;
+
+                      return (
+                        <TouchableOpacity
+                          key={n.id}
+                          activeOpacity={0.85}
+                          style={[
+                            styles.notifCard,
+                            !n.isRead && {
+                              backgroundColor: '#FFF9F7',
+                              borderColor: theme.primary,
+                            },
+                          ]}
+                          onPress={() => {
+                            markNotificationRead(n.id);
+                            if (
+                              n.type === 'sos_alert' ||
+                              n.type === 'sos_sighting' ||
+                              n.type === 'sos'
+                            ) {
+                              setActiveModal(null);
+                              setActiveTab('sos');
+                            } else if (senderHandle) {
+                              setActiveModal(null);
+                              openPublicUserProfile(senderHandle);
+                            }
+                          }}
+                        >
+                          <View style={styles.notifHeaderLine}>
+                            <View
+                              style={[
+                                styles.notifCategoryBadge,
+                                { backgroundColor: badge.bgColor },
+                              ]}
+                            >
+                              <Feather
+                                name={badge.icon as any}
+                                size={12}
+                                color={badge.textColor}
+                              />
+                              <Text
+                                style={[
+                                  styles.notifCategoryBadgeText,
+                                  { color: badge.textColor },
+                                ]}
+                              >
+                                {badge.label}
+                              </Text>
+                            </View>
+
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              {!n.isRead && (
+                                <View
+                                  style={[
+                                    styles.unreadDot,
+                                    { backgroundColor: theme.primary },
+                                  ]}
+                                />
+                              )}
+                              <Text style={styles.notifTime}>{n.timeLabel}</Text>
+                              <TouchableOpacity
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                onPress={() => deleteNotification(n.id)}
+                              >
+                                <Feather name="x" size={14} color="#9E9085" />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+
+                          <View style={styles.notifContentRow}>
+                            {n.actionPayload?.senderAvatar ? (
+                              <Image
+                                source={{ uri: n.actionPayload.senderAvatar }}
+                                style={styles.notifSenderAvatar}
+                              />
+                            ) : null}
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.optionTitle}>{n.title}</Text>
+                              <Text style={styles.optionSub}>{n.body}</Text>
+                            </View>
+                          </View>
+
+                          {/* INLINE ACTIONS BY NOTIFICATION TYPE */}
+                          {n.type === 'friend_request' && senderHandle && (
+                            <View style={styles.notifInlineActionsRow}>
+                              {reqStatus === 'accepted' ? (
+                                <>
+                                  <View style={styles.statusResolvedPillAccepted}>
+                                    <Feather name="check" size={12} color="#2E7D5B" />
+                                    <Text style={styles.statusResolvedTextAccepted}>
+                                      Đã chấp nhận kết bạn
+                                    </Text>
+                                  </View>
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.notifInlinePrimaryBtn,
+                                      { backgroundColor: theme.primary },
+                                    ]}
+                                    onPress={() => {
+                                      setActiveModal(null);
+                                      startDirectChatWithUser(senderHandle);
+                                    }}
+                                  >
+                                    <Feather name="message-circle" size={12} color="#FFFFFF" />
+                                    <Text style={styles.notifInlinePrimaryText}>Nhắn tin</Text>
+                                  </TouchableOpacity>
+                                </>
+                              ) : reqStatus === 'declined' ? (
+                                <View style={styles.statusResolvedPillDeclined}>
+                                  <Text style={styles.statusResolvedTextDeclined}>
+                                    Đã từ chối lời mời
+                                  </Text>
+                                </View>
+                              ) : (
+                                <>
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.notifInlinePrimaryBtn,
+                                      { backgroundColor: theme.primary },
+                                    ]}
+                                    onPress={() => acceptFriendRequest(senderHandle, n.id)}
+                                  >
+                                    <Feather name="user-check" size={13} color="#FFFFFF" />
+                                    <Text style={styles.notifInlinePrimaryText}>Chấp nhận</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    style={styles.notifInlineSecondaryBtn}
+                                    onPress={() => declineFriendRequest(senderHandle, n.id)}
+                                  >
+                                    <Text style={styles.notifInlineSecondaryText}>Từ chối</Text>
+                                  </TouchableOpacity>
+                                </>
+                              )}
+                            </View>
+                          )}
+
+                          {(n.type === 'friend_accepted' ||
+                            n.type === 'match' ||
+                            n.type === 'tinder') &&
+                            senderHandle && (
+                              <View style={styles.notifInlineActionsRow}>
+                                <TouchableOpacity
+                                  style={[
+                                    styles.notifInlinePrimaryBtn,
+                                    { backgroundColor: theme.primary },
+                                  ]}
+                                  onPress={() => {
+                                    markNotificationRead(n.id);
+                                    setActiveModal(null);
+                                    startDirectChatWithUser(senderHandle);
+                                  }}
+                                >
+                                  <Feather name="message-circle" size={13} color="#FFFFFF" />
+                                  <Text style={styles.notifInlinePrimaryText}>
+                                    Nhắn tin ngay
+                                  </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={styles.notifInlineSecondaryBtn}
+                                  onPress={() => {
+                                    markNotificationRead(n.id);
+                                    setActiveModal(null);
+                                    openPublicUserProfile(senderHandle);
+                                  }}
+                                >
+                                  <Text style={styles.notifInlineSecondaryText}>Xem hồ sơ</Text>
+                                </TouchableOpacity>
+                              </View>
+                            )}
+
+                          {n.type === 'follow' && senderHandle && (
+                            <View style={styles.notifInlineActionsRow}>
+                              <TouchableOpacity
+                                style={styles.notifInlineSecondaryBtn}
+                                onPress={() => {
+                                  markNotificationRead(n.id);
+                                  setActiveModal(null);
+                                  openPublicUserProfile(senderHandle);
+                                }}
+                              >
+                                <Feather name="user" size={12} color="#4A3F35" />
+                                <Text style={styles.notifInlineSecondaryText}>
+                                  Xem trang cá nhân
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+
+                          {(n.type === 'sos_alert' ||
+                            n.type === 'sos_sighting' ||
+                            n.type === 'sos') && (
+                            <View style={styles.notifInlineActionsRow}>
+                              <TouchableOpacity
+                                style={[
+                                  styles.notifInlinePrimaryBtn,
+                                  { backgroundColor: '#C9302C' },
+                                ]}
+                                onPress={() => {
+                                  markNotificationRead(n.id);
+                                  setActiveModal(null);
+                                  setActiveTab('sos');
+                                }}
+                              >
+                                <Feather name="map-pin" size={12} color="#FFFFFF" />
+                                <Text style={styles.notifInlinePrimaryText}>
+                                  Xem tin SOS khẩn cấp
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
               </View>
             )}
           </ScrollView>
         </View>
+
+        {/* SHARED SELECTOR PICKER MODAL */}
+        <SelectorPickerModal
+          visible={selectorState.visible}
+          title={selectorState.title}
+          options={selectorState.options}
+          selectedValue={selectorState.selectedValue}
+          onSelect={selectorState.onSelect}
+          onClose={() => setSelectorState((prev) => ({ ...prev, visible: false }))}
+        />
+
+        {/* CONFIRM CLEAR ALL NOTIFICATIONS */}
+        <ConfirmActionModal
+          visible={confirmClearNotifs}
+          title="Xóa toàn bộ thông báo?"
+          message="Tất cả lịch sử thông báo của bạn sẽ được dọn sạch khỏi danh sách. Bạn có chắc chắn muốn tiếp tục?"
+          confirmLabel="Xóa tất cả"
+          cancelLabel="Giữ lại"
+          danger
+          onCancel={() => setConfirmClearNotifs(false)}
+          onConfirm={() => {
+            setConfirmClearNotifs(false);
+            clearAllNotifications();
+          }}
+        />
+
+        {/* CONFIRM LOGOUT */}
+        <ConfirmActionModal
+          visible={confirmLogoutVisible}
+          title="Đăng xuất tài khoản?"
+          message="Bạn sẽ đăng xuất khỏi phiên làm việc trên thiết bị này."
+          confirmLabel="Đăng xuất"
+          cancelLabel="Ở lại"
+          danger
+          onCancel={() => setConfirmLogoutVisible(false)}
+          onConfirm={() => {
+            setConfirmLogoutVisible(false);
+            setActiveModal(null);
+            logoutUser();
+          }}
+        />
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -1627,11 +1882,22 @@ const styles = StyleSheet.create({
     color: '#5C5046',
     marginBottom: 6,
   },
+  labelBetweenRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  counterText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9A8D82',
+    marginBottom: 6,
+  },
   subHintText: {
     fontSize: 12,
     color: '#7A6E63',
-    marginBottom: 10,
-    lineHeight: 17,
+    marginBottom: 12,
+    lineHeight: 18,
   },
   input: {
     backgroundColor: '#FAF7F2',
@@ -1643,6 +1909,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#2C2520',
     marginBottom: 12,
+  },
+  selectorFieldBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FAF7F2',
+    borderWidth: 1,
+    borderColor: '#E5DDD3',
+    borderRadius: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    marginBottom: 12,
+  },
+  selectorFieldText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2C2520',
+    marginRight: 6,
   },
   twoCol: {
     flexDirection: 'row',
@@ -1668,7 +1953,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 14,
     backgroundColor: '#F3EFEA',
@@ -1681,14 +1966,14 @@ const styles = StyleSheet.create({
     color: '#2C2520',
   },
   selectedPreviewSection: {
-    marginBottom: 12,
+    marginBottom: 14,
   },
   selectedMediaScroll: {
     gap: 10,
   },
   selectedPreviewCard: {
-    width: 120,
-    height: 120,
+    width: 116,
+    height: 116,
     borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
@@ -1719,78 +2004,9 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(201, 48, 44, 0.9)',
+    backgroundColor: 'rgba(201, 48, 44, 0.92)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  mediaGalleryScroll: {
-    marginBottom: 14,
-  },
-  mediaGalleryContent: {
-    gap: 8,
-  },
-  mediaPickCard: {
-    width: 82,
-    height: 82,
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E5DDD3',
-    position: 'relative',
-  },
-  mediaPickImg: {
-    width: '100%',
-    height: '100%',
-  },
-  mediaPickCheck: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mediaPickOrderText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  videoDurationPill: {
-    position: 'absolute',
-    bottom: 5,
-    right: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(28, 24, 21, 0.8)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  videoDurationText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  customHashtagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  addHashtagBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 14,
-  },
-  addHashtagBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#FFFFFF',
   },
   chipBtn: {
     flex: 1,
@@ -1841,6 +2057,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  secondaryOutlineBtn: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: '#FAF7F2',
+    borderWidth: 1,
+    borderColor: '#E5DDD3',
+  },
+  secondaryOutlineBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4A3F35',
+  },
+  purposeRadioCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 13,
+    borderRadius: 16,
+    backgroundColor: '#FAF7F2',
+    borderWidth: 1.5,
+    borderColor: '#E5DDD3',
+  },
+  purposeRadioTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#2C2520',
+  },
+  purposeRadioDesc: {
+    fontSize: 11,
+    color: '#7A6E63',
+    marginTop: 2,
+    lineHeight: 16,
   },
   settingSectionCard: {
     backgroundColor: '#FAF7F2',
@@ -1944,74 +2198,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#C9302C',
   },
-  cleanPlanCard: {
-    backgroundColor: '#FAF7F2',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5DDD3',
-    gap: 10,
-  },
-  cleanPlanTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  planTitleBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cleanPlanName: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#1C1815',
-  },
-  cleanPlanPrice: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#6C6055',
-    marginTop: 2,
-  },
-  popularBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  popularBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  currentPlanTag: {
-    backgroundColor: '#ECE6DF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 99,
-  },
-  currentPlanTagText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#2C2520',
-  },
-  cleanPlanBulletList: {
-    gap: 4,
-  },
-  cleanPlanBullet: {
-    fontSize: 12,
-    color: '#4A3F35',
-    lineHeight: 18,
-  },
-  selectPlanBtn: {
-    paddingVertical: 12,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  selectPlanBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
   optionTitle: {
     fontSize: 14,
     fontWeight: '800',
@@ -2019,50 +2205,106 @@ const styles = StyleSheet.create({
   },
   optionSub: {
     fontSize: 12,
-    color: '#7A6E63',
+    color: '#6E6257',
     marginTop: 2,
+    lineHeight: 17,
   },
-  lockedBox: {
+  emptyCenterBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 16,
     backgroundColor: '#FAF7F2',
     borderRadius: 18,
-    padding: 20,
-    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#ECE6DF',
   },
-  lockedTitle: {
+  emptyIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  emptyBoxTitle: {
     fontSize: 15,
     fontWeight: '800',
     color: '#2C2520',
-    marginTop: 10,
-    textAlign: 'center',
+    marginBottom: 4,
   },
-  lockedSub: {
+  emptyBoxSub: {
     fontSize: 12,
     color: '#7A6E63',
     textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 14,
+    lineHeight: 18,
   },
-  likedRow: {
+  likesYouCard: {
+    backgroundColor: '#FAF7F2',
+    borderRadius: 18,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#EAE2D7',
+    gap: 10,
+  },
+  likesYouTopTouch: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FAF7F2',
-    padding: 12,
-    borderRadius: 16,
   },
   likedAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
   },
-  matchSmallBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+  avatarFallbackCircle: {
+    backgroundColor: '#EDE5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  matchSmallBtnText: {
+  distanceBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8E8074',
+  },
+  purposeInlineTag: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2E7D5B',
+    marginTop: 2,
+  },
+  likesYouActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  passOutlineBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DFD6CA',
+  },
+  passOutlineBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#5C5046',
+  },
+  likeBackPrimaryBtn: {
+    flex: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  likeBackPrimaryBtnText: {
     fontSize: 12,
     fontWeight: '800',
     color: '#FFFFFF',
@@ -2075,6 +2317,12 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
+  },
+  publicName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#2C2520',
+    textAlign: 'center',
   },
   unifiedTickBox: {
     flexDirection: 'row',
@@ -2122,97 +2370,147 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#C9302C',
   },
-  publicTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 12,
-  },
-  publicAvatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-  },
-  publicStatsRow: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  publicStatItem: {
-    alignItems: 'center',
-  },
-  publicStatValue: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#2C2520',
-  },
-  publicStatLabel: {
-    fontSize: 11,
-    color: '#7A6E63',
-  },
-  publicName: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#2C2520',
-  },
-  publicHandle: {
-    fontSize: 12,
-    color: '#7A6E63',
-    marginTop: 2,
-  },
-  publicBio: {
-    fontSize: 13,
-    color: '#4A3F35',
-    marginTop: 6,
-    lineHeight: 19,
-  },
-  publicPetBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EAF7F1',
-    padding: 10,
-    borderRadius: 12,
-  },
-  publicPetBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2E7D5B',
-    flex: 1,
-  },
-  publicActionsRow: {
-    flexDirection: 'row',
+  notifFilterRow: {
     gap: 8,
-    marginTop: 14,
+    paddingBottom: 10,
   },
-  publicActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 11,
-    borderRadius: 12,
-  },
-  publicActionText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  notifItem: {
-    padding: 12,
-    borderRadius: 14,
+  notifFilterPill: {
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 99,
     backgroundColor: '#FAF7F2',
     borderWidth: 1,
-    borderColor: '#ECE6DF',
+    borderColor: '#E5DDD3',
   },
-  notifTopRow: {
+  notifFilterPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#5C5046',
+  },
+  notifManageBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2ECE4',
+  },
+  notifManageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  notifManageText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  notifCard: {
+    padding: 13,
+    borderRadius: 16,
+    backgroundColor: '#FAF7F2',
+    borderWidth: 1,
+    borderColor: '#EAE2D7',
+    gap: 8,
+  },
+  notifHeaderLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  notifCategoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  notifCategoryBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  unreadDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   notifTime: {
     fontSize: 11,
     color: '#8E8074',
+  },
+  notifContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  notifSenderAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#E5DDD3',
+  },
+  notifInlineActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  notifInlinePrimaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  notifInlinePrimaryText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  notifInlineSecondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#ECE6DF',
+  },
+  notifInlineSecondaryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4A3F35',
+  },
+  statusResolvedPillAccepted: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EAF7F1',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  statusResolvedTextAccepted: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2E7D5B',
+  },
+  statusResolvedPillDeclined: {
+    backgroundColor: '#EFEAE3',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  statusResolvedTextDeclined: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7A6E63',
   },
   lightboxBackdrop: {
     flex: 1,
@@ -2276,22 +2574,6 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     height: '82%',
   },
-  lightboxVideoTag: {
-    position: 'absolute',
-    bottom: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(46, 125, 91, 0.9)',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 99,
-  },
-  lightboxVideoTagText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
   lightboxThumbRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -2314,292 +2596,35 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     textAlign: 'center',
   },
-  viewFullProfileBtn: {
-    marginTop: 10,
+  customHashtagRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
-    paddingVertical: 11,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    backgroundColor: '#F5EFE6',
-    borderWidth: 1,
-    borderColor: '#E8DED1',
+    marginBottom: 10,
   },
-  viewFullProfileBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#3D342C',
-  },
-  notifActionBtn: {
+  customHashtagInput: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  notifActionText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  notifSmallBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+    height: 42,
+    backgroundColor: '#FAF7F2',
+    borderWidth: 1,
+    borderColor: '#ECE4DB',
+    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  igFullScreenContainer: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  igTopAppBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 0.8,
-    borderBottomColor: '#F0EBE3',
-    backgroundColor: '#FFFFFF',
-  },
-  igBackBtn: {
-    padding: 6,
-    marginLeft: -6,
-  },
-  igHeaderUserRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  igHeaderUsername: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1C1815',
-  },
-  igHeaderRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  igHeaderActionBtn: {
-    padding: 4,
-  },
-  igProfileHeaderSection: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-  },
-  igAvatarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  igAvatarRing: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    borderWidth: 2.5,
-    padding: 2.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  igProfileAvatarImg: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 40,
-  },
-  igStatsColumnsWrap: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginLeft: 20,
-  },
-  igStatCol: {
-    alignItems: 'center',
-  },
-  igStatNumber: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#1C1815',
-  },
-  igStatText: {
-    fontSize: 12,
-    color: '#6B5E52',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  igNameBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-  },
-  igFullNameText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#1C1815',
-  },
-  igNicknameBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  igNicknameText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  igLocationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  igLocationText: {
-    fontSize: 12,
-    color: '#7A6E63',
-    fontWeight: '500',
-  },
-  igBioTextContent: {
     fontSize: 13,
-    color: '#382F27',
-    lineHeight: 18,
-    marginTop: 6,
+    color: '#2C2520',
   },
-  igActionBtnsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 14,
-  },
-  igMainBtn: {
-    flex: 1,
+  customHashtagAddBtn: {
+    height: 42,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    borderRadius: 10,
+    gap: 5,
   },
-  igBtnFollow: {
-    backgroundColor: '#1C1815',
-  },
-  igBtnFollowing: {
-    backgroundColor: '#EFEAE2',
-    borderWidth: 1,
-    borderColor: '#DDD5CA',
-  },
-  igBtnFriendDefault: {
-    backgroundColor: '#EFEAE2',
-    borderWidth: 1,
-    borderColor: '#DDD5CA',
-  },
-  igBtnFriendPending: {
-    backgroundColor: '#FFF3CD',
-    borderWidth: 1,
-    borderColor: '#FFE69C',
-  },
-  igBtnFriendAccepted: {
-    backgroundColor: '#EAF7F1',
-    borderWidth: 1,
-    borderColor: '#C7EED8',
-  },
-  igMainBtnText: {
+  customHashtagAddBtnText: {
+    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
-  },
-  igDirectChatBtn: {
-    width: 40,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#EFEAE2',
-    borderWidth: 1,
-    borderColor: '#DDD5CA',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  igHighlightsSection: {
-    paddingVertical: 14,
-    borderBottomWidth: 0.8,
-    borderBottomColor: '#F0EBE3',
-  },
-  igHighlightItem: {
-    alignItems: 'center',
-    width: 72,
-  },
-  igHighlightRing: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    padding: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  igHighlightCircle: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 30,
-    backgroundColor: '#FDFBF7',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  igVaccineVerifiedBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#2E7D5B',
-    width: 17,
-    height: 17,
-    borderRadius: 8.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-  },
-  igHighlightName: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#1C1815',
-    marginTop: 6,
-  },
-  igHighlightMeta: {
-    fontSize: 10,
-    color: '#8A7A6E',
-    marginTop: 1,
-  },
-  igMediaTabBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0EBE3',
-  },
-  igMediaTabItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 11,
-  },
-  igMediaTabActive: {
-    borderBottomWidth: 1.8,
-    borderBottomColor: '#1C1815',
-  },
-  igGridPhotoContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  igGridCell: {
-    width: SCREEN_WIDTH / 3,
-    height: SCREEN_WIDTH / 3,
-    padding: 0.75,
-  },
-  igGridCellImage: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#F5EFE6',
   },
 });

@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,24 +8,49 @@ import {
   Image,
   StyleSheet,
   Dimensions,
-  Alert,
   Modal,
   KeyboardAvoidingView,
   Platform,
   NativeSyntheticEvent,
   NativeScrollEvent,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '../components/FeatherIcon';
-import { useMobilePawty, MAX_FREE_PETS, THEME_PALETTES, ThemePresetId } from '../context/MobilePawtyContext';
-import { MobilePet, MobilePost, PetWeightEntry, PetVaccineRecord } from '../data/mobileSeedData';
+import { useMobilePawty } from '../context/MobilePawtyContext';
+import { SelectorPickerModal, ConfirmActionModal } from '../components/SelectorFieldModal';
+import {
+  MobilePet,
+  MobilePost,
+  PetWeightEntry,
+  PetVaccineRecord,
+  POPULAR_DOG_BREEDS,
+  POPULAR_CAT_BREEDS,
+  OTHER_SPECIES_OPTIONS,
+  PET_AGE_OPTIONS,
+  PET_WEIGHT_OPTIONS,
+  PET_FUR_COLOR_OPTIONS,
+  PET_FOOD_OPTIONS,
+  PET_DEWORMING_OPTIONS,
+  PET_MEDICAL_OPTIONS,
+  PET_GOOD_HABIT_OPTIONS,
+  PET_CAUTION_HABIT_OPTIONS,
+  PET_VACCINE_NAME_OPTIONS,
+  PET_DOSE_OPTIONS,
+  PET_CLINIC_OPTIONS,
+  OWNER_AGE_OPTIONS,
+  ZODIAC_OPTIONS,
+  MBTI_OPTIONS,
+  OCCUPATION_OPTIONS,
+  EDUCATION_OPTIONS,
+  LIVING_AREA_OPTIONS,
+} from '../types/mobileTypes';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const MOMENT_GRID_SIZE = Math.floor((SCREEN_WIDTH - 32 - 16) / 3);
 
-// Fallback high-res working images for pets
 const DEFAULT_FALLBACK_DOG =
   'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=1000&q=80';
 const DEFAULT_FALLBACK_CAT =
@@ -42,7 +67,6 @@ const DEFAULT_CAT_GALLERY = [
   'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&w=1000&q=80',
 ];
 
-// Presets for cover background
 const COVER_PRESETS = [
   { id: 'beach', name: 'Biển hoàng hôn', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=80' },
   { id: 'park', name: 'Công viên xanh', url: 'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?auto=format&fit=crop&w=1000&q=80' },
@@ -50,96 +74,18 @@ const COVER_PRESETS = [
   { id: 'autumn', name: 'Mùa thu vàng', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1000&q=80' },
 ];
 
-const ZODIAC_LIST = [
-  'Bạch Dương', 'Kim Ngưu', 'Song Tử', 'Cự Giải',
-  'Sư Tử', 'Xử Nữ', 'Thiên Bình', 'Bọ Cạp',
-  'Nhân Mã', 'Ma Kết', 'Bảo Bình', 'Song Ngư',
-];
-
-const MBTI_LIST = [
-  'ENFP', 'INFJ', 'INTJ', 'INTP', 'ENTJ', 'ENTP',
-  'INFP', 'ENFJ', 'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ',
-  'ISTP', 'ISFP', 'ESTP', 'ESFP',
-];
-
 const MONTH_LIST = [
   'T01', 'T02', 'T03', 'T04', 'T05', 'T06',
   'T07', 'T08', 'T09', 'T10', 'T11', 'T12',
 ];
 
-const OWNER_AGE_LIST = Array.from({ length: 63 }, (_, i) => `${18 + i}`);
-const PET_AGE_LIST = [
-  '1 tháng', '2 tháng', '3 tháng', '4 tháng', '5 tháng', '6 tháng',
-  '7 tháng', '8 tháng', '9 tháng', '10 tháng', '11 tháng',
-  '1 tuổi', '1.5 tuổi', '2 tuổi', '2.5 tuổi', '3 tuổi', '4 tuổi',
-  '5 tuổi', '6 tuổi', '7 tuổi', '8 tuổi', '9 tuổi', '10 tuổi', '12 tuổi', '15 tuổi'
-];
-
 /* -------------------------------------------------------------------------- */
-/* 1. UNIVERSAL SELECT / PICKER MODAL                                         */
-/* -------------------------------------------------------------------------- */
-interface UniversalPickerModalProps {
-  visible: boolean;
-  title: string;
-  options: string[];
-  selected: string;
-  onSelect: (val: string) => void;
-  onClose: () => void;
-}
-
-const UniversalPickerModal: React.FC<UniversalPickerModalProps> = ({
-  visible,
-  title,
-  options,
-  selected,
-  onSelect,
-  onClose,
-}) => {
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={pickerStyles.modalOverlay}>
-        <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={onClose} activeOpacity={1} />
-        <View style={pickerStyles.sheetCard}>
-          <View style={pickerStyles.sheetHeader}>
-            <Text style={pickerStyles.sheetTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} style={pickerStyles.closeBtn} activeOpacity={0.7}>
-              <Feather name="x" size={18} color="#6B5E59" />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={pickerStyles.optionsList} showsVerticalScrollIndicator={false}>
-            {options.map((opt) => {
-              const isSelected = opt === selected;
-              return (
-                <TouchableOpacity
-                  key={opt}
-                  style={[pickerStyles.optionRow, isSelected && pickerStyles.optionRowSelected]}
-                  onPress={() => {
-                    onSelect(opt);
-                    onClose();
-                  }}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[pickerStyles.optionText, isSelected && pickerStyles.optionTextSelected]}>
-                    {opt}
-                  </Text>
-                  {isSelected && <Feather name="check" size={16} color="#FFFFFF" />}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-/* -------------------------------------------------------------------------- */
-/* 2. DATE PICKER MODAL (Chọn Ngày/Tháng/Năm không cần gõ phím)               */
+/* DATE PICKER MODAL                                                          */
 /* -------------------------------------------------------------------------- */
 interface DatePickerModalProps {
   visible: boolean;
   title: string;
-  initialDate: string; // "DD/MM/YYYY"
+  initialDate: string;
   isPet?: boolean;
   onConfirm: (dateStr: string) => void;
   onClose: () => void;
@@ -178,28 +124,27 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={pickerStyles.modalOverlay}>
-        <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={onClose} activeOpacity={1} />
-        <View style={pickerStyles.datePickerCard}>
-          <View style={pickerStyles.sheetHeader}>
-            <Text style={pickerStyles.sheetTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} style={pickerStyles.closeBtn} activeOpacity={0.7}>
+      <View style={dateStyles.modalOverlay}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
+        <View style={dateStyles.datePickerCard}>
+          <View style={dateStyles.sheetHeader}>
+            <Text style={dateStyles.sheetTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose} style={dateStyles.closeBtn} activeOpacity={0.7}>
               <Feather name="x" size={18} color="#6B5E59" />
             </TouchableOpacity>
           </View>
 
-          <View style={pickerStyles.dateColsContainer}>
-            {/* Cột Ngày */}
-            <View style={pickerStyles.dateCol}>
-              <Text style={pickerStyles.dateColHeader}>Ngày</Text>
-              <ScrollView style={pickerStyles.dateColScroll} showsVerticalScrollIndicator={false}>
+          <View style={dateStyles.dateColsContainer}>
+            <View style={dateStyles.dateCol}>
+              <Text style={dateStyles.dateColHeader}>Ngày</Text>
+              <ScrollView style={dateStyles.dateColScroll} showsVerticalScrollIndicator={false}>
                 {days.map((d) => (
                   <TouchableOpacity
                     key={d}
-                    style={[pickerStyles.dateItemPill, selectedDay === d && pickerStyles.dateItemPillActive]}
+                    style={[dateStyles.dateItemPill, selectedDay === d && dateStyles.dateItemPillActive]}
                     onPress={() => setSelectedDay(d)}
                   >
-                    <Text style={[pickerStyles.dateItemText, selectedDay === d && pickerStyles.dateItemTextActive]}>
+                    <Text style={[dateStyles.dateItemText, selectedDay === d && dateStyles.dateItemTextActive]}>
                       {d}
                     </Text>
                   </TouchableOpacity>
@@ -207,17 +152,16 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({
               </ScrollView>
             </View>
 
-            {/* Cột Tháng */}
-            <View style={pickerStyles.dateCol}>
-              <Text style={pickerStyles.dateColHeader}>Tháng</Text>
-              <ScrollView style={pickerStyles.dateColScroll} showsVerticalScrollIndicator={false}>
+            <View style={dateStyles.dateCol}>
+              <Text style={dateStyles.dateColHeader}>Tháng</Text>
+              <ScrollView style={dateStyles.dateColScroll} showsVerticalScrollIndicator={false}>
                 {months.map((m) => (
                   <TouchableOpacity
                     key={m}
-                    style={[pickerStyles.dateItemPill, selectedMonth === m && pickerStyles.dateItemPillActive]}
+                    style={[dateStyles.dateItemPill, selectedMonth === m && dateStyles.dateItemPillActive]}
                     onPress={() => setSelectedMonth(m)}
                   >
-                    <Text style={[pickerStyles.dateItemText, selectedMonth === m && pickerStyles.dateItemTextActive]}>
+                    <Text style={[dateStyles.dateItemText, selectedMonth === m && dateStyles.dateItemTextActive]}>
                       Tháng {m}
                     </Text>
                   </TouchableOpacity>
@@ -225,17 +169,16 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({
               </ScrollView>
             </View>
 
-            {/* Cột Năm */}
-            <View style={pickerStyles.dateCol}>
-              <Text style={pickerStyles.dateColHeader}>Năm</Text>
-              <ScrollView style={pickerStyles.dateColScroll} showsVerticalScrollIndicator={false}>
+            <View style={dateStyles.dateCol}>
+              <Text style={dateStyles.dateColHeader}>Năm</Text>
+              <ScrollView style={dateStyles.dateColScroll} showsVerticalScrollIndicator={false}>
                 {years.map((y) => (
                   <TouchableOpacity
                     key={y}
-                    style={[pickerStyles.dateItemPill, selectedYear === y && pickerStyles.dateItemPillActive]}
+                    style={[dateStyles.dateItemPill, selectedYear === y && dateStyles.dateItemPillActive]}
                     onPress={() => setSelectedYear(y)}
                   >
-                    <Text style={[pickerStyles.dateItemText, selectedYear === y && pickerStyles.dateItemTextActive]}>
+                    <Text style={[dateStyles.dateItemText, selectedYear === y && dateStyles.dateItemTextActive]}>
                       {y}
                     </Text>
                   </TouchableOpacity>
@@ -244,14 +187,14 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({
             </View>
           </View>
 
-          <View style={pickerStyles.datePreviewRow}>
-            <Text style={pickerStyles.datePreviewText}>
+          <View style={dateStyles.datePreviewRow}>
+            <Text style={dateStyles.datePreviewText}>
               Đã chọn: {selectedDay}/{selectedMonth}/{selectedYear}
             </Text>
           </View>
 
-          <TouchableOpacity style={pickerStyles.confirmBtn} onPress={handleConfirm} activeOpacity={0.85}>
-            <Text style={pickerStyles.confirmBtnText}>Xác nhận ngày sinh</Text>
+          <TouchableOpacity style={dateStyles.confirmBtn} onPress={handleConfirm} activeOpacity={0.85}>
+            <Text style={dateStyles.confirmBtnText}>Xác nhận ngày sinh</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -260,13 +203,12 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({
 };
 
 /* -------------------------------------------------------------------------- */
-/* 3. MAIN COMPONENT: MobileProfileScreen                                     */
+/* MAIN PROFILE SCREEN (UNIFIED LAYOUT: SELF VS VIEWING OTHER)                */
 /* -------------------------------------------------------------------------- */
 export const MobileProfileScreen: React.FC = () => {
   const {
     themeId,
     theme,
-    setThemeId,
     ownerName,
     ownerBio,
     ownerArea,
@@ -286,6 +228,8 @@ export const MobileProfileScreen: React.FC = () => {
     updateOwnerProfile,
     ownerNoteBubble,
     setOwnerNoteBubble,
+    ownerFollowersCount,
+    ownerFollowingCount,
     pets,
     addNewPetProfile,
     deletePetProfile,
@@ -303,45 +247,31 @@ export const MobileProfileScreen: React.FC = () => {
     showToast,
     ownerHandle,
     selectedProfileHandle,
-    setSelectedProfileHandle,
     publicProfiles,
     resolvePublicProfile,
-    toggleFriendStatus,
+    sendFriendRequest,
+    acceptFriendRequest,
+    unfriendUser,
     toggleFollowUser,
     startDirectChatWithUser,
+    goBackFromOtherProfile,
   } = useMobilePawty();
 
   const isViewingOther = Boolean(
     selectedProfileHandle &&
-      selectedProfileHandle.toLowerCase() !== (ownerHandle || 'mainguyen').toLowerCase() &&
-      selectedProfileHandle.replace(/_/g, '').toLowerCase() !== (ownerHandle || 'mainguyen').replace(/_/g, '').toLowerCase()
+      selectedProfileHandle.toLowerCase() !== (ownerHandle || '').toLowerCase() &&
+      selectedProfileHandle.replace(/^@/, '').toLowerCase() !== (ownerHandle || '').replace(/^@/, '').toLowerCase()
   );
-  const otherProfile = isViewingOther
-    ? (publicProfiles[selectedProfileHandle!] || resolvePublicProfile(selectedProfileHandle!))
+
+  const otherProfile = isViewingOther && selectedProfileHandle
+    ? publicProfiles[selectedProfileHandle] || resolvePublicProfile(selectedProfileHandle)
     : null;
 
-  const displayPets = isViewingOther && otherProfile
-    ? (otherProfile.pets || []).map((p, idx) => ({
-        id: "other-p-" + idx,
-        name: p.name,
-        species: p.species,
-        breed: p.breed,
-        gender: 'Đực' as const,
-        ageLabel: p.ageLabel,
-        weightKg: p.weightKg,
-        avatarUrl:
-          otherProfile.galleryUrls[idx] ||
-          'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=300&q=80',
-        bio: "Bé cưng của " + otherProfile.name,
-        isVaccinatedAndRabies: p.isVaccinatedAndRabies,
-        galleryUrls: [
-          otherProfile.galleryUrls[idx] ||
-            'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=300&q=80'
-        ],
-      }))
+  const displayedPets: MobilePet[] = isViewingOther && otherProfile
+    ? (otherProfile.pets && otherProfile.pets.length > 0 ? otherProfile.pets : [])
     : pets;
 
-  const horizontalScrollRef = useRef<ScrollView>(null);
+  const horizontalScrollRef = useRef<any>(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
 
   // Hamburger settings modal state
@@ -349,6 +279,9 @@ export const MobileProfileScreen: React.FC = () => {
 
   // Cover image modal state
   const [isChangingCoverModal, setIsChangingCoverModal] = useState(false);
+
+  // Unfriend confirmation modal
+  const [confirmUnfriendVisible, setConfirmUnfriendVisible] = useState(false);
 
   // Per-pet gallery indices & expand state
   const [petGalleryIndices, setPetGalleryIndices] = useState<Record<string, number>>({});
@@ -367,20 +300,53 @@ export const MobileProfileScreen: React.FC = () => {
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [tempNoteText, setTempNoteText] = useState('');
 
-  // Universal Picker State
-  const [pickerConfig, setPickerConfig] = useState<{
+  // Selector Field State
+  const [selectorConfig, setSelectorConfig] = useState<{
     visible: boolean;
     title: string;
     options: string[];
-    selected: string;
-    onSelect: (val: string) => void;
+    selectedValue?: string;
+    selectedValues?: string[];
+    multiSelect?: boolean;
+    onSelect?: (val: string) => void;
+    onSelectMulti?: (vals: string[]) => void;
   }>({
     visible: false,
     title: '',
     options: [],
-    selected: '',
-    onSelect: () => {},
   });
+
+  const openSelector = (
+    title: string,
+    options: string[],
+    selectedValue: string,
+    onSelect: (val: string) => void
+  ) => {
+    setSelectorConfig({
+      visible: true,
+      title,
+      options,
+      selectedValue,
+      multiSelect: false,
+      onSelect,
+    });
+  };
+
+  const openMultiSelector = (
+    title: string,
+    options: string[],
+    selectedValues: string[],
+    onSelectMulti: (vals: string[]) => void
+  ) => {
+    setSelectorConfig({
+      visible: true,
+      title,
+      options,
+      selectedValues,
+      multiSelect: true,
+      onSelectMulti,
+    });
+  };
 
   // Date Picker State
   const [datePickerConfig, setDatePickerConfig] = useState<{
@@ -423,43 +389,52 @@ export const MobileProfileScreen: React.FC = () => {
     bio: ownerPrivacySettings?.bio ?? true,
   });
 
-  // Popup 3: Thêm bé cưng mới
+  // Popup 3: Thêm bé cưng mới (Selector-first + Base64 photo)
   const [isAddingPetModal, setIsAddingPetModal] = useState(false);
+  const [isCreatingPetSubmitting, setIsCreatingPetSubmitting] = useState(false);
+  const [newPetPhotoUrl, setNewPetPhotoUrl] = useState('');
   const [newPetSpecies, setNewPetSpecies] = useState<'Chó' | 'Mèo' | 'Khác'>('Chó');
   const [newPetCustomSpecies, setNewPetCustomSpecies] = useState('');
   const [newPetName, setNewPetName] = useState('');
   const [newPetGender, setNewPetGender] = useState<'Đực' | 'Cái'>('Đực');
-  const [newPetBreed, setNewPetBreed] = useState('');
-  const [newPetWeight, setNewPetWeight] = useState('5.0');
-  const [newPetAge, setNewPetAge] = useState('1 tuổi');
-  const [newPetBirthDate, setNewPetBirthDate] = useState('01/06/2024');
+  const [newPetBreed, setNewPetBreed] = useState(POPULAR_DOG_BREEDS[0]);
+  const [newPetWeight, setNewPetWeight] = useState('4.8');
+  const [newPetAge, setNewPetAge] = useState(PET_AGE_OPTIONS[4] || '1 tuổi');
+  const [newPetBirthDate, setNewPetBirthDate] = useState('01/01/2024');
+  const [newPetFurColor, setNewPetFurColor] = useState(PET_FUR_COLOR_OPTIONS[0]);
   const [newPetBio, setNewPetBio] = useState('');
-  const [newPetFavoriteFood, setNewPetFavoriteFood] = useState('');
-  const [newPetDewormingHistory, setNewPetDewormingHistory] = useState('');
-  const [newPetMedicalHistory, setNewPetMedicalHistory] = useState('');
-  const [newPetGoodHabits, setNewPetGoodHabits] = useState('Thân thiện, nghe lời, không sủa bậy');
-  const [newPetCautionHabits, setNewPetCautionHabits] = useState('Hơi nhát người lạ');
+  const [newPetFavoriteFood, setNewPetFavoriteFood] = useState(PET_FOOD_OPTIONS[0]);
+  const [newPetDewormingHistory, setNewPetDewormingHistory] = useState(PET_DEWORMING_OPTIONS[0]);
+  const [newPetMedicalHistory, setNewPetMedicalHistory] = useState(PET_MEDICAL_OPTIONS[0]);
+  const [newPetGoodHabits, setNewPetGoodHabits] = useState<string[]>([
+    PET_GOOD_HABIT_OPTIONS[0],
+    PET_GOOD_HABIT_OPTIONS[1],
+  ]);
+  const [newPetCautionHabits, setNewPetCautionHabits] = useState<string[]>([
+    PET_CAUTION_HABIT_OPTIONS[0],
+  ]);
+  const [newPetVaccinated, setNewPetVaccinated] = useState(true);
   const [newPetWeightHistory, setNewPetWeightHistory] = useState<PetWeightEntry[]>([
     { month: 'T08', weightKg: 4.2 },
     { month: 'T09', weightKg: 4.6 },
-    { month: 'T10', weightKg: 5.0 },
+    { month: 'T10', weightKg: 4.8 },
   ]);
   const [newPetVaccineRecords, setNewPetVaccineRecords] = useState<PetVaccineRecord[]>([
     {
       id: 'vac-1',
-      vaccineName: 'Phòng dại & 7 bệnh cơ bản',
+      vaccineName: PET_VACCINE_NAME_OPTIONS[0],
       date: '10/08/2025',
       doseNumber: 2,
-      clinic: 'Bệnh viện thú y Pawty Care',
+      clinic: PET_CLINIC_OPTIONS[0],
       isSafeVerified: true,
     },
   ]);
   const [tempWeightMonth, setTempWeightMonth] = useState('T11');
-  const [tempWeightKg, setTempWeightKg] = useState('5.2');
-  const [tempVacName, setTempVacName] = useState('');
+  const [tempWeightKg, setTempWeightKg] = useState('4.8');
+  const [tempVacName, setTempVacName] = useState(PET_VACCINE_NAME_OPTIONS[0]);
   const [tempVacDate, setTempVacDate] = useState('15/10/2025');
   const [tempVacDose, setTempVacDose] = useState('1');
-  const [tempVacClinic, setTempVacClinic] = useState('BV Thú y Pawty');
+  const [tempVacClinic, setTempVacClinic] = useState(PET_CLINIC_OPTIONS[0]);
 
   // Popup 4: Chỉnh sửa Thú Cưng
   const [editingPet, setEditingPet] = useState<MobilePet | null>(null);
@@ -468,30 +443,50 @@ export const MobileProfileScreen: React.FC = () => {
   const [editPetNameDraft, setEditPetNameDraft] = useState('');
   const [editPetGenderDraft, setEditPetGenderDraft] = useState<'Đực' | 'Cái'>('Đực');
   const [editPetBreedDraft, setEditPetBreedDraft] = useState('');
-  const [editPetWeightDraft, setEditPetWeightDraft] = useState('5.0');
+  const [editPetWeightDraft, setEditPetWeightDraft] = useState('4.8');
   const [editPetAgeDraft, setEditPetAgeDraft] = useState('1 tuổi');
   const [editPetBirthDateDraft, setEditPetBirthDateDraft] = useState('');
+  const [editPetFurColorDraft, setEditPetFurColorDraft] = useState('Vàng kem');
   const [editPetBioDraft, setEditPetBioDraft] = useState('');
   const [editPetFavoriteFoodDraft, setEditPetFavoriteFoodDraft] = useState('');
   const [editPetDewormingHistoryDraft, setEditPetDewormingHistoryDraft] = useState('');
   const [editPetMedicalHistoryDraft, setEditPetMedicalHistoryDraft] = useState('');
-  const [editPetGoodHabitsDraft, setEditPetGoodHabitsDraft] = useState('');
-  const [editPetCautionHabitsDraft, setEditPetCautionHabitsDraft] = useState('');
+  const [editPetGoodHabitsDraft, setEditPetGoodHabitsDraft] = useState<string[]>([]);
+  const [editPetCautionHabitsDraft, setEditPetCautionHabitsDraft] = useState<string[]>([]);
   const [editPetVaccineRecordsDraft, setEditPetVaccineRecordsDraft] = useState<PetVaccineRecord[]>([]);
   const [editPetWeightHistoryDraft, setEditPetWeightHistoryDraft] = useState<PetWeightEntry[]>([]);
   const [editPetGalleryDraft, setEditPetGalleryDraft] = useState<string[]>([]);
 
-  // Popup 5: Post Preview Modal & Post Detail Modal (Hình 1 & 2)
+  // Popup 5: Post Preview Modal & Post Detail Modal
   const [selectedPreviewPost, setSelectedPreviewPost] = useState<MobilePost | null>(null);
   const [activePostDetail, setActivePostDetail] = useState<MobilePost | null>(null);
   const [commentInputText, setCommentInputText] = useState('');
   const [replyingCommentId, setReplyingCommentId] = useState<string | null>(null);
 
   // Moments list calculation
-  const myPosts = posts.filter((p) => p.authorHandle === '@mainguyen');
-  const displayPosts = myPosts.length > 0 ? myPosts : posts.slice(0, 6);
+  const myPosts = posts.filter(
+    (p) =>
+      p.authorHandle &&
+      ownerHandle &&
+      p.authorHandle.toLowerCase().replace(/^@/, '') ===
+        ownerHandle.toLowerCase().replace(/^@/, '')
+  );
 
-  const totalPages = 1 + pets.length;
+  const displayPosts = useMemo(() => {
+    if (isViewingOther && otherProfile) {
+      if (otherProfile.posts && otherProfile.posts.length > 0) return otherProfile.posts;
+      return posts.filter(
+        (p) =>
+          p.authorHandle &&
+          otherProfile.handle &&
+          p.authorHandle.toLowerCase().replace(/^@/, '') ===
+            otherProfile.handle.toLowerCase().replace(/^@/, '')
+      );
+    }
+    return ownerMediaTab === 'saved' ? posts.filter((p) => p.isSaved) : myPosts;
+  }, [isViewingOther, otherProfile, posts, ownerMediaTab, myPosts]);
+
+  const totalPages = 1 + displayedPets.length;
 
   const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = e.nativeEvent.contentOffset.x;
@@ -566,19 +561,23 @@ export const MobileProfileScreen: React.FC = () => {
   const handleAddPetPhotoFromDevice = async (petId: string) => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 0.9,
+        base64: true,
+        quality: 0.45,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const newUri = result.assets[0].uri;
+        const asset = result.assets[0];
+        const newUri = asset.base64
+          ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
+          : asset.uri;
         const targetPet = pets.find((p) => p.id === petId);
         if (targetPet) {
           const currentGallery = targetPet.galleryUrls && targetPet.galleryUrls.length > 0
             ? targetPet.galleryUrls
             : [targetPet.coverUrl || targetPet.avatarUrl];
           const updatedGallery = [newUri, ...currentGallery];
-          updatePetProfile(petId, {
+          await updatePetProfile(petId, {
             galleryUrls: updatedGallery,
             avatarUrl: newUri,
             coverUrl: newUri,
@@ -596,14 +595,19 @@ export const MobileProfileScreen: React.FC = () => {
   const handlePickOwnerAvatar = async () => {
     try {
       const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.85,
+        base64: true,
+        quality: 0.45,
       });
-      if (!res.canceled && res.assets?.[0]?.uri) {
-        setOwnerAvatarUrl(res.assets[0].uri);
-        showToast('Đã cập nhật ảnh đại diện mới');
+      if (!res.canceled && res.assets?.[0]) {
+        const asset = res.assets[0];
+        const dataUrl = asset.base64
+          ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
+          : asset.uri;
+        setOwnerAvatarUrl(dataUrl);
+        showToast('Đã cập nhật ảnh đại diện mới lên cơ sở dữ liệu!');
       }
     } catch {
       showToast('Chưa chọn ảnh đại diện');
@@ -614,18 +618,45 @@ export const MobileProfileScreen: React.FC = () => {
   const handlePickCoverFromDevice = async () => {
     try {
       const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [16, 9],
-        quality: 0.85,
+        base64: true,
+        quality: 0.45,
       });
-      if (!res.canceled && res.assets?.[0]?.uri) {
-        setOwnerCoverUrl(res.assets[0].uri);
+      if (!res.canceled && res.assets?.[0]) {
+        const asset = res.assets[0];
+        const dataUrl = asset.base64
+          ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
+          : asset.uri;
+        setOwnerCoverUrl(dataUrl);
         setIsChangingCoverModal(false);
-        showToast('Đã đổi ảnh bìa từ thư viện');
+        showToast('Đã cập nhật ảnh bìa mới lên cơ sở dữ liệu!');
       }
     } catch {
       showToast('Chưa chọn ảnh bìa');
+    }
+  };
+
+  /* ---------------- Pick New Pet Photo from Device ---------------- */
+  const handlePickNewPetPhoto = async () => {
+    try {
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        base64: true,
+        quality: 0.45,
+      });
+      if (!res.canceled && res.assets?.[0]) {
+        const asset = res.assets[0];
+        const dataUrl = asset.base64
+          ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
+          : asset.uri;
+        setNewPetPhotoUrl(dataUrl);
+        showToast('Đã chọn ảnh cho bé cưng!');
+      }
+    } catch {
+      showToast('Không thể chọn ảnh từ thiết bị');
     }
   };
 
@@ -657,12 +688,12 @@ export const MobileProfileScreen: React.FC = () => {
     setIsEditingOwnerProfile(true);
   };
 
-  const handleSaveOwnerProfile = () => {
+  const handleSaveOwnerProfile = async () => {
     if (!ownerDraftName.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập họ và tên của bạn.');
+      showToast('Vui lòng nhập họ và tên của bạn.');
       return;
     }
-    updateOwnerProfile({
+    await updateOwnerProfile({
       name: ownerDraftName.trim(),
       gender: ownerDraftGender,
       area: ownerDraftArea.trim(),
@@ -698,12 +729,13 @@ export const MobileProfileScreen: React.FC = () => {
     setEditPetWeightDraft(String(pet.weightKg));
     setEditPetAgeDraft(pet.ageLabel);
     setEditPetBirthDateDraft(pet.birthDate || '');
+    setEditPetFurColorDraft(pet.furColor || 'Vàng kem');
     setEditPetBioDraft(pet.bio || '');
     setEditPetFavoriteFoodDraft(pet.favoriteFood || '');
     setEditPetDewormingHistoryDraft(pet.dewormingHistory || '');
     setEditPetMedicalHistoryDraft(pet.medicalHistory || '');
-    setEditPetGoodHabitsDraft((pet.goodHabits || []).join(', '));
-    setEditPetCautionHabitsDraft((pet.cautionHabits || []).join(', '));
+    setEditPetGoodHabitsDraft(pet.goodHabits || []);
+    setEditPetCautionHabitsDraft(pet.cautionHabits || []);
     setEditPetVaccineRecordsDraft(pet.vaccineRecords || []);
     setEditPetWeightHistoryDraft(pet.weightHistory || []);
     setEditPetGalleryDraft(
@@ -713,26 +745,17 @@ export const MobileProfileScreen: React.FC = () => {
     );
   };
 
-  const handleSavePetEdits = () => {
+  const handleSavePetEdits = async () => {
     if (!editingPet) return;
     if (!editPetNameDraft.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên cho bé thú cưng.');
+      showToast('Vui lòng nhập tên cho bé thú cưng.');
       return;
     }
     const finalSpecies = editPetSpeciesDraft === 'Khác' && editPetCustomSpeciesDraft.trim()
       ? editPetCustomSpeciesDraft.trim()
       : editPetSpeciesDraft;
 
-    const parsedGood = editPetGoodHabitsDraft
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const parsedCaution = editPetCautionHabitsDraft
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    updatePetProfile(editingPet.id, {
+    await updatePetProfile(editingPet.id, {
       name: editPetNameDraft.trim(),
       species: editPetSpeciesDraft === 'Khác' ? 'Chó' : editPetSpeciesDraft,
       customSpecies: editPetSpeciesDraft === 'Khác' ? finalSpecies : undefined,
@@ -741,12 +764,13 @@ export const MobileProfileScreen: React.FC = () => {
       weightKg: parseFloat(editPetWeightDraft) || editingPet.weightKg,
       ageLabel: editPetAgeDraft.trim() || '1 tuổi',
       birthDate: editPetBirthDateDraft.trim(),
+      furColor: editPetFurColorDraft,
       bio: editPetBioDraft.trim(),
       favoriteFood: editPetFavoriteFoodDraft.trim(),
       dewormingHistory: editPetDewormingHistoryDraft.trim(),
       medicalHistory: editPetMedicalHistoryDraft.trim(),
-      goodHabits: parsedGood.length > 0 ? parsedGood : editingPet.goodHabits,
-      cautionHabits: parsedCaution.length > 0 ? parsedCaution : editingPet.cautionHabits,
+      goodHabits: editPetGoodHabitsDraft,
+      cautionHabits: editPetCautionHabitsDraft,
       vaccineRecords: editPetVaccineRecordsDraft,
       weightHistory: editPetWeightHistoryDraft,
       galleryUrls: editPetGalleryDraft,
@@ -757,95 +781,100 @@ export const MobileProfileScreen: React.FC = () => {
     showToast('Đã cập nhật hồ sơ bé cưng');
   };
 
-  const handleConfirmDeletePet = (pet: MobilePet) => {
-    Alert.alert(
-      'Xóa hồ sơ bé',
-      `Bạn có chắc chắn muốn xóa hồ sơ của bé ${pet.name}? Dữ liệu sẽ không thể khôi phục.`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa vĩnh viễn',
-          style: 'destructive',
-          onPress: () => {
-            deletePetProfile(pet.id);
-            setEditingPet(null);
-            scrollToPage(0);
-          },
-        },
-      ]
-    );
-  };
-
-  /* ---------------- Add New Pet ---------------- */
-  const handleAddNewPet = () => {
+  /* ---------------- Add New Pet (Atomic & Persisted in PostgreSQL) ---------------- */
+  const handleAddNewPet = async () => {
+    if (isCreatingPetSubmitting) return;
     if (!newPetName.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên bé thú cưng.');
+      showToast('Vui lòng nhập tên bé thú cưng.');
       return;
     }
-    const finalSpecies = newPetSpecies === 'Khác' && newPetCustomSpecies.trim()
-      ? newPetCustomSpecies.trim()
-      : newPetSpecies;
 
-    const defaultImg =
-      newPetSpecies === 'Mèo'
-        ? 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80'
-        : 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80';
+    setIsCreatingPetSubmitting(true);
+    try {
+      const defaultImg =
+        newPetSpecies === 'Mèo'
+          ? 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80'
+          : 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80';
 
-    const parsedGood = newPetGoodHabits
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const parsedCaution = newPetCautionHabits
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+      const finalAvatar = newPetPhotoUrl || defaultImg;
 
-    addNewPetProfile({
-      name: newPetName.trim(),
-      species: newPetSpecies === 'Khác' ? 'Chó' : newPetSpecies,
-      breed: newPetBreed.trim() || 'Bản địa',
-      weightKg: parseFloat(newPetWeight) || 5.0,
-      ageLabel: newPetAge.trim() || '1 tuổi',
-    });
+      const created = await addNewPetProfile({
+        name: newPetName.trim(),
+        species: newPetSpecies,
+        customSpecies: newPetSpecies === 'Khác' ? newPetCustomSpecies : undefined,
+        breed: newPetBreed.trim() || (newPetSpecies === 'Chó' ? 'Golden Retriever' : 'Mèo Anh lông ngắn'),
+        gender: newPetGender,
+        weightKg: parseFloat(newPetWeight) || 4.8,
+        ageLabel: newPetAge.trim() || '1 tuổi',
+        birthDate: newPetBirthDate,
+        furColor: newPetFurColor,
+        bio: newPetBio.trim(),
+        avatarUrl: finalAvatar,
+        galleryUrls: [finalAvatar],
+        isVaccinatedAndRabies: newPetVaccinated,
+        favoriteFood: newPetFavoriteFood,
+        dewormingHistory: newPetDewormingHistory,
+        medicalHistory: newPetMedicalHistory,
+        goodHabits: newPetGoodHabits,
+        cautionHabits: newPetCautionHabits,
+        vaccineRecords: newPetVaccineRecords,
+        weightHistory: newPetWeightHistory,
+      });
 
-    setTimeout(() => {
-      const createdPet = pets[pets.length - 1];
-      if (createdPet) {
-        updatePetProfile(createdPet.id, {
-          customSpecies: newPetSpecies === 'Khác' ? finalSpecies : undefined,
-          gender: newPetGender,
-          birthDate: newPetBirthDate,
-          bio: newPetBio.trim(),
-          favoriteFood: newPetFavoriteFood.trim(),
-          dewormingHistory: newPetDewormingHistory.trim(),
-          medicalHistory: newPetMedicalHistory.trim(),
-          goodHabits: parsedGood.length > 0 ? parsedGood : ['Thân thiện', 'Nghe lời'],
-          cautionHabits: parsedCaution.length > 0 ? parsedCaution : ['Hơi nhát người lạ'],
-          vaccineRecords: newPetVaccineRecords,
-          weightHistory: newPetWeightHistory,
-          galleryUrls: [defaultImg],
-          avatarUrl: defaultImg,
-          coverUrl: defaultImg,
-        });
+      if (created) {
+        setIsAddingPetModal(false);
+        setNewPetPhotoUrl('');
+        setNewPetName('');
+        setNewPetBio('');
+        setTimeout(() => {
+          scrollToPage(displayedPets.length);
+        }, 300);
       }
-    }, 100);
-
-    setIsAddingPetModal(false);
-    setNewPetName('');
-    setNewPetBreed('');
-    setNewPetBio('');
-    setNewPetFavoriteFood('');
-    setNewPetDewormingHistory('');
-    setNewPetMedicalHistory('');
-    showToast('Đã thêm bé cưng mới vào gia đình!');
+    } finally {
+      setIsCreatingPetSubmitting(false);
+    }
   };
+
+  // Resolved display metadata
+  const displayCoverUrl = isViewingOther
+    ? otherProfile?.coverUrl || otherProfile?.galleryUrls?.[0] || ownerCoverUrl
+    : ownerCoverUrl;
+
+  const displayAvatarUrl = isViewingOther
+    ? otherProfile?.avatarUrl || ownerAvatarUrl
+    : ownerAvatarUrl;
+
+  const displayName = isViewingOther ? otherProfile?.name || 'Cư dân' : ownerName;
+  const displayOccupation = isViewingOther ? otherProfile?.occupation : ownerOccupation;
+  const displayBio = isViewingOther ? otherProfile?.bio : ownerBio;
+  const displayArea = isViewingOther ? otherProfile?.area : ownerArea;
+  const displayNoteBubble = isViewingOther ? otherProfile?.noteBubble : ownerNoteBubble;
+  const displayFollowers = isViewingOther
+    ? otherProfile?.followersCount ?? 0
+    : ownerFollowersCount;
+  const displayFollowing = isViewingOther
+    ? otherProfile?.followingCount ?? otherProfile?.friendsCount ?? 0
+    : ownerFollowingCount;
+  const displayLikes = isViewingOther
+    ? otherProfile?.likesCount ?? 120
+    : pets.reduce((acc, p) => acc + (p.likesCount || 0), 0) || 120;
 
   return (
     <View style={styles.rootContainer}>
       {/* ------------------------------------------------------------- */}
-      {/* TOP INTEGRATED HEADER: [Con sen] [Lu] [Miu] [+] + Hamburger    */}
+      {/* TOP INTEGRATED HEADER: [<- Back] [Con sen] [Lu] [Miu] [+] [☰] */}
       {/* ------------------------------------------------------------- */}
       <View style={styles.topProfileHeader}>
+        {isViewingOther && (
+          <TouchableOpacity
+            style={styles.headerBackBtn}
+            onPress={goBackFromOtherProfile}
+            activeOpacity={0.7}
+          >
+            <Feather name="arrow-left" size={20} color="#1C1815" />
+          </TouchableOpacity>
+        )}
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -874,7 +903,7 @@ export const MobileProfileScreen: React.FC = () => {
           </TouchableOpacity>
 
           {/* Pet Pills */}
-          {pets.map((pet, idx) => {
+          {displayedPets.map((pet, idx) => {
             const pageNum = idx + 1;
             const isActive = currentPageIndex === pageNum;
             return (
@@ -903,8 +932,8 @@ export const MobileProfileScreen: React.FC = () => {
             );
           })}
 
-          {/* [+] Add Pet Pill */}
-          {pets.length < MAX_FREE_PETS && (
+          {/* [+] Add Pet Pill (Unlimited pets — ONLY when viewing self) */}
+          {!isViewingOther && (
             <TouchableOpacity
               style={styles.headerAddPetPill}
               onPress={() => setIsAddingPetModal(true)}
@@ -915,14 +944,16 @@ export const MobileProfileScreen: React.FC = () => {
           )}
         </ScrollView>
 
-        {/* Hamburger Menu on the right */}
-        <TouchableOpacity
-          style={styles.headerHamburgerBtn}
-          onPress={() => setIsProfileMenuVisible(true)}
-          activeOpacity={0.7}
-        >
-          <Feather name="menu" size={20} color="#1C1815" />
-        </TouchableOpacity>
+        {/* Hamburger Menu on the right (ONLY when viewing self) */}
+        {!isViewingOther && (
+          <TouchableOpacity
+            style={styles.headerHamburgerBtn}
+            onPress={() => setIsProfileMenuVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Feather name="menu" size={20} color="#1C1815" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ------------------------------------------------------------- */}
@@ -952,35 +983,42 @@ export const MobileProfileScreen: React.FC = () => {
               onPress={() => {
                 openLightboxMedia({
                   postId: 'owner-cover',
-                  mediaUrls: [ownerCoverUrl],
+                  mediaUrls: [displayCoverUrl],
                   mediaType: 'image',
                   initialIndex: 0,
-                  authorName: ownerName,
+                  authorName: displayName,
                   caption: 'Ảnh bìa trang cá nhân',
                 });
               }}
             >
-              <Image source={{ uri: isViewingOther ? (otherProfile?.galleryUrls[0] || ownerCoverUrl) : ownerCoverUrl }} style={styles.ownerCoverImg} resizeMode="cover" />
+              <Image
+                source={{ uri: displayCoverUrl }}
+                style={styles.ownerCoverImg}
+                resizeMode="cover"
+              />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.changeCoverBtn}
-              onPress={() => setIsChangingCoverModal(true)}
-              activeOpacity={0.85}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Feather name="camera" size={13} color="#FFFFFF" />
-              <Text style={styles.changeCoverBtnText}>Đổi ảnh bìa</Text>
-            </TouchableOpacity>
+            {!isViewingOther && (
+              <TouchableOpacity
+                style={styles.changeCoverBtn}
+                onPress={() => setIsChangingCoverModal(true)}
+                activeOpacity={0.85}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Feather name="camera" size={13} color="#FFFFFF" />
+                <Text style={styles.changeCoverBtnText}>Đổi ảnh bìa</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* 2. Floating Note Bubble & Avatar Overlap (50% trên ảnh bìa) */}
           <View style={styles.avatarSectionRow}>
-            {/* Note Bubble: Chỉ hiển thị khi chủ nuôi có ghi chú thực tế */}
-            {!isViewingOther && ownerNoteBubble && ownerNoteBubble.trim().length > 0 ? (
+            {/* Note Bubble */}
+            {displayNoteBubble && displayNoteBubble.trim().length > 0 ? (
               <View style={styles.noteBubbleAnchor}>
                 <TouchableOpacity
                   style={styles.noteBubbleBox}
+                  disabled={isViewingOther}
                   onPress={() => {
                     setTempNoteText(ownerNoteBubble || '');
                     setIsEditingNote(true);
@@ -988,132 +1026,213 @@ export const MobileProfileScreen: React.FC = () => {
                   activeOpacity={0.85}
                 >
                   <Text style={styles.noteBubbleText} numberOfLines={2}>
-                    {ownerNoteBubble}
+                    {displayNoteBubble}
                   </Text>
                   <View style={styles.noteBubbleTail} />
                 </TouchableOpacity>
               </View>
             ) : null}
 
-            {/* Avatar Wrap: Overlaps 50% on bottom of cover */}
+            {/* Avatar Wrap */}
             <View style={styles.ownerAvatarWrap}>
               <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={() => {
                   openLightboxMedia({
                     postId: 'owner-avatar',
-                    mediaUrls: [ownerAvatarUrl],
+                    mediaUrls: [displayAvatarUrl],
                     mediaType: 'image',
                     initialIndex: 0,
-                    authorName: ownerName,
+                    authorName: displayName,
                     caption: 'Ảnh đại diện chính thức',
                   });
                 }}
               >
-                <Image source={{ uri: isViewingOther ? (otherProfile?.avatarUrl || ownerAvatarUrl) : ownerAvatarUrl }} style={styles.ownerAvatarImg} />
+                <Image source={{ uri: displayAvatarUrl }} style={styles.ownerAvatarImg} />
               </TouchableOpacity>
 
-              {/* Note '+' badge: Di chuyển lên trên đầu phía bên phải của ảnh avt */}
-              <TouchableOpacity
-                style={[styles.avatarPlusBadge, { backgroundColor: theme.primary }]}
-                onPress={() => {
-                  setTempNoteText(ownerNoteBubble || '');
-                  setIsEditingNote(true);
-                }}
-                activeOpacity={0.85}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Feather name="plus" size={13} color="#FFFFFF" />
-              </TouchableOpacity>
+              {/* Note '+' badge: ONLY when viewing self */}
+              {!isViewingOther && (
+                <TouchableOpacity
+                  style={[styles.avatarPlusBadge, { backgroundColor: theme.primary }]}
+                  onPress={() => {
+                    setTempNoteText(ownerNoteBubble || '');
+                    setIsEditingNote(true);
+                  }}
+                  activeOpacity={0.85}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="plus" size={13} color="#FFFFFF" />
+                </TouchableOpacity>
+              )}
 
-              {/* Camera change avatar badge */}
-              <TouchableOpacity
-                style={styles.avatarCameraBadge}
-                onPress={handlePickOwnerAvatar}
-                activeOpacity={0.85}
-              >
-                <Feather name="camera" size={11} color="#FFFFFF" />
-              </TouchableOpacity>
+              {/* Camera change avatar badge: ONLY when viewing self */}
+              {!isViewingOther && (
+                <TouchableOpacity
+                  style={styles.avatarCameraBadge}
+                  onPress={handlePickOwnerAvatar}
+                  activeOpacity={0.85}
+                >
+                  <Feather name="camera" size={11} color="#FFFFFF" />
+                </TouchableOpacity>
+              )}
             </View>
 
-            {/* Right Side: Sleek Pen Edit Icon */}
-            <TouchableOpacity
-              style={styles.sleekEditPenBtn}
-              onPress={openEditOwnerModal}
-              activeOpacity={0.85}
-            >
-              <Feather name="edit-2" size={16} color="#1C1815" />
-            </TouchableOpacity>
+            {/* Sleek Pen Edit Icon: ONLY when viewing self */}
+            {!isViewingOther && (
+              <TouchableOpacity
+                style={styles.sleekEditPenBtn}
+                onPress={openEditOwnerModal}
+                activeOpacity={0.85}
+              >
+                <Feather name="edit-2" size={16} color="#1C1815" />
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* 3. Owner Information: Tên, Nghề nghiệp, Câu giới thiệu, Vị trí */}
+          {/* 3. Owner Information */}
           <View style={styles.ownerInfoCenterBox}>
-            <Text style={styles.ownerFullNameText}>{ownerName}</Text>
+            <Text style={styles.ownerFullNameText}>{displayName}</Text>
 
-            {/* Profession: Dedicated line */}
-            {ownerOccupation ? (
-              <Text style={styles.ownerJobTitleText}>{ownerOccupation}</Text>
+            {displayOccupation ? (
+              <Text style={styles.ownerJobTitleText}>{displayOccupation}</Text>
             ) : null}
 
-            {/* Bio: Dedicated line */}
-            {ownerBio ? (
-              <Text style={styles.ownerBioText}>{ownerBio}</Text>
-            ) : null}
+            {displayBio ? <Text style={styles.ownerBioText}>{displayBio}</Text> : null}
 
-            {/* Location */}
-            {ownerPrivacySettings?.area !== false && (
+            {displayArea ? (
               <View style={styles.ownerLocationRow}>
                 <Feather name="map-pin" size={13} color="#FF6F61" />
-                <Text style={styles.ownerLocationText}>
-                  {ownerArea || 'Vinhomes Grand Park, TP. Thủ Đức'}
-                </Text>
+                <Text style={styles.ownerLocationText}>{displayArea}</Text>
               </View>
-            )}
+            ) : null}
 
-            {/* Clean Text Chips (Loại bỏ 100% icons có sẵn) */}
+            {/* Clean Text Chips */}
             <View style={styles.ownerBadgesRow}>
-              {ownerPrivacySettings?.zodiac !== false && ownerZodiac ? (
+              {(isViewingOther ? otherProfile?.zodiac : ownerZodiac) ? (
                 <View style={styles.ownerBadgeChip}>
-                  <Text style={styles.ownerBadgeChipText}>{ownerZodiac}</Text>
+                  <Text style={styles.ownerBadgeChipText}>
+                    {isViewingOther ? otherProfile?.zodiac : ownerZodiac}
+                  </Text>
                 </View>
               ) : null}
-              {ownerPrivacySettings?.mbti !== false && ownerMbti ? (
+              {(isViewingOther ? otherProfile?.mbti : ownerMbti) ? (
                 <View style={styles.ownerBadgeChip}>
-                  <Text style={styles.ownerBadgeChipText}>{ownerMbti}</Text>
+                  <Text style={styles.ownerBadgeChipText}>
+                    {isViewingOther ? otherProfile?.mbti : ownerMbti}
+                  </Text>
                 </View>
               ) : null}
-              {ownerPrivacySettings?.age !== false && ownerAge ? (
+              {(isViewingOther ? otherProfile?.age : ownerAge) ? (
                 <View style={styles.ownerBadgeChip}>
-                  <Text style={styles.ownerBadgeChipText}>{ownerAge} tuổi</Text>
+                  <Text style={styles.ownerBadgeChipText}>
+                    {isViewingOther ? otherProfile?.age : ownerAge} tuổi
+                  </Text>
                 </View>
               ) : null}
-              {ownerPrivacySettings?.education !== false && ownerEducation ? (
+              {(isViewingOther ? otherProfile?.education : ownerEducation) ? (
                 <View style={styles.ownerBadgeChip}>
-                  <Text style={styles.ownerBadgeChipText}>{ownerEducation}</Text>
+                  <Text style={styles.ownerBadgeChipText}>
+                    {isViewingOther ? otherProfile?.education : ownerEducation}
+                  </Text>
                 </View>
               ) : null}
             </View>
           </View>
 
-          {/* 4. Stats Card */}
+          {/* 4. RELATIONSHIP ACTION BAR (ONLY WHEN VIEWING OTHER USER) */}
+          {isViewingOther && otherProfile && (
+            <View style={styles.relationshipBarContainer}>
+              {/* Friend Button */}
+              {otherProfile.friendStatus === 'accepted' ? (
+                <TouchableOpacity
+                  style={styles.relFriendAcceptedBtn}
+                  onPress={() => setConfirmUnfriendVisible(true)}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="check" size={14} color="#2E7D5B" />
+                  <Text style={styles.relFriendAcceptedText}>Bạn bè ✓</Text>
+                </TouchableOpacity>
+              ) : otherProfile.friendStatus === 'pending_outgoing' ? (
+                <View style={styles.relFriendPendingBtn}>
+                  <Feather name="clock" size={14} color="#8E8074" />
+                  <Text style={styles.relFriendPendingText}>Đã gửi lời mời</Text>
+                </View>
+              ) : otherProfile.friendStatus === 'pending_incoming' ? (
+                <TouchableOpacity
+                  style={[styles.relPrimaryBtn, { backgroundColor: theme.primary }]}
+                  onPress={() => acceptFriendRequest(otherProfile.handle)}
+                  activeOpacity={0.85}
+                >
+                  <Feather name="user-check" size={14} color="#FFFFFF" />
+                  <Text style={styles.relPrimaryBtnText}>Chấp nhận</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.relPrimaryBtn, { backgroundColor: theme.primary }]}
+                  onPress={() => sendFriendRequest(otherProfile.handle)}
+                  activeOpacity={0.85}
+                >
+                  <Feather name="user-plus" size={14} color="#FFFFFF" />
+                  <Text style={styles.relPrimaryBtnText}>Kết bạn</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Follow Button */}
+              <TouchableOpacity
+                style={[
+                  styles.relSecondaryBtn,
+                  otherProfile.isFollowing && styles.relSecondaryBtnActive,
+                ]}
+                onPress={() => toggleFollowUser(otherProfile.handle)}
+                activeOpacity={0.8}
+              >
+                <Feather
+                  name={otherProfile.isFollowing ? 'check' : 'plus'}
+                  size={14}
+                  color={otherProfile.isFollowing ? '#2E7D5B' : '#4A3F35'}
+                />
+                <Text
+                  style={[
+                    styles.relSecondaryBtnText,
+                    otherProfile.isFollowing && { color: '#2E7D5B' },
+                  ]}
+                >
+                  {otherProfile.isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Direct Message Button */}
+              <TouchableOpacity
+                style={[styles.relMessageBtn, { backgroundColor: '#2C2520' }]}
+                onPress={() => startDirectChatWithUser(otherProfile.handle)}
+                activeOpacity={0.85}
+              >
+                <Feather name="message-circle" size={14} color="#FFFFFF" />
+                <Text style={styles.relMessageBtnText}>Nhắn tin</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* 5. Stats Card */}
           <View style={styles.ownerStatsCard}>
             <View style={styles.statColumn}>
-              <Text style={styles.statNumberText}>1.2K</Text>
+              <Text style={styles.statNumberText}>{displayFollowers}</Text>
               <Text style={styles.statLabelText}>người theo dõi</Text>
             </View>
             <View style={styles.statDividerVertical} />
             <View style={styles.statColumn}>
-              <Text style={styles.statNumberText}>268</Text>
+              <Text style={styles.statNumberText}>{displayFollowing}</Text>
               <Text style={styles.statLabelText}>đang theo dõi</Text>
             </View>
             <View style={styles.statDividerVertical} />
             <View style={styles.statColumn}>
-              <Text style={styles.statNumberText}>4.5K</Text>
+              <Text style={styles.statNumberText}>{displayLikes}</Text>
               <Text style={styles.statLabelText}>lượt thích</Text>
             </View>
           </View>
 
-          {/* 5. Section Khoảnh Khắc: Nút Đăng Bài Hoạt Động (activeModal = 'new_moment') */}
+          {/* 6. Section Khoảnh Khắc */}
           <View style={styles.momentsHeaderRow}>
             <View style={styles.momentsSubTabsBox}>
               <TouchableOpacity
@@ -1133,39 +1252,43 @@ export const MobileProfileScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => setOwnerMediaTab('saved')}
-                style={[
-                  styles.momentSubTabBtn,
-                  ownerMediaTab === 'saved' && styles.momentSubTabBtnActive,
-                ]}
-              >
-                <Text
+              {!isViewingOther && (
+                <TouchableOpacity
+                  onPress={() => setOwnerMediaTab('saved')}
                   style={[
-                    styles.momentSubTabText,
-                    ownerMediaTab === 'saved' && styles.momentSubTabTextActive,
+                    styles.momentSubTabBtn,
+                    ownerMediaTab === 'saved' && styles.momentSubTabBtnActive,
                   ]}
                 >
-                  Được lưu
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.momentSubTabText,
+                      ownerMediaTab === 'saved' && styles.momentSubTabTextActive,
+                    ]}
+                  >
+                    Được lưu
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            <TouchableOpacity
-              style={styles.addPostQuickBtn}
-              onPress={() => setActiveModal('new_moment')}
-              activeOpacity={0.85}
-            >
-              <Feather name="plus" size={14} color="#FFFFFF" />
-              <Text style={styles.addPostQuickBtnText}>Đăng bài</Text>
-            </TouchableOpacity>
+            {!isViewingOther && (
+              <TouchableOpacity
+                style={styles.addPostQuickBtn}
+                onPress={() => setActiveModal('new_moment')}
+                activeOpacity={0.85}
+              >
+                <Feather name="plus" size={14} color="#FFFFFF" />
+                <Text style={styles.addPostQuickBtnText}>Đăng bài</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* 6. Media Grid */}
+          {/* 7. Media Grid */}
           <View style={styles.momentsGridContainer}>
             {displayPosts.map((post) => {
               const urls = post.mediaUrls || [];
-              const thumb = urls[0] || ownerAvatarUrl;
+              const thumb = urls[0] || displayAvatarUrl;
               return (
                 <TouchableOpacity
                   key={post.id}
@@ -1193,7 +1316,7 @@ export const MobileProfileScreen: React.FC = () => {
         {/* ========================================================= */}
         {/* PAGES 1..N: HỒ SƠ TỪNG BÉ THÚ CƯNG (FULLSCREEN PHOTO)     */}
         {/* ========================================================= */}
-        {(isViewingOther ? displayPets : pets).map((pet) => {
+        {displayedPets.map((pet) => {
           const fallbackForPet =
             pet.species === 'Mèo' ? DEFAULT_FALLBACK_CAT : DEFAULT_FALLBACK_DOG;
           const defaultList =
@@ -1219,21 +1342,21 @@ export const MobileProfileScreen: React.FC = () => {
 
           return (
             <View key={pet.id} style={styles.petFullScreenContainer}>
-              {/* 1. Fullscreen Background Image: Tràn trọn 100% màn hình */}
+              {/* 1. Fullscreen Background Image */}
               <Image
                 source={{ uri: currentPetImg }}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 resizeMode="cover"
               />
 
-              {/* 2. Double-tap touchable overlay on background photo */}
+              {/* 2. Double-tap touchable overlay */}
               <TouchableOpacity
                 activeOpacity={1}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 onPress={() => handlePetContainerTap(pet.id)}
               />
 
-              {/* 3. Top Floating Action Bar */}
+              {/* 3. Top Floating Bar */}
               <View style={styles.petTopFloatingBar}>
                 <View style={styles.petSpeciesPillBadge}>
                   <Text style={styles.petSpeciesPillText}>
@@ -1244,7 +1367,7 @@ export const MobileProfileScreen: React.FC = () => {
                 </View>
 
                 <View style={styles.petTopRightActionsRow}>
-                  {/* Thả tim */}
+                  {/* Heart Like */}
                   <TouchableOpacity
                     style={[
                       styles.petFloatingLikeBtn,
@@ -1268,23 +1391,27 @@ export const MobileProfileScreen: React.FC = () => {
                     </Text>
                   </TouchableOpacity>
 
-                  {/* Nút Camera: Thêm / Đổi ảnh mới cho bé từ thiết bị */}
-                  <TouchableOpacity
-                    style={styles.petFloatingEditBtn}
-                    onPress={() => handleAddPetPhotoFromDevice(pet.id)}
-                    activeOpacity={0.85}
-                  >
-                    <Feather name="camera" size={15} color="#FFFFFF" />
-                  </TouchableOpacity>
+                  {/* Camera: Add photo (ONLY when viewing self) */}
+                  {!isViewingOther && (
+                    <TouchableOpacity
+                      style={styles.petFloatingEditBtn}
+                      onPress={() => handleAddPetPhotoFromDevice(pet.id)}
+                      activeOpacity={0.85}
+                    >
+                      <Feather name="camera" size={15} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  )}
 
-                  {/* Nút Bút: Chỉnh sửa toàn diện thông tin bé */}
-                  <TouchableOpacity
-                    style={styles.petFloatingEditBtn}
-                    onPress={() => openEditPetModal(pet)}
-                    activeOpacity={0.85}
-                  >
-                    <Feather name="edit-2" size={15} color="#FFFFFF" />
-                  </TouchableOpacity>
+                  {/* Pen: Edit pet (ONLY when viewing self) */}
+                  {!isViewingOther && (
+                    <TouchableOpacity
+                      style={styles.petFloatingEditBtn}
+                      onPress={() => openEditPetModal(pet)}
+                      activeOpacity={0.85}
+                    >
+                      <Feather name="edit-2" size={15} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
 
@@ -1308,7 +1435,7 @@ export const MobileProfileScreen: React.FC = () => {
                 </>
               )}
 
-              {/* 5. Heart Burst Animated Overlay on Double-Tap */}
+              {/* 5. Heart Burst Animated Overlay */}
               {burstPetId === pet.id && (
                 <Animated.View
                   pointerEvents="none"
@@ -1331,14 +1458,14 @@ export const MobileProfileScreen: React.FC = () => {
                 nestedScrollEnabled={true}
                 showsVerticalScrollIndicator={false}
               >
-                {/* Vùng Spacer trong suốt: Để lộ ảnh bé cưng full màn hình */}
+                {/* Vùng Spacer trong suốt để lộ ảnh bé */}
                 <TouchableOpacity
                   activeOpacity={1}
                   style={styles.petPhotoSpacerArea}
                   onPress={() => handlePetContainerTap(pet.id)}
                 />
 
-                {/* Thẻ Kính Mờ Nửa Dưới: Mờ nhạt, nhìn thấu ảnh thú cưng & cuộn xuôi xuống */}
+                {/* Thẻ Kính Mờ: Nhìn thấu ảnh & cuộn xuôi xuống */}
                 <View style={styles.petScrollableFrostedCard}>
                   {/* Header: Tên bé & Giống loài */}
                   <View style={styles.petCardHeaderRow}>
@@ -1381,7 +1508,7 @@ export const MobileProfileScreen: React.FC = () => {
                     </Text>
                   </TouchableOpacity>
 
-                  {/* Vùng chi tiết mở rộng: Cuộn xuôi xuống phía dưới không đẩy thẻ lên trên */}
+                  {/* Vùng chi tiết mở rộng */}
                   {isExpanded && (
                     <View style={styles.petExpandedFlowSection}>
                       {/* Tính cách & Giới thiệu */}
@@ -1424,7 +1551,7 @@ export const MobileProfileScreen: React.FC = () => {
                       <View style={styles.petDetailCardRow}>
                         <Text style={styles.petDetailCardLabel}>Sở thích ăn uống:</Text>
                         <Text style={styles.petDetailCardValue}>
-                          {pet.favoriteFood || 'Ức gà luộc, pate cá hồi, bánh thưởng dinh dưỡng'}
+                          {pet.favoriteFood || 'Ức gà luộc, pate cá hồi, súp thưởng'}
                         </Text>
                       </View>
 
@@ -1432,7 +1559,7 @@ export const MobileProfileScreen: React.FC = () => {
                       <View style={styles.petDetailCardRow}>
                         <Text style={styles.petDetailCardLabel}>Lịch sử tẩy giun:</Text>
                         <Text style={styles.petDetailCardValue}>
-                          {pet.dewormingHistory || '15/09/2025 (Định kỳ 3 tháng/lần - Thuốc Drontal)'}
+                          {pet.dewormingHistory || 'Định kỳ 3 tháng/lần'}
                         </Text>
                       </View>
 
@@ -1442,35 +1569,6 @@ export const MobileProfileScreen: React.FC = () => {
                         <Text style={styles.petDetailCardValue}>
                           {pet.medicalHistory || 'Khỏe mạnh, không có bệnh nền'}
                         </Text>
-                      </View>
-
-                      {/* Theo dõi cân nặng theo tháng */}
-                      <View style={styles.petHealthSectionBox}>
-                        <Text style={styles.petHealthSectionTitle}>
-                          Theo dõi cân nặng theo tháng:
-                        </Text>
-                        <View style={styles.weightBarsContainer}>
-                          {(pet.weightHistory && pet.weightHistory.length > 0
-                            ? pet.weightHistory
-                            : [
-                                { month: 'T08', weightKg: 25.0 },
-                                { month: 'T09', weightKg: 26.2 },
-                                { month: 'T10', weightKg: 27.1 },
-                                { month: 'T11', weightKg: 27.9 },
-                                { month: 'T12', weightKg: pet.weightKg },
-                              ]
-                          ).map((item, wIdx, arr) => {
-                            const maxKg = Math.max(...arr.map((x) => x.weightKg), 30);
-                            const barH = Math.max(20, Math.round((item.weightKg / maxKg) * 55));
-                            return (
-                              <View key={wIdx} style={styles.weightBarColumn}>
-                                <Text style={styles.weightBarKgText}>{item.weightKg}kg</Text>
-                                <View style={[styles.weightBarPill, { height: barH }]} />
-                                <Text style={styles.weightBarMonthText}>{item.month}</Text>
-                              </View>
-                            );
-                          })}
-                        </View>
                       </View>
 
                       {/* Sổ tiêm chủng chi tiết */}
@@ -1508,25 +1606,21 @@ export const MobileProfileScreen: React.FC = () => {
                     </View>
                   )}
 
-                  {/* CTA Button: Hẹn dạo cùng bé */}
+                  {/* CTA Button */}
                   <TouchableOpacity
                     style={styles.petCtaBookWalkBtn}
                     onPress={() => {
-                      Alert.alert(
-                        'Hẹn dạo cùng Boss',
-                        `Bạn muốn gửi lời mời hẹn dắt dạo cùng bé ${pet.name} và Sen Mai Nguyễn?`,
-                        [
-                          { text: 'Để sau', style: 'cancel' },
-                          {
-                            text: 'Gửi lời mời',
-                            onPress: () => showToast(`Đã gửi lời mời dắt dạo cùng bé ${pet.name}!`),
-                          },
-                        ]
-                      );
+                      if (isViewingOther && otherProfile) {
+                        startDirectChatWithUser(otherProfile.handle);
+                      } else {
+                        showToast(`Bé ${pet.name} đã sẵn sàng dắt dạo công viên!`);
+                      }
                     }}
                     activeOpacity={0.85}
                   >
-                    <Text style={styles.petCtaBookWalkText}>Hẹn dạo cùng bé</Text>
+                    <Text style={styles.petCtaBookWalkText}>
+                      {isViewingOther ? 'Hẹn dạo cùng bé' : 'Lên lịch dạo cùng Boss'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </ScrollView>
@@ -1536,7 +1630,7 @@ export const MobileProfileScreen: React.FC = () => {
       </ScrollView>
 
       {/* ============================================================= */}
-      {/* POPUP: MENU TÙY CHỌN & CÀI ĐẶT (HAMBURGER MENU)              */}
+      {/* POPUP: HAMBURGER MENU (ZERO VIP REFERENCE)                    */}
       {/* ============================================================= */}
       <Modal
         visible={isProfileMenuVisible}
@@ -1546,7 +1640,7 @@ export const MobileProfileScreen: React.FC = () => {
       >
         <View style={styles.cleanModalOverlay}>
           <TouchableOpacity
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             onPress={() => setIsProfileMenuVisible(false)}
             activeOpacity={1}
           />
@@ -1561,9 +1655,7 @@ export const MobileProfileScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Menu Options List: Rút gọn tối đa, chỉ giữ thứ cần thiết */}
             <View style={styles.menuOptionsList}>
-              {/* Option 1: Cài đặt tài khoản & Quyền riêng tư */}
               <TouchableOpacity
                 style={styles.menuItemRow}
                 onPress={() => {
@@ -1582,7 +1674,6 @@ export const MobileProfileScreen: React.FC = () => {
                 <Feather name="chevron-right" size={16} color="#BDB4AC" />
               </TouchableOpacity>
 
-              {/* Option 2: Thiết lập hồ sơ kết nối */}
               <TouchableOpacity
                 style={styles.menuItemRow}
                 onPress={() => {
@@ -1596,74 +1687,16 @@ export const MobileProfileScreen: React.FC = () => {
                 </View>
                 <View style={styles.menuItemContent}>
                   <Text style={styles.menuItemTitle}>Thiết lập hồ sơ kết nối</Text>
-                  <Text style={styles.menuItemDesc}>Bán kính radar & tiêu chí dắt dạo</Text>
+                  <Text style={styles.menuItemDesc}>Mục đích tìm kiếm & lối sống</Text>
                 </View>
                 <Feather name="chevron-right" size={16} color="#BDB4AC" />
               </TouchableOpacity>
 
-              {/* Option 3: Gói hội viên Sen VIP */}
-              <TouchableOpacity
-                style={styles.menuItemRow}
-                onPress={() => {
-                  setIsProfileMenuVisible(false);
-                  setActiveModal('vip_upgrade');
-                }}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.menuItemIconWrap, { backgroundColor: '#FEF9E7' }]}>
-                  <Feather name="award" size={16} color="#F39C12" />
-                </View>
-                <View style={styles.menuItemContent}>
-                  <Text style={styles.menuItemTitle}>Gói hội viên Sen VIP</Text>
-                  <Text style={styles.menuItemDesc}>Quẹt thẻ không giới hạn & huy hiệu VIP</Text>
-                </View>
-                <Feather name="chevron-right" size={16} color="#BDB4AC" />
-              </TouchableOpacity>
-
-              {/* Option 4: Đổi giao diện ứng dụng */}
-              <TouchableOpacity
-                style={styles.menuItemRow}
-                onPress={() => {
-                  const themeKeys: ThemePresetId[] = [
-                    'coral_pink',
-                    'mint_safe',
-                    'warm_cream',
-                    'cyber_neon',
-                  ];
-                  const curIdx = themeKeys.indexOf(themeId);
-                  const nextTheme = themeKeys[(curIdx + 1) % themeKeys.length];
-                  setThemeId(nextTheme);
-                  showToast(`Giao diện: ${THEME_PALETTES[nextTheme].name}`);
-                }}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.menuItemIconWrap, { backgroundColor: '#EBF5FB' }]}>
-                  <Feather name="sun" size={16} color="#2980B9" />
-                </View>
-                <View style={styles.menuItemContent}>
-                  <Text style={styles.menuItemTitle}>Giao diện ứng dụng</Text>
-                  <Text style={styles.menuItemDesc}>Đang dùng: {theme.name}</Text>
-                </View>
-                <Feather name="refresh-cw" size={14} color="#BDB4AC" />
-              </TouchableOpacity>
-
-              {/* Option 5: Đăng xuất tài khoản */}
               <TouchableOpacity
                 style={[styles.menuItemRow, { borderBottomWidth: 0, marginTop: 4 }]}
                 onPress={() => {
                   setIsProfileMenuVisible(false);
-                  Alert.alert(
-                    'Đăng xuất',
-                    'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?',
-                    [
-                      { text: 'Hủy', style: 'cancel' },
-                      {
-                        text: 'Đăng xuất',
-                        style: 'destructive',
-                        onPress: () => logoutUser(),
-                      },
-                    ]
-                  );
+                  logoutUser();
                 }}
                 activeOpacity={0.75}
               >
@@ -1691,7 +1724,7 @@ export const MobileProfileScreen: React.FC = () => {
           style={styles.cleanModalOverlay}
         >
           <TouchableOpacity
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             onPress={() => setIsEditingNote(false)}
             activeOpacity={1}
           />
@@ -1704,7 +1737,7 @@ export const MobileProfileScreen: React.FC = () => {
             </View>
 
             <Text style={styles.cleanModalSubtitle}>
-              Ghi chú ngắn sẽ hiển thị trên avatar của bạn.
+              Ghi chú ngắn sẽ hiển thị trên avatar của bạn (tối đa 60 ký tự).
             </Text>
 
             <TextInput
@@ -1752,7 +1785,7 @@ export const MobileProfileScreen: React.FC = () => {
       <Modal visible={isChangingCoverModal} transparent animationType="slide" onRequestClose={() => setIsChangingCoverModal(false)}>
         <View style={styles.cleanModalOverlay}>
           <TouchableOpacity
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             onPress={() => setIsChangingCoverModal(false)}
             activeOpacity={1}
           />
@@ -1791,7 +1824,7 @@ export const MobileProfileScreen: React.FC = () => {
       </Modal>
 
       {/* ============================================================= */}
-      {/* POPUP 3: CHỈNH SỬA HỒ SƠ CON SEN (CÓ PICKERS CHỌN NHANH)      */}
+      {/* POPUP 3: CHỈNH SỬA HỒ SƠ CON SEN (SELECTOR-FIRST)             */}
       {/* ============================================================= */}
       <Modal visible={isEditingOwnerProfile} transparent animationType="slide" onRequestClose={() => setIsEditingOwnerProfile(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.cleanModalOverlay}>
@@ -1806,9 +1839,13 @@ export const MobileProfileScreen: React.FC = () => {
             <ScrollView style={styles.modalScrollBody} showsVerticalScrollIndicator={false}>
               {/* Họ và tên */}
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Họ và tên của bạn</Text>
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.fieldLabel}>Họ và tên của bạn *</Text>
+                  <Text style={styles.counterText}>{ownerDraftName.length}/35</Text>
+                </View>
                 <TextInput
                   style={styles.fieldInput}
+                  maxLength={35}
                   value={ownerDraftName}
                   onChangeText={setOwnerDraftName}
                   placeholder="Nhập tên của bạn"
@@ -1822,15 +1859,11 @@ export const MobileProfileScreen: React.FC = () => {
                   <Text style={styles.fieldLabel}>Giới tính</Text>
                   <TouchableOpacity
                     style={styles.pickerSelectorBtn}
-                    onPress={() => {
-                      setPickerConfig({
-                        visible: true,
-                        title: 'Chọn giới tính',
-                        options: ['Nữ', 'Nam', 'Khác'],
-                        selected: ownerDraftGender,
-                        onSelect: (val) => setOwnerDraftGender(val),
-                      });
-                    }}
+                    onPress={() =>
+                      openSelector('Chọn giới tính', ['Nữ', 'Nam', 'Khác'], ownerDraftGender, (val) =>
+                        setOwnerDraftGender(val)
+                      )
+                    }
                   >
                     <Text style={styles.pickerSelectorBtnText}>{ownerDraftGender || 'Chọn'}</Text>
                     <Feather name="chevron-down" size={14} color="#7E6E60" />
@@ -1841,15 +1874,11 @@ export const MobileProfileScreen: React.FC = () => {
                   <Text style={styles.fieldLabel}>Độ tuổi</Text>
                   <TouchableOpacity
                     style={styles.pickerSelectorBtn}
-                    onPress={() => {
-                      setPickerConfig({
-                        visible: true,
-                        title: 'Chọn độ tuổi',
-                        options: OWNER_AGE_LIST,
-                        selected: ownerDraftAge,
-                        onSelect: (val) => setOwnerDraftAge(val),
-                      });
-                    }}
+                    onPress={() =>
+                      openSelector('Chọn độ tuổi', OWNER_AGE_OPTIONS, ownerDraftAge, (val) =>
+                        setOwnerDraftAge(val)
+                      )
+                    }
                   >
                     <Text style={styles.pickerSelectorBtnText}>{ownerDraftAge} tuổi</Text>
                     <Feather name="chevron-down" size={14} color="#7E6E60" />
@@ -1857,7 +1886,7 @@ export const MobileProfileScreen: React.FC = () => {
                 </View>
               </View>
 
-              {/* Ngày sinh (Dùng Date Picker Modal) */}
+              {/* Ngày sinh (Date Picker) */}
               <View style={styles.fieldBlock}>
                 <Text style={styles.fieldLabel}>Ngày sinh</Text>
                 <TouchableOpacity
@@ -1877,21 +1906,17 @@ export const MobileProfileScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* Cung hoàng đạo & MBTI (Dùng Selector) */}
+              {/* Cung hoàng đạo & MBTI (Selector) */}
               <View style={styles.fieldsTwoColRow}>
                 <View style={[styles.fieldBlock, { flex: 1, marginRight: 8 }]}>
                   <Text style={styles.fieldLabel}>Cung hoàng đạo</Text>
                   <TouchableOpacity
                     style={styles.pickerSelectorBtn}
-                    onPress={() => {
-                      setPickerConfig({
-                        visible: true,
-                        title: 'Chọn cung hoàng đạo',
-                        options: ZODIAC_LIST,
-                        selected: ownerDraftZodiac,
-                        onSelect: (val) => setOwnerDraftZodiac(val),
-                      });
-                    }}
+                    onPress={() =>
+                      openSelector('Chọn cung hoàng đạo', ZODIAC_OPTIONS, ownerDraftZodiac, (val) =>
+                        setOwnerDraftZodiac(val)
+                      )
+                    }
                   >
                     <Text style={styles.pickerSelectorBtnText}>{ownerDraftZodiac || 'Chọn'}</Text>
                     <Feather name="chevron-down" size={14} color="#7E6E60" />
@@ -1902,15 +1927,11 @@ export const MobileProfileScreen: React.FC = () => {
                   <Text style={styles.fieldLabel}>MBTI</Text>
                   <TouchableOpacity
                     style={styles.pickerSelectorBtn}
-                    onPress={() => {
-                      setPickerConfig({
-                        visible: true,
-                        title: 'Chọn nhóm tính cách MBTI',
-                        options: MBTI_LIST,
-                        selected: ownerDraftMbti,
-                        onSelect: (val) => setOwnerDraftMbti(val),
-                      });
-                    }}
+                    onPress={() =>
+                      openSelector('Chọn nhóm tính cách MBTI', MBTI_OPTIONS, ownerDraftMbti, (val) =>
+                        setOwnerDraftMbti(val)
+                      )
+                    }
                   >
                     <Text style={styles.pickerSelectorBtnText}>{ownerDraftMbti || 'Chọn'}</Text>
                     <Feather name="chevron-down" size={14} color="#7E6E60" />
@@ -1918,47 +1939,69 @@ export const MobileProfileScreen: React.FC = () => {
                 </View>
               </View>
 
-              {/* Khu vực sinh sống */}
+              {/* Khu vực sinh sống (Selector) */}
               <View style={styles.fieldBlock}>
                 <Text style={styles.fieldLabel}>Khu vực sinh sống</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={ownerDraftArea}
-                  onChangeText={setOwnerDraftArea}
-                  placeholder="VD: Vinhomes Grand Park, TP. Thủ Đức"
-                  placeholderTextColor="#A89E94"
-                />
+                <TouchableOpacity
+                  style={styles.pickerSelectorBtn}
+                  onPress={() =>
+                    openSelector('Chọn khu vực sinh sống', LIVING_AREA_OPTIONS, ownerDraftArea, (val) =>
+                      setOwnerDraftArea(val)
+                    )
+                  }
+                >
+                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                    {ownerDraftArea || 'Chọn khu vực sinh sống...'}
+                  </Text>
+                  <Feather name="chevron-down" size={14} color="#7E6E60" />
+                </TouchableOpacity>
               </View>
 
-              {/* Nghề nghiệp */}
+              {/* Nghề nghiệp (Selector) */}
               <View style={styles.fieldBlock}>
                 <Text style={styles.fieldLabel}>Nghề nghiệp hiện tại</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={ownerDraftOccupation}
-                  onChangeText={setOwnerDraftOccupation}
-                  placeholder="VD: UI/UX Designer"
-                  placeholderTextColor="#A89E94"
-                />
+                <TouchableOpacity
+                  style={styles.pickerSelectorBtn}
+                  onPress={() =>
+                    openSelector('Chọn nghề nghiệp', OCCUPATION_OPTIONS, ownerDraftOccupation, (val) =>
+                      setOwnerDraftOccupation(val)
+                    )
+                  }
+                >
+                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                    {ownerDraftOccupation || 'Chọn nghề nghiệp...'}
+                  </Text>
+                  <Feather name="chevron-down" size={14} color="#7E6E60" />
+                </TouchableOpacity>
               </View>
 
-              {/* Học vấn / Trường học */}
+              {/* Học vấn / Trường học (Selector) */}
               <View style={styles.fieldBlock}>
                 <Text style={styles.fieldLabel}>Học vấn / Trường tốt nghiệp</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={ownerDraftEducation}
-                  onChangeText={setOwnerDraftEducation}
-                  placeholder="VD: Đại học Quốc gia TP.HCM"
-                  placeholderTextColor="#A89E94"
-                />
+                <TouchableOpacity
+                  style={styles.pickerSelectorBtn}
+                  onPress={() =>
+                    openSelector('Chọn học vấn & trường', EDUCATION_OPTIONS, ownerDraftEducation, (val) =>
+                      setOwnerDraftEducation(val)
+                    )
+                  }
+                >
+                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                    {ownerDraftEducation || 'Chọn học vấn...'}
+                  </Text>
+                  <Feather name="chevron-down" size={14} color="#7E6E60" />
+                </TouchableOpacity>
               </View>
 
               {/* Câu giới thiệu bản thân */}
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Câu giới thiệu bản thân</Text>
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.fieldLabel}>Câu giới thiệu bản thân</Text>
+                  <Text style={styles.counterText}>{ownerDraftBio.length}/150</Text>
+                </View>
                 <TextInput
                   style={[styles.fieldInput, { height: 75, textAlignVertical: 'top' }]}
+                  maxLength={150}
                   value={ownerDraftBio}
                   onChangeText={setOwnerDraftBio}
                   placeholder="Viết đôi dòng về bạn và sở thích nuôi Boss..."
@@ -2022,7 +2065,7 @@ export const MobileProfileScreen: React.FC = () => {
       </Modal>
 
       {/* ============================================================= */}
-      {/* POPUP 4: THÊM BÉ CƯNG MỚI (CÓ SELECT & DATE PICKER)           */}
+      {/* POPUP 4: THÊM BÉ CƯNG MỚI (ATOMIC & SELECTOR-FIRST)           */}
       {/* ============================================================= */}
       <Modal visible={isAddingPetModal} transparent animationType="slide" onRequestClose={() => setIsAddingPetModal(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.cleanModalOverlay}>
@@ -2035,6 +2078,35 @@ export const MobileProfileScreen: React.FC = () => {
             </View>
 
             <ScrollView style={styles.modalScrollBody} showsVerticalScrollIndicator={false}>
+              {/* Ảnh thú cưng */}
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>Ảnh thú cưng</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <TouchableOpacity
+                    style={styles.newPetPhotoPlaceholder}
+                    onPress={handlePickNewPetPhoto}
+                    activeOpacity={0.8}
+                  >
+                    {newPetPhotoUrl ? (
+                      <Image source={{ uri: newPetPhotoUrl }} style={styles.newPetPhotoImg} />
+                    ) : (
+                      <View style={styles.newPetPhotoEmpty}>
+                        <Feather name="camera" size={24} color="#FF6F61" />
+                        <Text style={styles.newPetPhotoEmptyText}>Chọn ảnh</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#1C1815' }}>
+                      Hình ảnh đại diện của bé
+                    </Text>
+                    <Text style={{ fontSize: 11, color: '#7E6E60', marginTop: 2 }}>
+                      Ảnh sẽ hiển thị trên thẻ radar và hồ sơ toàn màn hình.
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
               {/* Loài thú cưng */}
               <View style={styles.fieldBlock}>
                 <Text style={styles.fieldLabel}>Loài thú cưng</Text>
@@ -2043,7 +2115,12 @@ export const MobileProfileScreen: React.FC = () => {
                     <TouchableOpacity
                       key={sp}
                       style={[styles.speciesChoiceBtn, newPetSpecies === sp && styles.speciesChoiceBtnActive]}
-                      onPress={() => setNewPetSpecies(sp)}
+                      onPress={() => {
+                        setNewPetSpecies(sp);
+                        if (sp === 'Chó') setNewPetBreed(POPULAR_DOG_BREEDS[0]);
+                        else if (sp === 'Mèo') setNewPetBreed(POPULAR_CAT_BREEDS[0]);
+                        else setNewPetBreed(OTHER_SPECIES_OPTIONS[0]);
+                      }}
                     >
                       <Text style={[styles.speciesChoiceText, newPetSpecies === sp && styles.speciesChoiceTextActive]}>
                         {sp}
@@ -2051,22 +2128,17 @@ export const MobileProfileScreen: React.FC = () => {
                     </TouchableOpacity>
                   ))}
                 </View>
-                {newPetSpecies === 'Khác' && (
-                  <TextInput
-                    style={[styles.fieldInput, { marginTop: 8 }]}
-                    placeholder="Nhập loài thú cưng (VD: Hamster, Thỏ...)"
-                    placeholderTextColor="#A89E94"
-                    value={newPetCustomSpecies}
-                    onChangeText={setNewPetCustomSpecies}
-                  />
-                )}
               </View>
 
               {/* Tên bé */}
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Tên của bé *</Text>
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.fieldLabel}>Tên của bé *</Text>
+                  <Text style={styles.counterText}>{newPetName.length}/30</Text>
+                </View>
                 <TextInput
                   style={styles.fieldInput}
+                  maxLength={30}
                   placeholder="VD: Bơ, Miu, Coca..."
                   placeholderTextColor="#A89E94"
                   value={newPetName}
@@ -2078,13 +2150,27 @@ export const MobileProfileScreen: React.FC = () => {
               <View style={styles.fieldsTwoColRow}>
                 <View style={[styles.fieldBlock, { flex: 1, marginRight: 8 }]}>
                   <Text style={styles.fieldLabel}>Giống</Text>
-                  <TextInput
-                    style={styles.fieldInput}
-                    placeholder="VD: Corgi, Poodle..."
-                    placeholderTextColor="#A89E94"
-                    value={newPetBreed}
-                    onChangeText={setNewPetBreed}
-                  />
+                  <TouchableOpacity
+                    style={styles.pickerSelectorBtn}
+                    onPress={() => {
+                      const options =
+                        newPetSpecies === 'Chó'
+                          ? POPULAR_DOG_BREEDS
+                          : newPetSpecies === 'Mèo'
+                          ? POPULAR_CAT_BREEDS
+                          : OTHER_SPECIES_OPTIONS;
+                      openSelector(`Chọn giống ${newPetSpecies.toLowerCase()}`, options, newPetBreed, (val) => {
+                        setNewPetBreed(val);
+                        if (newPetSpecies === 'Khác') setNewPetCustomSpecies(val);
+                      });
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                      {newPetBreed || 'Chọn giống...'}
+                    </Text>
+                    <Feather name="chevron-down" size={14} color="#7E6E60" />
+                  </TouchableOpacity>
                 </View>
                 <View style={[styles.fieldBlock, { flex: 1, marginLeft: 8 }]}>
                   <Text style={styles.fieldLabel}>Giới tính</Text>
@@ -2104,7 +2190,7 @@ export const MobileProfileScreen: React.FC = () => {
                 </View>
               </View>
 
-              {/* Ngày sinh (Date Picker) & Tuổi (Select) */}
+              {/* Ngày sinh & Độ tuổi */}
               <View style={styles.fieldsTwoColRow}>
                 <View style={[styles.fieldBlock, { flex: 1, marginRight: 8 }]}>
                   <Text style={styles.fieldLabel}>Ngày sinh</Text>
@@ -2114,7 +2200,7 @@ export const MobileProfileScreen: React.FC = () => {
                       setDatePickerConfig({
                         visible: true,
                         title: 'Chọn ngày sinh của bé',
-                        initialDate: newPetBirthDate || '01/06/2024',
+                        initialDate: newPetBirthDate || '01/01/2024',
                         isPet: true,
                         onConfirm: (date) => setNewPetBirthDate(date),
                       });
@@ -2129,15 +2215,11 @@ export const MobileProfileScreen: React.FC = () => {
                   <Text style={styles.fieldLabel}>Độ tuổi</Text>
                   <TouchableOpacity
                     style={styles.pickerSelectorBtn}
-                    onPress={() => {
-                      setPickerConfig({
-                        visible: true,
-                        title: 'Chọn độ tuổi của bé',
-                        options: PET_AGE_LIST,
-                        selected: newPetAge,
-                        onSelect: (val) => setNewPetAge(val),
-                      });
-                    }}
+                    onPress={() =>
+                      openSelector('Chọn độ tuổi của bé', PET_AGE_OPTIONS, newPetAge, (val) =>
+                        setNewPetAge(val)
+                      )
+                    }
                   >
                     <Text style={styles.pickerSelectorBtnText}>{newPetAge}</Text>
                     <Feather name="chevron-down" size={14} color="#7E6E60" />
@@ -2145,84 +2227,148 @@ export const MobileProfileScreen: React.FC = () => {
                 </View>
               </View>
 
-              {/* Cân nặng hiện tại */}
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Cân nặng hiện tại (kg)</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="VD: 5.2"
-                  placeholderTextColor="#A89E94"
-                  keyboardType="numeric"
-                  value={newPetWeight}
-                  onChangeText={setNewPetWeight}
-                />
+              {/* Cân nặng & Màu lông */}
+              <View style={styles.fieldsTwoColRow}>
+                <View style={[styles.fieldBlock, { flex: 1, marginRight: 8 }]}>
+                  <Text style={styles.fieldLabel}>Cân nặng</Text>
+                  <TouchableOpacity
+                    style={styles.pickerSelectorBtn}
+                    onPress={() =>
+                      openSelector('Chọn cân nặng (kg)', PET_WEIGHT_OPTIONS, newPetWeight, (val) =>
+                        setNewPetWeight(val)
+                      )
+                    }
+                  >
+                    <Text style={styles.pickerSelectorBtnText}>{newPetWeight} kg</Text>
+                    <Feather name="chevron-down" size={14} color="#7E6E60" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={[styles.fieldBlock, { flex: 1, marginLeft: 8 }]}>
+                  <Text style={styles.fieldLabel}>Màu lông</Text>
+                  <TouchableOpacity
+                    style={styles.pickerSelectorBtn}
+                    onPress={() =>
+                      openSelector('Chọn màu lông', PET_FUR_COLOR_OPTIONS, newPetFurColor, (val) =>
+                        setNewPetFurColor(val)
+                      )
+                    }
+                  >
+                    <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                      {newPetFurColor}
+                    </Text>
+                    <Feather name="chevron-down" size={14} color="#7E6E60" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              {/* Sở thích ăn uống */}
+              {/* Thức ăn & Tẩy giun */}
               <View style={styles.fieldBlock}>
                 <Text style={styles.fieldLabel}>Sở thích ăn uống</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="VD: Thích ức gà xé, pate cá ngừ, súp thưởng..."
-                  placeholderTextColor="#A89E94"
-                  value={newPetFavoriteFood}
-                  onChangeText={setNewPetFavoriteFood}
-                />
+                <TouchableOpacity
+                  style={styles.pickerSelectorBtn}
+                  onPress={() =>
+                    openSelector('Sở thích ăn uống', PET_FOOD_OPTIONS, newPetFavoriteFood, (val) =>
+                      setNewPetFavoriteFood(val)
+                    )
+                  }
+                >
+                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                    {newPetFavoriteFood}
+                  </Text>
+                  <Feather name="chevron-down" size={14} color="#7E6E60" />
+                </TouchableOpacity>
               </View>
 
-              {/* Lịch sử tẩy giun */}
               <View style={styles.fieldBlock}>
                 <Text style={styles.fieldLabel}>Lịch sử tẩy giun</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="VD: 15/09/2025 (Định kỳ 3 tháng/lần)"
-                  placeholderTextColor="#A89E94"
-                  value={newPetDewormingHistory}
-                  onChangeText={setNewPetDewormingHistory}
-                />
+                <TouchableOpacity
+                  style={styles.pickerSelectorBtn}
+                  onPress={() =>
+                    openSelector('Lịch sử tẩy giun', PET_DEWORMING_OPTIONS, newPetDewormingHistory, (val) =>
+                      setNewPetDewormingHistory(val)
+                    )
+                  }
+                >
+                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                    {newPetDewormingHistory}
+                  </Text>
+                  <Feather name="chevron-down" size={14} color="#7E6E60" />
+                </TouchableOpacity>
               </View>
 
-              {/* Tiền sử bệnh lý (Tùy chọn) */}
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Tiền sử bệnh lý (Tùy chọn)</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="VD: Nhạy cảm với sữa, không có bệnh nền..."
-                  placeholderTextColor="#A89E94"
-                  value={newPetMedicalHistory}
-                  onChangeText={setNewPetMedicalHistory}
-                />
+                <Text style={styles.fieldLabel}>Tiền sử bệnh lý</Text>
+                <TouchableOpacity
+                  style={styles.pickerSelectorBtn}
+                  onPress={() =>
+                    openSelector('Tiền sử bệnh lý', PET_MEDICAL_OPTIONS, newPetMedicalHistory, (val) =>
+                      setNewPetMedicalHistory(val)
+                    )
+                  }
+                >
+                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                    {newPetMedicalHistory}
+                  </Text>
+                  <Feather name="chevron-down" size={14} color="#7E6E60" />
+                </TouchableOpacity>
               </View>
 
-              {/* Thói quen tốt */}
+              {/* Thói quen tốt (Multi-select) */}
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Thói quen tốt (Cách nhau bằng dấu phẩy)</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="VD: Thân thiện, Nghe lời, Không sủa bậy..."
-                  placeholderTextColor="#A89E94"
-                  value={newPetGoodHabits}
-                  onChangeText={setNewPetGoodHabits}
-                />
+                <Text style={styles.fieldLabel}>Thói quen tốt</Text>
+                <TouchableOpacity
+                  style={styles.pickerSelectorBtn}
+                  onPress={() =>
+                    openMultiSelector(
+                      'Chọn thói quen tốt của bé',
+                      PET_GOOD_HABIT_OPTIONS,
+                      newPetGoodHabits,
+                      (vals) => setNewPetGoodHabits(vals)
+                    )
+                  }
+                >
+                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                    {newPetGoodHabits.length > 0
+                      ? newPetGoodHabits.join(', ')
+                      : 'Chọn thói quen tốt...'}
+                  </Text>
+                  <Feather name="chevron-down" size={14} color="#7E6E60" />
+                </TouchableOpacity>
               </View>
 
-              {/* Lưu ý khi dạo chung */}
+              {/* Lưu ý khi dạo chung (Multi-select) */}
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Lưu ý khi dạo chung (Cách nhau bằng dấu phẩy)</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="VD: Hơi nhát người lạ, Sợ tiếng sấm lớn..."
-                  placeholderTextColor="#A89E94"
-                  value={newPetCautionHabits}
-                  onChangeText={setNewPetCautionHabits}
-                />
+                <Text style={styles.fieldLabel}>Lưu ý khi dạo chung</Text>
+                <TouchableOpacity
+                  style={styles.pickerSelectorBtn}
+                  onPress={() =>
+                    openMultiSelector(
+                      'Chọn lưu ý khi dạo chung',
+                      PET_CAUTION_HABIT_OPTIONS,
+                      newPetCautionHabits,
+                      (vals) => setNewPetCautionHabits(vals)
+                    )
+                  }
+                >
+                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                    {newPetCautionHabits.length > 0
+                      ? newPetCautionHabits.join(', ')
+                      : 'Chọn lưu ý...'}
+                  </Text>
+                  <Feather name="chevron-down" size={14} color="#7E6E60" />
+                </TouchableOpacity>
               </View>
 
               {/* Mô tả tính cách */}
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Mô tả tính cách & Giới thiệu</Text>
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.fieldLabel}>Tự mô tả tính cách bé</Text>
+                  <Text style={styles.counterText}>{newPetBio.length}/160</Text>
+                </View>
                 <TextInput
                   style={[styles.fieldInput, { height: 60, textAlignVertical: 'top' }]}
+                  maxLength={160}
                   placeholder="Bé hiền lành, thích chạy nhảy, thích chơi ném bóng..."
                   placeholderTextColor="#A89E94"
                   value={newPetBio}
@@ -2231,141 +2377,56 @@ export const MobileProfileScreen: React.FC = () => {
                 />
               </View>
 
-              {/* Bảng cân nặng theo tháng */}
-              <View style={styles.innerSectionBox}>
-                <Text style={styles.innerSectionTitle}>Theo dõi cân nặng theo từng tháng:</Text>
-                <View style={styles.weightRecordsWrap}>
-                  {newPetWeightHistory.map((item, idx) => (
-                    <View key={idx} style={styles.weightRecordPill}>
-                      <Text style={styles.weightRecordPillText}>{item.month}: {item.weightKg}kg</Text>
-                    </View>
-                  ))}
+              {/* Tiêm chủng chứng nhận */}
+              <TouchableOpacity
+                style={[
+                  styles.unifiedTickBox,
+                  newPetVaccinated && {
+                    backgroundColor: '#EAF7F1',
+                    borderColor: '#3E8E6C',
+                  },
+                ]}
+                onPress={() => setNewPetVaccinated(!newPetVaccinated)}
+              >
+                <View
+                  style={[
+                    styles.tickSquare,
+                    newPetVaccinated && {
+                      backgroundColor: '#3E8E6C',
+                      borderColor: '#3E8E6C',
+                    },
+                  ]}
+                >
+                  {newPetVaccinated && <Feather name="check" size={14} color="#FFFFFF" />}
                 </View>
-
-                <View style={styles.addMiniRow}>
-                  <TouchableOpacity
-                    style={[styles.pickerSelectorBtn, { width: 90, height: 38 }]}
-                    onPress={() => {
-                      setPickerConfig({
-                        visible: true,
-                        title: 'Chọn tháng theo dõi',
-                        options: MONTH_LIST,
-                        selected: tempWeightMonth,
-                        onSelect: (val) => setTempWeightMonth(val),
-                      });
-                    }}
-                  >
-                    <Text style={styles.pickerSelectorBtnText}>{tempWeightMonth || 'Tháng'}</Text>
-                    <Feather name="chevron-down" size={12} color="#7E6E60" />
-                  </TouchableOpacity>
-
-                  <TextInput
-                    style={[styles.fieldInput, { flex: 1, height: 38, marginHorizontal: 8 }]}
-                    placeholder="Số kg (5.2)"
-                    placeholderTextColor="#A89E94"
-                    keyboardType="numeric"
-                    value={tempWeightKg}
-                    onChangeText={setTempWeightKg}
-                  />
-
-                  <TouchableOpacity
-                    style={styles.addMiniBtn}
-                    onPress={() => {
-                      if (!tempWeightMonth || !tempWeightKg) return;
-                      setNewPetWeightHistory((prev) => [
-                        ...prev,
-                        { month: tempWeightMonth, weightKg: parseFloat(tempWeightKg) || 5.0 },
-                      ]);
-                      setTempWeightKg('');
-                    }}
-                  >
-                    <Text style={styles.addMiniBtnText}>Thêm</Text>
-                  </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.tickTitle}>
+                    Đã tiêm chủng & Phòng bệnh dại đầy đủ
+                  </Text>
+                  <Text style={styles.tickSub}>
+                    Hiển thị chứng nhận an toàn xanh trên hồ sơ radar của bé
+                  </Text>
                 </View>
-              </View>
-
-              {/* Sổ tiêm chủng */}
-              <View style={styles.innerSectionBox}>
-                <Text style={styles.innerSectionTitle}>Chi tiết các mũi tiêm phòng:</Text>
-                {newPetVaccineRecords.map((vac) => (
-                  <View key={vac.id} style={styles.vacMiniItem}>
-                    <Text style={styles.vacMiniItemTitle}>{vac.vaccineName} (Mũi {vac.doseNumber})</Text>
-                    <Text style={styles.vacMiniItemSub}>Ngày: {vac.date} • {vac.clinic}</Text>
-                  </View>
-                ))}
-
-                <View style={{ marginTop: 8 }}>
-                  <TextInput
-                    style={[styles.fieldInput, { height: 36, marginBottom: 6 }]}
-                    placeholder="Tên vắc-xin (VD: Vắc-xin 7 bệnh)"
-                    placeholderTextColor="#A89E94"
-                    value={tempVacName}
-                    onChangeText={setTempVacName}
-                  />
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TouchableOpacity
-                      style={[styles.pickerSelectorBtn, { flex: 1, height: 36 }]}
-                      onPress={() => {
-                        setDatePickerConfig({
-                          visible: true,
-                          title: 'Chọn ngày tiêm',
-                          initialDate: tempVacDate || '15/10/2025',
-                          isPet: true,
-                          onConfirm: (date) => setTempVacDate(date),
-                        });
-                      }}
-                    >
-                      <Text style={styles.pickerSelectorBtnText}>{tempVacDate || 'Ngày tiêm'}</Text>
-                      <Feather name="calendar" size={12} color="#7E6E60" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.pickerSelectorBtn, { width: 85, height: 36 }]}
-                      onPress={() => {
-                        setPickerConfig({
-                          visible: true,
-                          title: 'Chọn số mũi tiêm',
-                          options: ['Mũi 1', 'Mũi 2', 'Mũi 3', 'Nhắc lại'],
-                          selected: `Mũi ${tempVacDose}`,
-                          onSelect: (val) => setTempVacDose(val.replace('Mũi ', '')),
-                        });
-                      }}
-                    >
-                      <Text style={styles.pickerSelectorBtnText}>Mũi {tempVacDose}</Text>
-                      <Feather name="chevron-down" size={12} color="#7E6E60" />
-                    </TouchableOpacity>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[styles.addMiniBtn, { marginTop: 6, alignSelf: 'flex-end', width: 90 }]}
-                    onPress={() => {
-                      if (!tempVacName) return;
-                      setNewPetVaccineRecords((prev) => [
-                        ...prev,
-                        {
-                          id: 'vac-' + Date.now(),
-                          vaccineName: tempVacName,
-                          date: tempVacDate || '01/10/2025',
-                          doseNumber: parseInt(tempVacDose, 10) || 1,
-                          clinic: tempVacClinic || 'BV Thú y',
-                          isSafeVerified: true,
-                        },
-                      ]);
-                      setTempVacName('');
-                    }}
-                  >
-                    <Text style={styles.addMiniBtnText}>Thêm mũi</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              </TouchableOpacity>
             </ScrollView>
 
             <View style={styles.modalFooterActions}>
               <TouchableOpacity
-                style={[styles.cleanSubmitBtn, { backgroundColor: theme.primary, width: '100%' }]}
+                style={[
+                  styles.cleanSubmitBtn,
+                  { backgroundColor: theme.primary, width: '100%', opacity: isCreatingPetSubmitting ? 0.7 : 1 },
+                ]}
+                disabled={isCreatingPetSubmitting}
                 onPress={handleAddNewPet}
               >
-                <Text style={styles.cleanSubmitBtnText}>Lưu Hồ sơ Thú cưng</Text>
+                {isCreatingPetSubmitting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Feather name="check" size={16} color="#FFFFFF" />
+                )}
+                <Text style={styles.cleanSubmitBtnText}>
+                  {isCreatingPetSubmitting ? 'Đang tạo hồ sơ...' : 'Lưu Hồ sơ Thú cưng'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2373,7 +2434,7 @@ export const MobileProfileScreen: React.FC = () => {
       </Modal>
 
       {/* ============================================================= */}
-      {/* POPUP 5: CHỈNH SỬA THÚ CƯNG (CÓ THÊM/ĐỔI ẢNH VÀ ĐỦ TRƯỜNG)   */}
+      {/* POPUP 5: CHỈNH SỬA THÚ CƯNG (SELECTOR-FIRST)                  */}
       {/* ============================================================= */}
       <Modal visible={!!editingPet} transparent animationType="slide" onRequestClose={() => setEditingPet(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.cleanModalOverlay}>
@@ -2386,72 +2447,15 @@ export const MobileProfileScreen: React.FC = () => {
             </View>
 
             <ScrollView style={styles.modalScrollBody} showsVerticalScrollIndicator={false}>
-              {/* Quản lý ảnh Album của bé */}
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Ảnh đại diện & Album ảnh của bé</Text>
-                <View style={styles.editGalleryRow}>
-                  {editPetGalleryDraft.map((imgUri, gIdx) => (
-                    <View key={gIdx} style={styles.editGalleryThumbBox}>
-                      <Image source={{ uri: imgUri }} style={styles.editGalleryThumbImg} />
-                      {gIdx === 0 && (
-                        <View style={styles.primaryPhotoBadge}>
-                          <Text style={styles.primaryPhotoBadgeText}>Chính</Text>
-                        </View>
-                      )}
-                      {editPetGalleryDraft.length > 1 && (
-                        <TouchableOpacity
-                          style={styles.removePhotoMiniBtn}
-                          onPress={() =>
-                            setEditPetGalleryDraft((prev) => prev.filter((_, i) => i !== gIdx))
-                          }
-                        >
-                          <Feather name="x" size={10} color="#FFFFFF" />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  ))}
-
-                  <TouchableOpacity
-                    style={styles.addPhotoToGalleryBtn}
-                    onPress={async () => {
-                      try {
-                        const result = await ImagePicker.launchImageLibraryAsync({
-                          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                          allowsEditing: true,
-                          quality: 0.9,
-                        });
-                        if (!result.canceled && result.assets && result.assets.length > 0) {
-                          setEditPetGalleryDraft((prev) => [result.assets[0].uri, ...prev]);
-                        }
-                      } catch {
-                        showToast('Chưa chọn ảnh mới');
-                      }
-                    }}
-                  >
-                    <Feather name="plus" size={18} color="#FF6F61" />
-                    <Text style={styles.addPhotoToGalleryText}>Thêm ảnh</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.resetGalleryBtn}
-                    onPress={() => {
-                      const defaults =
-                        editPetSpeciesDraft === 'Mèo' ? DEFAULT_CAT_GALLERY : DEFAULT_DOG_GALLERY;
-                      setEditPetGalleryDraft(defaults);
-                      showToast('Đã khôi phục album ảnh mẫu của bé');
-                    }}
-                  >
-                    <Feather name="refresh-cw" size={15} color="#7E6E60" />
-                    <Text style={styles.resetGalleryBtnText}>Ảnh mẫu</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
               {/* Tên bé */}
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Tên của bé *</Text>
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.fieldLabel}>Tên của bé *</Text>
+                  <Text style={styles.counterText}>{editPetNameDraft.length}/30</Text>
+                </View>
                 <TextInput
                   style={styles.fieldInput}
+                  maxLength={30}
                   value={editPetNameDraft}
                   onChangeText={setEditPetNameDraft}
                   placeholder="Tên bé"
@@ -2467,7 +2471,12 @@ export const MobileProfileScreen: React.FC = () => {
                     <TouchableOpacity
                       key={sp}
                       style={[styles.speciesChoiceBtn, editPetSpeciesDraft === sp && styles.speciesChoiceBtnActive]}
-                      onPress={() => setEditPetSpeciesDraft(sp)}
+                      onPress={() => {
+                        setEditPetSpeciesDraft(sp);
+                        if (sp === 'Chó') setEditPetBreedDraft(POPULAR_DOG_BREEDS[0]);
+                        else if (sp === 'Mèo') setEditPetBreedDraft(POPULAR_CAT_BREEDS[0]);
+                        else setEditPetBreedDraft(OTHER_SPECIES_OPTIONS[0]);
+                      }}
                     >
                       <Text style={[styles.speciesChoiceText, editPetSpeciesDraft === sp && styles.speciesChoiceTextActive]}>
                         {sp}
@@ -2475,28 +2484,38 @@ export const MobileProfileScreen: React.FC = () => {
                     </TouchableOpacity>
                   ))}
                 </View>
-                {editPetSpeciesDraft === 'Khác' && (
-                  <TextInput
-                    style={[styles.fieldInput, { marginTop: 8 }]}
-                    placeholder="Nhập loài thú cưng"
-                    placeholderTextColor="#A89E94"
-                    value={editPetCustomSpeciesDraft}
-                    onChangeText={setEditPetCustomSpeciesDraft}
-                  />
-                )}
               </View>
 
               {/* Giống & Giới tính */}
               <View style={styles.fieldsTwoColRow}>
                 <View style={[styles.fieldBlock, { flex: 1, marginRight: 8 }]}>
                   <Text style={styles.fieldLabel}>Giống</Text>
-                  <TextInput
-                    style={styles.fieldInput}
-                    value={editPetBreedDraft}
-                    onChangeText={setEditPetBreedDraft}
-                    placeholder="Giống bé"
-                    placeholderTextColor="#A89E94"
-                  />
+                  <TouchableOpacity
+                    style={styles.pickerSelectorBtn}
+                    onPress={() => {
+                      const options =
+                        editPetSpeciesDraft === 'Chó'
+                          ? POPULAR_DOG_BREEDS
+                          : editPetSpeciesDraft === 'Mèo'
+                          ? POPULAR_CAT_BREEDS
+                          : OTHER_SPECIES_OPTIONS;
+                      openSelector(
+                        `Chọn giống ${editPetSpeciesDraft.toLowerCase()}`,
+                        options,
+                        editPetBreedDraft,
+                        (val) => {
+                          setEditPetBreedDraft(val);
+                          if (editPetSpeciesDraft === 'Khác') setEditPetCustomSpeciesDraft(val);
+                        }
+                      );
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                      {editPetBreedDraft || 'Chọn giống...'}
+                    </Text>
+                    <Feather name="chevron-down" size={14} color="#7E6E60" />
+                  </TouchableOpacity>
                 </View>
                 <View style={[styles.fieldBlock, { flex: 1, marginLeft: 8 }]}>
                   <Text style={styles.fieldLabel}>Giới tính</Text>
@@ -2516,187 +2535,109 @@ export const MobileProfileScreen: React.FC = () => {
                 </View>
               </View>
 
-              {/* Ngày sinh & Độ tuổi */}
+              {/* Độ tuổi & Cân nặng */}
               <View style={styles.fieldsTwoColRow}>
                 <View style={[styles.fieldBlock, { flex: 1, marginRight: 8 }]}>
-                  <Text style={styles.fieldLabel}>Ngày sinh</Text>
-                  <TouchableOpacity
-                    style={styles.pickerSelectorBtn}
-                    onPress={() => {
-                      setDatePickerConfig({
-                        visible: true,
-                        title: 'Chọn ngày sinh của bé',
-                        initialDate: editPetBirthDateDraft || '15/03/2024',
-                        isPet: true,
-                        onConfirm: (date) => setEditPetBirthDateDraft(date),
-                      });
-                    }}
-                  >
-                    <Text style={styles.pickerSelectorBtnText}>{editPetBirthDateDraft || 'Chọn ngày'}</Text>
-                    <Feather name="calendar" size={14} color="#7E6E60" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={[styles.fieldBlock, { flex: 1, marginLeft: 8 }]}>
                   <Text style={styles.fieldLabel}>Độ tuổi</Text>
                   <TouchableOpacity
                     style={styles.pickerSelectorBtn}
-                    onPress={() => {
-                      setPickerConfig({
-                        visible: true,
-                        title: 'Chọn độ tuổi của bé',
-                        options: PET_AGE_LIST,
-                        selected: editPetAgeDraft,
-                        onSelect: (val) => setEditPetAgeDraft(val),
-                      });
-                    }}
+                    onPress={() =>
+                      openSelector('Chọn độ tuổi của bé', PET_AGE_OPTIONS, editPetAgeDraft, (val) =>
+                        setEditPetAgeDraft(val)
+                      )
+                    }
                   >
                     <Text style={styles.pickerSelectorBtnText}>{editPetAgeDraft}</Text>
                     <Feather name="chevron-down" size={14} color="#7E6E60" />
                   </TouchableOpacity>
                 </View>
-              </View>
 
-              {/* Cân nặng hiện tại */}
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Cân nặng hiện tại (kg)</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  keyboardType="numeric"
-                  value={editPetWeightDraft}
-                  onChangeText={setEditPetWeightDraft}
-                />
+                <View style={[styles.fieldBlock, { flex: 1, marginLeft: 8 }]}>
+                  <Text style={styles.fieldLabel}>Cân nặng</Text>
+                  <TouchableOpacity
+                    style={styles.pickerSelectorBtn}
+                    onPress={() =>
+                      openSelector('Chọn cân nặng (kg)', PET_WEIGHT_OPTIONS, editPetWeightDraft, (val) =>
+                        setEditPetWeightDraft(val)
+                      )
+                    }
+                  >
+                    <Text style={styles.pickerSelectorBtnText}>{editPetWeightDraft} kg</Text>
+                    <Feather name="chevron-down" size={14} color="#7E6E60" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Thói quen tốt */}
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Thói quen tốt (Cách nhau bằng dấu phẩy)</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={editPetGoodHabitsDraft}
-                  onChangeText={setEditPetGoodHabitsDraft}
-                  placeholder="Thân thiện với trẻ nhỏ, Biết ngồi chờ..."
-                  placeholderTextColor="#A89E94"
-                />
+                <Text style={styles.fieldLabel}>Thói quen tốt</Text>
+                <TouchableOpacity
+                  style={styles.pickerSelectorBtn}
+                  onPress={() =>
+                    openMultiSelector(
+                      'Chọn thói quen tốt của bé',
+                      PET_GOOD_HABIT_OPTIONS,
+                      editPetGoodHabitsDraft,
+                      (vals) => setEditPetGoodHabitsDraft(vals)
+                    )
+                  }
+                >
+                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                    {editPetGoodHabitsDraft.length > 0
+                      ? editPetGoodHabitsDraft.join(', ')
+                      : 'Chọn thói quen tốt...'}
+                  </Text>
+                  <Feather name="chevron-down" size={14} color="#7E6E60" />
+                </TouchableOpacity>
               </View>
 
               {/* Lưu ý khi dạo chung */}
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Lưu ý khi dạo chung (Cách nhau bằng dấu phẩy)</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={editPetCautionHabitsDraft}
-                  onChangeText={setEditPetCautionHabitsDraft}
-                  placeholder="Hơi phấn khích khi gặp cún lạ..."
-                  placeholderTextColor="#A89E94"
-                />
-              </View>
-
-              {/* Sở thích ăn uống */}
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Sở thích ăn uống</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={editPetFavoriteFoodDraft}
-                  onChangeText={setEditPetFavoriteFoodDraft}
-                  placeholder="Món ăn, hạt, súp thưởng bé thích..."
-                  placeholderTextColor="#A89E94"
-                />
-              </View>
-
-              {/* Lịch sử tẩy giun */}
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Lịch sử tẩy giun</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={editPetDewormingHistoryDraft}
-                  onChangeText={setEditPetDewormingHistoryDraft}
-                  placeholder="Lần gần nhất, định kỳ..."
-                  placeholderTextColor="#A89E94"
-                />
-              </View>
-
-              {/* Tiền sử bệnh lý (Tùy chọn) */}
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Tiền sử bệnh lý (Tùy chọn)</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={editPetMedicalHistoryDraft}
-                  onChangeText={setEditPetMedicalHistoryDraft}
-                  placeholder="Dị ứng, tiền sử điều trị..."
-                  placeholderTextColor="#A89E94"
-                />
+                <Text style={styles.fieldLabel}>Lưu ý khi dạo chung</Text>
+                <TouchableOpacity
+                  style={styles.pickerSelectorBtn}
+                  onPress={() =>
+                    openMultiSelector(
+                      'Chọn lưu ý khi dạo chung',
+                      PET_CAUTION_HABIT_OPTIONS,
+                      editPetCautionHabitsDraft,
+                      (vals) => setEditPetCautionHabitsDraft(vals)
+                    )
+                  }
+                >
+                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
+                    {editPetCautionHabitsDraft.length > 0
+                      ? editPetCautionHabitsDraft.join(', ')
+                      : 'Chọn lưu ý...'}
+                  </Text>
+                  <Feather name="chevron-down" size={14} color="#7E6E60" />
+                </TouchableOpacity>
               </View>
 
               {/* Mô tả tính cách */}
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Mô tả tính cách & Giới thiệu</Text>
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.fieldLabel}>Mô tả tính cách & Giới thiệu</Text>
+                  <Text style={styles.counterText}>{editPetBioDraft.length}/160</Text>
+                </View>
                 <TextInput
                   style={[styles.fieldInput, { height: 60, textAlignVertical: 'top' }]}
+                  maxLength={160}
                   value={editPetBioDraft}
                   onChangeText={setEditPetBioDraft}
                   multiline
                 />
               </View>
 
-              {/* Bảng cân nặng theo tháng */}
-              <View style={styles.innerSectionBox}>
-                <Text style={styles.innerSectionTitle}>Theo dõi cân nặng theo tháng:</Text>
-                <View style={styles.weightRecordsWrap}>
-                  {editPetWeightHistoryDraft.map((item, idx) => (
-                    <View key={idx} style={styles.weightRecordPill}>
-                      <Text style={styles.weightRecordPillText}>{item.month}: {item.weightKg}kg</Text>
-                    </View>
-                  ))}
-                </View>
-
-                <View style={styles.addMiniRow}>
-                  <TouchableOpacity
-                    style={[styles.pickerSelectorBtn, { width: 90, height: 38 }]}
-                    onPress={() => {
-                      setPickerConfig({
-                        visible: true,
-                        title: 'Chọn tháng theo dõi',
-                        options: MONTH_LIST,
-                        selected: tempWeightMonth,
-                        onSelect: (val) => setTempWeightMonth(val),
-                      });
-                    }}
-                  >
-                    <Text style={styles.pickerSelectorBtnText}>{tempWeightMonth || 'Tháng'}</Text>
-                    <Feather name="chevron-down" size={12} color="#7E6E60" />
-                  </TouchableOpacity>
-
-                  <TextInput
-                    style={[styles.fieldInput, { flex: 1, height: 38, marginHorizontal: 8 }]}
-                    placeholder="Số kg (5.2)"
-                    placeholderTextColor="#A89E94"
-                    keyboardType="numeric"
-                    value={tempWeightKg}
-                    onChangeText={setTempWeightKg}
-                  />
-
-                  <TouchableOpacity
-                    style={styles.addMiniBtn}
-                    onPress={() => {
-                      if (!tempWeightMonth || !tempWeightKg) return;
-                      setEditPetWeightHistoryDraft((prev) => [
-                        ...prev,
-                        { month: tempWeightMonth, weightKg: parseFloat(tempWeightKg) || 5.0 },
-                      ]);
-                      setTempWeightKg('');
-                    }}
-                  >
-                    <Text style={styles.addMiniBtnText}>Thêm</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
               {/* Xóa hồ sơ bé này */}
               {editingPet && (
                 <TouchableOpacity
                   style={styles.deletePetFullBtn}
-                  onPress={() => handleConfirmDeletePet(editingPet)}
+                  onPress={() => {
+                    deletePetProfile(editingPet.id);
+                    setEditingPet(null);
+                    scrollToPage(0);
+                  }}
                   activeOpacity={0.8}
                 >
                   <Feather name="trash-2" size={16} color="#E15B4C" />
@@ -2718,12 +2659,12 @@ export const MobileProfileScreen: React.FC = () => {
       </Modal>
 
       {/* ============================================================= */}
-      {/* POPUP 6: POST PREVIEW MODAL (HÌNH 1 & HÌNH 2)                 */}
+      {/* POPUP 6: POST PREVIEW MODAL                                   */}
       {/* ============================================================= */}
       <Modal visible={!!selectedPreviewPost} transparent animationType="fade" onRequestClose={() => setSelectedPreviewPost(null)}>
         <View style={styles.previewOverlay}>
           <TouchableOpacity
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             onPress={() => setSelectedPreviewPost(null)}
             activeOpacity={1}
           />
@@ -2731,7 +2672,7 @@ export const MobileProfileScreen: React.FC = () => {
             <View style={styles.previewCard}>
               <View style={styles.previewHeaderRow}>
                 <Image
-                  source={{ uri: selectedPreviewPost.authorAvatar || ownerAvatarUrl }}
+                  source={{ uri: selectedPreviewPost.authorAvatar || displayAvatarUrl }}
                   style={styles.postPreviewAvatar}
                 />
                 <View style={{ flex: 1, marginLeft: 10 }}>
@@ -2743,13 +2684,12 @@ export const MobileProfileScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* Post Image */}
               <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={() => {
                   openLightboxMedia({
                     postId: selectedPreviewPost.id,
-                    mediaUrls: selectedPreviewPost.mediaUrls || [selectedPreviewPost.authorAvatar || ownerAvatarUrl],
+                    mediaUrls: selectedPreviewPost.mediaUrls || [displayAvatarUrl],
                     mediaType: selectedPreviewPost.mediaType || 'image',
                     initialIndex: 0,
                     authorName: selectedPreviewPost.authorName,
@@ -2758,13 +2698,12 @@ export const MobileProfileScreen: React.FC = () => {
                 }}
               >
                 <Image
-                  source={{ uri: selectedPreviewPost.mediaUrls?.[0] || ownerAvatarUrl }}
+                  source={{ uri: selectedPreviewPost.mediaUrls?.[0] || displayAvatarUrl }}
                   style={styles.previewPostImage}
                   resizeMode="cover"
                 />
               </TouchableOpacity>
 
-              {/* Caption hiển thị dưới ảnh */}
               <View style={styles.previewCaptionBox}>
                 <View style={styles.previewLikeCountRow}>
                   <Feather name="heart" size={14} color="#FF6F61" />
@@ -2777,7 +2716,6 @@ export const MobileProfileScreen: React.FC = () => {
                 </Text>
               </View>
 
-              {/* Actions: "Xem chi tiết bài viết" */}
               <View style={styles.previewActionsContainer}>
                 <TouchableOpacity
                   style={styles.previewMainActionBtn}
@@ -2801,29 +2739,22 @@ export const MobileProfileScreen: React.FC = () => {
                   activeOpacity={0.8}
                 >
                   <Feather name="heart" size={15} color="#FF6F61" />
-                  <Text style={styles.previewSecondaryActionText}>Đã thích</Text>
+                  <Text style={styles.previewSecondaryActionText}>Thả tim</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.previewDangerActionBtn}
-                  onPress={() => {
-                    Alert.alert('Xóa bài viết', 'Bạn có chắc muốn xóa bài viết này khỏi bảng tin?', [
-                      { text: 'Hủy', style: 'cancel' },
-                      {
-                        text: 'Xóa',
-                        style: 'destructive',
-                        onPress: () => {
-                          deletePost(selectedPreviewPost.id);
-                          setSelectedPreviewPost(null);
-                        },
-                      },
-                    ]);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Feather name="trash-2" size={15} color="#E15B4C" />
-                  <Text style={styles.previewDangerActionText}>Xóa khỏi bảng tin</Text>
-                </TouchableOpacity>
+                {!isViewingOther && (
+                  <TouchableOpacity
+                    style={styles.previewDangerActionBtn}
+                    onPress={() => {
+                      deletePost(selectedPreviewPost.id);
+                      setSelectedPreviewPost(null);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="trash-2" size={15} color="#E15B4C" />
+                    <Text style={styles.previewDangerActionText}>Xóa khỏi bảng tin</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           )}
@@ -2831,7 +2762,7 @@ export const MobileProfileScreen: React.FC = () => {
       </Modal>
 
       {/* ============================================================= */}
-      {/* POPUP 7: POST DETAIL MODAL (BÌNH LUẬN, REPLY, THẢ REACT)      */}
+      {/* POPUP 7: POST DETAIL MODAL (COMMENTS)                          */}
       {/* ============================================================= */}
       <Modal visible={!!activePostDetail} transparent animationType="slide" onRequestClose={() => setActivePostDetail(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.cleanModalOverlay}>
@@ -2846,10 +2777,9 @@ export const MobileProfileScreen: React.FC = () => {
             {activePostDetail && (
               <>
                 <ScrollView style={styles.modalScrollBody} showsVerticalScrollIndicator={false}>
-                  {/* Author */}
                   <View style={styles.postDetailAuthorRow}>
                     <Image
-                      source={{ uri: activePostDetail.authorAvatar || ownerAvatarUrl }}
+                      source={{ uri: activePostDetail.authorAvatar || displayAvatarUrl }}
                       style={styles.postDetailAvatar}
                     />
                     <View style={{ flex: 1, marginLeft: 10 }}>
@@ -2858,17 +2788,14 @@ export const MobileProfileScreen: React.FC = () => {
                     </View>
                   </View>
 
-                  {/* Image */}
                   <Image
-                    source={{ uri: activePostDetail.mediaUrls?.[0] || ownerAvatarUrl }}
+                    source={{ uri: activePostDetail.mediaUrls?.[0] || displayAvatarUrl }}
                     style={styles.postDetailImage}
                     resizeMode="cover"
                   />
 
-                  {/* Caption */}
                   <Text style={styles.postDetailContentText}>{activePostDetail.content}</Text>
 
-                  {/* Reactions */}
                   <View style={styles.postDetailReactionsRow}>
                     <TouchableOpacity
                       style={styles.reactionPill}
@@ -2886,7 +2813,6 @@ export const MobileProfileScreen: React.FC = () => {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Comments list */}
                   <View style={styles.commentsListBlock}>
                     <Text style={styles.commentsHeaderTitle}>
                       Bình luận ({activePostDetail.comments?.length || 0})
@@ -2895,7 +2821,7 @@ export const MobileProfileScreen: React.FC = () => {
                     {(activePostDetail.comments || []).map((cmt) => (
                       <View key={cmt.id} style={styles.commentItemWrap}>
                         <View style={styles.commentRow}>
-                          <Image source={{ uri: cmt.authorAvatar || ownerAvatarUrl }} style={styles.commentAvatar} />
+                          <Image source={{ uri: cmt.authorAvatar || displayAvatarUrl }} style={styles.commentAvatar} />
                           <View style={styles.commentBubble}>
                             <Text style={styles.commentAuthorName}>{cmt.authorName}</Text>
                             <Text style={styles.commentContentText}>{cmt.content}</Text>
@@ -2917,10 +2843,9 @@ export const MobileProfileScreen: React.FC = () => {
                           </TouchableOpacity>
                         </View>
 
-                        {/* Replies */}
                         {(cmt.replies || []).map((rep) => (
                           <View key={rep.id} style={styles.replyRow}>
-                            <Image source={{ uri: rep.authorAvatar || ownerAvatarUrl }} style={styles.replyAvatar} />
+                            <Image source={{ uri: rep.authorAvatar || displayAvatarUrl }} style={styles.replyAvatar} />
                             <View style={styles.replyBubble}>
                               <Text style={styles.commentAuthorName}>{rep.authorName}</Text>
                               <Text style={styles.commentContentText}>{rep.content}</Text>
@@ -2932,7 +2857,6 @@ export const MobileProfileScreen: React.FC = () => {
                   </View>
                 </ScrollView>
 
-                {/* Input Bar */}
                 <View style={styles.commentInputBar}>
                   <TextInput
                     style={styles.commentInput}
@@ -2964,15 +2888,18 @@ export const MobileProfileScreen: React.FC = () => {
       </Modal>
 
       {/* ============================================================= */}
-      {/* 8. UNIVERSAL PICKER MODAL                                     */}
+      {/* 8. SHARED SELECTOR PICKER MODAL                               */}
       {/* ============================================================= */}
-      <UniversalPickerModal
-        visible={pickerConfig.visible}
-        title={pickerConfig.title}
-        options={pickerConfig.options}
-        selected={pickerConfig.selected}
-        onSelect={pickerConfig.onSelect}
-        onClose={() => setPickerConfig((prev) => ({ ...prev, visible: false }))}
+      <SelectorPickerModal
+        visible={selectorConfig.visible}
+        title={selectorConfig.title}
+        options={selectorConfig.options}
+        selectedValue={selectorConfig.selectedValue}
+        selectedValues={selectorConfig.selectedValues}
+        multiSelect={selectorConfig.multiSelect}
+        onSelect={selectorConfig.onSelect}
+        onSelectMulti={selectorConfig.onSelectMulti}
+        onClose={() => setSelectorConfig((prev) => ({ ...prev, visible: false }))}
       />
 
       {/* ============================================================= */}
@@ -2986,6 +2913,25 @@ export const MobileProfileScreen: React.FC = () => {
         onConfirm={datePickerConfig.onConfirm}
         onClose={() => setDatePickerConfig((prev) => ({ ...prev, visible: false }))}
       />
+
+      {/* ============================================================= */}
+      {/* 10. CONFIRM ACTION MODAL FOR UNFRIEND                         */}
+      {/* ============================================================= */}
+      {otherProfile && (
+        <ConfirmActionModal
+          visible={confirmUnfriendVisible}
+          title="Hủy kết bạn?"
+          message={`Bạn có chắc muốn hủy kết bạn với ${otherProfile.name}? Sau khi hủy kết bạn, hai bên sẽ không thể tiếp tục nhắn tin trò chuyện với nhau.`}
+          confirmLabel="Hủy kết bạn"
+          cancelLabel="Giữ lại"
+          danger
+          onCancel={() => setConfirmUnfriendVisible(false)}
+          onConfirm={async () => {
+            setConfirmUnfriendVisible(false);
+            await unfriendUser(otherProfile.handle);
+          }}
+        />
+      )}
     </View>
   );
 };
@@ -2993,17 +2939,16 @@ export const MobileProfileScreen: React.FC = () => {
 /* -------------------------------------------------------------------------- */
 /* STYLES                                                                     */
 /* -------------------------------------------------------------------------- */
-const pickerStyles = StyleSheet.create({
+const dateStyles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
     justifyContent: 'flex-end',
   },
-  sheetCard: {
+  datePickerCard: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: SCREEN_HEIGHT * 0.55,
     paddingBottom: 24,
   },
   sheetHeader: {
@@ -3022,37 +2967,6 @@ const pickerStyles = StyleSheet.create({
   },
   closeBtn: {
     padding: 6,
-  },
-  optionsList: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  optionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginVertical: 3,
-  },
-  optionRowSelected: {
-    backgroundColor: '#FF6F61',
-  },
-  optionText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#3A332C',
-  },
-  optionTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  datePickerCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 24,
   },
   dateColsContainer: {
     flexDirection: 'row',
@@ -3130,6 +3044,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F0ECE6',
   },
+  headerBackBtn: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
   headerPillsScrollContent: {
     alignItems: 'center',
     paddingRight: 10,
@@ -3180,11 +3101,11 @@ const styles = StyleSheet.create({
 
   /* OWNER COVER & AVATAR */
   ownerCoverContainer: {
-    height: 170,
+    height: 180,
     width: '100%',
     position: 'relative',
     backgroundColor: '#EBE5DC',
-    zIndex: 1, // Để thấp hơn avatarSectionRow để không che mất đỉnh avatar
+    zIndex: 1,
     elevation: 1,
   },
   coverTouchArea: {
@@ -3218,10 +3139,10 @@ const styles = StyleSheet.create({
   /* AVATAR ROW: 50% Overlap onto cover */
   avatarSectionRow: {
     position: 'relative',
-    marginTop: -52,
+    marginTop: -55,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 30, // Đặt zIndex cao hơn cover để toàn bộ vòng tròn avatar nổi lên trên
+    zIndex: 30,
     elevation: 10,
   },
   noteBubbleAnchor: {
@@ -3257,23 +3178,23 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '45deg' }],
   },
   ownerAvatarWrap: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+    width: 108,
+    height: 108,
+    borderRadius: 54,
     borderWidth: 4,
     borderColor: '#FDFBF7',
     backgroundColor: '#FDFBF7',
     position: 'relative',
   },
   ownerAvatarImg: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },
   avatarPlusBadge: {
     position: 'absolute',
-    top: 2, // Di chuyển lên trên đầu phía bên phải của ảnh avt
-    right: 2,
+    top: 0,
+    right: 0,
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -3312,6 +3233,99 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
+  },
+
+  /* RELATIONSHIP ACTION BAR (OTHER USER) */
+  relationshipBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 14,
+  },
+  relPrimaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  relPrimaryBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  relFriendAcceptedBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#EAF7F1',
+    borderWidth: 1,
+    borderColor: '#3E8E6C',
+  },
+  relFriendAcceptedText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#2E7D5B',
+  },
+  relFriendPendingBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#F5EFE6',
+    borderWidth: 1,
+    borderColor: '#E8DED1',
+  },
+  relFriendPendingText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7E6E60',
+  },
+  relSecondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
+  },
+  relSecondaryBtnActive: {
+    backgroundColor: '#EAF7F1',
+    borderColor: '#C2E8D7',
+  },
+  relSecondaryBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4A3F35',
+  },
+  relMessageBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  relMessageBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 
   /* OWNER INFO */
@@ -3471,16 +3485,16 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
 
-  /* PET FULLSCREEN CONTAINER: Phủ trọn 100% màn hình, thẻ kính gối nửa dưới cuộn xuôi */
+  /* PET FULLSCREEN CONTAINER */
   petFullScreenContainer: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT - 52 - 60, // Phủ trọn vùng xem giữa top header và bottom tab bar
+    height: SCREEN_HEIGHT - 52 - 60,
     position: 'relative',
     backgroundColor: '#1C1815',
     overflow: 'hidden',
   },
   petScrollOverFullscreen: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 10,
   },
   petScrollOverFullscreenContent: {
@@ -3591,10 +3605,10 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   },
 
-  /* Ultra-Translucent Frosted Glass Card: Mờ nhạt, gối nhẹ lên đáy ảnh & cuộn xuôi xuống */
+  /* Frosted Glass Card */
   petScrollableFrostedCard: {
     marginHorizontal: 14,
-    backgroundColor: 'rgba(22, 18, 16, 0.48)', // Mờ nhạt, nhìn thấu ảnh thú cưng tràn màn hình
+    backgroundColor: 'rgba(22, 18, 16, 0.52)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
     borderRadius: 24,
@@ -3634,53 +3648,49 @@ const styles = StyleSheet.create({
   petSpecsWrapRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 8,
+    gap: 8,
+    marginBottom: 10,
   },
   specFrostedChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    flex: 1,
+    minWidth: 70,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    alignItems: 'center',
   },
   specChipLabel: {
     fontSize: 10,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.75)',
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontWeight: '600',
   },
   specChipValue: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
     color: '#FFFFFF',
-    marginTop: 1,
+    marginTop: 2,
   },
   expandToggleBtn: {
-    paddingVertical: 6,
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.12)',
-    marginTop: 2,
+    paddingVertical: 8,
   },
   expandToggleBtnText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#A3E4D7',
   },
-  petCardInnerScroll: {
-    maxHeight: SCREEN_HEIGHT * 0.46,
-    marginTop: 8,
-  },
   petDetailCardRow: {
-    marginBottom: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    padding: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 12,
+    padding: 10,
+    marginBottom: 6,
   },
   petDetailCardLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: '#A3E4D7',
-    marginBottom: 3,
+    marginBottom: 2,
   },
   petDetailCardValue: {
     fontSize: 12,
@@ -3716,7 +3726,7 @@ const styles = StyleSheet.create({
     color: '#FFE2DE',
   },
 
-  /* Weight Chart: Không đè chữ */
+  /* Weight Chart */
   petHealthSectionBox: {
     marginTop: 8,
     marginBottom: 10,
@@ -3877,10 +3887,13 @@ const styles = StyleSheet.create({
     color: '#E15B4C',
   },
   cleanSubmitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 14,
-    alignItems: 'center',
   },
   cleanSubmitBtnText: {
     fontSize: 14,
@@ -3958,6 +3971,17 @@ const styles = StyleSheet.create({
   fieldsTwoColRow: {
     flexDirection: 'row',
   },
+  labelBetweenRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  counterText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9A8D82',
+    marginBottom: 4,
+  },
   pickerSelectorBtn: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -4027,144 +4051,64 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  /* Edit Pet Gallery UI */
-  editGalleryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  editGalleryThumbBox: {
+  /* New Pet Photo Picker */
+  newPetPhotoPlaceholder: {
     width: 68,
     height: 68,
-    borderRadius: 12,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#EBE5DC',
-  },
-  editGalleryThumbImg: {
-    width: '100%',
-    height: '100%',
-  },
-  primaryPhotoBadge: {
-    position: 'absolute',
-    bottom: 2,
-    left: 2,
-    backgroundColor: '#FF6F61',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  primaryPhotoBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  removePhotoMiniBtn: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addPhotoToGalleryBtn: {
-    width: 68,
-    height: 68,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: '#FF6F61',
     borderStyle: 'dashed',
     backgroundColor: '#FFF0EE',
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addPhotoToGalleryText: {
+  newPetPhotoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  newPetPhotoEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newPetPhotoEmptyText: {
     fontSize: 10,
     fontWeight: '700',
     color: '#FF6F61',
     marginTop: 2,
   },
-  resetGalleryBtn: {
-    width: 68,
-    height: 68,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D4CDC3',
-    backgroundColor: '#FAF7F2',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  resetGalleryBtnText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#7E6E60',
-    marginTop: 2,
-  },
 
-  innerSectionBox: {
-    backgroundColor: '#FAF7F2',
-    borderRadius: 14,
+  unifiedTickBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     padding: 12,
-    marginBottom: 12,
+    borderRadius: 14,
+    backgroundColor: '#FAF7F2',
+    borderWidth: 1,
+    borderColor: '#E5DDD3',
+    marginVertical: 10,
   },
-  innerSectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#4A3E3D',
-    marginBottom: 8,
-  },
-  weightRecordsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 8,
-  },
-  weightRecordPill: {
-    backgroundColor: '#E8E2D9',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  weightRecordPillText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#3A332C',
-  },
-  addMiniRow: {
-    flexDirection: 'row',
+  tickSquare: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: '#C5B8AC',
     alignItems: 'center',
-  },
-  addMiniBtn: {
-    backgroundColor: '#FF6F61',
-    paddingHorizontal: 12,
-    height: 38,
-    borderRadius: 10,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addMiniBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  vacMiniItem: {
     backgroundColor: '#FFFFFF',
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 4,
   },
-  vacMiniItemTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1C1815',
+  tickTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#2C2520',
   },
-  vacMiniItemSub: {
+  tickSub: {
     fontSize: 11,
-    color: '#7E6E60',
+    color: '#7A6E63',
+    marginTop: 2,
   },
   deletePetFullBtn: {
     flexDirection: 'row',
@@ -4486,9 +4430,10 @@ const styles = StyleSheet.create({
   commentInputBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#F0ECE6',
-    paddingTop: 8,
   },
   commentInput: {
     flex: 1,
@@ -4502,19 +4447,17 @@ const styles = StyleSheet.create({
     color: '#1C1815',
   },
   commentSendBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#FF6F61',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
+    justifyContent: 'center',
   },
 
-  /* HAMBURGER MENU MODAL */
+  /* Hamburger Menu List */
   menuOptionsList: {
-    marginTop: 6,
-    marginBottom: 8,
+    gap: 6,
   },
   menuItemRow: {
     flexDirection: 'row',
@@ -4524,11 +4467,11 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F0ECE6',
   },
   menuItemIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   menuItemContent: {
@@ -4541,7 +4484,7 @@ const styles = StyleSheet.create({
   },
   menuItemDesc: {
     fontSize: 11,
-    color: '#7E6E60',
+    color: '#8A7D75',
     marginTop: 2,
   },
 });
