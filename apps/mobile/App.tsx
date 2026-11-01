@@ -127,7 +127,7 @@ const MainMobileShell: React.FC = () => {
     >
       <StatusBar barStyle="dark-content" />
 
-      {/* DYNAMIC CONTEXTUAL HEADER PER ACTIVE TAB (Ẩn khi ở tab Tôi hoặc đang trong chi tiết phòng chat) */
+      {/* DYNAMIC CONTEXTUAL HEADER PER ACTIVE TAB (Ẩn khi ở tab Tôi hoặc đang trong chi tiết phòng chat) */}
       {activeTab !== 'profile' && !(activeTab === 'chat' && activeChatId) && (
         <View style={styles.header}>
         {/* 1. EXPLORE HEADER: Left '+' | Center Single Pawty Logo | Right SOS (Opens Fullscreen SOS Tab) + Notifications */}
