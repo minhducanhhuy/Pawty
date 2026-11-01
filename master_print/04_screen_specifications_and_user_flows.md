@@ -81,8 +81,9 @@
       4. Giao diện ứng dụng (chuyển đổi chủ đề màu sắc tức thì).
       5. Đăng xuất tài khoản (kèm hộp thoại xác nhận an toàn).
   - **Trang 0: Hồ sơ Con sen (Owner Profile Page):**
-    - **Ảnh nền Background / Bìa:** Nút "Đổi ảnh bìa" đặt tại góc trên bên phải (`top: 14, right: 14`, `zIndex: 99`, `elevation: 10`) tách biệt hoàn toàn khỏi avatar overlap, đảm bảo nhận chạm 100% mở modal chọn ảnh từ thiết bị hoặc ảnh mẫu phong cảnh.
-    - **Avatar Chủ nuôi & Ghi chú (Note):** Avatar tròn lớn ở trung tâm. Góc avatar có dấu cộng nhỏ `+` chạm vào để mở Popup ghi chú ngắn gọn (không có chữ 24h, thuần ô nhập text, không có icon mẫu rườm rà).
+    - **Ảnh nền Background / Bìa:** Nút "Đổi ảnh bìa" đặt tại góc trên bên phải (`top: 14, right: 14`, `zIndex: 99`, `elevation: 10`) tách biệt hoàn toàn khỏi avatar overlap, đảm bảo nhận chạm 100% mở modal chọn ảnh từ thiết bị hoặc ảnh mẫu phong cảnh. Vùng cover container có `zIndex: 1`.
+    - **Avatar Chủ nuôi & Ghi chú (Note):** Avatar tròn lớn ở trung tâm thuộc khối `avatarSectionRow` (`zIndex: 30, elevation: 10`), nằm hoàn toàn trên lớp ảnh bìa, không bao giờ bị cắt mất góc trên.
+    - **Dấu cộng ghi chú (+ Badge):** Đặt tại góc trên bên phải của vòng tròn avatar (`top: 2, right: 2`, `zIndex: 40`), chạm vào mở Popup ghi chú nhanh.
     - **Nút Chỉnh sửa Tinh Gọn:** Mở riêng **Popup Chỉnh sửa Hồ sơ Con sen Đầy Đủ**:
       - Giới tính, Họ và tên, Địa chỉ / Khu vực sinh sống, Độ tuổi & Ngày sinh.
       - Cung hoàng đạo (12 chòm sao), MBTI (16 nhóm tính cách).
@@ -103,16 +104,16 @@
         - Thả react tim cho từng bình luận.
         - Nút "Trả lời" (Reply) trực tiếp từng người xem.
         - Khung nhập bình luận mới ở đáy màn hình.
-  - **Trang 1, 2, ...: Hồ sơ Từng Bé Thú Cưng (Scrollable Downward Pet Screen):**
+  - **Trang 1, 2, ...: Hồ sơ Từng Bé Thú Cưng (Fullscreen Photo & Scrollable Downward Card):**
     - Mỗi thú cưng là một trang dọc độc lập nằm trong khối paging ngang (`nestedScrollEnabled={true}`).
-    - **Hero Photo Bé Cưng Nổi Bật & An Toàn Fallback:**
-      - Khung ảnh chiếm vị trí trang trọng ở nửa trên màn hình (`height: 58%`), có cơ chế fallback URL đa tầng (chó/mèo) đảm bảo không bao giờ bị đen màn hình.
-      - 2 Nút chuyển ảnh `<` và `>` mờ nhạt đặt tại hai bên hông ảnh để người dùng lướt album ảnh của bé.
+    - **Ảnh Bé Cưng Tràn Trọn Toàn Màn Hình (100% Fullscreen Photo):**
+      - Ảnh bé cưng hiển thị tràn trọn vẹn 100% màn hình phía sau (`position: 'absolute', top: 0, left: 0, width: SCREEN_WIDTH, height: '100%'`).
+      - Cơ chế album ảnh chuẩn xác (`cleanGallery`), 2 nút `<` và `>` hai bên hông chuyển đổi mượt mà qua các bức ảnh mẫu sắc nét của bé.
       - Chạm đúp (Double-tap) vào ảnh để thả tim kèm hoạt cảnh nổ tim hồng lộng lẫy.
-    - **Thẻ Kính Mờ Mở Rộng Cuộn Xuống Dưới (Downward Expandable Frosted Card):**
-      - Thẻ kính mờ (`rgba(28, 22, 20, 0.65)`) nằm gối nhẹ lên đáy ảnh (`marginTop: -32px`).
-      - Khi người dùng nhấn **`[ Hiện thêm chi tiết sức khỏe & sổ tiêm ⌄ ]`**, toàn bộ nội dung chi tiết mở rộng **CUỘN XUÔI XUỐNG DƯỚI (SCROLL DOWN)** theo trục dọc của trang, tuyệt đối không bị đẩy ngược lên che mất ảnh khuôn mặt bé cưng.
-      - Khi cuộn xuống, người dùng đọc được:
+    - **Thẻ Kính Mờ Nằm Nửa Dưới & Cuộn Xuống (Scroll Downward):**
+      - Thẻ kính mờ (`rgba(22, 18, 16, 0.48)`) nằm ở nửa dưới, cho phép nhìn thấu cơ thể bé cưng xuyên qua lớp kính mờ.
+      - Khi người dùng cuộn xuống dưới (Scroll Down), thẻ lướt xuôi xuống theo chiều đọc tự nhiên của người dùng, không bao giờ bị đẩy ngược lên che mặt bé.
+      - Khi nhấn **`[ Hiện thêm chi tiết sức khỏe & sổ tiêm ⌄ ]`**, người dùng cuộn xuống để đọc:
         1. Tính cách & Giới thiệu chi tiết.
         2. Thói quen tốt & Lưu ý an toàn khi đi dạo chung (tránh xung đột).
         3. Sở thích ăn uống (thức ăn yêu thích, pate, bánh thưởng).

@@ -31,6 +31,17 @@ const DEFAULT_FALLBACK_DOG =
 const DEFAULT_FALLBACK_CAT =
   'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=1000&q=80';
 
+const DEFAULT_DOG_GALLERY = [
+  'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=1000&q=80',
+  'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=1000&q=80',
+  'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=1000&q=80',
+];
+const DEFAULT_CAT_GALLERY = [
+  'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=1000&q=80',
+  'https://images.unsplash.com/photo-1513360382564-850126167794?auto=format&fit=crop&w=1000&q=80',
+  'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&w=1000&q=80',
+];
+
 // Presets for cover background
 const COVER_PRESETS = [
   { id: 'beach', name: 'Biển hoàng hôn', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=80' },
@@ -927,22 +938,24 @@ export const MobileProfileScreen: React.FC = () => {
 
           {/* 2. Floating Note Bubble & Avatar Overlap (50% trên ảnh bìa) */}
           <View style={styles.avatarSectionRow}>
-            {/* Note Bubble placed floating above avatar */}
-            <View style={styles.noteBubbleAnchor}>
-              <TouchableOpacity
-                style={styles.noteBubbleBox}
-                onPress={() => {
-                  setTempNoteText(ownerNoteBubble || '');
-                  setIsEditingNote(true);
-                }}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.noteBubbleText} numberOfLines={2}>
-                  {ownerNoteBubble || 'Chiều nay ai ra công viên không?'}
-                </Text>
-                <View style={styles.noteBubbleTail} />
-              </TouchableOpacity>
-            </View>
+            {/* Note Bubble: Chỉ hiển thị khi chủ nuôi có ghi chú thực tế */}
+            {ownerNoteBubble && ownerNoteBubble.trim().length > 0 ? (
+              <View style={styles.noteBubbleAnchor}>
+                <TouchableOpacity
+                  style={styles.noteBubbleBox}
+                  onPress={() => {
+                    setTempNoteText(ownerNoteBubble || '');
+                    setIsEditingNote(true);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.noteBubbleText} numberOfLines={2}>
+                    {ownerNoteBubble}
+                  </Text>
+                  <View style={styles.noteBubbleTail} />
+                </TouchableOpacity>
+              </View>
+            ) : null}
 
             {/* Avatar Wrap: Overlaps 50% on bottom of cover */}
             <View style={styles.ownerAvatarWrap}>
@@ -962,7 +975,7 @@ export const MobileProfileScreen: React.FC = () => {
                 <Image source={{ uri: ownerAvatarUrl }} style={styles.ownerAvatarImg} />
               </TouchableOpacity>
 
-              {/* Note '+' badge */}
+              {/* Note '+' badge: Di chuyển lên trên đầu phía bên phải của ảnh avt */}
               <TouchableOpacity
                 style={[styles.avatarPlusBadge, { backgroundColor: theme.primary }]}
                 onPress={() => {
@@ -970,6 +983,7 @@ export const MobileProfileScreen: React.FC = () => {
                   setIsEditingNote(true);
                 }}
                 activeOpacity={0.85}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Feather name="plus" size={13} color="#FFFFFF" />
               </TouchableOpacity>
@@ -1139,17 +1153,25 @@ export const MobileProfileScreen: React.FC = () => {
         </ScrollView>
 
         {/* ========================================================= */}
-        {/* PAGES 1..N: HỒ SƠ TỪNG BÉ THÚ CƯNG (SCROLL XUỐNG DƯỚI)   */}
+        {/* PAGES 1..N: HỒ SƠ TỪNG BÉ THÚ CƯNG (FULLSCREEN PHOTO)     */}
         {/* ========================================================= */}
         {pets.map((pet) => {
           const fallbackForPet =
             pet.species === 'Mèo' ? DEFAULT_FALLBACK_CAT : DEFAULT_FALLBACK_DOG;
+          const defaultList =
+            pet.species === 'Mèo' ? DEFAULT_CAT_GALLERY : DEFAULT_DOG_GALLERY;
           const cleanGallery = [
             ...(pet.galleryUrls || []),
             pet.coverUrl,
             pet.avatarUrl,
-            fallbackForPet,
-          ].filter((u): u is string => typeof u === 'string' && u.trim().length > 10);
+            ...defaultList,
+          ].filter(
+            (u): u is string =>
+              typeof u === 'string' &&
+              u.trim().length > 10 &&
+              !u.includes('undefined') &&
+              !u.includes('null')
+          );
           const gallery = Array.from(new Set(cleanGallery));
           const activePhotoIdx = (petGalleryIndices[pet.id] || 0) % gallery.length;
           const currentPetImg = gallery[activePhotoIdx] || fallbackForPet;
@@ -1158,312 +1180,319 @@ export const MobileProfileScreen: React.FC = () => {
           const likesCount = pet.likesCount ?? 148;
 
           return (
-            <ScrollView
-              key={pet.id}
-              style={styles.petVerticalScrollPage}
-              contentContainerStyle={styles.petVerticalScrollContent}
-              nestedScrollEnabled={true}
-              showsVerticalScrollIndicator={false}
-            >
-              {/* 1. Hero Photo Container: Nửa trên màn hình hiển thị ảnh rõ nét */}
-              <View style={styles.petHeroImageContainer}>
-                <Image
-                  source={{ uri: currentPetImg }}
-                  style={styles.petHeroImage}
-                  resizeMode="cover"
-                />
+            <View key={pet.id} style={styles.petFullScreenContainer}>
+              {/* 1. Fullscreen Background Image: Tràn trọn 100% màn hình */}
+              <Image
+                source={{ uri: currentPetImg }}
+                style={StyleSheet.absoluteFillObject}
+                resizeMode="cover"
+              />
 
-                {/* Double-tap touchable overlay on hero image */}
+              {/* 2. Double-tap touchable overlay on background photo */}
+              <TouchableOpacity
+                activeOpacity={1}
+                style={StyleSheet.absoluteFillObject}
+                onPress={() => handlePetContainerTap(pet.id)}
+              />
+
+              {/* 3. Top Floating Action Bar */}
+              <View style={styles.petTopFloatingBar}>
+                <View style={styles.petSpeciesPillBadge}>
+                  <Text style={styles.petSpeciesPillText}>
+                    {pet.species === 'Khác' && pet.customSpecies
+                      ? pet.customSpecies
+                      : `Loài ${pet.species}`}
+                  </Text>
+                </View>
+
+                <View style={styles.petTopRightActionsRow}>
+                  {/* Thả tim */}
+                  <TouchableOpacity
+                    style={[
+                      styles.petFloatingLikeBtn,
+                      isLiked && styles.petFloatingLikeBtnActive,
+                    ]}
+                    onPress={() => togglePetLike(pet.id)}
+                    activeOpacity={0.85}
+                  >
+                    <Feather
+                      name="heart"
+                      size={15}
+                      color={isLiked ? '#FF6F61' : '#FFFFFF'}
+                    />
+                    <Text
+                      style={[
+                        styles.petFloatingLikeText,
+                        isLiked && { color: '#FF6F61' },
+                      ]}
+                    >
+                      {likesCount}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Nút Camera: Thêm / Đổi ảnh mới cho bé từ thiết bị */}
+                  <TouchableOpacity
+                    style={styles.petFloatingEditBtn}
+                    onPress={() => handleAddPetPhotoFromDevice(pet.id)}
+                    activeOpacity={0.85}
+                  >
+                    <Feather name="camera" size={15} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  {/* Nút Bút: Chỉnh sửa toàn diện thông tin bé */}
+                  <TouchableOpacity
+                    style={styles.petFloatingEditBtn}
+                    onPress={() => openEditPetModal(pet)}
+                    activeOpacity={0.85}
+                  >
+                    <Feather name="edit-2" size={15} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* 4. Frosted Navigation Buttons on Left and Right edges */}
+              {gallery.length > 1 && (
+                <>
+                  <TouchableOpacity
+                    style={styles.petGalleryPrevBtn}
+                    onPress={() => handlePrevPetPhoto(pet.id, gallery.length)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.petGalleryNavArrow}>‹</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.petGalleryNextBtn}
+                    onPress={() => handleNextPetPhoto(pet.id, gallery.length)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.petGalleryNavArrow}>›</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {/* 5. Heart Burst Animated Overlay on Double-Tap */}
+              {burstPetId === pet.id && (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.heartBurstWrap,
+                    {
+                      transform: [{ scale: heartAnimScale }],
+                      opacity: heartAnimOpacity,
+                    },
+                  ]}
+                >
+                  <Feather name="heart" size={100} color="#FF6F61" />
+                </Animated.View>
+              )}
+
+              {/* 6. Vertical ScrollView overlying the fullscreen photo: Cuộn xuôi xuống dưới */}
+              <ScrollView
+                style={styles.petScrollOverFullscreen}
+                contentContainerStyle={styles.petScrollOverFullscreenContent}
+                nestedScrollEnabled={true}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Vùng Spacer trong suốt: Để lộ ảnh bé cưng full màn hình */}
                 <TouchableOpacity
                   activeOpacity={1}
-                  style={StyleSheet.absoluteFillObject}
+                  style={styles.petPhotoSpacerArea}
                   onPress={() => handlePetContainerTap(pet.id)}
                 />
 
-                {/* Top Floating Action Bar */}
-                <View style={styles.petTopFloatingBar}>
-                  <View style={styles.petSpeciesPillBadge}>
-                    <Text style={styles.petSpeciesPillText}>
-                      {pet.species === 'Khác' && pet.customSpecies
-                        ? pet.customSpecies
-                        : `Loài ${pet.species}`}
-                    </Text>
-                  </View>
-
-                  <View style={styles.petTopRightActionsRow}>
-                    {/* Thả tim */}
-                    <TouchableOpacity
-                      style={[
-                        styles.petFloatingLikeBtn,
-                        isLiked && styles.petFloatingLikeBtnActive,
-                      ]}
-                      onPress={() => togglePetLike(pet.id)}
-                      activeOpacity={0.85}
-                    >
-                      <Feather
-                        name="heart"
-                        size={15}
-                        color={isLiked ? '#FF6F61' : '#FFFFFF'}
-                      />
-                      <Text
-                        style={[
-                          styles.petFloatingLikeText,
-                          isLiked && { color: '#FF6F61' },
-                        ]}
-                      >
-                        {likesCount}
-                      </Text>
-                    </TouchableOpacity>
-
-                    {/* Nút Camera: Thêm / Đổi ảnh mới cho bé từ thiết bị */}
-                    <TouchableOpacity
-                      style={styles.petFloatingEditBtn}
-                      onPress={() => handleAddPetPhotoFromDevice(pet.id)}
-                      activeOpacity={0.85}
-                    >
-                      <Feather name="camera" size={15} color="#FFFFFF" />
-                    </TouchableOpacity>
-
-                    {/* Nút Bút: Chỉnh sửa toàn diện thông tin bé */}
-                    <TouchableOpacity
-                      style={styles.petFloatingEditBtn}
-                      onPress={() => openEditPetModal(pet)}
-                      activeOpacity={0.85}
-                    >
-                      <Feather name="edit-2" size={15} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Frosted Navigation Buttons on Left and Right edges */}
-                {gallery.length > 1 && (
-                  <>
-                    <TouchableOpacity
-                      style={styles.petGalleryPrevBtn}
-                      onPress={() => handlePrevPetPhoto(pet.id, gallery.length)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.petGalleryNavArrow}>‹</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.petGalleryNextBtn}
-                      onPress={() => handleNextPetPhoto(pet.id, gallery.length)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.petGalleryNavArrow}>›</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-
-                {/* Heart Burst Animated Overlay on Double-Tap */}
-                {burstPetId === pet.id && (
-                  <Animated.View
-                    pointerEvents="none"
-                    style={[
-                      styles.heartBurstWrap,
-                      {
-                        transform: [{ scale: heartAnimScale }],
-                        opacity: heartAnimOpacity,
-                      },
-                    ]}
-                  >
-                    <Feather name="heart" size={100} color="#FF6F61" />
-                  </Animated.View>
-                )}
-              </View>
-
-              {/* 2. Frosted Glass Info Card: Nằm xuôi xuống dưới, mở rộng cuộn xuống (scroll down) */}
-              <View style={styles.petScrollableFrostedCard}>
-                {/* Header: Tên bé & Giống loài */}
-                <View style={styles.petCardHeaderRow}>
-                  <Text style={styles.petCardMainName}>{pet.name}</Text>
-                  <View style={styles.petBreedFullTag}>
-                    <Text style={styles.petBreedFullText}>{pet.breed}</Text>
-                  </View>
-                </View>
-
-                {/* Chi tiết thông số cơ bản */}
-                <View style={styles.petSpecsWrapRow}>
-                  <View style={styles.specFrostedChip}>
-                    <Text style={styles.specChipLabel}>Giới tính</Text>
-                    <Text style={styles.specChipValue}>{pet.gender || 'Đực'}</Text>
-                  </View>
-                  <View style={styles.specFrostedChip}>
-                    <Text style={styles.specChipLabel}>Tuổi</Text>
-                    <Text style={styles.specChipValue}>{pet.ageLabel}</Text>
-                  </View>
-                  <View style={styles.specFrostedChip}>
-                    <Text style={styles.specChipLabel}>Cân nặng</Text>
-                    <Text style={styles.specChipValue}>{pet.weightKg} kg</Text>
-                  </View>
-                  {pet.birthDate ? (
-                    <View style={styles.specFrostedChip}>
-                      <Text style={styles.specChipLabel}>Ngày sinh</Text>
-                      <Text style={styles.specChipValue}>{pet.birthDate}</Text>
+                {/* Thẻ Kính Mờ Nửa Dưới: Mờ nhạt, nhìn thấu ảnh thú cưng & cuộn xuôi xuống */}
+                <View style={styles.petScrollableFrostedCard}>
+                  {/* Header: Tên bé & Giống loài */}
+                  <View style={styles.petCardHeaderRow}>
+                    <Text style={styles.petCardMainName}>{pet.name}</Text>
+                    <View style={styles.petBreedFullTag}>
+                      <Text style={styles.petBreedFullText}>{pet.breed}</Text>
                     </View>
-                  ) : null}
-                </View>
+                  </View>
 
-                {/* Toggle button: Hiện thêm chi tiết */}
-                <TouchableOpacity
-                  style={styles.expandToggleBtn}
-                  onPress={() => togglePetDetailsExpanded(pet.id)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.expandToggleBtnText}>
-                    {isExpanded ? 'Thu gọn chi tiết ⌃' : 'Hiện thêm chi tiết sức khỏe & sổ tiêm ⌄'}
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Vùng chi tiết mở rộng: Cuộn xuôi xuống phía dưới không đẩy thẻ lên trên */}
-                {isExpanded && (
-                  <View style={styles.petExpandedFlowSection}>
-                    {/* Tính cách & Giới thiệu */}
-                    {pet.bio ? (
-                      <View style={styles.petDetailCardRow}>
-                        <Text style={styles.petDetailCardLabel}>Tính cách & Giới thiệu:</Text>
-                        <Text style={styles.petDetailCardValue}>{pet.bio}</Text>
+                  {/* Chi tiết thông số cơ bản */}
+                  <View style={styles.petSpecsWrapRow}>
+                    <View style={styles.specFrostedChip}>
+                      <Text style={styles.specChipLabel}>Giới tính</Text>
+                      <Text style={styles.specChipValue}>{pet.gender || 'Đực'}</Text>
+                    </View>
+                    <View style={styles.specFrostedChip}>
+                      <Text style={styles.specChipLabel}>Tuổi</Text>
+                      <Text style={styles.specChipValue}>{pet.ageLabel}</Text>
+                    </View>
+                    <View style={styles.specFrostedChip}>
+                      <Text style={styles.specChipLabel}>Cân nặng</Text>
+                      <Text style={styles.specChipValue}>{pet.weightKg} kg</Text>
+                    </View>
+                    {pet.birthDate ? (
+                      <View style={styles.specFrostedChip}>
+                        <Text style={styles.specChipLabel}>Ngày sinh</Text>
+                        <Text style={styles.specChipValue}>{pet.birthDate}</Text>
                       </View>
                     ) : null}
-
-                    {/* Thói quen tốt */}
-                    {pet.goodHabits && pet.goodHabits.length > 0 && (
-                      <View style={styles.petDetailCardRow}>
-                        <Text style={styles.petDetailCardLabel}>Thói quen tốt:</Text>
-                        <View style={styles.habitsBadgesWrap}>
-                          {pet.goodHabits.map((habit, hIdx) => (
-                            <View key={hIdx} style={styles.habitBadgeChip}>
-                              <Text style={styles.habitBadgeText}>• {habit}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    )}
-
-                    {/* Lưu ý khi dạo chung */}
-                    {pet.cautionHabits && pet.cautionHabits.length > 0 && (
-                      <View style={styles.petDetailCardRow}>
-                        <Text style={styles.petDetailCardLabel}>Lưu ý khi dạo chung:</Text>
-                        <View style={styles.habitsBadgesWrap}>
-                          {pet.cautionHabits.map((caution, cIdx) => (
-                            <View key={cIdx} style={styles.cautionBadgeChip}>
-                              <Text style={styles.cautionBadgeText}>• {caution}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    )}
-
-                    {/* Sở thích ăn uống */}
-                    <View style={styles.petDetailCardRow}>
-                      <Text style={styles.petDetailCardLabel}>Sở thích ăn uống:</Text>
-                      <Text style={styles.petDetailCardValue}>
-                        {pet.favoriteFood || 'Ức gà luộc, pate cá hồi, bánh thưởng dinh dưỡng'}
-                      </Text>
-                    </View>
-
-                    {/* Lịch sử tẩy giun */}
-                    <View style={styles.petDetailCardRow}>
-                      <Text style={styles.petDetailCardLabel}>Lịch sử tẩy giun:</Text>
-                      <Text style={styles.petDetailCardValue}>
-                        {pet.dewormingHistory || '15/09/2025 (Định kỳ 3 tháng/lần - Thuốc Drontal)'}
-                      </Text>
-                    </View>
-
-                    {/* Tiền sử bệnh lý */}
-                    <View style={styles.petDetailCardRow}>
-                      <Text style={styles.petDetailCardLabel}>Tiền sử bệnh lý:</Text>
-                      <Text style={styles.petDetailCardValue}>
-                        {pet.medicalHistory || 'Khỏe mạnh, không có bệnh nền'}
-                      </Text>
-                    </View>
-
-                    {/* Theo dõi cân nặng theo tháng */}
-                    <View style={styles.petHealthSectionBox}>
-                      <Text style={styles.petHealthSectionTitle}>
-                        Theo dõi cân nặng theo tháng:
-                      </Text>
-                      <View style={styles.weightBarsContainer}>
-                        {(pet.weightHistory && pet.weightHistory.length > 0
-                          ? pet.weightHistory
-                          : [
-                              { month: 'T08', weightKg: 25.0 },
-                              { month: 'T09', weightKg: 26.2 },
-                              { month: 'T10', weightKg: 27.1 },
-                              { month: 'T11', weightKg: 27.9 },
-                              { month: 'T12', weightKg: pet.weightKg },
-                            ]
-                        ).map((item, wIdx, arr) => {
-                          const maxKg = Math.max(...arr.map((x) => x.weightKg), 30);
-                          const barH = Math.max(20, Math.round((item.weightKg / maxKg) * 55));
-                          return (
-                            <View key={wIdx} style={styles.weightBarColumn}>
-                              <Text style={styles.weightBarKgText}>{item.weightKg}kg</Text>
-                              <View style={[styles.weightBarPill, { height: barH }]} />
-                              <Text style={styles.weightBarMonthText}>{item.month}</Text>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    </View>
-
-                    {/* Sổ tiêm chủng chi tiết */}
-                    <View style={styles.petHealthSectionBox}>
-                      <Text style={styles.petHealthSectionTitle}>
-                        Sổ tiêm chủng & Vắc-xin:
-                      </Text>
-                      {(pet.vaccineRecords && pet.vaccineRecords.length > 0
-                        ? pet.vaccineRecords
-                        : [
-                            {
-                              id: 'v-1',
-                              vaccineName: 'Phòng dại & 7 bệnh cơ bản',
-                              date: '01/10/2025',
-                              doseNumber: 1,
-                              clinic: 'Bệnh viện thú y Pawty Care',
-                              isSafeVerified: true,
-                            },
-                          ]
-                      ).map((vac) => (
-                        <View key={vac.id} style={styles.vaccineCardItem}>
-                          <View style={styles.vaccineItemHeader}>
-                            <Feather name="shield" size={13} color="#A3E4D7" />
-                            <Text style={styles.vaccineItemName}>{vac.vaccineName}</Text>
-                            <View style={styles.doseBadge}>
-                              <Text style={styles.doseBadgeText}>Mũi {vac.doseNumber}</Text>
-                            </View>
-                          </View>
-                          <Text style={styles.vaccineItemSub}>
-                            Ngày: {vac.date} • {vac.clinic || 'Phòng khám thú y'}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
                   </View>
-                )}
 
-                {/* CTA Button: Hẹn dạo cùng bé */}
-                <TouchableOpacity
-                  style={styles.petCtaBookWalkBtn}
-                  onPress={() => {
-                    Alert.alert(
-                      'Hẹn dạo cùng Boss',
-                      `Bạn muốn gửi lời mời hẹn dắt dạo cùng bé ${pet.name} và Sen Mai Nguyễn?`,
-                      [
-                        { text: 'Để sau', style: 'cancel' },
-                        {
-                          text: 'Gửi lời mời',
-                          onPress: () => showToast(`Đã gửi lời mời dắt dạo cùng bé ${pet.name}!`),
-                        },
-                      ]
-                    );
-                  }}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.petCtaBookWalkText}>Hẹn dạo cùng bé</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
+                  {/* Toggle button: Hiện thêm chi tiết */}
+                  <TouchableOpacity
+                    style={styles.expandToggleBtn}
+                    onPress={() => togglePetDetailsExpanded(pet.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.expandToggleBtnText}>
+                      {isExpanded ? 'Thu gọn chi tiết ⌃' : 'Hiện thêm chi tiết sức khỏe & sổ tiêm ⌄'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Vùng chi tiết mở rộng: Cuộn xuôi xuống phía dưới không đẩy thẻ lên trên */}
+                  {isExpanded && (
+                    <View style={styles.petExpandedFlowSection}>
+                      {/* Tính cách & Giới thiệu */}
+                      {pet.bio ? (
+                        <View style={styles.petDetailCardRow}>
+                          <Text style={styles.petDetailCardLabel}>Tính cách & Giới thiệu:</Text>
+                          <Text style={styles.petDetailCardValue}>{pet.bio}</Text>
+                        </View>
+                      ) : null}
+
+                      {/* Thói quen tốt */}
+                      {pet.goodHabits && pet.goodHabits.length > 0 && (
+                        <View style={styles.petDetailCardRow}>
+                          <Text style={styles.petDetailCardLabel}>Thói quen tốt:</Text>
+                          <View style={styles.habitsBadgesWrap}>
+                            {pet.goodHabits.map((habit, hIdx) => (
+                              <View key={hIdx} style={styles.habitBadgeChip}>
+                                <Text style={styles.habitBadgeText}>• {habit}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Lưu ý khi dạo chung */}
+                      {pet.cautionHabits && pet.cautionHabits.length > 0 && (
+                        <View style={styles.petDetailCardRow}>
+                          <Text style={styles.petDetailCardLabel}>Lưu ý khi dạo chung:</Text>
+                          <View style={styles.habitsBadgesWrap}>
+                            {pet.cautionHabits.map((caution, cIdx) => (
+                              <View key={cIdx} style={styles.cautionBadgeChip}>
+                                <Text style={styles.cautionBadgeText}>• {caution}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Sở thích ăn uống */}
+                      <View style={styles.petDetailCardRow}>
+                        <Text style={styles.petDetailCardLabel}>Sở thích ăn uống:</Text>
+                        <Text style={styles.petDetailCardValue}>
+                          {pet.favoriteFood || 'Ức gà luộc, pate cá hồi, bánh thưởng dinh dưỡng'}
+                        </Text>
+                      </View>
+
+                      {/* Lịch sử tẩy giun */}
+                      <View style={styles.petDetailCardRow}>
+                        <Text style={styles.petDetailCardLabel}>Lịch sử tẩy giun:</Text>
+                        <Text style={styles.petDetailCardValue}>
+                          {pet.dewormingHistory || '15/09/2025 (Định kỳ 3 tháng/lần - Thuốc Drontal)'}
+                        </Text>
+                      </View>
+
+                      {/* Tiền sử bệnh lý */}
+                      <View style={styles.petDetailCardRow}>
+                        <Text style={styles.petDetailCardLabel}>Tiền sử bệnh lý:</Text>
+                        <Text style={styles.petDetailCardValue}>
+                          {pet.medicalHistory || 'Khỏe mạnh, không có bệnh nền'}
+                        </Text>
+                      </View>
+
+                      {/* Theo dõi cân nặng theo tháng */}
+                      <View style={styles.petHealthSectionBox}>
+                        <Text style={styles.petHealthSectionTitle}>
+                          Theo dõi cân nặng theo tháng:
+                        </Text>
+                        <View style={styles.weightBarsContainer}>
+                          {(pet.weightHistory && pet.weightHistory.length > 0
+                            ? pet.weightHistory
+                            : [
+                                { month: 'T08', weightKg: 25.0 },
+                                { month: 'T09', weightKg: 26.2 },
+                                { month: 'T10', weightKg: 27.1 },
+                                { month: 'T11', weightKg: 27.9 },
+                                { month: 'T12', weightKg: pet.weightKg },
+                              ]
+                          ).map((item, wIdx, arr) => {
+                            const maxKg = Math.max(...arr.map((x) => x.weightKg), 30);
+                            const barH = Math.max(20, Math.round((item.weightKg / maxKg) * 55));
+                            return (
+                              <View key={wIdx} style={styles.weightBarColumn}>
+                                <Text style={styles.weightBarKgText}>{item.weightKg}kg</Text>
+                                <View style={[styles.weightBarPill, { height: barH }]} />
+                                <Text style={styles.weightBarMonthText}>{item.month}</Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      </View>
+
+                      {/* Sổ tiêm chủng chi tiết */}
+                      <View style={styles.petHealthSectionBox}>
+                        <Text style={styles.petHealthSectionTitle}>
+                          Sổ tiêm chủng & Vắc-xin:
+                        </Text>
+                        {(pet.vaccineRecords && pet.vaccineRecords.length > 0
+                          ? pet.vaccineRecords
+                          : [
+                              {
+                                id: 'v-1',
+                                vaccineName: 'Phòng dại & 7 bệnh cơ bản',
+                                date: '01/10/2025',
+                                doseNumber: 1,
+                                clinic: 'Bệnh viện thú y Pawty Care',
+                                isSafeVerified: true,
+                              },
+                            ]
+                        ).map((vac) => (
+                          <View key={vac.id} style={styles.vaccineCardItem}>
+                            <View style={styles.vaccineItemHeader}>
+                              <Feather name="shield" size={13} color="#A3E4D7" />
+                              <Text style={styles.vaccineItemName}>{vac.vaccineName}</Text>
+                              <View style={styles.doseBadge}>
+                                <Text style={styles.doseBadgeText}>Mũi {vac.doseNumber}</Text>
+                              </View>
+                            </View>
+                            <Text style={styles.vaccineItemSub}>
+                              Ngày: {vac.date} • {vac.clinic || 'Phòng khám thú y'}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* CTA Button: Hẹn dạo cùng bé */}
+                  <TouchableOpacity
+                    style={styles.petCtaBookWalkBtn}
+                    onPress={() => {
+                      Alert.alert(
+                        'Hẹn dạo cùng Boss',
+                        `Bạn muốn gửi lời mời hẹn dắt dạo cùng bé ${pet.name} và Sen Mai Nguyễn?`,
+                        [
+                          { text: 'Để sau', style: 'cancel' },
+                          {
+                            text: 'Gửi lời mời',
+                            onPress: () => showToast(`Đã gửi lời mời dắt dạo cùng bé ${pet.name}!`),
+                          },
+                        ]
+                      );
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.petCtaBookWalkText}>Hẹn dạo cùng bé</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
           );
         })}
       </ScrollView>
@@ -2364,6 +2393,19 @@ export const MobileProfileScreen: React.FC = () => {
                     <Feather name="plus" size={18} color="#FF6F61" />
                     <Text style={styles.addPhotoToGalleryText}>Thêm ảnh</Text>
                   </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.resetGalleryBtn}
+                    onPress={() => {
+                      const defaults =
+                        editPetSpeciesDraft === 'Mèo' ? DEFAULT_CAT_GALLERY : DEFAULT_DOG_GALLERY;
+                      setEditPetGalleryDraft(defaults);
+                      showToast('Đã khôi phục album ảnh mẫu của bé');
+                    }}
+                  >
+                    <Feather name="refresh-cw" size={15} color="#7E6E60" />
+                    <Text style={styles.resetGalleryBtnText}>Ảnh mẫu</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -3104,8 +3146,8 @@ const styles = StyleSheet.create({
     width: '100%',
     position: 'relative',
     backgroundColor: '#EBE5DC',
-    zIndex: 20,
-    elevation: 4,
+    zIndex: 1, // Để thấp hơn avatarSectionRow để không che mất đỉnh avatar
+    elevation: 1,
   },
   coverTouchArea: {
     width: '100%',
@@ -3141,7 +3183,8 @@ const styles = StyleSheet.create({
     marginTop: -52,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
+    zIndex: 30, // Đặt zIndex cao hơn cover để toàn bộ vòng tròn avatar nổi lên trên
+    elevation: 10,
   },
   noteBubbleAnchor: {
     marginBottom: 6,
@@ -3191,15 +3234,17 @@ const styles = StyleSheet.create({
   },
   avatarPlusBadge: {
     position: 'absolute',
-    bottom: 2,
+    top: 2, // Di chuyển lên trên đầu phía bên phải của ảnh avt
     right: 2,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
+    zIndex: 40,
+    elevation: 8,
   },
   avatarCameraBadge: {
     position: 'absolute',
@@ -3388,24 +3433,24 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
 
-  /* PET VERTICAL SCROLL PAGE: Nửa trên ảnh to rõ, nửa dưới thẻ kính cuộn xuôi */
-  petVerticalScrollPage: {
+  /* PET FULLSCREEN CONTAINER: Phủ trọn 100% màn hình, thẻ kính gối nửa dưới cuộn xuôi */
+  petFullScreenContainer: {
     width: SCREEN_WIDTH,
-    flex: 1,
-    backgroundColor: '#FAF7F2',
-  },
-  petVerticalScrollContent: {
-    paddingBottom: 40,
-  },
-  petHeroImageContainer: {
-    width: SCREEN_WIDTH,
-    height: Math.round(SCREEN_HEIGHT * 0.58),
+    height: SCREEN_HEIGHT - 52 - 60, // Phủ trọn vùng xem giữa top header và bottom tab bar
     position: 'relative',
-    backgroundColor: '#EBE5DC',
+    backgroundColor: '#1C1815',
+    overflow: 'hidden',
   },
-  petHeroImage: {
-    width: SCREEN_WIDTH,
-    height: '100%',
+  petScrollOverFullscreen: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+  },
+  petScrollOverFullscreenContent: {
+    paddingBottom: 60,
+  },
+  petPhotoSpacerArea: {
+    height: Math.round(SCREEN_HEIGHT * 0.44),
+    width: '100%',
   },
   petTopFloatingBar: {
     position: 'absolute',
@@ -3415,7 +3460,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    zIndex: 12,
+    zIndex: 20,
   },
   petSpeciesPillBadge: {
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
@@ -3510,9 +3555,8 @@ const styles = StyleSheet.create({
 
   /* Ultra-Translucent Frosted Glass Card: Mờ nhạt, gối nhẹ lên đáy ảnh & cuộn xuôi xuống */
   petScrollableFrostedCard: {
-    marginTop: -32,
     marginHorizontal: 14,
-    backgroundColor: 'rgba(28, 22, 20, 0.65)',
+    backgroundColor: 'rgba(22, 18, 16, 0.48)', // Mờ nhạt, nhìn thấu ảnh thú cưng tràn màn hình
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
     borderRadius: 24,
@@ -3522,6 +3566,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
+    marginBottom: 40,
   },
   petExpandedFlowSection: {
     marginTop: 8,
@@ -4003,6 +4048,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: '#FF6F61',
+    marginTop: 2,
+  },
+  resetGalleryBtn: {
+    width: 68,
+    height: 68,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D4CDC3',
+    backgroundColor: '#FAF7F2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resetGalleryBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#7E6E60',
     marginTop: 2,
   },
 
