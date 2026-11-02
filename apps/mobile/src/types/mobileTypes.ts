@@ -704,17 +704,17 @@ export function isFutureDate(dateStr?: string | null): boolean {
 }
 
 export function calculatePetAgeFromBirthDate(birthDateStr?: string | null): string {
-  if (!birthDateStr) return '1 tuổi';
+  if (!birthDateStr || !birthDateStr.trim()) return 'Chưa rõ';
   const parts = birthDateStr.split(/[\/\-\.]/);
-  if (parts.length < 3) return '1 tuổi';
+  if (parts.length < 3) return 'Chưa rõ';
   const day = parseInt(parts[0], 10);
   const month = parseInt(parts[1], 10) - 1;
   const year = parseInt(parts[2], 10);
-  if (isNaN(day) || isNaN(month) || isNaN(year)) return '1 tuổi';
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return 'Chưa rõ';
 
   const birth = new Date(year, month, day);
   const now = new Date();
-  if (birth > now) return 'Mới sinh';
+  if (birth > now) return 'Chưa rõ';
 
   const diffMs = now.getTime() - birth.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));

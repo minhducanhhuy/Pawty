@@ -103,13 +103,14 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({
   onClose,
 }) => {
   const parts = (initialDate || '').split('/');
-  const initDay = parts[0] || '15';
-  const initMonth = parts[1] || '08';
-  const initYear = parts[2] || (isPet ? '2024' : '2000');
+  const now = new Date();
+  const defaultDay = String(now.getDate()).padStart(2, '0');
+  const defaultMonth = String(now.getMonth() + 1).padStart(2, '0');
+  const defaultYear = String(now.getFullYear());
 
-  const [selectedDay, setSelectedDay] = useState(initDay);
-  const [selectedMonth, setSelectedMonth] = useState(initMonth);
-  const [selectedYear, setSelectedYear] = useState(initYear);
+  const [selectedDay, setSelectedDay] = useState(parts[0] || defaultDay);
+  const [selectedMonth, setSelectedMonth] = useState(parts[1] || defaultMonth);
+  const [selectedYear, setSelectedYear] = useState(parts[2] || (isPet ? defaultYear : '2000'));
 
   const days = useMemo(() => Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0')), []);
   const months = useMemo(() => Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')), []);
@@ -123,12 +124,23 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({
   const [dateError, setDateError] = useState('');
 
   useEffect(() => {
-    setDateError('');
-  }, [visible, initialDate]);
+    if (visible) {
+      const p = (initialDate || '').split('/');
+      const n = new Date();
+      const d = String(n.getDate()).padStart(2, '0');
+      const m = String(n.getMonth() + 1).padStart(2, '0');
+      const y = String(n.getFullYear());
+
+      setSelectedDay(p[0] || d);
+      setSelectedMonth(p[1] || m);
+      setSelectedYear(p[2] || (isPet ? y : '2000'));
+      setDateError('');
+    }
+  }, [visible, initialDate, isPet]);
 
   const handleConfirm = () => {
     const formatted = `${selectedDay}/${selectedMonth}/${selectedYear}`;
-    if (isPet && isFutureDate(formatted)) {
+    if (isFutureDate(formatted)) {
       setDateError('Ngày sinh của bé không được vượt quá ngày hiện tại!');
       return;
     }
@@ -801,7 +813,7 @@ export const MobileProfileScreen: React.FC = () => {
       gender: editPetGenderDraft,
       breed: editPetBreedDraft.trim() || 'Thuần chủng',
       weightKg: parseFloat(editPetWeightDraft) || editingPet.weightKg,
-      ageLabel: calculatePetAgeFromBirthDate(editPetBirthDateDraft) || editPetAgeDraft.trim() || '1 tuổi',
+      ageLabel: calculatePetAgeFromBirthDate(editPetBirthDateDraft) || editPetAgeDraft.trim() || 'Chưa rõ',
       birthDate: editPetBirthDateDraft.trim(),
       furColor: editPetFurColorDraft,
       bio: editPetBioDraft.trim(),
@@ -892,8 +904,8 @@ export const MobileProfileScreen: React.FC = () => {
     ? otherProfile?.followingCount ?? otherProfile?.friendsCount ?? 0
     : ownerFollowingCount;
   const displayLikes = isViewingOther
-    ? otherProfile?.likesCount ?? 120
-    : pets.reduce((acc, p) => acc + (p.likesCount || 0), 0) || 120;
+    ? otherProfile?.likesCount ?? 0
+    : pets.reduce((acc, p) => acc + (p.likesCount || 0), 0);
 
   return (
     <View style={styles.rootContainer}>
@@ -1088,7 +1100,24 @@ export const MobileProfileScreen: React.FC = () => {
                   });
                 }}
               >
-                <Image source={{ uri: displayAvatarUrl }} style={styles.ownerAvatarImg} />
+                {displayAvatarUrl && displayAvatarUrl.trim() ? (
+                  <Image source={{ uri: displayAvatarUrl }} style={styles.ownerAvatarImg} />
+                ) : (
+                  <View
+                    style={[
+                      styles.ownerAvatarImg,
+                      {
+                        backgroundColor: '#FF6F61',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 24 }}>
+                      {(displayName[0] || 'P').toUpperCase()}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
 
               {/* Note '+' badge: ONLY when viewing self */}
@@ -1336,7 +1365,13 @@ export const MobileProfileScreen: React.FC = () => {
                   activeOpacity={0.88}
                   onPress={() => setSelectedPreviewPost(post)}
                 >
-                  <Image source={{ uri: thumb }} style={styles.gridThumbImg} />
+                  {thumb && thumb.trim() ? (
+                    <Image source={{ uri: thumb }} style={styles.gridThumbImg} />
+                  ) : (
+                    <View style={[styles.gridThumbImg, { backgroundColor: '#F0EAE1', alignItems: 'center', justifyContent: 'center' }]}>
+                      <Feather name="image" size={18} color="#A89E94" />
+                    </View>
+                  )}
                   {urls.length > 1 && (
                     <View style={styles.gridBadgeTag}>
                       <Feather name="layers" size={10} color="#FFFFFF" />
@@ -2245,123 +2280,172 @@ export const MobileProfileScreen: React.FC = () => {
                 </View>
               </View>
 
-              {/* Ngày sinh & Độ tuổi */}
-              <View style={styles.fieldsTwoColRow}>
-                <View style={[styles.fieldBlock, { flex: 1, marginRight: 8 }]}>
-                  <Text style={styles.fieldLabel}>Ngày sinh</Text>
-                  <TouchableOpacity
-                    style={styles.pickerSelectorBtn}
-                    onPress={() => {
-                      setDatePickerConfig({
-                        visible: true,
-                        title: 'Chọn ngày sinh của bé',
-                        initialDate: newPetBirthDate || '01/01/2024',
-                        isPet: true,
-                        onConfirm: (date) => setNewPetBirthDate(date),
-                      });
-                    }}
-                  >
-                    <Text style={styles.pickerSelectorBtnText}>{newPetBirthDate || 'Chọn ngày'}</Text>
-                    <Feather name="calendar" size={14} color="#7E6E60" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={[styles.fieldBlock, { flex: 1, marginLeft: 8 }]}>
-                  <Text style={styles.fieldLabel}>Độ tuổi (Tự động tính)</Text>
-                  <View style={[styles.pickerSelectorBtn, { backgroundColor: '#F8F4EE', borderColor: '#E5DDD3' }]}>
-                    <Text style={[styles.pickerSelectorBtnText, { color: '#2C2520', fontWeight: '800' }]}>
-                      {calculatePetAgeFromBirthDate(newPetBirthDate) || 'Chưa rõ'}
+              {/* Ngày sinh (Độ tuổi tự động tính toán) */}
+              <View style={styles.fieldBlock}>
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.fieldLabel}>Ngày sinh của bé</Text>
+                  {newPetBirthDate ? (
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#FF6F61' }}>
+                      Độ tuổi: {calculatePetAgeFromBirthDate(newPetBirthDate)}
                     </Text>
-                    <Feather name="sparkles" size={14} color="#FF6F61" />
-                  </View>
+                  ) : (
+                    <Text style={{ fontSize: 11, color: '#9A8D82' }}>Tự động tính độ tuổi</Text>
+                  )}
                 </View>
+                <TouchableOpacity
+                  style={styles.pickerSelectorBtn}
+                  onPress={() => {
+                    const now = new Date();
+                    const todayStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+                    setDatePickerConfig({
+                      visible: true,
+                      title: 'Chọn ngày sinh của bé',
+                      initialDate: newPetBirthDate || todayStr,
+                      isPet: true,
+                      onConfirm: (date) => setNewPetBirthDate(date),
+                    });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.pickerSelectorBtnText, !newPetBirthDate && { color: '#A89E94' }]}>
+                    {newPetBirthDate
+                      ? `${newPetBirthDate} (${calculatePetAgeFromBirthDate(newPetBirthDate)})`
+                      : 'Chọn ngày sinh của bé...'}
+                  </Text>
+                  <Feather name="calendar" size={15} color="#FF6F61" />
+                </TouchableOpacity>
               </View>
 
-              {/* Cân nặng & Màu lông */}
+              {/* Cân nặng & Màu lông (Nhập tay tự do hoặc chọn nhanh) */}
               <View style={styles.fieldsTwoColRow}>
                 <View style={[styles.fieldBlock, { flex: 1, marginRight: 8 }]}>
-                  <Text style={styles.fieldLabel}>Cân nặng</Text>
-                  <TouchableOpacity
-                    style={styles.pickerSelectorBtn}
-                    onPress={() =>
-                      openSelector('Chọn cân nặng (kg)', PET_WEIGHT_OPTIONS, newPetWeight, (val) =>
-                        setNewPetWeight(val)
-                      )
-                    }
-                  >
-                    <Text style={styles.pickerSelectorBtnText}>{newPetWeight ? `${newPetWeight} kg` : 'Chọn hoặc nhập cân nặng'}</Text>
-                    <Feather name="chevron-down" size={14} color="#7E6E60" />
-                  </TouchableOpacity>
+                  <Text style={styles.fieldLabel}>Cân nặng (kg)</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <TextInput
+                      style={[styles.fieldInput, { flex: 1 }]}
+                      placeholder="VD: 4.8"
+                      placeholderTextColor="#A89E94"
+                      keyboardType="decimal-pad"
+                      value={newPetWeight}
+                      onChangeText={setNewPetWeight}
+                    />
+                    <TouchableOpacity
+                      style={styles.pickerQuickIconBtn}
+                      onPress={() =>
+                        openSelector('Chọn cân nặng (kg)', PET_WEIGHT_OPTIONS, newPetWeight, (val) =>
+                          setNewPetWeight(val)
+                        )
+                      }
+                      activeOpacity={0.8}
+                      accessibilityLabel="Chọn gợi ý cân nặng"
+                    >
+                      <Feather name="list" size={15} color="#7E6E60" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <View style={[styles.fieldBlock, { flex: 1, marginLeft: 8 }]}>
                   <Text style={styles.fieldLabel}>Màu lông</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <TextInput
+                      style={[styles.fieldInput, { flex: 1 }]}
+                      placeholder="VD: Vàng kem"
+                      placeholderTextColor="#A89E94"
+                      value={newPetFurColor}
+                      onChangeText={setNewPetFurColor}
+                    />
+                    <TouchableOpacity
+                      style={styles.pickerQuickIconBtn}
+                      onPress={() =>
+                        openSelector('Chọn màu lông', PET_FUR_COLOR_OPTIONS, newPetFurColor, (val) =>
+                          setNewPetFurColor(val)
+                        )
+                      }
+                      activeOpacity={0.8}
+                      accessibilityLabel="Chọn gợi ý màu lông"
+                    >
+                      <Feather name="list" size={15} color="#7E6E60" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              {/* Sở thích ăn uống (Nhập tay hoặc chọn nhanh) */}
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>Sở thích ăn uống</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TextInput
+                    style={[styles.fieldInput, { flex: 1 }]}
+                    placeholder="VD: Hạt dinh dưỡng & Ức gà luộc..."
+                    placeholderTextColor="#A89E94"
+                    value={newPetFavoriteFood}
+                    onChangeText={setNewPetFavoriteFood}
+                  />
                   <TouchableOpacity
-                    style={styles.pickerSelectorBtn}
+                    style={styles.pickerQuickIconBtn}
                     onPress={() =>
-                      openSelector('Chọn màu lông', PET_FUR_COLOR_OPTIONS, newPetFurColor, (val) =>
-                        setNewPetFurColor(val)
+                      openSelector('Sở thích ăn uống', PET_FOOD_OPTIONS, newPetFavoriteFood, (val) =>
+                        setNewPetFavoriteFood(val)
                       )
                     }
+                    activeOpacity={0.8}
+                    accessibilityLabel="Chọn gợi ý sở thích ăn uống"
                   >
-                    <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
-                      {newPetFurColor || 'Chọn màu lông'}
-                    </Text>
-                    <Feather name="chevron-down" size={14} color="#7E6E60" />
+                    <Feather name="list" size={15} color="#7E6E60" />
                   </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Thức ăn & Tẩy giun */}
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Sở thích ăn uống</Text>
-                <TouchableOpacity
-                  style={styles.pickerSelectorBtn}
-                  onPress={() =>
-                    openSelector('Sở thích ăn uống', PET_FOOD_OPTIONS, newPetFavoriteFood, (val) =>
-                      setNewPetFavoriteFood(val)
-                    )
-                  }
-                >
-                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
-                    {newPetFavoriteFood || 'Chọn hoặc nhập sở thích'}
-                  </Text>
-                  <Feather name="chevron-down" size={14} color="#7E6E60" />
-                </TouchableOpacity>
-              </View>
-
+              {/* Lịch sử tẩy giun (Nhập tay hoặc chọn nhanh) */}
               <View style={styles.fieldBlock}>
                 <Text style={styles.fieldLabel}>Lịch sử tẩy giun</Text>
-                <TouchableOpacity
-                  style={styles.pickerSelectorBtn}
-                  onPress={() =>
-                    openSelector('Lịch sử tẩy giun', PET_DEWORMING_OPTIONS, newPetDewormingHistory, (val) =>
-                      setNewPetDewormingHistory(val)
-                    )
-                  }
-                >
-                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
-                    {newPetDewormingHistory || 'Chọn lịch tẩy giun'}
-                  </Text>
-                  <Feather name="chevron-down" size={14} color="#7E6E60" />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TextInput
+                    style={[styles.fieldInput, { flex: 1 }]}
+                    placeholder="VD: Định kỳ 3 tháng/lần..."
+                    placeholderTextColor="#A89E94"
+                    value={newPetDewormingHistory}
+                    onChangeText={setNewPetDewormingHistory}
+                  />
+                  <TouchableOpacity
+                    style={styles.pickerQuickIconBtn}
+                    onPress={() =>
+                      openSelector('Lịch sử tẩy giun', PET_DEWORMING_OPTIONS, newPetDewormingHistory, (val) =>
+                        setNewPetDewormingHistory(val)
+                      )
+                    }
+                    activeOpacity={0.8}
+                    accessibilityLabel="Chọn gợi ý tẩy giun"
+                  >
+                    <Feather name="list" size={15} color="#7E6E60" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
+              {/* Tiền sử bệnh lý (Nhập tay hoặc chọn nhanh) */}
               <View style={styles.fieldBlock}>
                 <Text style={styles.fieldLabel}>Tiền sử bệnh lý</Text>
-                <TouchableOpacity
-                  style={styles.pickerSelectorBtn}
-                  onPress={() =>
-                    openSelector('Tiền sử bệnh lý', PET_MEDICAL_OPTIONS, newPetMedicalHistory, (val) =>
-                      setNewPetMedicalHistory(val)
-                    )
-                  }
-                >
-                  <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
-                    {newPetMedicalHistory || 'Chọn hoặc nhập tiền sử bệnh'}
-                  </Text>
-                  <Feather name="chevron-down" size={14} color="#7E6E60" />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TextInput
+                    style={[styles.fieldInput, { flex: 1 }]}
+                    placeholder="VD: Khỏe mạnh, dị ứng phấn hoa..."
+                    placeholderTextColor="#A89E94"
+                    value={newPetMedicalHistory}
+                    onChangeText={setNewPetMedicalHistory}
+                  />
+                  <TouchableOpacity
+                    style={styles.pickerQuickIconBtn}
+                    onPress={() =>
+                      openSelector('Tiền sử bệnh lý', PET_MEDICAL_OPTIONS, newPetMedicalHistory, (val) =>
+                        setNewPetMedicalHistory(val)
+                      )
+                    }
+                    activeOpacity={0.8}
+                    accessibilityLabel="Chọn gợi ý bệnh lý"
+                  >
+                    <Feather name="list" size={15} color="#7E6E60" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Thói quen tốt (Multi-select) */}
@@ -2585,30 +2669,165 @@ export const MobileProfileScreen: React.FC = () => {
                 </View>
               </View>
 
-              {/* Độ tuổi & Cân nặng */}
+              {/* Ngày sinh (Độ tuổi tự động tính) */}
+              <View style={styles.fieldBlock}>
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.fieldLabel}>Ngày sinh của bé</Text>
+                  {editPetBirthDateDraft ? (
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#FF6F61' }}>
+                      Độ tuổi: {calculatePetAgeFromBirthDate(editPetBirthDateDraft)}
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 11, color: '#9A8D82' }}>Tự động tính độ tuổi</Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={styles.pickerSelectorBtn}
+                  onPress={() => {
+                    const now = new Date();
+                    const todayStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+                    setDatePickerConfig({
+                      visible: true,
+                      title: 'Chọn ngày sinh của bé',
+                      initialDate: editPetBirthDateDraft || todayStr,
+                      isPet: true,
+                      onConfirm: (date) => setEditPetBirthDateDraft(date),
+                    });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.pickerSelectorBtnText, !editPetBirthDateDraft && { color: '#A89E94' }]}>
+                    {editPetBirthDateDraft
+                      ? `${editPetBirthDateDraft} (${calculatePetAgeFromBirthDate(editPetBirthDateDraft)})`
+                      : 'Chọn ngày sinh của bé...'}
+                  </Text>
+                  <Feather name="calendar" size={15} color="#FF6F61" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Cân nặng & Màu lông (Nhập tay hoặc chọn nhanh) */}
               <View style={styles.fieldsTwoColRow}>
                 <View style={[styles.fieldBlock, { flex: 1, marginRight: 8 }]}>
-                  <Text style={styles.fieldLabel}>Độ tuổi (Tự động tính)</Text>
-                  <View style={[styles.pickerSelectorBtn, { backgroundColor: '#F8F4EE', borderColor: '#E5DDD3' }]}>
-                    <Text style={[styles.pickerSelectorBtnText, { color: '#2C2520', fontWeight: '800' }]}>
-                      {calculatePetAgeFromBirthDate(editPetBirthDateDraft) || editPetAgeDraft || 'Chưa rõ'}
-                    </Text>
-                    <Feather name="sparkles" size={14} color="#FF6F61" />
+                  <Text style={styles.fieldLabel}>Cân nặng (kg)</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <TextInput
+                      style={[styles.fieldInput, { flex: 1 }]}
+                      placeholder="VD: 4.8"
+                      placeholderTextColor="#A89E94"
+                      keyboardType="decimal-pad"
+                      value={editPetWeightDraft}
+                      onChangeText={setEditPetWeightDraft}
+                    />
+                    <TouchableOpacity
+                      style={styles.pickerQuickIconBtn}
+                      onPress={() =>
+                        openSelector('Chọn cân nặng (kg)', PET_WEIGHT_OPTIONS, editPetWeightDraft, (val) =>
+                          setEditPetWeightDraft(val)
+                        )
+                      }
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="list" size={15} color="#7E6E60" />
+                    </TouchableOpacity>
                   </View>
                 </View>
 
                 <View style={[styles.fieldBlock, { flex: 1, marginLeft: 8 }]}>
-                  <Text style={styles.fieldLabel}>Cân nặng</Text>
+                  <Text style={styles.fieldLabel}>Màu lông</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <TextInput
+                      style={[styles.fieldInput, { flex: 1 }]}
+                      placeholder="VD: Vàng kem"
+                      placeholderTextColor="#A89E94"
+                      value={editPetFurColorDraft}
+                      onChangeText={setEditPetFurColorDraft}
+                    />
+                    <TouchableOpacity
+                      style={styles.pickerQuickIconBtn}
+                      onPress={() =>
+                        openSelector('Chọn màu lông', PET_FUR_COLOR_OPTIONS, editPetFurColorDraft, (val) =>
+                          setEditPetFurColorDraft(val)
+                        )
+                      }
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="list" size={15} color="#7E6E60" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              {/* Sở thích ăn uống (Nhập tay hoặc chọn nhanh) */}
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>Sở thích ăn uống</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TextInput
+                    style={[styles.fieldInput, { flex: 1 }]}
+                    placeholder="VD: Hạt dinh dưỡng & Ức gà luộc..."
+                    placeholderTextColor="#A89E94"
+                    value={editPetFavoriteFoodDraft}
+                    onChangeText={setEditPetFavoriteFoodDraft}
+                  />
                   <TouchableOpacity
-                    style={styles.pickerSelectorBtn}
+                    style={styles.pickerQuickIconBtn}
                     onPress={() =>
-                      openSelector('Chọn cân nặng (kg)', PET_WEIGHT_OPTIONS, editPetWeightDraft, (val) =>
-                        setEditPetWeightDraft(val)
+                      openSelector('Sở thích ăn uống', PET_FOOD_OPTIONS, editPetFavoriteFoodDraft, (val) =>
+                        setEditPetFavoriteFoodDraft(val)
                       )
                     }
+                    activeOpacity={0.8}
                   >
-                    <Text style={styles.pickerSelectorBtnText}>{editPetWeightDraft} kg</Text>
-                    <Feather name="chevron-down" size={14} color="#7E6E60" />
+                    <Feather name="list" size={15} color="#7E6E60" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Lịch sử tẩy giun (Nhập tay hoặc chọn nhanh) */}
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>Lịch sử tẩy giun</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TextInput
+                    style={[styles.fieldInput, { flex: 1 }]}
+                    placeholder="VD: Định kỳ 3 tháng/lần..."
+                    placeholderTextColor="#A89E94"
+                    value={editPetDewormingHistoryDraft}
+                    onChangeText={setEditPetDewormingHistoryDraft}
+                  />
+                  <TouchableOpacity
+                    style={styles.pickerQuickIconBtn}
+                    onPress={() =>
+                      openSelector('Lịch sử tẩy giun', PET_DEWORMING_OPTIONS, editPetDewormingHistoryDraft, (val) =>
+                        setEditPetDewormingHistoryDraft(val)
+                      )
+                    }
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="list" size={15} color="#7E6E60" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Tiền sử bệnh lý (Nhập tay hoặc chọn nhanh) */}
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>Tiền sử bệnh lý</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TextInput
+                    style={[styles.fieldInput, { flex: 1 }]}
+                    placeholder="VD: Khỏe mạnh, không bệnh nền..."
+                    placeholderTextColor="#A89E94"
+                    value={editPetMedicalHistoryDraft}
+                    onChangeText={setEditPetMedicalHistoryDraft}
+                  />
+                  <TouchableOpacity
+                    style={styles.pickerQuickIconBtn}
+                    onPress={() =>
+                      openSelector('Tiền sử bệnh lý', PET_MEDICAL_OPTIONS, editPetMedicalHistoryDraft, (val) =>
+                        setEditPetMedicalHistoryDraft(val)
+                      )
+                    }
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="list" size={15} color="#7E6E60" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2916,7 +3135,13 @@ export const MobileProfileScreen: React.FC = () => {
 
                         {(cmt.replies || []).map((rep) => (
                           <View key={rep.id} style={styles.replyRow}>
-                            <Image source={{ uri: rep.authorAvatar || displayAvatarUrl }} style={styles.replyAvatar} />
+                            {rep.authorAvatar || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
+                              <Image source={{ uri: rep.authorAvatar || displayAvatarUrl }} style={styles.replyAvatar} />
+                            ) : (
+                              <View style={[styles.replyAvatar, { backgroundColor: '#EADFD3', alignItems: 'center', justifyContent: 'center' }]}>
+                                <Feather name="user" size={10} color="#7E6E60" />
+                              </View>
+                            )}
                             <View style={styles.replyBubble}>
                               <Text style={styles.commentAuthorName}>{rep.authorName}</Text>
                               <Text style={styles.commentContentText}>{rep.content}</Text>
@@ -4131,6 +4356,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#1C1815',
+  },
+  pickerQuickIconBtn: {
+    height: 42,
+    width: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8E2D9',
+    backgroundColor: '#FAF7F2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   speciesChoiceRow: {
     flexDirection: 'row',

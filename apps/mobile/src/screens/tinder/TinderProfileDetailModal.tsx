@@ -253,7 +253,7 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
                   )}
                 </View>
                 {cleanOwnerNickname ? (
-                  <Text style={styles.nicknameText}>"{cleanOwnerNickname}"</Text>
+                  null
                 ) : null}
               </View>
             </View>

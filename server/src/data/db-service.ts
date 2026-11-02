@@ -81,6 +81,38 @@ function formatClockTime(dateInput: Date | string): string {
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 }
 
+export function calculatePetAgeFromBirthDate(birthDateStr?: string | null): string {
+  if (!birthDateStr || !birthDateStr.trim()) return 'Chưa rõ';
+  const parts = birthDateStr.split(/[\/\-\.]/);
+  if (parts.length < 3) return 'Chưa rõ';
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const year = parseInt(parts[2], 10);
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return 'Chưa rõ';
+
+  const birth = new Date(year, month, day);
+  const now = new Date();
+  if (birth > now) return 'Chưa rõ';
+
+  const diffMs = now.getTime() - birth.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffMonths = Math.floor(diffDays / 30.4375);
+  const diffYears = Math.floor(diffDays / 365.25);
+
+  if (diffMonths < 1) {
+    const weeks = Math.max(1, Math.floor(diffDays / 7));
+    return `${weeks} tuần tuổi`;
+  }
+  if (diffMonths < 12) {
+    return `${diffMonths} tháng tuổi`;
+  }
+  const remainingMonths = diffMonths % 12;
+  if (remainingMonths >= 3 && remainingMonths <= 9) {
+    return `${diffYears}.5 tuổi`;
+  }
+  return `${diffYears} tuổi`;
+}
+
 export class DatabaseService {
   // --- Metadata & Follow Graph Helpers ---
   public async getUserMetaMap(userIds?: string[]): Promise<Record<string, Record<string, any>>> {
@@ -200,14 +232,29 @@ export class DatabaseService {
     const avatarUrl =
       p.avatarUrl ||
       (Array.isArray(meta.galleryUrls) && meta.galleryUrls[0]) ||
-      'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80';
+      '';
 
     const galleryUrls =
       Array.isArray(meta.galleryUrls) && meta.galleryUrls.length > 0
         ? meta.galleryUrls
-        : [avatarUrl];
+        : avatarUrl
+        ? [avatarUrl]
+        : [];
 
-    const weightVal = Number(p.weightKg || meta.weightKg || 5);
+    const weightVal =
+      p.weightKg !== null && p.weightKg !== undefined
+        ? Number(p.weightKg)
+        : meta.weightKg !== undefined && meta.weightKg !== null
+        ? Number(meta.weightKg)
+        : undefined;
+
+    const birthDate =
+      meta.birthDate ||
+      (p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('vi-VN') : '');
+
+    const ageLabel =
+      meta.ageLabel ||
+      (birthDate ? calculatePetAgeFromBirthDate(birthDate) : 'Chưa rõ');
 
     return {
       id: p.id,
@@ -218,13 +265,11 @@ export class DatabaseService {
       customSpecies: meta.customSpecies || undefined,
       breed: p.breed || 'Chưa rõ',
       gender: (p.gender === 'Cái' || p.gender === 'female' ? 'Cái' : 'Đực') as 'Đực' | 'Cái',
-      birthDate:
-        meta.birthDate ||
-        (p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('vi-VN') : '01/01/2024'),
-      ageLabel: meta.ageLabel || '1 tuổi',
+      birthDate,
+      ageLabel,
       weightKg: weightVal,
-      weightLabel: meta.weightLabel || `${weightVal} kg`,
-      furColor: meta.furColor || 'Vàng kem',
+      weightLabel: meta.weightLabel || (weightVal !== undefined ? `${weightVal} kg` : 'Chưa rõ'),
+      furColor: meta.furColor || '',
       avatarUrl,
       coverPhotoUrl: p.coverPhotoUrl || avatarUrl,
       galleryUrls,
@@ -234,11 +279,11 @@ export class DatabaseService {
         Boolean(meta.isVaccinatedAndRabies) ||
         p.vaccinationStatus === 'verified' ||
         mappedVaccines.length > 0,
-      vaccinationStatus: p.vaccinationStatus || 'verified',
+      vaccinationStatus: p.vaccinationStatus || 'pending',
       bio: meta.bio || p.medicalNotes || '',
-      favoriteFood: meta.favoriteFood || 'Hạt dinh dưỡng & Ức gà',
-      dewormingHistory: meta.dewormingHistory || 'Định kỳ 3 tháng/lần',
-      medicalHistory: meta.medicalHistory || p.allergies || 'Khỏe mạnh, không có bệnh nền',
+      favoriteFood: meta.favoriteFood || '',
+      dewormingHistory: meta.dewormingHistory || '',
+      medicalHistory: meta.medicalHistory || p.allergies || '',
       goodHabits:
         goodHabitsFromDb.length > 0
           ? goodHabitsFromDb
@@ -253,7 +298,9 @@ export class DatabaseService {
           : [],
       weightHistory: Array.isArray(meta.weightHistory)
         ? meta.weightHistory
-        : [{ month: 'Hiện tại', weightKg: weightVal }],
+        : weightVal !== undefined
+        ? [{ month: 'Hiện tại', weightKg: weightVal }]
+        : [],
       vaccineRecords: mappedVaccines,
       vaccinations,
       behaviors,
@@ -1058,17 +1105,17 @@ export class DatabaseService {
         isPrivate: false,
         dataJson: {
           customSpecies: data.customSpecies || undefined,
-          birthDate: data.birthDate || '01/01/2024',
-          ageLabel: data.ageLabel || '1 tuổi',
+          birthDate: data.birthDate || '',
+          ageLabel: data.ageLabel || (data.birthDate ? calculatePetAgeFromBirthDate(data.birthDate) : 'Chưa rõ'),
           weightKg: weightVal,
-          weightLabel: data.weightLabel || `${weightVal} kg`,
-          furColor: data.furColor || 'Vàng kem',
+          weightLabel: weightVal !== null ? `${weightVal} kg` : 'Chưa rõ',
+          furColor: data.furColor || '',
           bio: data.bio ? String(data.bio).slice(0, 160) : '',
-          favoriteFood: data.favoriteFood || 'Hạt dinh dưỡng & Ức gà',
-          dewormingHistory: data.dewormingHistory || 'Định kỳ 3 tháng/lần',
-          medicalHistory: data.medicalHistory || 'Khỏe mạnh, không có bệnh nền',
+          favoriteFood: data.favoriteFood || '',
+          dewormingHistory: data.dewormingHistory || '',
+          medicalHistory: data.medicalHistory || '',
           isSterilized: Boolean(data.isSterilized ?? false),
-          isVaccinatedAndRabies: Boolean(data.isVaccinatedAndRabies ?? true),
+          isVaccinatedAndRabies: Boolean(data.isVaccinatedAndRabies ?? false),
           goodHabits,
           cautionHabits,
           galleryUrls,
@@ -1076,7 +1123,9 @@ export class DatabaseService {
           weightHistory:
             Array.isArray(data.weightHistory) && data.weightHistory.length > 0
               ? data.weightHistory
-              : [{ month: 'Hiện tại', weightKg: weightVal }],
+              : weightVal !== null
+              ? [{ month: 'Hiện tại', weightKg: weightVal }]
+              : [],
           vaccineRecords,
         },
       },
