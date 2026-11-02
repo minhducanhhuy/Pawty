@@ -46,13 +46,13 @@ export const MobileAnimatedLogo: React.FC<MobileAnimatedLogoProps> = ({
           toValue: 1,
           duration: 1000,
           easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(containerOpacity, {
           toValue: 1,
           duration: 400,
           easing: Easing.ease,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]).start();
     }
@@ -64,25 +64,25 @@ export const MobileAnimatedLogo: React.FC<MobileAnimatedLogoProps> = ({
           toValue: 0.5,
           duration: 190,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(wagAnim, {
           toValue: 1,
           duration: 190,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(wagAnim, {
           toValue: 0.5,
           duration: 190,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(wagAnim, {
           toValue: 0,
           duration: 190,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ])
     );

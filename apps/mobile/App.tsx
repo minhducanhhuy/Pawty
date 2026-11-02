@@ -71,10 +71,14 @@ const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
             style={[
               styles.progressBarFill,
               {
-                width: progressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
-                }),
+                transform: [
+                  {
+                    scaleX: progressAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.01, 1],
+                    }),
+                  },
+                ],
               },
             ]}
           />
@@ -484,9 +488,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressBarFill: {
+    width: 140,
     height: '100%',
     borderRadius: 2,
     backgroundColor: '#FF6F61',
+    transformOrigin: 'left',
   },
   splashFooterText: {
     fontSize: 10.5,
