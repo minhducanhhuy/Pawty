@@ -12,6 +12,8 @@
     "dev": "npm --workspace=apps/web run dev",
     "dev:web": "npm --workspace=apps/web run dev",
     "dev:server": "npm --workspace=server run start:dev",
+    "server:dev": "npm --workspace=server run start:dev",
+    "server": "npm --workspace=server run start",
     "reverse": "adb reverse tcp:8081 tcp:8081 && adb reverse tcp:3000 tcp:3000",
     "dev:mobile": "cd apps/mobile && npm run start",
     "dev:mobile:usb": "cd apps/mobile && npx expo start --localhost",

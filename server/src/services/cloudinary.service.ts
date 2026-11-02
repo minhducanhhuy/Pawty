@@ -1,4 +1,10 @@
-import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
+let cloudinary: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  cloudinary = require('cloudinary').v2;
+} catch {
+  cloudinary = null;
+}
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -17,6 +23,10 @@ export class CloudinaryService {
   }
 
   private initCloudinary() {
+    if (!cloudinary) {
+      this.isConfigured = false;
+      return;
+    }
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
@@ -86,7 +96,7 @@ export class CloudinaryService {
     // Nếu là base64 hoặc data URI:
     if (this.isConfigured) {
       try {
-        const result: UploadApiResponse = await cloudinary.uploader.upload(trimmed, {
+        const result: any = await cloudinary.uploader.upload(trimmed, {
           folder,
           resource_type: 'image',
           transformation: [{ quality: 'auto', fetch_format: 'auto' }],
