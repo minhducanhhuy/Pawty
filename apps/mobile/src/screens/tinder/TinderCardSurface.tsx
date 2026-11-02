@@ -33,8 +33,24 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
 }) => {
   const [imageError, setImageError] = useState(false);
   const [isFlippedToPet, setIsFlippedToPet] = useState(false);
+  const [petIdx, setPetIdx] = useState(0);
 
-  const primaryPet = candidate.pets && candidate.pets.length > 0 ? candidate.pets[0] : null;
+  const candidatePets = candidate.pets && candidate.pets.length > 0 ? candidate.pets : [];
+  const primaryPet = candidatePets[petIdx % Math.max(candidatePets.length, 1)] || null;
+
+  const handlePrevPet = () => {
+    if (candidatePets.length > 0) {
+      setPetIdx((prev) => (prev > 0 ? prev - 1 : candidatePets.length - 1));
+      setIsFlippedToPet(true);
+    }
+  };
+
+  const handleNextPet = () => {
+    if (candidatePets.length > 0) {
+      setPetIdx((prev) => (prev + 1) % candidatePets.length);
+      setIsFlippedToPet(true);
+    }
+  };
 
   const candidatePhotos = React.useMemo(() => {
     if (isFlippedToPet) {
@@ -98,7 +114,9 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
         <View style={styles.sideTypeBadge}>
           <Feather name={isFlippedToPet ? 'smile' : 'user'} size={11} color="#FFFFFF" />
           <Text style={styles.sideTypeText}>
-            {isFlippedToPet ? 'Mặt sau: Boss cưng' : 'Mặt trước: Chủ nuôi'}
+            {isFlippedToPet
+              ? `Boss ${(petIdx % Math.max(candidatePets.length, 1)) + 1}/${Math.max(candidatePets.length, 1)}`
+              : 'Mặt trước: Chủ nuôi'}
           </Text>
         </View>
 
@@ -111,6 +129,26 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
           <Text style={styles.flipBtnText}>
             {isFlippedToPet ? 'Lật xem Sen 👤' : 'Lật xem Boss 🐾'}
           </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 2 Nút mũi tên sang trái/phải để duyệt tất cả các pet của người chủ đó */}
+      <View style={styles.petNavigationRow} pointerEvents="box-none">
+        <TouchableOpacity
+          style={styles.petNavArrowBtn}
+          onPress={handlePrevPet}
+          activeOpacity={0.75}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Feather name="chevron-left" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.petNavArrowBtn}
+          onPress={handleNextPet}
+          activeOpacity={0.75}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Feather name="chevron-right" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -300,6 +338,24 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#B52B27',
     letterSpacing: 1,
+  },
+  petNavigationRow: {
+    position: 'absolute',
+    top: '40%',
+    left: 8,
+    right: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 12,
+  },
+  petNavArrowBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   topIndicatorRow: {
     position: 'absolute',
