@@ -7,8 +7,8 @@
 ## 1. Mục Tiêu & Định Vị Landing Page
 
 - **Mục đích chính:**
-  1. Giới thiệu giá trị cốt lõi của siêu ứng dụng Pawty: Chăm sóc thông minh (Sổ tiêm Safe Pet) — Bảng tin Khoảnh khắc (Facebook/Instagram style) — Hẹn dạo Pawty Dating (Facebook Dating style) — Tìm Boss lạc khẩn cấp (SOS AI Gemini Vision).
-  2. Ứng dụng **hoàn toàn miễn phí 100%** cho cộng đồng cư dân nuôi thú cưng đô thị: Không có gói cước, không có phí dịch vụ, không quảng cáo spam hay kinh doanh dịch vụ spa/thương mại.
+  1. Giới thiệu giá trị cốt lõi của siêu ứng dụng Pawty: Chăm sóc thông minh (Sổ tiêm Safe Pet) — Bảng tin Khoảnh khắc (Facebook/Instagram style) — Hẹn dạo Pawty Dating (Facebook Dating style) — Báo động SOS tìm Boss lạc cộng đồng bán kính 3km.
+  2. Ứng dụng **hoàn toàn miễn phí 100%** cho cộng đồng cư dân nuôi thú cưng đô thị: Không có gói cước, không có phí dịch vụ, không quảng cáo spam, không dùng dữ liệu mẫu, phản ánh chân thực 100% tính năng ứng dụng thực tế.
   3. Thúc đẩy lượt đăng ký sớm và tải ứng dụng (App Store, Google Play, Web Demo).
   4. Xây dựng niềm tin an toàn tuyệt đối cho cộng đồng chủ nuôi chung cư (Xác thực tiêm chủng Safe Pet, minh bạch thói quen tránh xung đột, chống bùng hẹn).
   5. Cung cấp đầy đủ các trang quy chế pháp lý theo chuẩn phát hành ứng dụng (Chính sách bảo mật vị trí, Quy chế cộng đồng, Điều khoản sử dụng).
