@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Frontend & Mobile Apps (backend only on this project)
+apps/mobile
+apps/web
+
+# Development and documentation folders
+.git
+.github
+.agents
+.codegraph
+master_print
+plan
+public/assets
+
+# Local environment files
+.env
+.env.production
+.env.local
+.env.*
+

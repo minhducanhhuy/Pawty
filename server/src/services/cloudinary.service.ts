@@ -7,6 +7,7 @@ try {
 }
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import crypto from 'crypto';
 
 export class CloudinaryService {
@@ -14,9 +15,19 @@ export class CloudinaryService {
   private uploadsDir: string;
 
   constructor() {
-    this.uploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
-    if (!fs.existsSync(this.uploadsDir)) {
-      fs.mkdirSync(this.uploadsDir, { recursive: true });
+    const baseDir = process.env.VERCEL ? os.tmpdir() : process.cwd();
+    this.uploadsDir = path.resolve(baseDir, 'public', 'uploads');
+    try {
+      if (!fs.existsSync(this.uploadsDir)) {
+        fs.mkdirSync(this.uploadsDir, { recursive: true });
+      }
+    } catch {
+      this.uploadsDir = path.resolve(os.tmpdir(), 'pawty-uploads');
+      try {
+        if (!fs.existsSync(this.uploadsDir)) {
+          fs.mkdirSync(this.uploadsDir, { recursive: true });
+        }
+      } catch {}
     }
 
     this.initCloudinary();
