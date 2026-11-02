@@ -25,6 +25,11 @@ import {
   getTinderPurposeLabel,
 } from '../types/mobileTypes';
 
+export const cleanName = (name?: string | null): string => {
+  if (!name) return 'Cư dân Pawty';
+  return name.replace(/\s*\(@[^)]+\)/g, '').replace(/@\w+/g, '').trim() || 'Cư dân Pawty';
+};
+
 const EMPTY_PET_PLACEHOLDER: MobilePet = {
   id: '',
   name: '',
@@ -254,12 +259,11 @@ function normalizePostFromServer(post: any, currentUserId: string): MobilePost {
   return {
     id: String(post.id),
     authorId: post.authorId || post.author?.id,
-    authorName: post.authorName || post.author?.displayName || 'Cư dân Pawty',
+    authorName: cleanName(post.authorName || post.author?.displayName),
     authorHandle,
     authorAvatar: post.authorAvatar || post.author?.avatarUrl || '',
     authorNickname:
-      post.authorNickname ||
-      (post.author?.role === 'expert' ? 'Bác sĩ Thú Y' : post.author?.displayName || 'Cư dân'),
+      cleanName(post.authorNickname || (post.author?.role === 'expert' ? 'Bác sĩ Thú Y' : post.author?.displayName || 'Cư dân')),
     category: (post.contentType === 'tip'
       ? 'health_tip'
       : post.contentType === 'question'
@@ -297,7 +301,7 @@ function normalizePostFromServer(post: any, currentUserId: string): MobilePost {
     comments: Array.isArray(post.comments)
       ? post.comments.map((c: any) => ({
           id: String(c.id),
-          authorName: c.authorName || c.author?.displayName || 'Cư dân',
+          authorName: cleanName(c.authorName || c.author?.displayName || 'Cư dân'),
           authorHandle:
             c.authorHandle || (c.author?.username ? `@${c.author.username}` : '@cudan'),
           authorAvatar: c.authorAvatar || c.author?.avatarUrl || '',
@@ -794,14 +798,14 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         const u = bootstrap.user;
         setCurrentUserId(u.id);
-        setOwnerName(u.displayName || '');
+        setOwnerName(cleanName(u.displayName));
         const resolvedHandle =
           u.handle ||
           (u.username
             ? `@${u.username}`
             : `@${(u.displayName || 'user').toLowerCase().replace(/\s+/g, '')}`);
         setOwnerHandle(resolvedHandle);
-        setOwnerNickname(u.displayName || '');
+        setOwnerNickname(cleanName(u.displayName));
         setOwnerPhone(u.phone || '');
         setOwnerBio(u.bio || '');
         setOwnerArea(u.neighborhood || u.district || '');
@@ -926,11 +930,27 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
 
         // Tinder Candidates & Likes You
-        setTinderCandidates(Array.isArray(bootstrap.candidates) ? bootstrap.candidates : []);
-        setLikesYouCandidates(Array.isArray(bootstrap.likesYou) ? bootstrap.likesYou : []);
+        const mappedCandidates = (Array.isArray(bootstrap.candidates) ? bootstrap.candidates : []).map((c: any) => ({
+          ...c,
+          ownerName: cleanName(c.ownerName),
+          ownerNickname: cleanName(c.ownerNickname).toLowerCase() === cleanName(c.ownerName).toLowerCase() ? '' : cleanName(c.ownerNickname),
+        }));
+        setTinderCandidates(mappedCandidates);
+
+        const mappedLikesYou = (Array.isArray(bootstrap.likesYou) ? bootstrap.likesYou : []).map((c: any) => ({
+          ...c,
+          ownerName: cleanName(c.ownerName),
+          ownerNickname: cleanName(c.ownerNickname).toLowerCase() === cleanName(c.ownerName).toLowerCase() ? '' : cleanName(c.ownerNickname),
+        }));
+        setLikesYouCandidates(mappedLikesYou);
 
         // Chats (with canMessage & isFriend)
-        setChats(Array.isArray(bootstrap.chats) ? bootstrap.chats : []);
+        const mappedChats = (Array.isArray(bootstrap.chats) ? bootstrap.chats : []).map((room: any) => ({
+          ...room,
+          partnerName: cleanName(room.partnerName),
+          partnerNickname: cleanName(room.partnerNickname),
+        }));
+        setChats(mappedChats);
 
         // Notifications
         if (Array.isArray(bootstrap.notifications)) {
@@ -974,6 +994,8 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
             if (!prof) continue;
             normalizedMap[k] = {
               ...prof,
+              name: cleanName(prof.name),
+              nickname: cleanName(prof.nickname),
               pets: Array.isArray(prof.pets)
                 ? prof.pets.map((pt: any) => normalizePetFromServer(pt))
                 : [],
@@ -1080,16 +1102,21 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         ]);
 
         if (chatsRes && Array.isArray(chatsRes.chats)) {
+          const sanitizedPollChats = chatsRes.chats.map((c: any) => ({
+            ...c,
+            partnerName: cleanName(c.partnerName),
+            partnerNickname: cleanName(c.partnerNickname),
+          }));
           setChats((prev) => {
-            if (prev.length !== chatsRes.chats.length) return chatsRes.chats;
-            const hasChange = chatsRes.chats.some((nc: any, idx: number) => {
+            if (prev.length !== sanitizedPollChats.length) return sanitizedPollChats;
+            const hasChange = sanitizedPollChats.some((nc: any, idx: number) => {
               const pc = prev[idx];
               if (!pc || pc.id !== nc.id) return true;
               if (pc.messages.length !== (nc.messages?.length || 0)) return true;
               if (pc.unreadCount !== nc.unreadCount) return true;
               return false;
             });
-            return hasChange ? chatsRes.chats : prev;
+            return hasChange ? sanitizedPollChats : prev;
           });
         }
 
@@ -1168,7 +1195,11 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
           .getChats(currentUserId)
           .then((res) => {
             if (res && Array.isArray(res.chats)) {
-              setChats(res.chats);
+              setChats(res.chats.map((c: any) => ({
+                ...c,
+                partnerName: cleanName(c.partnerName),
+                partnerNickname: cleanName(c.partnerNickname),
+              })));
             }
           })
           .catch(() => {});

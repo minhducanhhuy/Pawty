@@ -13,7 +13,7 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { Feather } from '../components/FeatherIcon';
-import { useMobilePawty } from '../context/MobilePawtyContext';
+import { useMobilePawty, cleanName } from '../context/MobilePawtyContext';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_MEDIA_WIDTH = SCREEN_WIDTH - 32 - 28;
@@ -265,7 +265,7 @@ export const MobileExploreScreen: React.FC = () => {
                     )}
                     <View style={{ flex: 1 }}>
                       <View style={styles.authorRow}>
-                        <Text style={styles.authorName}>{post.authorName}</Text>
+                        <Text style={styles.authorName}>{cleanName(post.authorName)}</Text>
                         
                       </View>
                       <Text style={styles.postMeta}>
@@ -486,7 +486,7 @@ export const MobileExploreScreen: React.FC = () => {
                         onPress={() => openPublicUserProfile(c.authorHandle)}
                       >
                         <Text style={styles.commentAuthor}>
-                          {c.authorName}{' '}
+                          {cleanName(c.authorName)}{' '}
                           <Text style={styles.commentTime}>· {c.createdAt}</Text>
                         </Text>
                         <Text style={styles.commentBody}>{c.content}</Text>

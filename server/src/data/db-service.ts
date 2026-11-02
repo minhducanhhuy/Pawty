@@ -34,6 +34,11 @@ export function getTinderIntentLabel(intent: CanonicalTinderIntent): string {
   return INTENT_TO_LABEL[intent] || INTENT_TO_LABEL.playdate;
 }
 
+export function cleanDisplayName(name?: string | null): string {
+  if (!name) return 'Cư dân Pawty';
+  return name.replace(/\s*\(@[^)]+\)/g, '').replace(/@\w+/g, '').trim() || 'Cư dân Pawty';
+}
+
 function formatUserHandle(user: { username?: string | null; displayName?: string | null }): string {
   if (user.username && user.username.trim()) {
     const clean = user.username.trim().replace(/^@/, '');
@@ -303,6 +308,7 @@ export class DatabaseService {
 
     return {
       ...user,
+      displayName: cleanDisplayName(user.displayName),
       handle: formatUserHandle(user),
       coverUrl:
         meta.coverUrl ||
@@ -512,9 +518,9 @@ export class DatabaseService {
       return {
         id: p.id,
         authorId: u.id,
-        authorName: u.displayName || cleanHandle,
+        authorName: cleanDisplayName(u.displayName || cleanHandle),
         authorHandle: handle,
-        authorNickname: meta.occupation || u.displayName || 'Cư dân Pawty',
+        authorNickname: cleanDisplayName(meta.occupation || 'Cư dân Pawty'),
         authorAvatar:
           u.avatarUrl ||
           'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
@@ -555,8 +561,8 @@ export class DatabaseService {
     return {
       id: u.id,
       handle,
-      name: u.displayName || cleanHandle,
-      nickname: meta.occupation || u.displayName || 'Cư dân Pawty',
+      name: cleanDisplayName(u.displayName || cleanHandle),
+      nickname: cleanDisplayName(meta.occupation || 'Cư dân Pawty'),
       avatarUrl:
         u.avatarUrl ||
         'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
@@ -2108,7 +2114,10 @@ export class DatabaseService {
       (indexSeed % 2 === 1 ? 'Nam' : 'Nữ')) as 'Nam' | 'Nữ' | 'Khác';
 
     const rawName = tSetup.displayName || u.displayName || 'Bạn mới';
-    const cleanOwnerName = rawName.replace(/\s*\(@[^)]+\)/g, '').trim() || 'Bạn mới';
+    const cleanOwnerName = cleanDisplayName(rawName);
+    const rawNick = tSetup.displayName || meta.occupation || '';
+    const cleanNick = cleanDisplayName(rawNick);
+    const finalNickname = cleanNick.toLowerCase() === cleanOwnerName.toLowerCase() ? '' : cleanNick;
 
     return {
       id: u.id,
@@ -2116,7 +2125,7 @@ export class DatabaseService {
       ownerHandle: formatUserHandle(u),
       ownerAge: Number(tSetup.age || meta.age || 24),
       gender: resolvedGender,
-      ownerNickname: meta.occupation || u.displayName,
+      ownerNickname: finalNickname,
       avatarUrl:
         photoUrls[0] ||
         u.avatarUrl ||
@@ -2480,7 +2489,9 @@ export class DatabaseService {
         include: { pets: true },
       });
 
-      const partnerName = partner?.displayName || 'Bạn mới';
+      const chatType: 'dating' | 'social' = conv.type === 'dating' ? 'dating' : 'social';
+      const rawPartnerName = chatType === 'dating' ? (userMetaMap[partnerId]?.tinderSetup?.displayName || partner?.displayName || 'Bạn mới') : (partner?.displayName || 'Bạn mới');
+      const partnerName = cleanDisplayName(rawPartnerName);
       const partnerHandle = partner ? formatUserHandle(partner) : '@user';
       const petSummary =
         partner?.pets && partner.pets.length > 0
@@ -2501,7 +2512,6 @@ export class DatabaseService {
       // Phân định rõ ràng chatType dựa vào type thực tế lưu trong Conversation:
       // conv.type === 'dating' -> Hẹn hò (bắt nguồn từ Tinder Match)
       // conv.type === 'direct' -> Mạng xã hội (tự do)
-      const chatType: 'dating' | 'social' = conv.type === 'dating' ? 'dating' : 'social';
       const isMatched = pairMatches.some((m) => m.status === 'matched');
       const canMessage = true; // Mạng xã hội nhắn tin trực tiếp tự do
 
@@ -2551,7 +2561,7 @@ export class DatabaseService {
         partnerId,
         partnerName,
         partnerHandle,
-        partnerNickname: userMetaMap[partnerId]?.occupation || partnerName,
+        partnerNickname: cleanDisplayName(userMetaMap[partnerId]?.occupation || partnerName),
         partnerAvatar,
         petSummary,
         distanceLabel: partner?.neighborhood || 'Gần khu vực của bạn',

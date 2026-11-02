@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '../components/FeatherIcon';
-import { useMobilePawty } from '../context/MobilePawtyContext';
+import { useMobilePawty, cleanName } from '../context/MobilePawtyContext';
 import { ConfirmActionModal } from '../components/SelectorFieldModal';
 import { TinderProfileDetailModal } from './tinder/TinderProfileDetailModal';
 import { TinderCandidate } from '../types/mobileTypes';
@@ -304,7 +304,7 @@ export const MobileChatScreen: React.FC = () => {
               <View style={{ flex: 1 }}>
                 <View style={styles.partnerTitleRow}>
                   <Text style={[styles.headerName, { color: theme.text }]} numberOfLines={1}>
-                    {activeChat.partnerName}
+                    {cleanName(activeChat.partnerName)}
                   </Text>
                   <View style={[styles.matchTag, { backgroundColor: '#FFE4E6' }]}>
                     <Feather name="heart" size={10} color="#E11D48" />
@@ -916,7 +916,7 @@ export const MobileChatScreen: React.FC = () => {
                 <View style={styles.chatRowTop}>
                   <View style={styles.partnerNameRow}>
                     <Text style={[styles.chatName, { color: theme.text }]} numberOfLines={1}>
-                      {room.partnerName}
+                      {cleanName(room.partnerName)}
                     </Text>
                     {roomLocked ? (
                       <View style={styles.unfriendedTag}>

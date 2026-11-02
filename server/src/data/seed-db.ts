@@ -124,7 +124,7 @@ export async function seedDatabase() {
         username,
         password: '123456',
         phone,
-        displayName: `${nameSuffix} (@${username})`,
+        displayName: nameSuffix,
         avatarUrl: avatar,
         bio,
         district: area.district,

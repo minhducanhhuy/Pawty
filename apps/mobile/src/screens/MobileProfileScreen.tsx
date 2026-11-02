@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '../components/FeatherIcon';
-import { useMobilePawty } from '../context/MobilePawtyContext';
+import { useMobilePawty, cleanName } from '../context/MobilePawtyContext';
 import { apiClient } from '../services/apiClient';
 import { SelectorPickerModal, ConfirmActionModal } from '../components/SelectorFieldModal';
 import {
@@ -853,8 +853,8 @@ export const MobileProfileScreen: React.FC = () => {
     ? otherProfile?.avatarUrl || ownerAvatarUrl
     : ownerAvatarUrl;
 
-  const displayName = isViewingOther ? otherProfile?.name || 'Cư dân' : ownerName;
-  const displayOccupation = isViewingOther ? otherProfile?.occupation : ownerOccupation;
+  const displayName = cleanName(isViewingOther ? otherProfile?.name || 'Cư dân' : ownerName);
+  const displayOccupation = cleanName(isViewingOther ? otherProfile?.occupation : ownerOccupation);
   const displayBio = isViewingOther ? otherProfile?.bio : ownerBio;
   const displayArea = isViewingOther ? otherProfile?.area : ownerArea;
   const displayNoteBubble = isViewingOther ? otherProfile?.noteBubble : ownerNoteBubble;

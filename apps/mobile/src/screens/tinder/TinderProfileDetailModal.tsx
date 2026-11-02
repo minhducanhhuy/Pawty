@@ -75,8 +75,14 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
 
   const cleanOwnerName = useMemo(() => {
     if (!candidate?.ownerName) return '';
-    return candidate.ownerName.replace(/\s*\(@[^)]+\)/g, '').trim();
+    return candidate.ownerName.replace(/\s*\(@[^)]+\)/g, '').replace(/@\w+/g, '').trim();
   }, [candidate]);
+
+  const cleanOwnerNickname = useMemo(() => {
+    if (!candidate?.ownerNickname) return '';
+    const clean = candidate.ownerNickname.replace(/\s*\(@[^)]+\)/g, '').replace(/@\w+/g, '').trim();
+    return clean.toLowerCase() === cleanOwnerName.toLowerCase() ? '' : clean;
+  }, [candidate, cleanOwnerName]);
 
   return (
     <Modal
@@ -240,8 +246,8 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
                     </View>
                   )}
                 </View>
-                {candidate.ownerNickname ? (
-                  <Text style={styles.nicknameText}>"{candidate.ownerNickname}"</Text>
+                {cleanOwnerNickname ? (
+                  <Text style={styles.nicknameText}>"{cleanOwnerNickname}"</Text>
                 ) : null}
               </View>
             </View>
