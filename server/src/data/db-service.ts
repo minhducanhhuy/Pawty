@@ -482,9 +482,7 @@ export class DatabaseService {
         name: u.displayName,
         handle,
         nickname: uMeta.occupation || 'Cư dân Pawty',
-        avatarUrl:
-          u.avatarUrl ||
-          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
+        avatarUrl: u.avatarUrl || '',
         petSummary,
         mutualText: u.neighborhood || u.district || 'Gần khu vực của bạn',
         isPrivate: uMeta.privacySettings?.profileVisibility === 'private',
@@ -573,9 +571,7 @@ export class DatabaseService {
         authorName: cleanDisplayName(u.displayName || cleanHandle),
         authorHandle: handle,
         authorNickname: cleanDisplayName(meta.occupation || 'Cư dân Pawty'),
-        authorAvatar:
-          u.avatarUrl ||
-          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
+        authorAvatar: u.avatarUrl || '',
         location: p.locationName || u.neighborhood || 'TP. Hồ Chí Minh',
         createdAt: formatClockTime(p.createdAt),
         content: p.textContent || '',
@@ -593,10 +589,9 @@ export class DatabaseService {
               id: c.id,
               authorName: c.author?.displayName || 'Cư dân Pawty',
               authorHandle: formatUserHandle(c.author || {}),
-              authorAvatar:
-                c.author?.avatarUrl ||
-                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+              authorAvatar: c.author?.avatarUrl || '',
               text: c.textContent,
+              parentId: c.parentId || null,
               createdAt: formatClockTime(c.createdAt),
             }))
           : [],
@@ -615,9 +610,7 @@ export class DatabaseService {
       handle,
       name: cleanDisplayName(u.displayName || cleanHandle),
       nickname: cleanDisplayName(meta.occupation || 'Cư dân Pawty'),
-      avatarUrl:
-        u.avatarUrl ||
-        'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
+      avatarUrl: u.avatarUrl || '',
       coverUrl: meta.coverUrl || '',
       gender: meta.gender || undefined,
       age: meta.age ? Number(meta.age) : undefined,
@@ -796,7 +789,12 @@ export class DatabaseService {
     const clean = identifier.trim().replace(/^@/, '');
     return prisma.user.findFirst({
       where: {
-        OR: [{ phone: clean }, { username: { equals: clean, mode: 'insensitive' } }],
+        OR: [
+          { phone: clean },
+          { username: { equals: clean, mode: 'insensitive' } },
+          { id: clean },
+          { id: `user-${clean}` },
+        ],
       },
       include: { pets: { include: { vaccinations: true, behaviors: true, careRecords: true } } },
     });
@@ -1505,7 +1503,7 @@ export class DatabaseService {
     return { isLiked: true, likes: count };
   }
 
-  public async addPostComment(postId: string, authorId: string, textContent: string) {
+  public async addPostComment(postId: string, authorId: string, textContent: string, parentId?: string) {
     const post = await prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new Error('Không tìm thấy bài viết.');
 
@@ -1514,6 +1512,7 @@ export class DatabaseService {
         postId,
         authorId,
         textContent: textContent.trim(),
+        parentId: parentId || null,
       },
       include: { author: true },
     });
@@ -1542,9 +1541,7 @@ export class DatabaseService {
       id: comment.id,
       authorName: comment.author?.displayName || 'Cư dân Pawty',
       authorHandle: formatUserHandle(comment.author || {}),
-      authorAvatar:
-        comment.author?.avatarUrl ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+      authorAvatar: comment.author?.avatarUrl || '',
       text: comment.textContent,
       createdAt: formatClockTime(comment.createdAt),
     };
@@ -2164,14 +2161,8 @@ export class DatabaseService {
         : []
     ).filter(Boolean);
 
-    const defaultOwnerPhoto =
-      u.avatarUrl ||
-      (resolvedGender === 'Nam'
-        ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80'
-        : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80');
-
-    // photoUrls CHỈ chứa album ảnh cá nhân của chủ nuôi, không lẫn ảnh thú cưng
-    const photoUrls = customPhotos.length > 0 ? customPhotos : [defaultOwnerPhoto];
+    const defaultOwnerPhoto = u.avatarUrl || '';
+    const photoUrls = customPhotos.length > 0 ? customPhotos : (defaultOwnerPhoto ? [defaultOwnerPhoto] : []);
 
     const rawName = tSetup.displayName || u.displayName || 'Bạn mới';
     const cleanOwnerName = cleanDisplayName(rawName);
@@ -2186,10 +2177,7 @@ export class DatabaseService {
       ownerAge: Number(tSetup.age || meta.age || 24),
       gender: resolvedGender,
       ownerNickname: finalNickname,
-      avatarUrl:
-        photoUrls[0] ||
-        u.avatarUrl ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
+      avatarUrl: photoUrls[0] || u.avatarUrl || '',
       photoUrls,
       distanceKm,
       area: u.neighborhood || u.district || 'TP. Hồ Chí Minh',
@@ -2223,7 +2211,7 @@ export class DatabaseService {
     intentFilter?: string,
     genderFilter?: string
   ) {
-    const [incomingLikes, activeMatches, userMetaMap] = await Promise.all([
+    const [incomingLikes, alreadySwipedOrMatched, userMetaMap] = await Promise.all([
       prisma.match.findMany({
         where: {
           userBId: currentUserId,
@@ -2231,11 +2219,12 @@ export class DatabaseService {
         },
         select: { userAId: true },
       }),
-      // CHỈ LOẠI TRỪ NHỮNG NGƯỜI ĐANG MATCH HOẠT ĐỘNG (status: 'matched')
+      // Loại trừ tất cả những người mà currentUserId đã quẹt (userAId === currentUserId: pending, rejected, matched, v.v.)
+      // và những người đã match thành công với currentUserId (userBId === currentUserId và status: matched)
       prisma.match.findMany({
         where: {
           OR: [
-            { userAId: currentUserId, status: 'matched' },
+            { userAId: currentUserId },
             { userBId: currentUserId, status: 'matched' },
           ],
         },
@@ -2244,19 +2233,25 @@ export class DatabaseService {
       this.getUserMetaMap(),
     ]);
 
-    const activeMatchedUserIds = new Set<string>();
-    activeMatches.forEach((m) => {
-      if (m.userAId !== currentUserId) activeMatchedUserIds.add(m.userAId);
-      if (m.userBId !== currentUserId) activeMatchedUserIds.add(m.userBId);
+    const excludedUserIds = new Set<string>();
+    alreadySwipedOrMatched.forEach((m) => {
+      if (m.userAId === currentUserId) {
+        // currentUserId đã quẹt m.userBId -> loại trừ khỏi cọc thẻ
+        excludedUserIds.add(m.userBId);
+      }
+      if (m.userBId === currentUserId) {
+        // m.userAId đã match với currentUserId -> loại trừ khỏi cọc thẻ
+        excludedUserIds.add(m.userAId);
+      }
     });
 
     const usersWhoLikedMe = new Set(
-      incomingLikes.map((m) => m.userAId).filter((id) => !activeMatchedUserIds.has(id))
+      incomingLikes.map((m) => m.userAId).filter((id) => !excludedUserIds.has(id))
     );
 
     const users = await prisma.user.findMany({
       where: {
-        id: { not: currentUserId, notIn: Array.from(activeMatchedUserIds) },
+        id: { not: currentUserId, notIn: Array.from(excludedUserIds) },
       },
       include: {
         pets: {
@@ -2588,9 +2583,7 @@ export class DatabaseService {
       // Tách biệt avatar theo đúng phân hệ:
       // - Hồ sơ hẹn hò: dùng ảnh thẻ hẹn hò (photoUrls[0] hoặc tinderSetup.photos[0])
       // - Hồ sơ mạng xã hội: dùng ảnh đại diện người dùng (partner.avatarUrl)
-      let partnerAvatar =
-        partner?.avatarUrl ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80';
+      let partnerAvatar = partner?.avatarUrl || '';
       if (chatType === 'dating') {
         const datingPhotos =
           userMetaMap[partnerId]?.tinderSetup?.photos ||

@@ -257,6 +257,7 @@ export const MobileTinderScreen: React.FC = () => {
             ]}
           >
             <TinderCardSurface
+              key={`${currentCandidate.id}-${photoIdx}`}
               candidate={currentCandidate}
               photoIdx={photoIdx}
               onOpenDetails={() => setIsDetailModalVisible(true)}

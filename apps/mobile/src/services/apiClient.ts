@@ -117,6 +117,11 @@ export const apiClient = {
     petName?: string;
     petSpecies?: string;
     petBreed?: string;
+    petGender?: string;
+    petBirthDate?: string;
+    petWeightKg?: number;
+    petAvatarUrl?: string;
+    petVaccinated?: boolean;
   }) {
     return request<{ success: boolean; token: string; user: any; message: string }>(
       '/api/auth/register',
@@ -226,12 +231,12 @@ export const apiClient = {
     );
   },
 
-  async addPostComment(postId: string, authorId: string, text: string) {
+  async addPostComment(postId: string, authorId: string, text: string, parentId?: string) {
     return request<{ success: boolean; comment: any }>(
       `/api/posts/${encodeURIComponent(postId)}/comments`,
       {
         method: 'POST',
-        body: JSON.stringify({ authorId, text }),
+        body: JSON.stringify({ authorId, text, parentId }),
       }
     );
   },

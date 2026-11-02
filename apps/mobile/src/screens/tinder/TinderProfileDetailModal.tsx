@@ -26,8 +26,15 @@ interface TinderProfileDetailModalProps {
   onShare: (name: string) => void;
 }
 
-const FALLBACK_PET_IMG =
-  'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=900&q=80';
+const FALLBACK_OWNER_MALE =
+  'https://cdn.24h.com.vn/upload/2-2026/images/2026-04-30/hieuthuhai-2-1777539695-750-width1366height1366.jpg';
+const FALLBACK_OWNER_FEMALE =
+  'https://kenh14cdn.com/203336854389633024/2023/4/3/laem-chipu0415-16805352397721941667135.jpeg';
+const FALLBACK_PET_DOG =
+  'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80';
+const FALLBACK_PET_CAT =
+  'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=900&q=80';
+const FALLBACK_PET_IMG = FALLBACK_PET_DOG;
 
 export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> = ({
   visible,
@@ -52,8 +59,12 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
   // Danh sách slides: Ảnh chủ nuôi -> Ảnh các bé thú cưng
   const slides = useMemo(() => getCandidateSlides(candidate), [candidate]);
 
-  const currentPhoto =
-    slides[activePhotoIdx % Math.max(slides.length, 1)]?.imageUrl || FALLBACK_PET_IMG;
+  const currentSlide = slides[activePhotoIdx % Math.max(slides.length, 1)] || slides[0];
+  const isOwnerSlide = currentSlide?.type === 'owner';
+  const defaultPhoto = isOwnerSlide
+    ? (candidate.gender === 'Nam' ? FALLBACK_OWNER_MALE : FALLBACK_OWNER_FEMALE)
+    : (currentSlide?.pet?.species === 'Mèo' ? FALLBACK_PET_CAT : FALLBACK_PET_DOG);
+  const currentPhoto = currentSlide?.imageUrl || defaultPhoto;
 
   // Tiêu đề đầu trang: Ưu tiên tên các bé thú cưng
   const petHeaderTitle = useMemo(() => {

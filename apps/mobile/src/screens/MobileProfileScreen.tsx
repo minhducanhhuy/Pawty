@@ -19,8 +19,10 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty, cleanName } from '../context/MobilePawtyContext';
+import { FacebookCommentSection } from '../components/FacebookCommentSection';
 import { apiClient } from '../services/apiClient';
 import { SelectorPickerModal, ConfirmActionModal } from '../components/SelectorFieldModal';
+import { DatePickerModal } from '../components/DatePickerModal';
 import {
   MobilePet,
   MobilePost,
@@ -83,161 +85,6 @@ const MONTH_LIST = [
 ];
 
 /* -------------------------------------------------------------------------- */
-/* DATE PICKER MODAL                                                          */
-/* -------------------------------------------------------------------------- */
-interface DatePickerModalProps {
-  visible: boolean;
-  title: string;
-  initialDate: string;
-  isPet?: boolean;
-  onConfirm: (dateStr: string) => void;
-  onClose: () => void;
-}
-
-const DatePickerModal: React.FC<DatePickerModalProps> = ({
-  visible,
-  title,
-  initialDate,
-  isPet = false,
-  onConfirm,
-  onClose,
-}) => {
-  const parts = (initialDate || '').split('/');
-  const now = new Date();
-  const defaultDay = String(now.getDate()).padStart(2, '0');
-  const defaultMonth = String(now.getMonth() + 1).padStart(2, '0');
-  const defaultYear = String(now.getFullYear());
-
-  const [selectedDay, setSelectedDay] = useState(parts[0] || defaultDay);
-  const [selectedMonth, setSelectedMonth] = useState(parts[1] || defaultMonth);
-  const [selectedYear, setSelectedYear] = useState(parts[2] || (isPet ? defaultYear : '2000'));
-
-  const days = useMemo(() => Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0')), []);
-  const months = useMemo(() => Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')), []);
-  const years = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const startYear = isPet ? currentYear - 20 : 1960;
-    const count = currentYear - startYear + 1;
-    return Array.from({ length: count }, (_, i) => String(startYear + i)).reverse();
-  }, [isPet]);
-
-  const [dateError, setDateError] = useState('');
-
-  useEffect(() => {
-    if (visible) {
-      const p = (initialDate || '').split('/');
-      const n = new Date();
-      const d = String(n.getDate()).padStart(2, '0');
-      const m = String(n.getMonth() + 1).padStart(2, '0');
-      const y = String(n.getFullYear());
-
-      setSelectedDay(p[0] || d);
-      setSelectedMonth(p[1] || m);
-      setSelectedYear(p[2] || (isPet ? y : '2000'));
-      setDateError('');
-    }
-  }, [visible, initialDate, isPet]);
-
-  const handleConfirm = () => {
-    const formatted = `${selectedDay}/${selectedMonth}/${selectedYear}`;
-    if (isFutureDate(formatted)) {
-      setDateError('Ngày sinh của bé không được vượt quá ngày hiện tại!');
-      return;
-    }
-    setDateError('');
-    onConfirm(formatted);
-    onClose();
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={dateStyles.modalOverlay}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
-        <View style={dateStyles.datePickerCard}>
-          <View style={dateStyles.sheetHeader}>
-            <Text style={dateStyles.sheetTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} style={dateStyles.closeBtn} activeOpacity={0.7}>
-              <Feather name="x" size={18} color="#6B5E59" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={dateStyles.dateColsContainer}>
-            <View style={dateStyles.dateCol}>
-              <Text style={dateStyles.dateColHeader}>Ngày</Text>
-              <ScrollView style={dateStyles.dateColScroll} showsVerticalScrollIndicator={false}>
-                {days.map((d) => (
-                  <TouchableOpacity
-                    key={d}
-                    style={[dateStyles.dateItemPill, selectedDay === d && dateStyles.dateItemPillActive]}
-                    onPress={() => setSelectedDay(d)}
-                  >
-                    <Text style={[dateStyles.dateItemText, selectedDay === d && dateStyles.dateItemTextActive]}>
-                      {d}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            <View style={dateStyles.dateCol}>
-              <Text style={dateStyles.dateColHeader}>Tháng</Text>
-              <ScrollView style={dateStyles.dateColScroll} showsVerticalScrollIndicator={false}>
-                {months.map((m) => (
-                  <TouchableOpacity
-                    key={m}
-                    style={[dateStyles.dateItemPill, selectedMonth === m && dateStyles.dateItemPillActive]}
-                    onPress={() => setSelectedMonth(m)}
-                  >
-                    <Text style={[dateStyles.dateItemText, selectedMonth === m && dateStyles.dateItemTextActive]}>
-                      Tháng {m}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            <View style={dateStyles.dateCol}>
-              <Text style={dateStyles.dateColHeader}>Năm</Text>
-              <ScrollView style={dateStyles.dateColScroll} showsVerticalScrollIndicator={false}>
-                {years.map((y) => (
-                  <TouchableOpacity
-                    key={y}
-                    style={[dateStyles.dateItemPill, selectedYear === y && dateStyles.dateItemPillActive]}
-                    onPress={() => setSelectedYear(y)}
-                  >
-                    <Text style={[dateStyles.dateItemText, selectedYear === y && dateStyles.dateItemTextActive]}>
-                      {y}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-
-          <View style={dateStyles.datePreviewRow}>
-            <Text style={dateStyles.datePreviewText}>
-              Đã chọn: {selectedDay}/{selectedMonth}/{selectedYear}
-            </Text>
-          </View>
-
-          {dateError ? (
-            <View style={{ backgroundColor: '#FEE2E2', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, marginTop: 8, alignItems: 'center' }}>
-              <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '700' }}>
-                {dateError}
-              </Text>
-            </View>
-          ) : null}
-
-          <TouchableOpacity style={dateStyles.confirmBtn} onPress={handleConfirm} activeOpacity={0.85}>
-            <Text style={dateStyles.confirmBtnText}>Xác nhận ngày sinh</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-/* -------------------------------------------------------------------------- */
 /* MAIN PROFILE SCREEN (UNIFIED LAYOUT: SELF VS VIEWING OTHER)                */
 /* -------------------------------------------------------------------------- */
 export const MobileProfileScreen: React.FC = () => {
@@ -273,6 +120,7 @@ export const MobileProfileScreen: React.FC = () => {
     posts,
     deletePost,
     toggleReaction,
+    toggleSavePost,
     toggleCommentLike,
     addComment,
     addCommentReply,
@@ -290,6 +138,7 @@ export const MobileProfileScreen: React.FC = () => {
     toggleFollowUser,
     startDirectChatWithUser,
     goBackFromOtherProfile,
+    openPublicUserProfile,
   } = useMobilePawty();
 
   const isViewingOther = Boolean(
@@ -330,6 +179,13 @@ export const MobileProfileScreen: React.FC = () => {
 
   // Owner moments tab
   const [ownerMediaTab, setOwnerMediaTab] = useState<'moments' | 'saved'>('moments');
+
+  // Luôn reset về 'moments' khi xem trang cá nhân người khác
+  useEffect(() => {
+    if (isViewingOther) {
+      setOwnerMediaTab('moments');
+    }
+  }, [isViewingOther, selectedProfileHandle]);
 
   // Popup 1: Ghi chú
   const [isEditingNote, setIsEditingNote] = useState(false);
@@ -496,34 +352,67 @@ export const MobileProfileScreen: React.FC = () => {
   const [editPetWeightHistoryDraft, setEditPetWeightHistoryDraft] = useState<PetWeightEntry[]>([]);
   const [editPetGalleryDraft, setEditPetGalleryDraft] = useState<string[]>([]);
 
-  // Popup 5: Post Preview Modal & Post Detail Modal
-  const [selectedPreviewPost, setSelectedPreviewPost] = useState<MobilePost | null>(null);
-  const [activePostDetail, setActivePostDetail] = useState<MobilePost | null>(null);
+  // Popup 5: Post Preview Modal & Post Detail Modal (Derived dynamically from posts to maintain 100% sync)
+  const [selectedPreviewPostId, setSelectedPreviewPostId] = useState<string | null>(null);
+  const [activePostDetailId, setActivePostDetailId] = useState<string | null>(null);
   const [commentInputText, setCommentInputText] = useState('');
-  const [replyingCommentId, setReplyingCommentId] = useState<string | null>(null);
+  const [replyingInfo, setReplyingInfo] = useState<{ commentId: string; authorName: string } | null>(null);
 
-  // Moments list calculation
-  const myPosts = posts.filter(
-    (p) =>
-      p.authorHandle &&
-      ownerHandle &&
-      p.authorHandle.toLowerCase().replace(/^@/, '') ===
-        ownerHandle.toLowerCase().replace(/^@/, '')
-  );
+  // Moments list calculation (Single Source of Truth)
+  const myPosts = useMemo(() => {
+    const rawMyHandle = (ownerHandle || '').toLowerCase().replace(/^@/, '');
+    const rawMyName = (ownerName || '').toLowerCase();
+    return posts.filter((p) => {
+      const pHandle = (p.authorHandle || '').toLowerCase().replace(/^@/, '');
+      const pName = (p.authorName || '').toLowerCase();
+      return (rawMyHandle && pHandle === rawMyHandle) || (rawMyName && pName === rawMyName);
+    });
+  }, [posts, ownerHandle, ownerName]);
 
   const displayPosts = useMemo(() => {
-    if (isViewingOther && otherProfile) {
-      if (otherProfile.posts && otherProfile.posts.length > 0) return otherProfile.posts;
-      return posts.filter(
+    if (isViewingOther) {
+      const handleToMatch = (
+        otherProfile?.handle ||
+        selectedProfileHandle ||
+        ''
+      )
+        .toLowerCase()
+        .replace(/^@/, '');
+
+      if (!handleToMatch) return [];
+
+      const matchedFromLive = posts.filter(
         (p) =>
           p.authorHandle &&
-          otherProfile.handle &&
-          p.authorHandle.toLowerCase().replace(/^@/, '') ===
-            otherProfile.handle.toLowerCase().replace(/^@/, '')
+          p.authorHandle.toLowerCase().replace(/^@/, '') === handleToMatch
       );
+      if (matchedFromLive.length > 0) return matchedFromLive;
+      if (otherProfile?.posts && otherProfile.posts.length > 0) {
+        return otherProfile.posts.map((op) => posts.find((lp) => lp.id === op.id) || op);
+      }
+      return [];
     }
     return ownerMediaTab === 'saved' ? posts.filter((p) => p.isSaved) : myPosts;
-  }, [isViewingOther, otherProfile, posts, ownerMediaTab, myPosts]);
+  }, [isViewingOther, otherProfile, selectedProfileHandle, posts, ownerMediaTab, myPosts]);
+
+  // Luôn lấy bài viết Live thời gian thực từ posts
+  const selectedPreviewPost = useMemo(() => {
+    if (!selectedPreviewPostId) return null;
+    return (
+      posts.find((p) => p.id === selectedPreviewPostId) ||
+      displayPosts.find((p) => p.id === selectedPreviewPostId) ||
+      null
+    );
+  }, [selectedPreviewPostId, posts, displayPosts]);
+
+  const activePostDetail = useMemo(() => {
+    if (!activePostDetailId) return null;
+    return (
+      posts.find((p) => p.id === activePostDetailId) ||
+      displayPosts.find((p) => p.id === activePostDetailId) ||
+      null
+    );
+  }, [activePostDetailId, posts, displayPosts]);
 
   const totalPages = 1 + displayedPets.length;
 
@@ -1363,7 +1252,7 @@ export const MobileProfileScreen: React.FC = () => {
                   key={post.id}
                   style={styles.gridThumbItem}
                   activeOpacity={0.88}
-                  onPress={() => setSelectedPreviewPost(post)}
+                  onPress={() => setSelectedPreviewPostId(post.id)}
                 >
                   {thumb && thumb.trim() ? (
                     <Image source={{ uri: thumb }} style={styles.gridThumbImg} />
@@ -1423,25 +1312,7 @@ export const MobileProfileScreen: React.FC = () => {
                   resizeMode="cover"
                 />
               ) : (
-                <View style={[StyleSheet.absoluteFill, styles.emptyPetPhotoPlaceholder]}>
-                  <View style={styles.emptyPetPhotoContent}>
-                    <View style={styles.emptyPetPhotoIconCircle}>
-                      <Feather name="camera" size={38} color="#FF6F61" />
-                    </View>
-                    <Text style={styles.emptyPetPhotoTitle}>Bé {pet.name} chưa có ảnh đại diện</Text>
-                    <Text style={styles.emptyPetPhotoSub}>Chạm để thêm hình ảnh đầu tiên cho bé</Text>
-                    {!isViewingOther && (
-                      <TouchableOpacity
-                        style={styles.emptyPetPhotoAddBtn}
-                        onPress={() => handleAddPetPhotoFromDevice(pet.id)}
-                        activeOpacity={0.85}
-                      >
-                        <Feather name="plus" size={16} color="#FFFFFF" />
-                        <Text style={styles.emptyPetPhotoAddBtnText}>Thêm ảnh bé cưng</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
+                <View style={[StyleSheet.absoluteFill, styles.emptyPetPhotoPlaceholder]} />
               )}
 
               {/* 2. Heart Burst Animated Overlay */}
@@ -1474,6 +1345,31 @@ export const MobileProfileScreen: React.FC = () => {
                     style={StyleSheet.absoluteFill}
                     onPress={() => handlePetContainerTap(pet.id)}
                   />
+
+                  {/* Khi bé chưa có ảnh: Hiển thị placeholder gọn gàng bên trong petPhotoSpacerArea, không đè lên thẻ kính */}
+                  {!hasUserPhotos && (
+                    <View style={styles.emptyPetPhotoInSpacerArea} pointerEvents="box-none">
+                      <TouchableOpacity
+                        style={styles.emptyPetPhotoIconCircle}
+                        onPress={() => !isViewingOther && handleAddPetPhotoFromDevice(pet.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Feather name="camera" size={30} color="#FF6F61" />
+                      </TouchableOpacity>
+                      <Text style={styles.emptyPetPhotoTitle}>Bé {pet.name} chưa có ảnh đại diện</Text>
+                      <Text style={styles.emptyPetPhotoSub}>Chạm để thêm hình ảnh đầu tiên cho bé</Text>
+                      {!isViewingOther && (
+                        <TouchableOpacity
+                          style={styles.emptyPetPhotoAddBtn}
+                          onPress={() => handleAddPetPhotoFromDevice(pet.id)}
+                          activeOpacity={0.85}
+                        >
+                          <Feather name="plus" size={13} color="#FFFFFF" />
+                          <Text style={styles.emptyPetPhotoAddBtnText}>Thêm ảnh bé cưng</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
 
                   {/* Top Floating Bar: Loài cún, Nút Tim, Camera, Sửa */}
                   <View style={styles.petTopFloatingBar} pointerEvents="box-none">
@@ -1557,6 +1453,28 @@ export const MobileProfileScreen: React.FC = () => {
 
                 {/* Thẻ Kính Mờ: Nhìn thấu ảnh & cuộn xuôi xuống */}
                 <View style={styles.petScrollableFrostedCard}>
+                  {/* Nhắc nhở hoàn thiện hồ sơ khi chưa có ảnh hoặc thiếu ngày sinh / cân nặng */}
+                  {!isViewingOther && (!hasUserPhotos || !pet.birthDate || !pet.weightKg || pet.weightKg <= 0) && (
+                    <TouchableOpacity
+                      style={styles.petIncompleteAlertCard}
+                      onPress={() => openEditPetModal(pet)}
+                      activeOpacity={0.85}
+                    >
+                      <View style={styles.petIncompleteAlertLeft}>
+                        <Feather name="alert-circle" size={16} color="#FF6F61" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.petIncompleteAlertTitle}>
+                            Hồ sơ bé {pet.name} chưa hoàn tất
+                          </Text>
+                          <Text style={styles.petIncompleteAlertSub}>
+                            Chạm để bổ sung ảnh, ngày sinh, cân nặng & sổ tiêm
+                          </Text>
+                        </View>
+                      </View>
+                      <Feather name="chevron-right" size={16} color="#FF6F61" />
+                    </TouchableOpacity>
+                  )}
+
                   {/* Header: Tên bé & Giống loài */}
                   <View style={styles.petCardHeaderRow}>
                     <Text style={styles.petCardMainName}>{pet.name}</Text>
@@ -2925,260 +2843,261 @@ export const MobileProfileScreen: React.FC = () => {
       {/* ============================================================= */}
       {/* POPUP 6: POST PREVIEW MODAL                                   */}
       {/* ============================================================= */}
-      <Modal visible={!!selectedPreviewPost} transparent animationType="fade" onRequestClose={() => setSelectedPreviewPost(null)}>
+      <Modal visible={!!selectedPreviewPost} transparent animationType="fade" onRequestClose={() => setSelectedPreviewPostId(null)}>
         <View style={styles.previewOverlay}>
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
-            onPress={() => setSelectedPreviewPost(null)}
+            onPress={() => setSelectedPreviewPostId(null)}
             activeOpacity={1}
           />
-          {selectedPreviewPost && (
-            <View style={styles.previewCard}>
-              <View style={styles.previewHeaderRow}>
-                {selectedPreviewPost.authorAvatar || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
-                  <Image
-                    source={{ uri: selectedPreviewPost.authorAvatar || displayAvatarUrl }}
-                    style={styles.postPreviewAvatar}
-                  />
-                ) : (
-                  <View style={[styles.postPreviewAvatar, { backgroundColor: '#EADFD3', alignItems: 'center', justifyContent: 'center' }]}>
-                    <Feather name="user" size={16} color="#7E6E60" />
+          {selectedPreviewPost && (() => {
+            const previewTotalLikes =
+              (selectedPreviewPost.reactions?.paws || 0) +
+              (selectedPreviewPost.reactions?.love || 0) +
+              (selectedPreviewPost.reactions?.wow || 0) +
+              (selectedPreviewPost.reactions?.helpful || 0);
+            const previewIsLiked = Boolean(selectedPreviewPost.userReaction);
+
+            const rawMyHandle = (ownerHandle || '').toLowerCase().replace(/^@/, '');
+            const rawMyName = (ownerName || '').toLowerCase();
+            const pHandle = (selectedPreviewPost.authorHandle || '').toLowerCase().replace(/^@/, '');
+            const pName = (selectedPreviewPost.authorName || '').toLowerCase();
+            const isMyPost = (rawMyHandle && pHandle === rawMyHandle) || (rawMyName && pName === rawMyName);
+            const isSavedTab = ownerMediaTab === 'saved';
+
+            return (
+              <View style={styles.previewCard}>
+                <View style={styles.previewHeaderRow}>
+                  {selectedPreviewPost.authorAvatar || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
+                    <Image
+                      source={{ uri: selectedPreviewPost.authorAvatar || displayAvatarUrl }}
+                      style={styles.postPreviewAvatar}
+                    />
+                  ) : (
+                    <View style={[styles.postPreviewAvatar, { backgroundColor: '#EADFD3', alignItems: 'center', justifyContent: 'center' }]}>
+                      <Feather name="user" size={16} color="#7E6E60" />
+                    </View>
+                  )}
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.previewAuthorName}>{cleanName(selectedPreviewPost.authorName || displayName || 'Cư dân')}</Text>
+                    <Text style={styles.previewMetaText}>
+                      {selectedPreviewPost.categoryLabel || 'Khoảnh khắc'} · {selectedPreviewPost.createdAt || 'Vừa xong'} · Công khai
+                    </Text>
                   </View>
-                )}
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={styles.previewAuthorHandle}>{displayName || 'Bạn'}</Text>
-                  <Text style={styles.previewMetaText}>Vừa xong • Công khai</Text>
+                  <TouchableOpacity onPress={() => setSelectedPreviewPostId(null)} style={styles.previewCloseBtn}>
+                    <Feather name="x" size={18} color="#7E6E60" />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity onPress={() => setSelectedPreviewPost(null)} style={styles.previewCloseBtn}>
-                  <Feather name="x" size={18} color="#FFFFFF" />
+
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    openLightboxMedia({
+                      postId: selectedPreviewPost.id,
+                      mediaUrls: selectedPreviewPost.mediaUrls || [displayAvatarUrl],
+                      mediaType: selectedPreviewPost.mediaType || 'image',
+                      initialIndex: 0,
+                      authorName: selectedPreviewPost.authorName,
+                      caption: selectedPreviewPost.content,
+                    });
+                  }}
+                >
+                  {selectedPreviewPost.mediaUrls?.[0] || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
+                    <Image
+                      source={{ uri: selectedPreviewPost.mediaUrls?.[0] || displayAvatarUrl }}
+                      style={styles.previewPostImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[styles.previewPostImage, { backgroundColor: '#F7F4F0', alignItems: 'center', justifyContent: 'center' }]}>
+                      <Feather name="image" size={32} color="#A89E94" />
+                    </View>
+                  )}
                 </TouchableOpacity>
-              </View>
 
-              <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => {
-                  openLightboxMedia({
-                    postId: selectedPreviewPost.id,
-                    mediaUrls: selectedPreviewPost.mediaUrls || [displayAvatarUrl],
-                    mediaType: selectedPreviewPost.mediaType || 'image',
-                    initialIndex: 0,
-                    authorName: selectedPreviewPost.authorName,
-                    caption: selectedPreviewPost.content,
-                  });
-                }}
-              >
-                {selectedPreviewPost.mediaUrls?.[0] || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
-                  <Image
-                    source={{ uri: selectedPreviewPost.mediaUrls?.[0] || displayAvatarUrl }}
-                    style={styles.previewPostImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={[styles.previewPostImage, { backgroundColor: '#EADFD3', alignItems: 'center', justifyContent: 'center' }]}>
-                    <Feather name="image" size={32} color="#7E6E60" />
+                <View style={styles.previewCaptionBox}>
+                  <View style={styles.previewLikeCountRow}>
+                    <Feather
+                      name="paw"
+                      size={15}
+                      color={previewIsLiked ? '#FF6F61' : '#7E6E60'}
+                      fill={previewIsLiked ? '#FF6F61' : 'none'}
+                    />
+                    <Text
+                      style={[
+                        styles.previewLikeCountText,
+                        previewIsLiked && { color: '#FF6F61', fontWeight: '800' },
+                      ]}
+                    >
+                      {previewTotalLikes} lượt thích · {(selectedPreviewPost.comments || []).reduce((s, c) => s + 1 + (c.replies?.length || 0), 0)} bình luận
+                    </Text>
                   </View>
-                )}
-              </TouchableOpacity>
-
-              <View style={styles.previewCaptionBox}>
-                <View style={styles.previewLikeCountRow}>
-                  <Feather name="heart" size={14} color="#FF6F61" />
-                  <Text style={styles.previewLikeCountText}>
-                    {selectedPreviewPost.reactions?.love || 120} lượt thích
+                  <Text style={styles.previewCaptionText} numberOfLines={3}>
+                    {selectedPreviewPost.content}
                   </Text>
                 </View>
-                <Text style={styles.previewCaptionText} numberOfLines={3}>
-                  {selectedPreviewPost.content}
-                </Text>
-              </View>
 
-              <View style={styles.previewActionsContainer}>
-                <TouchableOpacity
-                  style={styles.previewMainActionBtn}
-                  onPress={() => {
-                    const target = selectedPreviewPost;
-                    setSelectedPreviewPost(null);
-                    setActivePostDetail(target);
-                  }}
-                  activeOpacity={0.85}
-                >
-                  <Feather name="message-circle" size={16} color="#A3E4D7" />
-                  <Text style={styles.postPreviewActionText}>Xem chi tiết bài viết</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.previewSecondaryActionBtn}
-                  onPress={() => {
-                    toggleReaction(selectedPreviewPost.id, 'love');
-                    showToast('Đã thả tim bài viết!');
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Feather name="heart" size={15} color="#FF6F61" />
-                  <Text style={styles.previewSecondaryActionText}>Thả tim</Text>
-                </TouchableOpacity>
-
-                {!isViewingOther && (
+                <View style={styles.previewActionsContainer}>
                   <TouchableOpacity
-                    style={styles.previewDangerActionBtn}
+                    style={styles.previewMainActionBtn}
                     onPress={() => {
-                      deletePost(selectedPreviewPost.id);
-                      setSelectedPreviewPost(null);
+                      const id = selectedPreviewPost.id;
+                      setSelectedPreviewPostId(null);
+                      setActivePostDetailId(id);
                     }}
-                    activeOpacity={0.8}
+                    activeOpacity={0.85}
                   >
-                    <Feather name="trash-2" size={15} color="#E15B4C" />
-                    <Text style={styles.previewDangerActionText}>Xóa khỏi bảng tin</Text>
+                    <Feather name="message-circle" size={16} color="#FFFFFF" />
+                    <Text style={styles.postPreviewActionText}>Xem chi tiết & bình luận</Text>
                   </TouchableOpacity>
-                )}
+
+                  {/* Nút thao tác dưới: Xóa khỏi lưu trữ (khi xem tab đã lưu / bài người khác) vs Xóa bài viết */}
+                  {!isViewingOther && (
+                    isSavedTab || !isMyPost ? (
+                      <TouchableOpacity
+                        style={styles.previewDangerActionBtn}
+                        onPress={() => {
+                          toggleSavePost(selectedPreviewPost.id);
+                          setSelectedPreviewPostId(null);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Feather name="bookmark" size={15} color="#E15B4C" />
+                        <Text style={styles.previewDangerActionText}>Xóa khỏi mục đã lưu</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.previewDangerActionBtn}
+                        onPress={() => {
+                          deletePost(selectedPreviewPost.id);
+                          setSelectedPreviewPostId(null);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Feather name="trash-2" size={15} color="#E15B4C" />
+                        <Text style={styles.previewDangerActionText}>Xóa bài viết</Text>
+                      </TouchableOpacity>
+                    )
+                  )}
+                </View>
               </View>
-            </View>
-          )}
+            );
+          })()}
         </View>
       </Modal>
 
       {/* ============================================================= */}
       {/* POPUP 7: POST DETAIL MODAL (COMMENTS)                          */}
       {/* ============================================================= */}
-      <Modal visible={!!activePostDetail} transparent animationType="slide" onRequestClose={() => setActivePostDetail(null)}>
+      <Modal visible={!!activePostDetail} transparent animationType="slide" onRequestClose={() => setActivePostDetailId(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.cleanModalOverlay}>
           <View style={styles.fullscreenModalCard}>
             <View style={styles.cleanModalHeaderRow}>
               <Text style={styles.cleanModalTitle}>Chi tiết bài viết</Text>
-              <TouchableOpacity onPress={() => setActivePostDetail(null)} style={styles.modalCloseBtn}>
+              <TouchableOpacity onPress={() => setActivePostDetailId(null)} style={styles.modalCloseBtn}>
                 <Feather name="x" size={18} color="#7E6E60" />
               </TouchableOpacity>
             </View>
 
-            {activePostDetail && (
-              <>
-                <ScrollView style={styles.modalScrollBody} showsVerticalScrollIndicator={false}>
-                  <View style={styles.postDetailAuthorRow}>
-                    {activePostDetail.authorAvatar || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
-                      <Image
-                        source={{ uri: activePostDetail.authorAvatar || displayAvatarUrl }}
-                        style={styles.postDetailAvatar}
-                      />
-                    ) : (
-                      <View style={[styles.postDetailAvatar, { backgroundColor: '#EADFD3', alignItems: 'center', justifyContent: 'center' }]}>
-                        <Feather name="user" size={16} color="#7E6E60" />
-                      </View>
-                    )}
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={styles.postDetailAuthorName}>{activePostDetail.authorName}</Text>
-                      
-                    </View>
-                  </View>
+            {activePostDetail && (() => {
+              const detailTotalLikes =
+                (activePostDetail.reactions?.paws || 0) +
+                (activePostDetail.reactions?.love || 0) +
+                (activePostDetail.reactions?.wow || 0) +
+                (activePostDetail.reactions?.helpful || 0);
+              const detailIsLiked = Boolean(activePostDetail.userReaction);
 
-                  {activePostDetail.mediaUrls?.[0] || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
-                    <Image
-                      source={{ uri: activePostDetail.mediaUrls?.[0] || displayAvatarUrl }}
-                      style={styles.postDetailImage}
-                      resizeMode="cover"
-                    />
-                  ) : null}
-
-                  <Text style={styles.postDetailContentText}>{activePostDetail.content}</Text>
-
-                  <View style={styles.postDetailReactionsRow}>
-                    <TouchableOpacity
-                      style={styles.reactionPill}
-                      onPress={() => toggleReaction(activePostDetail.id, 'love')}
-                    >
-                      <Feather name="heart" size={14} color="#FF6F61" />
-                      <Text style={styles.reactionPillText}>{activePostDetail.reactions?.love || 0}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.reactionPill}
-                      onPress={() => toggleReaction(activePostDetail.id, 'paws')}
-                    >
-                      <Feather name="smile" size={14} color="#A3E4D7" />
-                      <Text style={styles.reactionPillText}>{activePostDetail.reactions?.paws || 0}</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.commentsListBlock}>
-                    <Text style={styles.commentsHeaderTitle}>
-                      Bình luận ({activePostDetail.comments?.length || 0})
-                    </Text>
-
-                    {(activePostDetail.comments || []).map((cmt) => (
-                      <View key={cmt.id} style={styles.commentItemWrap}>
-                        <View style={styles.commentRow}>
-                          {cmt.authorAvatar || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
-                            <Image source={{ uri: cmt.authorAvatar || displayAvatarUrl }} style={styles.commentAvatar} />
-                          ) : (
-                            <View style={[styles.commentAvatar, { backgroundColor: '#EADFD3', alignItems: 'center', justifyContent: 'center' }]}>
-                              <Feather name="user" size={12} color="#7E6E60" />
-                            </View>
-                          )}
-                          <View style={styles.commentBubble}>
-                            <Text style={styles.commentAuthorName}>{cmt.authorName}</Text>
-                            <Text style={styles.commentContentText}>{cmt.content}</Text>
-                            <View style={styles.commentMetaRow}>
-                              <Text style={styles.commentTimeText}>{cmt.createdAt}</Text>
-                              <TouchableOpacity onPress={() => setReplyingCommentId(cmt.id)}>
-                                <Text style={styles.commentReplyLink}>Trả lời</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                          <TouchableOpacity
-                            style={styles.commentLikeBtn}
-                            onPress={() => toggleCommentLike(activePostDetail.id, cmt.id)}
-                          >
-                            <Feather name="heart" size={12} color={cmt.isLiked ? '#FF6F61' : '#A89E94'} />
-                            <Text style={[styles.commentLikeCount, cmt.isLiked && { color: '#FF6F61' }]}>
-                              {cmt.likesCount || 0}
-                            </Text>
-                          </TouchableOpacity>
+              return (
+                <>
+                  <ScrollView style={styles.modalScrollBody} showsVerticalScrollIndicator={false}>
+                    <View style={styles.postDetailAuthorRow}>
+                      {activePostDetail.authorAvatar || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
+                        <Image
+                          source={{ uri: activePostDetail.authorAvatar || displayAvatarUrl }}
+                          style={styles.postDetailAvatar}
+                        />
+                      ) : (
+                        <View style={[styles.postDetailAvatar, { backgroundColor: '#EADFD3', alignItems: 'center', justifyContent: 'center' }]}>
+                          <Feather name="user" size={16} color="#7E6E60" />
                         </View>
+                      )}
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={styles.postDetailAuthorName}>{cleanName(activePostDetail.authorName)}</Text>
+                        <Text style={styles.postDetailAuthorMeta}>
+                          {activePostDetail.categoryLabel || 'Khoảnh khắc'} · {activePostDetail.createdAt || 'Vừa xong'}
+                        </Text>
+                      </View>
+                    </View>
 
-                        {(cmt.replies || []).map((rep) => (
-                          <View key={rep.id} style={styles.replyRow}>
-                            {rep.authorAvatar || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
-                              <Image source={{ uri: rep.authorAvatar || displayAvatarUrl }} style={styles.replyAvatar} />
-                            ) : (
-                              <View style={[styles.replyAvatar, { backgroundColor: '#EADFD3', alignItems: 'center', justifyContent: 'center' }]}>
-                                <Feather name="user" size={10} color="#7E6E60" />
-                              </View>
-                            )}
-                            <View style={styles.replyBubble}>
-                              <Text style={styles.commentAuthorName}>{rep.authorName}</Text>
-                              <Text style={styles.commentContentText}>{rep.content}</Text>
-                            </View>
+                    {activePostDetail.mediaUrls?.[0] || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
+                      <Image
+                        source={{ uri: activePostDetail.mediaUrls?.[0] || displayAvatarUrl }}
+                        style={styles.postDetailImage}
+                        resizeMode="cover"
+                      />
+                    ) : null}
+
+                    <Text style={styles.postDetailContentText}>{activePostDetail.content}</Text>
+
+                    {Array.isArray(activePostDetail.tags) && activePostDetail.tags.length > 0 && (
+                      <View style={styles.detailTagsRow}>
+                        {activePostDetail.tags.map((tag) => (
+                          <View key={tag} style={styles.detailTagChip}>
+                            <Text style={styles.detailTagText}>{tag}</Text>
                           </View>
                         ))}
                       </View>
-                    ))}
-                  </View>
-                </ScrollView>
+                    )}
 
-                <View style={styles.commentInputBar}>
-                  <TextInput
-                    style={styles.commentInput}
-                    placeholder={replyingCommentId ? 'Trả lời bình luận...' : 'Viết bình luận...'}
-                    placeholderTextColor="#A89E94"
-                    value={commentInputText}
-                    onChangeText={setCommentInputText}
-                  />
-                  <TouchableOpacity
-                    style={styles.commentSendBtn}
-                    onPress={() => {
-                      if (!commentInputText.trim()) return;
-                      if (replyingCommentId) {
-                        addCommentReply(activePostDetail.id, replyingCommentId, commentInputText.trim());
-                        setReplyingCommentId(null);
-                      } else {
-                        addComment(activePostDetail.id, commentInputText.trim());
-                      }
-                      setCommentInputText('');
-                    }}
-                  >
-                    <Feather name="send" size={16} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
+                    {/* HÀNH ĐỘNG THẢ PAW VÀ ĐẾM BÌNH LUẬN ĐỒNG BỘ VỚI EXPLORE */}
+                    <View style={styles.postDetailReactionsRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.reactionPill,
+                          detailIsLiked && {
+                            backgroundColor: 'rgba(255, 111, 97, 0.15)',
+                            borderColor: '#FF6F61',
+                          },
+                        ]}
+                        onPress={() => toggleReaction(activePostDetail.id)}
+                      >
+                        <Feather
+                          name="paw"
+                          size={16}
+                          color={detailIsLiked ? '#FF6F61' : '#2C2520'}
+                          fill={detailIsLiked ? '#FF6F61' : 'none'}
+                        />
+                        <Text
+                          style={[
+                            styles.reactionPillText,
+                            detailIsLiked && { color: '#FF6F61', fontWeight: '800' },
+                          ]}
+                        >
+                          {detailTotalLikes} lượt thích
+                        </Text>
+                      </TouchableOpacity>
+
+                      <View style={styles.reactionPill}>
+                        <Feather name="message-circle" size={16} color="#7E6E60" />
+                        <Text style={styles.reactionPillText}>
+                          {(activePostDetail.comments || []).reduce((s, c) => s + 1 + (c.replies?.length || 0), 0)} bình luận
+                        </Text>
+                      </View>
+                    </View>
+
+                    <FacebookCommentSection
+                      postId={activePostDetail.id}
+                      comments={activePostDetail.comments}
+                      currentUserAvatar={(ownerAvatarUrl || '').trim()}
+                      onOpenProfile={(h) => {
+                        setActivePostDetailId(null);
+                        openPublicUserProfile(h);
+                      }}
+                    />
+                  </ScrollView>
+                </>
+              );
+            })()}
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -3235,107 +3154,24 @@ export const MobileProfileScreen: React.FC = () => {
 /* -------------------------------------------------------------------------- */
 /* STYLES                                                                     */
 /* -------------------------------------------------------------------------- */
-const dateStyles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    justifyContent: 'flex-end',
-  },
-  datePickerCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 24,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0ECE6',
-  },
-  sheetTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1C1815',
-  },
-  closeBtn: {
-    padding: 6,
-  },
-  dateColsContainer: {
-    flexDirection: 'row',
-    height: 190,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-  },
-  dateCol: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  dateColHeader: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#8A7D75',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  dateColScroll: {
-    width: '100%',
-  },
-  dateItemPill: {
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 8,
-    marginVertical: 2,
-    marginHorizontal: 4,
-  },
-  dateItemPillActive: {
-    backgroundColor: '#FF6F61',
-  },
-  dateItemText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3A332C',
-  },
-  dateItemTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  datePreviewRow: {
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  datePreviewText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FF6F61',
-  },
-  confirmBtn: {
-    backgroundColor: '#FF6F61',
-    marginHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  confirmBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});
-
 const styles = StyleSheet.create({
   defaultWarmCover: {
     backgroundColor: '#EAE1D6',
   },
-  /* EMPTY PET PHOTO PLACEHOLDER */
+  /* EMPTY PET PHOTO PLACEHOLDER & SPHERICAL PREVIEW */
   emptyPetPhotoPlaceholder: {
-    backgroundColor: '#24201D',
+    backgroundColor: '#1E1A17',
+  },
+  emptyPetPhotoInSpacerArea: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    right: 20,
+    bottom: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    gap: 4,
+    zIndex: 10,
   },
   emptyPetPhotoContent: {
     alignItems: 'center',
@@ -3343,41 +3179,70 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyPetPhotoIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 111, 97, 0.12)',
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: 'rgba(255, 111, 97, 0.14)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 111, 97, 0.35)',
+    borderColor: 'rgba(255, 111, 97, 0.4)',
   },
   emptyPetPhotoTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
   },
   emptyPetPhotoSub: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#BDB4AC',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   emptyPetPhotoAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: '#FF6F61',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 16,
   },
   emptyPetPhotoAddBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  petIncompleteAlertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 111, 97, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 111, 97, 0.4)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+    gap: 8,
+  },
+  petIncompleteAlertLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  petIncompleteAlertTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FF6F61',
+  },
+  petIncompleteAlertSub: {
+    fontSize: 11,
+    color: '#E0D5CF',
+    marginTop: 2,
   },
   emptyVaccineText: {
     fontSize: 13,
@@ -4550,10 +4415,10 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
 
-  /* POST PREVIEW MODAL */
+  /* POST PREVIEW MODAL (LIGHT / WARM CREAM THEME) */
   previewOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(28, 24, 20, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -4561,42 +4426,55 @@ const styles = StyleSheet.create({
   previewCard: {
     width: '100%',
     maxHeight: SCREEN_HEIGHT * 0.82,
-    backgroundColor: '#20242C',
+    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     overflow: 'hidden',
     paddingBottom: 16,
+    borderWidth: 1,
+    borderColor: '#EFE8DE',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 8,
   },
   previewHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F6F3EE',
+    backgroundColor: '#FFFFFF',
   },
   postPreviewAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
-  previewAuthorHandle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  previewAuthorName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#2C2520',
   },
   previewMetaText: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#8A7D75',
-    marginTop: 1,
+    marginTop: 2,
   },
   previewCloseBtn: {
     padding: 6,
+    borderRadius: 16,
+    backgroundColor: '#F7F4F0',
   },
   previewPostImage: {
     width: '100%',
     height: 240,
-    backgroundColor: '#16191F',
+    backgroundColor: '#F7F4F0',
   },
   previewCaptionBox: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 14,
   },
   previewLikeCountRow: {
     flexDirection: 'row',
@@ -4607,53 +4485,46 @@ const styles = StyleSheet.create({
   previewLikeCountText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#5C5046',
   },
   previewCaptionText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: '#D1D5DB',
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#382E25',
   },
   previewActionsContainer: {
     paddingHorizontal: 16,
     marginTop: 14,
-    gap: 8,
+    gap: 10,
   },
   previewMainActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#2D3440',
-    paddingVertical: 12,
-    borderRadius: 14,
+    backgroundColor: '#FF6F61',
+    paddingVertical: 13,
+    borderRadius: 16,
+    shadowColor: '#FF6F61',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   postPreviewActionText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#A3E4D7',
-  },
-  previewSecondaryActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-  },
-  previewSecondaryActionText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#FF6F61',
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   previewDangerActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   previewDangerActionText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: '#E15B4C',
   },
@@ -4674,9 +4545,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1C1815',
   },
-  postDetailAuthorHandle: {
+  postDetailAuthorMeta: {
     fontSize: 12,
     color: '#8A7D75',
+    marginTop: 2,
+  },
+  detailTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  detailTagChip: {
+    backgroundColor: '#FFF5F4',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FED7D7',
+  },
+  detailTagText: {
+    fontSize: 11,
+    color: '#FF6F61',
+    fontWeight: '700',
   },
   postDetailImage: {
     width: '100%',
@@ -4778,11 +4670,18 @@ const styles = StyleSheet.create({
     color: '#8A7D75',
     marginTop: 2,
   },
+  profileRepliesContainer: {
+    marginLeft: 20,
+    paddingLeft: 12,
+    borderLeftWidth: 2,
+    borderLeftColor: '#EBE4DC',
+    marginTop: 6,
+    gap: 6,
+  },
   replyRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginLeft: 40,
-    marginTop: 6,
+    marginTop: 4,
   },
   replyAvatar: {
     width: 24,
@@ -4791,10 +4690,44 @@ const styles = StyleSheet.create({
   },
   replyBubble: {
     flex: 1,
-    backgroundColor: '#F5EFE6',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EFE8DE',
     padding: 8,
     borderRadius: 12,
-    marginLeft: 6,
+    marginLeft: 8,
+  },
+  commentActionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6B5E59',
+  },
+  commentActionTextLiked: {
+    color: '#FF6F61',
+  },
+  replyingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF5F4',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FED7D7',
+    marginBottom: 6,
+  },
+  replyingBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  replyingBannerText: {
+    fontSize: 12,
+    color: '#5C5046',
+  },
+  replyingCancelBtn: {
+    padding: 4,
   },
   commentInputBar: {
     flexDirection: 'row',

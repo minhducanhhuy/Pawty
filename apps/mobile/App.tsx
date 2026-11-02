@@ -8,6 +8,8 @@ import {
   Image,
   BackHandler,
   Modal,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from './src/components/FeatherIcon';
@@ -78,6 +80,18 @@ const MainMobileShell: React.FC = () => {
   } = useMobilePawty();
 
   const [isSplashDone, setIsSplashDone] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardOpen(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardOpen(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -328,7 +342,7 @@ const MainMobileShell: React.FC = () => {
       </View>
 
       {/* Bottom Navigation Bar (Ẩn khi đang trong chi tiết phòng chat) */}
-      {!(activeTab === 'chat' && activeChatId) && (
+      {!(activeTab === 'chat' && activeChatId) && !isKeyboardOpen && (
         <View style={styles.bottomBar}>
           {BOTTOM_TABS.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -379,21 +393,15 @@ const MainMobileShell: React.FC = () => {
         </View>
       )}
 
-      {/* Toast Banner (Always on top of all native Modals) */}
-      <Modal
-        visible={Boolean(toastMessage)}
-        transparent
-        statusBarTranslucent
-        animationType="fade"
-        onRequestClose={() => {}}
-      >
-        <View style={styles.toastModalContainer} pointerEvents="box-none">
-          <View style={[styles.toastBar, styles.toastInfo]} pointerEvents="none">
+      {/* Toast Banner Floating Overlay (Never blocks touch interactions) */}
+      {Boolean(toastMessage) && (
+        <View style={styles.toastOverlayContainer} pointerEvents="none">
+          <View style={[styles.toastBar, styles.toastInfo]}>
             <Feather name="check-circle" size={16} color="#48BB78" />
             <Text style={styles.toastText}>{toastMessage}</Text>
           </View>
         </View>
-      </Modal>
+      )}
 
       {/* Shared Modals */}
       <MobileModals />
@@ -556,6 +564,15 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+  },
+  toastOverlayContainer: {
+    position: 'absolute',
+    top: 54,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 99999,
+    elevation: 999,
   },
   toastModalContainer: {
     flex: 1,

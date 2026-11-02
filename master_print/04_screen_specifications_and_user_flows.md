@@ -49,7 +49,11 @@
 - **Bộ lọc Khoảng cách & Giới tính Đối tượng (Lưu Trữ Bền Vững):**
   - Thanh trượt khoảng cách kéo rộng tới **500 km** hoặc chọn **`Không giới hạn`** để tìm kiếm không giới hạn bán kính địa lý.
   - **Bộ lọc giới tính đối tượng muốn ghép đôi:** Cung cấp 3 tùy chọn bằng Chip selector: **`Mọi người`** (`all`), **`Nữ`** (`female`), và **`Nam`** (`male`). Trạng thái lựa chọn được lưu trữ bền vững trong state ứng dụng, tự động nạp lại cọc thẻ theo giới tính đã chọn ngay khi bấm áp dụng, và giữ nguyên lựa chọn khi mở lại bộ lọc.
-- **Bố Cục Thẻ Tinder Tinh Gọn (Dòng Khoảng Cách Riêng Biệt & Tên Thân Thiện):**
+- **Bố Cục Thẻ Tinder Tinh Gọn & Con Dấu Quẹt Trực Quan (Borderless Swipe Icons):**
+  - **Con dấu Phản hồi Quẹt Thẻ (Swipe Icons):**
+    - Thiết kế tối giản, loại bỏ hoàn toàn khung viền vuông/squircle cứng nhắc (`borderWidth: 0`, `backgroundColor: 'transparent'`), sử dụng biểu tượng nổi bật với hiệu ứng đổ bóng mờ (`drop shadow`) để hiển thị sắc nét trên mọi bức ảnh thú cưng:
+      - **Quẹt sang phải (Thích / Like):** Biểu tượng **Trái tim Đỏ** (`Feather name="heart"`, size 58, màu `#EF4444`, `fill="#EF4444"`), nghiêng góc -15 độ, opacity mượt mà theo cử chỉ kéo ngón tay.
+      - **Quẹt sang trái (Bỏ qua / Pass):** Biểu tượng **Dấu X Trắng** (`Feather name="x"`, size 58, màu `#FFFFFF`, `strokeWidth={4}`), nghiêng góc 15 độ, opacity mượt mà theo cử chỉ kéo ngón tay.
   - Khoảng cách địa lý (`Cách bạn ... km`) được bố trí trên một dòng riêng biệt với biểu tượng điều hướng để chống hoàn toàn hiện tượng tràn dòng mất chữ.
   - Tên chủ nuôi hiển thị tên thật thân thiện, loại bỏ hoàn toàn hậu tố tài khoản mang tính kỹ thuật `(@test2)`.
 - **Trạng Thái Đọc Tin Nhắn Chuẩn Xác (Seen Receipt Không Nhấp Nháy):**
@@ -183,7 +187,80 @@
   - Có ít nhất một bé đã được xác minh tiêm phòng đầy đủ (`candidate.pets.some(p => p.isVaccinatedAndRabies)`).
 - Nếu chủ nuôi chưa có thú cưng (`0 bé`) hoặc chưa tiêm phòng đầy đủ: Tuyệt đối KHÔNG hiển thị huy hiệu "An tâm dạo chung".
 
+### 2.21 Cô Lập Vùng Placeholder Ảnh Thú Cưng Rỗng (Zero Stacking Bug on Empty Pet Photo)
+- **Khắc phục lỗi đè chữ giao diện:**
+  - Vùng placeholder khi thú cưng chưa có ảnh đại diện (`hasUserPhotos === false`) được đặt cố định trọn vẹn bên trong `petPhotoSpacerArea` (khu vực 44% chiều cao phía trên), thay vì căn giữa toàn màn hình bằng `StyleSheet.absoluteFill`.
+  - Icon camera, tiêu đề "Bé [Tên] chưa có ảnh đại diện" và nút "+ Thêm ảnh bé cưng" luôn nằm độc lập ở nửa trên, tuyệt đối không bị thẻ kính mờ `petScrollableFrostedCard` đè lên.
+  - Khi hồ sơ bé còn thiếu các trường quan trọng (ảnh, ngày sinh, cân nặng), hiển thị thêm Banner nhắc nhở tinh tế: *"🐾 Hồ sơ bé [Tên] chưa hoàn tất · Chạm để cập nhật ảnh & thông số"* dẫn thẳng vào modal chỉnh sửa chi tiết.
+
+### 2.22 Luồng Hoàn Thiện Hồ Sơ Thú Cưng Sau Đăng Ký (Post-Registration Pet Setup Wizard)
+- **Luồng Onboarding 2 bước:**
+  - **Bước 1 (Đăng ký cơ bản):** Họ tên, SĐT, Mật khẩu, Tên bé, Giống loài.
+  - **Bước 2 (Hoàn tất hồ sơ Boss):** Hiển thị màn hình thiết lập nhanh ngay sau khi tạo tài khoản:
+    1. **Tải ảnh đại diện:** Chụp ảnh trực tiếp từ Camera hoặc chọn từ Thư viện ảnh (upload lên Cloudinary).
+    2. **Giới tính:** Bộ chọn 2 nút pill thân thiện `♂ Đực` / `♀ Cái` + Toggle `Đã triệt sản`.
+    3. **Ngày sinh:** Bộ chọn ngày sinh trực quan (DD/MM/YYYY), tự động quy đổi ra `... tháng tuổi` hoặc `... tuổi`.
+    4. **Cân nặng (kg):** Nhập cân nặng thực tế.
+    5. **Xác nhận sổ tiêm Safe Pet:** Checkbox nhanh "Đã tiêm phòng dại & 7 bệnh đầy đủ" để kích hoạt huy hiệu an toàn dạo chung.
+    6. **Hành động điều hướng:** Nút chính "Hoàn tất & Khám phá Pawty" (lưu vào PostgreSQL) và Nút phụ "Để sau" (cho phép bỏ qua nếu đang vội mà không làm crash/hỏng giao diện).
+
+### 2.23 Đồng Bộ Phản Hồi Bài Viết Tuyệt Đối (Zero Drift Like & Comment Sync: Explore vs Profile)
+- **Nguồn chân lý duy nhất (Single Source of Truth):**
+  - Cả Bảng tin Khám phá (`MobileExploreScreen`) và Lưới Khoảnh khắc Cá nhân / Xem trang người khác (`MobileProfileScreen`) đều sử dụng chung một state `posts` liên kết PostgreSQL thời gian thực.
+  - Loại bỏ hoàn toàn việc lưu object bài viết tĩnh `useState<MobilePost>(post)` trong `MobileProfileScreen`. Thay vào đó, lưu `selectedPreviewPostId: string | null` và `activePostDetailId: string | null` và derive trực tiếp từ mảng `posts` (`livePost = posts.find(p => p.id === activePostDetailId)`).
+- **Thống nhất chỉ số và hành động Thả Paw / Like:**
+  - Loại bỏ hoàn toàn giá trị fallback giả định (`|| 120`). Số lượt thích được tính chuẩn xác từ `totalLikes = (paws || 0) + (love || 0) + (wow || 0) + (helpful || 0)`.
+  - Icon phản hồi: Đồng nhất biểu tượng Paw và Coral `#FF6F61` khi đã thích (`userReaction !== null`). Thao tác thả thích ở Explore, Preview modal hay Chi tiết bài viết đều gọi chung một hàm `toggleReaction` và hiển thị đồng bộ 100%.
+- **Bình luận thời gian thực (Real-time Comments):**
+  - Gửi bình luận hoặc trả lời bình luận trong Modal chi tiết lập tức cập nhật giao diện ngay lập tức mà không cần đóng/mở lại modal, đồng thời số lượng bình luận tại Bảng tin Khám phá cũng tăng lên tương ứng.
+
+### 2.24 Chuẩn Hóa Theme Xem Bài Viết Cá Nhân & Phân Lập Tab "Được Lưu" (Profile Post UX & Saved Isolation)
+- **Đồng Bộ Theme Sáng / Trắng Kem (Warm Cream & Clean Light Theme):**
+  - Loại bỏ hoàn toàn giao diện màu đen tối (`#20242C`) của Popup xem nhanh bài viết (`postPreviewCard`) trên Trang cá nhân.
+  - Chuyển sang theme sáng chuẩn Pawty: Nền trắng ngà (`#FFFFFF`), viền bo mềm mại (`#EFE8DE`), chữ tiêu đề màu cà phê đậm (`#2C2520`), văn bản mô tả sắc nét và dễ đọc.
+  - Loại bỏ nút phụ "Đã thích / Thả Paw" bên dưới vì đã có dòng thống kê `{totalLikes} lượt thích · {totalComments} bình luận` phía trên; chỉ giữ nút chính nổi bật: **"Xem chi tiết & bình luận"** (`#FF6F61`).
+- **Phân Lập Tuyệt Đối Tab "Được Lưu" (Saved Posts Privacy):**
+  - Tab "Được lưu" là khu vực riêng tư 100% của chủ tài khoản, **tuyệt đối chỉ hiển thị khi xem trang cá nhân của chính mình (`!isViewingOther`)**. Khi xem trang cá nhân của người khác, tab này luôn bị ẩn và danh sách bài viết chỉ hiển thị bài của đối phương.
+  - Khắc phục lỗi rò rỉ: Khi điều hướng giữa các trang cá nhân, `ownerMediaTab` luôn tự động đặt lại về `'moments'`.
+  - **Phân định rõ ràng nút hành động:**
+    - Khi xem bài trong mục **"Được lưu"** (hoặc bài viết của người khác): Nút hành động hiển thị **"Xóa khỏi mục đã lưu"** (`toggleBookmark`), gỡ bài khỏi danh sách lưu trữ của người dùng kèm thông báo toast trực quan.
+    - Khi xem bài do chính mình đăng trong mục **"Khoảnh khắc"**: Nút hành động hiển thị **"Xóa bài viết"** (`deletePost`), có xác nhận và xóa khỏi cơ sở dữ liệu.
+- **Header Bài Viết Tinh Gọn (Loại Bỏ Username `@handle`):**
+  - Xóa bỏ việc hiển thị `@username` / `@handle` mang tính kỹ thuật ở cả Popup xem nhanh và Modal chi tiết bài viết.
+  - Bổ sung các thông số tiêu chuẩn như một bài viết thông thường trên Khám phá:
+    - Tên hiển thị đầy đủ của tác giả (`authorName`).
+    - Thời gian đăng bài (`createdAt` hoặc `Vừa xong`).
+    - Nhãn phân loại bài viết (`categoryLabel` hoặc `Khoảnh khắc`).
+    - Thẻ thú cưng / Giống loài nếu có và biểu tượng phạm vi chia sẻ (Công khai).
+
+### 2.25 Hệ Thống Bình Luận & Trả Lời Đa Tầng Chuẩn Facebook (Facebook-Style Nested Comment & Reply System)
+- **Đồng Bộ Hai Chiều Tuyệt Đối (Khám Phá & Trang Cá Nhân):**
+  - Mọi phản hồi (reply) cho một bình luận đều được lưu trữ bền vững vào bảng `comments` trong cơ sở dữ liệu PostgreSQL thông qua trường `parent_id` (`parentId`).
+  - Cả giao diện Khám phá (`MobileExploreScreen`) và Modal chi tiết bài viết ở Trang cá nhân (`MobileProfileScreen`) đều sử dụng chung một chuẩn hiển thị `FacebookCommentSection` thống nhất, đồng bộ 100% thời gian thực.
+  - Số lượng hiển thị trên huy hiệu icon bình luận phản ánh chính xác tổng số bình luận cha cộng toàn bộ câu trả lời con: `(comments + replies)`.
+- **Trải Nghiệm Trả Lời Bình Luận Chuẩn Facebook (Facebook UX):**
+  - **Bong bóng bình luận cha (Parent Comment Bubble):** Avatar tròn (36px), bong bóng xám nhạt (`#FAF7F2`), tên tác giả in đậm (click mở Profile), nội dung text, thời gian đăng, nút **Thích** (`Like` - đổi màu san hô khi đã thích, hiển thị số lượt thích) và nút **Trả lời** (`Reply`).
+  - **Bong bóng câu trả lời con (Child Reply Bubble):** Lùi lề trái (`marginLeft: 38px`), avatar nhỏ hơn (28px), có đường kẻ chữ L mềm mại (`borderLeft` và `borderBottomLeftRadius`) nối từ dưới avatar của bình luận cha sang avatar câu trả lời con.
+  - **Cơ chế Trả lời một câu trả lời (Reply to a Reply):**
+    - Khi người dùng nhấn nút 'Trả lời' ở một câu trả lời con (ví dụ trả lời cho bạn B):
+      - Gắn kết chặt chẽ vào cây bình luận cha gốc (Root Comment ID) để dữ liệu không bị phân mảnh hay thất lạc.
+      - Tự động điền tiền tố `@B ` hoặc hiển thị banner chỉ báo: `Đang trả lời B` (kèm nút `[x]` Hủy).
+      - Tự động kích hoạt bàn phím và focus trực tiếp vào ô nhập liệu (`inputRef.current?.focus()`).
+      - Khi hiển thị, tiền tố `@Tên ` được tô màu nổi bật (`#FF6F61`, font weight 800) mô phỏng chính xác trải nghiệm Facebook.
+  - **Hỗ trợ thu gọn / mở rộng phản hồi:** Hỗ trợ nút 'Xem thêm phản hồi' và 'Thu gọn phản hồi' khi một bình luận có nhiều câu trả lời, tránh chiếm dụng diện tích màn hình.
+  - **Thuật toán Chuẩn hóa Bình luận Đa Thế Hệ (Multi-Generation Root Resolver):** Khi nạp dữ liệu từ PostgreSQL, hàm chuẩn hóa sẽ đệ quy truy ngược `parentId` về root parent comment ID, đảm bảo 100% mọi câu trả lời thế hệ F1, F2,... đều được gom đúng vào cây hội thoại tương ứng mà không bao giờ bị biến mất.
 
 
+### 2.27. Cơ chế Đẩy View & Cuộn Thông Minh Khi Viết Bình Luận Khám Phá (Keyboard-Aware Comment Positioning)
+- **Vấn đề cốt lõi:** Khi người dùng mở bàn phím để viết bình luận cho một bài viết trên Bảng tin Khám phá (`MobileExploreScreen`), bàn phím ảo chiếm từ 300px - 340px chiều cao màn hình. Nếu chỉ cuộn theo index hoặc không đo đạc layout thực tế, thanh nhập liệu (`TextInput`) và nút gửi sẽ bị che khuất bên dưới bàn phím.
+- **Giải pháp chuẩn:**
+  1. **Đo đạc vị trí thực tế (`onLayout` Tracker):** Mỗi thẻ bài viết ghi nhận tọa độ `y` và chiều cao `height`. Tọa độ đáy bài viết (vị trí đặt thanh nhập liệu) được xác định chính xác bằng công thức: `bottomOfPost = layout.y + layout.height`.
+  2. **Tính toán `targetOffset` theo chiều cao bàn phím:** Khi bàn phím xuất hiện (`keyboardDidShow`) hoặc khi ô nhập liệu nhận tiêu điểm (`onFocusInput`), danh sách tự động cuộn đến:
+     $$\text{targetOffset} = \max(0, \text{bottomOfPost} - \text{visibleViewportHeight} + 40)$$
+     Trong đó $\text{visibleViewportHeight} = \text{windowHeight} - \text{keyboardHeight} - \text{statusBarHeight} - \text{headerHeight}$.
+  3. **Ẩn thanh Bottom Bar khi bàn phím mở:** Khi bàn phím xuất hiện trên màn hình, thanh điều hướng đáy tự động ẩn đi để nhường toàn bộ diện tích cho nội dung bình luận và thanh nhập liệu.
 
-
+### 2.28. Quy chuẩn Avatar Người Dùng & Chống Tràn Ảnh Ngẫu Nhiên (Zero Random Avatar Leakage)
+- **Nguyên tắc tôn trọng danh tính:** Nếu tài khoản người dùng chưa tải lên ảnh đại diện (`avatarUrl === null` hoặc `''`), hệ thống **BẮT BUỘC** hiển thị khung đại diện trống kèm icon người dùng mặc định (`Feather name="user"`).
+- **Tuyệt đối không gán ảnh người lạ:** Nghiêm cấm mọi logic fallback tự động gán đường dẫn ảnh Unsplash của người lạ vào tài khoản hoặc bình luận của người dùng.
+- **Đồng bộ bình luận và tài khoản:** Khi gửi bình luận mới (`addComment` / `addCommentReply`), trường `authorAvatar` chỉ lấy từ `ownerAvatarUrl || ownerAvatar` của tài khoản hiện tại. Nếu chưa có ảnh, giá trị phải là chuỗi rỗng `''`.

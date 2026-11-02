@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,8 +25,14 @@ interface TinderCardSurfaceProps {
   isBackground?: boolean;
 }
 
-const FALLBACK_PET_IMG =
-  'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=900&q=80';
+const FALLBACK_OWNER_MALE =
+  'https://cdn.24h.com.vn/upload/2-2026/images/2026-04-30/hieuthuhai-2-1777539695-750-width1366height1366.jpg';
+const FALLBACK_OWNER_FEMALE =
+  'https://kenh14cdn.com/203336854389633024/2023/4/3/laem-chipu0415-16805352397721941667135.jpeg';
+const FALLBACK_PET_DOG =
+  'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80';
+const FALLBACK_PET_CAT =
+  'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=900&q=80';
 
 export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
   candidate,
@@ -44,9 +50,20 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
   }, [candidate]);
 
   const currentSlide = slides[photoIdx % Math.max(slides.length, 1)] || slides[0];
+
+  // Reset lỗi ảnh mỗi khi đổi ứng viên hoặc chuyển đổi giữa ảnh người và thú cưng
+  useEffect(() => {
+    setImageError(false);
+  }, [candidate?.id, photoIdx, currentSlide?.imageUrl]);
+
+  const isOwnerSlide = currentSlide?.type === 'owner';
+  const fallbackUrl = isOwnerSlide
+    ? (candidate.gender === 'Nam' ? FALLBACK_OWNER_MALE : FALLBACK_OWNER_FEMALE)
+    : (currentSlide?.pet?.species === 'Mèo' ? FALLBACK_PET_CAT : FALLBACK_PET_DOG);
+
   const displayPhotoUrl = imageError
-    ? FALLBACK_PET_IMG
-    : currentSlide?.imageUrl || FALLBACK_PET_IMG;
+    ? fallbackUrl
+    : currentSlide?.imageUrl || fallbackUrl;
 
   const purposeLabel =
     candidate.lookingFor || getTinderPurposeLabel(candidate.intent);
@@ -76,23 +93,23 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
         </View>
       )}
 
-      {/* Con dấu THÍCH khi quẹt phải */}
+      {/* Biểu tượng TRÁI TIM ĐỎ khi quẹt phải (Không viền) */}
       {!isBackground && likeBadgeOpacity !== undefined && (
         <Animated.View
           style={[styles.stampBase, styles.likeStamp, { opacity: likeBadgeOpacity }]}
           pointerEvents="none"
         >
-          <Text style={styles.likeStampText}>THÍCH</Text>
+          <Feather name="heart" size={56} color="#EF4444" fill="#EF4444" />
         </Animated.View>
       )}
 
-      {/* Con dấu BỎ QUA khi quẹt trái */}
+      {/* Biểu tượng DẤU X TRẮNG khi quẹt trái (Không viền) */}
       {!isBackground && nopeBadgeOpacity !== undefined && (
         <Animated.View
           style={[styles.stampBase, styles.nopeStamp, { opacity: nopeBadgeOpacity }]}
           pointerEvents="none"
         >
-          <Text style={styles.nopeStampText}>BỎ QUA</Text>
+          <Feather name="x" size={58} color="#FFFFFF" strokeWidth={4} />
         </Animated.View>
       )}
 
@@ -259,36 +276,23 @@ const styles = StyleSheet.create({
   },
   stampBase: {
     position: 'absolute',
-    top: 48,
-    borderWidth: 3.5,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+    top: 40,
     zIndex: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.55,
+    shadowRadius: 6,
+    elevation: 8,
   },
   likeStamp: {
-    left: 20,
-    borderColor: '#10B981',
+    left: 28,
     transform: [{ rotate: '-15deg' }],
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-  },
-  likeStampText: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#10B981',
-    letterSpacing: 1.5,
   },
   nopeStamp: {
-    right: 20,
-    borderColor: '#EF4444',
+    right: 28,
     transform: [{ rotate: '15deg' }],
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-  },
-  nopeStampText: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#EF4444',
-    letterSpacing: 1.5,
   },
   bottomGradient: {
     position: 'absolute',

@@ -84,6 +84,7 @@ export interface MobilePost {
       authorHandle: string;
       authorAvatar?: string;
       content: string;
+      replyToName?: string;
       createdAt: string;
       likesCount?: number;
       isLiked?: boolean;
@@ -782,12 +783,8 @@ export function getCandidateSlides(candidate: TinderCandidate): CandidateSlide[]
   ) {
     ownerPhotos = [candidate.avatarUrl];
   }
-  if (ownerPhotos.length === 0) {
-    ownerPhotos = [
-      candidate.gender === 'Nữ'
-        ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=80'
-        : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80',
-    ];
+  if (ownerPhotos.length === 0 && candidate.avatarUrl && !petImageUrls.includes(candidate.avatarUrl)) {
+    ownerPhotos = [candidate.avatarUrl];
   }
 
   const petNamesSummary = (candidate.pets || []).map((p) => p.name).join(', ');
@@ -831,19 +828,5 @@ export function getCandidateSlides(candidate: TinderCandidate): CandidateSlide[]
   }));
 
   const allSlides = [...ownerSlides, ...petSlides];
-  return allSlides.length > 0
-    ? allSlides
-    : [
-        {
-          id: `default-${candidate.id}`,
-          type: 'owner',
-          imageUrl:
-            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=80',
-          ownerName: cleanOwnerName,
-          ownerAge: candidate.ownerAge,
-          gender: candidate.gender,
-          distanceKm: candidate.distanceKm,
-          intent: candidate.intent,
-        },
-      ];
+  return allSlides;
 }

@@ -227,8 +227,12 @@ const server = http.createServer(async (req, res) => {
           name: body.petName.trim(),
           species: String(body.petSpecies || 'Chó'),
           breed: body.petBreed && String(body.petBreed).trim() ? String(body.petBreed).trim() : 'Chưa rõ',
-          weightKg: body.petWeightKg,
+          weightKg: body.petWeightKg != null ? Number(body.petWeightKg) : undefined,
           gender: body.petGender || 'Đực',
+          avatarUrl: body.petAvatarUrl || undefined,
+          galleryUrls: body.petAvatarUrl ? [body.petAvatarUrl] : undefined,
+          birthDate: body.petBirthDate || undefined,
+          isVaccinatedAndRabies: body.petVaccinated === true,
         });
       }
 
@@ -564,12 +568,13 @@ const server = http.createServer(async (req, res) => {
       const postId = postCommentMatch[1];
       const body = await parseJsonBody(req);
       const authorId = String(body.authorId || body.userId || '');
-      const text = String(body.text || body.textContent || '').trim();
+      const text = String(body.text || body.textContent || body.content || '').trim();
+      const parentId = body.parentId ? String(body.parentId) : undefined;
       if (!authorId || !text) {
         sendJson(res, 400, { success: false, error: 'Thiếu nội dung bình luận hoặc authorId.' });
         return;
       }
-      const comment = await dbService.addPostComment(postId, authorId, text);
+      const comment = await dbService.addPostComment(postId, authorId, text, parentId);
       sendJson(res, 201, { success: true, comment });
       return;
     }
