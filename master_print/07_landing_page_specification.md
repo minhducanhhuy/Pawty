@@ -1,31 +1,51 @@
-# TẦNG 7: LANDING PAGE SPECIFICATION (PAWTY MARKETING & CONVERSION)
+# MASTER PRINT — TẦNG 7: LANDING PAGE SPECIFICATION (PAWTY SUPER APP)
 
----
-description: # LANDING PAGE SPECIFICATION - MÔ HÌNH MẠNG XÃ HỘI & HẸN HÒ (FB & FB DATING)
-source_reference: Facebook & Facebook Dating for Urban Pets
-target_project: Pawty-LandingPage
----
-
-## 1. TỔNG QUAN ĐỊNH HƯỚNG SẢN PHẨM (PIVOT PROTOCOL)
-
-Hệ thống Pawty chuyển dịch mô hình hoàn toàn sang định dạng **Mạng Xã Hội & Hẹn Hò Chuyên Biệt (Tương tự Facebook & Facebook Dating)**:
-- **Loại bỏ hoàn toàn các gói cước thu phí (Sen VIP 49k/tháng):** Ứng dụng là 100% miễn phí trọn đời cho toàn bộ cư dân đô thị. Hệ sinh thái kinh tế dựa trên voucher ưu đãi bản địa (-35% dịch vụ Pet Spa, Cafe, Bệnh viện nội khu) và dịch vụ cứu hộ khẩn cấp SOS khi cần thiết.
-- **Loại bỏ cơ chế "Ra đa quẹt thẻ Tinder" (Swipe Radar):** Thay thế bằng giao diện **Pawty Dating (Facebook Dating style)**:
-  1. **Phân hệ Mạng Xã Hội (Facebook / Instagram Feed):** Bảng tin Khoảnh khắc cộng đồng, đăng ảnh/video thật, viết bài, gắn hashtag, like, bình luận, follow bạn bè, nhắn tin giao lưu tự do.
-  2. **Phân hệ Hẹn Hò & Dắt Dạo (Pawty Dating - FB Dating style):** Không gian kết nối hẹn dạo riêng tư, duyệt hồ sơ chi tiết theo danh sách thẻ, gửi lời mời kết nối/hẹn dạo văn minh, tự tính trung điểm gặp gỡ an toàn (Pet Cafe, công viên nội khu), hộp trò chuyện hẹn hò riêng biệt có thể hủy ghép đôi.
-  3. **Sổ Tiêm Điện Tử & Pet Family Passport:** Hồ sơ định danh an toàn Safe Pet (vắc-xin 7 bệnh, phòng dại), khai báo thói quen tốt/xấu minh bạch để phòng tránh cắn nhau.
-  4. **Báo Động SOS Tìm Boss Lạc + Trợ Lý AI Google Gemini Vision:** Chụp ảnh Boss, AI tự động nhận diện và viết mô tả tìm kiếm trong 3 giây, phát sóng 3km.
+> **Single Source of Truth (SSOT)** — Đặc tả toàn diện cho Landing Page Pawty (`Pawty-LandingPage`), quy trình triển khai React + Vite, giao diện cute thân thiện và cấu hình Vercel Deployment.
 
 ---
 
-## 2. BỐ CỤC 3 CHIẾC ĐIỆN THOẠI 3D (TRIPLE PHONE MOCKUPS)
+## 1. Mục Tiêu & Định Vị Landing Page
 
-1. **Điện thoại bên trái (-10°):** Màn hình **Mạng Xã Hội Khoảnh Khắc (Feed)** - Bài đăng chia sẻ khoảnh khắc Boss vui nhộn, hình ảnh sắc nét, tương tác thả tim, bình luận và hashtag cộng đồng.
-2. **Điện thoại trung tâm (Đứng thẳng, phóng to):** Màn hình **Pawty Dating (Hẹn Hò Dắt Dạo kiểu FB Dating)** - Hồ sơ ứng viên chi tiết (Corgi Mochi), cự ly 280m, sổ tiêm Safe Pet, nút **"Gửi lời mời dắt dạo 🤝"** và **"Bỏ qua ✕"**.
-3. **Điện thoại bên phải (+10°):** Màn hình **Báo Động SOS Tìm Boss Lạc** - Tích hợp **✨ Trợ lý Google Gemini AI Vision** tự động nhận diện đặc điểm từ ảnh và bản đồ manh mối thời gian thực.
+- **Mục đích chính:**
+  1. Giới thiệu giá trị cốt lõi của siêu ứng dụng Pawty: Chăm sóc thông minh (Sổ tiêm Safe Pet) — Bảng tin Khoảnh khắc (Facebook/Instagram style) — Hẹn dạo Pawty Dating (Facebook Dating style) — Tìm Boss lạc khẩn cấp (SOS AI Gemini Vision).
+  2. Ứng dụng **hoàn toàn miễn phí 100%** cho cộng đồng cư dân nuôi thú cưng đô thị: Không có gói cước, không có phí dịch vụ, không quảng cáo spam hay kinh doanh dịch vụ spa/thương mại.
+  3. Thúc đẩy lượt đăng ký sớm và tải ứng dụng (App Store, Google Play, Web Demo).
+  4. Xây dựng niềm tin an toàn tuyệt đối cho cộng đồng chủ nuôi chung cư (Xác thực tiêm chủng Safe Pet, minh bạch thói quen tránh xung đột, chống bùng hẹn).
+  5. Cung cấp đầy đủ các trang quy chế pháp lý theo chuẩn phát hành ứng dụng (Chính sách bảo mật vị trí, Quy chế cộng đồng, Điều khoản sử dụng).
+
+- **Khách hàng mục tiêu truy cập:** Chủ nuôi thú cưng (Gen Z, Millennials, DINK) tại các khu căn hộ cao cấp, khu đô thị hiện đại (Vinhomes, Masteri, Sala, Times City, v.v.).
 
 ---
 
-## 3. TRẢI NGHIỆM TƯƠNG TÁC THỰC TẾ (PAWTY DATING SHOWCASE)
-- Thay thế hoàn toàn phần "Radar quẹt thẻ" thành **"Khám phá không gian Pawty Dating"**:
-- Cho phép người dùng duyệt qua danh sách hồ sơ các Boss (Chó / Mèo), xem chi tiết thói quen, sổ tiêm và bấm nút gửi lời mời hẹn dạo, mô phỏng chính xác giao diện Facebook Dating trên điện thoại.
+## 2. Kiến Trúc Nội Dung (Page Sections Breakdown)
+
+| STT | Section | Vai trò & Nội dung | Ghi chú Giao diện |
+|:---:|---|---|---|
+| **01** | **Top Announcement Bar** | Lời chào mừng cute: 🐾 Cộng đồng miễn phí 100% cho Boss & Sen chung cư | Gradient Coral & Mint |
+| **02** | **Header / Sticky Navigation** | Logo Pawty, Links (Tính năng, Dating, An toàn, FAQ, Tải app), CTA "Trải nghiệm Dating" & "Tải App Ngay" | Glassmorphism blur |
+| **03** | **Hero Section** | Headline: *"Nuôi Boss nhàn tênh — Tìm bạn dắt dạo chung cư trong 3km"*, CTA tải app, 3 Phone Mockups thực tế (Bảng tin khoảnh khắc, SOS AI, Pawty Dating) | Cute rounded style |
+| **04** | **Trust & Social Proof Bar** | Con số ấn tượng: 10,000+ Boss đã kết nối, 100% hồ sơ xác thực tiêm chủng, 45+ cụm chung cư đô thị, 100% Miễn phí trọn đời | Badge xanh Mint |
+| **05** | **Core Features Showcase** | 4 Thẻ tính năng Bento Box:<br>1. Sổ tiêm điện tử 7 bệnh & dại<br>2. Pawty Dating (kết nối dắt dạo FB Dating style)<br>3. Chat & Hẹn dạo trung điểm Pet-friendly<br>4. Bảng tin khoảnh khắc mạng xã hội | Bento Grid bo tròn |
+| **06** | **Interactive Dating Preview** | Mô phỏng trải nghiệm Pawty Dating trên web (FB Dating style: xem profile chi tiết, chuyển xem Boss tiếp theo, gửi lời mời dắt dạo an toàn) | Framer Motion tương tác |
+| **07** | **Safety & Anti-Conflict Pillar** | Cam kết bảo vệ an toàn Boss: Huy hiệu Safe Pet Mint, minh bạch thói quen xấu/tốt, chế tài tạm khóa khi bùng hẹn | Card sắc nét |
+| **08** | **Free Ecosystem Section** | Cam kết miễn phí 100% trọn đời: Card 1 Mạng xã hội & Pawty Dating; Card 2 Cứu hộ SOS 3km & AI Vision Gemini hỗ trợ tìm Boss lạc | Không gói cước, không spa |
+| **09** | **Community Testimonials** | Đánh giá chân thực từ cư dân nuôi cún/mèo tại Vinhomes Central Park, Sala, Landmark... | Trích dẫn cư dân |
+| **10** | **FAQ Accordion** | Giải đáp thắc mắc: Mô hình hoạt động giống FB & FB Dating, cách xác thực sổ tiêm, trợ lý AI tìm Boss lạc | Accordion cute |
+| **11** | **App Download & QR CTA** | Banner kêu gọi tải ứng dụng đa nền tảng (iOS, Android), mở camera chụp mã QR tải app | Banner Gradient ấm áp |
+| **12** | **Footer & Legal Documents** | Bản quyền Pawty, liên hệ, Bộ 4 trang quy chế (Bảo mật vị trí, Điều khoản sử dụng, Quy chế cộng đồng, Chế tài bùng hẹn) | Modal pháp lý tích hợp |
+
+---
+
+## 3. Hệ Thống Thiết Kế & Typography Siêu Dễ Thương (Cute Fonts)
+
+- **Typography:**
+  - Headings (`font-display` / `font-cute`): `Fredoka`, `Quicksand`, `cursive`, `sans-serif` (Bo tròn, thân thiện, tinh nghịch, phù hợp tuyệt đối với chủ đề thú cưng).
+  - Body & Buttons (`font-body`): `Quicksand`, `Nunito`, `sans-serif` (Nét chữ mềm mại, dễ đọc, ấm áp).
+- **Bảng Màu Chủ Đạo:**
+  - Hồng San Hô (`#FF6F61`): Tình yêu thương, năng động.
+  - Xanh Mint (`#A3E4D7`): An toàn, tin cậy, huy hiệu Safe Pet.
+  - Trắng Kem (`#FDFBF7`): Nền tảng dịu mắt thay cho màu trắng gắt.
+  - Charcoal (`#2D3436`): Chữ đậm tương phản cao, dễ nhìn.
+- **Quy Tắc Ngôn Từ (Tone & Voice):**
+  - Tuyệt đối KHÔNG dùng: "spa", "dịch vụ", "voucher dịch vụ", "ra đa", "quét", "quẹt", "swipe".
+  - Luôn sử dụng: "Pawty Dating", "Bảng tin khoảnh khắc", "Gửi lời mời dắt dạo", "Chụp mã QR", "Sổ tiêm Safe Pet", "Trợ lý AI Vision Gemini".
