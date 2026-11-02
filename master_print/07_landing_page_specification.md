@@ -38,9 +38,9 @@
 
 ## 3. Hệ Thống Thiết Kế & Typography Siêu Dễ Thương (Cute Fonts)
 
-- **Typography:**
-  - Headings (`font-display` / `font-cute`): `Fredoka`, `Quicksand`, `cursive`, `sans-serif` (Bo tròn, thân thiện, tinh nghịch, phù hợp tuyệt đối với chủ đề thú cưng).
-  - Body & Buttons (`font-body`): `Quicksand`, `Nunito`, `sans-serif` (Nét chữ mềm mại, dễ đọc, ấm áp).
+- **Typography (Hỗ trợ 100% Native Glyph Tiếng Việt):**
+  - Headings (`font-display` / `font-cute`): `Baloo 2`, `Quicksand`, `Nunito`, `cursive`, `sans-serif` (Dòng font bo tròn, béo múp, có bộ ký tự tiếng Việt nguyên bản từ Google Fonts — triệt tiêu hoàn toàn lỗi vỡ font / nhảy font chữ to chữ nhỏ ở các nguyên âm có dấu nặng, hỏi, ngã, ơ, ư).
+  - Body & Buttons (`font-body`): `Quicksand`, `Nunito`, `sans-serif` (Nét chữ mềm mại, dễ đọc, ấm áp, full dấu tiếng Việt).
 - **Bảng Màu Chủ Đạo:**
   - Hồng San Hô (`#FF6F61`): Tình yêu thương, năng động.
   - Xanh Mint (`#A3E4D7`): An toàn, tin cậy, huy hiệu Safe Pet.
