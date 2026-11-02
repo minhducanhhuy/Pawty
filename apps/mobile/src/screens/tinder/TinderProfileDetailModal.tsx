@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '../../components/FeatherIcon';
-import { TinderCandidate } from '../../types/mobileTypes';
+import { TinderCandidate, getCandidateSlides } from '../../types/mobileTypes';
 
 interface TinderProfileDetailModalProps {
   visible: boolean;
@@ -49,21 +49,11 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
   const bottomInset =
     Platform.OS === 'android' ? Math.max(insets.bottom, 24) : Math.max(insets.bottom, 16);
 
-  // Album ảnh: 100% là ảnh các bé thú cưng
-  const petPhotos = useMemo(() => {
-    const fromPets = (candidate.pets || [])
-      .map((p) => p.imageUrl)
-      .filter(Boolean);
-    const fromAlbum = (candidate.photoUrls || []).filter(
-      (u) => u !== candidate.avatarUrl && !fromPets.includes(u)
-    );
-    const combined = [...fromPets, ...fromAlbum];
-    if (combined.length > 0) return combined;
-    return [candidate.avatarUrl || FALLBACK_PET_IMG];
-  }, [candidate]);
+  // Danh sách slides: Ảnh chủ nuôi -> Ảnh các bé thú cưng
+  const slides = useMemo(() => getCandidateSlides(candidate), [candidate]);
 
   const currentPhoto =
-    petPhotos[activePhotoIdx % Math.max(petPhotos.length, 1)] || FALLBACK_PET_IMG;
+    slides[activePhotoIdx % Math.max(slides.length, 1)]?.imageUrl || FALLBACK_PET_IMG;
 
   // Tiêu đề đầu trang: Ưu tiên tên các bé thú cưng
   const petHeaderTitle = useMemo(() => {
@@ -129,7 +119,7 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
             <View style={styles.photoCountBadge}>
               <Feather name="image" size={12} color="#FFFFFF" />
               <Text style={styles.photoCountText}>
-                {(activePhotoIdx % petPhotos.length) + 1} / {petPhotos.length}
+                {(activePhotoIdx % slides.length) + 1} / {slides.length}
               </Text>
             </View>
           </View>

@@ -9,7 +9,12 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '../../components/FeatherIcon';
-import { TinderCandidate, getTinderPurposeLabel } from '../../types/mobileTypes';
+import {
+  TinderCandidate,
+  getTinderPurposeLabel,
+  getCandidateSlides,
+  CandidateSlide,
+} from '../../types/mobileTypes';
 
 interface TinderCardSurfaceProps {
   candidate: TinderCandidate;
@@ -33,58 +38,45 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
 }) => {
   const [imageError, setImageError] = useState(false);
 
-  const primaryPet = candidate.pets && candidate.pets.length > 0 ? candidate.pets[0] : null;
-
-  const cleanOwnerName = React.useMemo(() => {
-    if (!candidate?.ownerName) return '';
-    return candidate.ownerName.replace(/\s*\(@[^)]+\)/g, '').trim();
-  }, [candidate?.ownerName]);
-
-  const candidatePhotos = React.useMemo(() => {
-    const petPhotos = (candidate.pets || [])
-      .map((p) => p.imageUrl)
-      .filter(Boolean);
-
-    const albumPhotos = (candidate.photoUrls || []).filter(
-      (u) => Boolean(u) && !petPhotos.includes(u)
-    );
-
-    const merged = [...petPhotos, ...albumPhotos];
-    if (merged.length > 0) return merged;
-    if (candidate.avatarUrl) return [candidate.avatarUrl];
-    return [FALLBACK_PET_IMG];
+  // Sinh danh sách slides: Ảnh chủ nuôi -> Ảnh các bé thú cưng
+  const slides: CandidateSlide[] = React.useMemo(() => {
+    return getCandidateSlides(candidate);
   }, [candidate]);
 
-  const activePhotoUrl =
-    candidatePhotos[photoIdx % Math.max(candidatePhotos.length, 1)] || FALLBACK_PET_IMG;
+  const currentSlide = slides[photoIdx % Math.max(slides.length, 1)] || slides[0];
+  const displayPhotoUrl = imageError
+    ? FALLBACK_PET_IMG
+    : currentSlide?.imageUrl || FALLBACK_PET_IMG;
 
-  const displayPhotoUrl = imageError ? FALLBACK_PET_IMG : activePhotoUrl;
-  const extraPetsCount = Math.max(0, candidate.pets.length - 1);
-  const purposeLabel = candidate.lookingFor || getTinderPurposeLabel(candidate.intent);
+  const purposeLabel =
+    candidate.lookingFor || getTinderPurposeLabel(candidate.intent);
 
   return (
     <View style={styles.cardContainer}>
       <Image
+        key={displayPhotoUrl}
         source={{ uri: displayPhotoUrl }}
         style={styles.cardImage}
         resizeMode="cover"
         onError={() => setImageError(true)}
       />
 
-      {candidatePhotos.length > 1 && (
+      {/* Thanh vạch tiến độ trên đỉnh thẻ: Số vạch = Tổng số ảnh chủ nuôi + Ảnh các bé */}
+      {slides.length > 1 && (
         <View style={styles.segmentedBarRow}>
-          {candidatePhotos.map((_, idx) => (
+          {slides.map((_, idx) => (
             <View
               key={`bar-${idx}`}
               style={[
                 styles.barSegment,
-                idx === photoIdx % candidatePhotos.length && styles.barSegmentActive,
+                idx === photoIdx % slides.length && styles.barSegmentActive,
               ]}
             />
           ))}
         </View>
       )}
 
+      {/* Con dấu THÍCH khi quẹt phải */}
       {!isBackground && likeBadgeOpacity !== undefined && (
         <Animated.View
           style={[styles.stampBase, styles.likeStamp, { opacity: likeBadgeOpacity }]}
@@ -94,6 +86,7 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
         </Animated.View>
       )}
 
+      {/* Con dấu BỎ QUA khi quẹt trái */}
       {!isBackground && nopeBadgeOpacity !== undefined && (
         <Animated.View
           style={[styles.stampBase, styles.nopeStamp, { opacity: nopeBadgeOpacity }]}
@@ -103,11 +96,13 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
         </Animated.View>
       )}
 
+      {/* Lớp phủ chuyển sắc thông tin đáy thẻ */}
       <LinearGradient
         colors={['transparent', 'rgba(18, 16, 15, 0.45)', 'rgba(18, 16, 15, 0.93)']}
-        locations={[0, 0.42, 1]}
+        locations={[0, 0.38, 1]}
         style={styles.bottomGradient}
       >
+        {/* Dòng Badge nhãn phân loại */}
         <View style={styles.badgeRow}>
           {candidate.hasLikedMe && (
             <View style={styles.likedMeBadge}>
@@ -116,77 +111,102 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
             </View>
           )}
 
-          {candidate.intent === 'playdate' && (
-            <View style={[styles.intentBadge, styles.playdateBadge]}>
-              <Feather name="smile" size={11} color="#0E4833" />
-              <Text style={styles.playdateBadgeText}>{purposeLabel}</Text>
-            </View>
-          )}
+          {currentSlide.type === 'owner' ? (
+            <>
+              {candidate.intent === 'dating' ? (
+                <View style={[styles.intentBadge, styles.datingBadge]}>
+                  <Feather name="heart" size={11} color="#FFFFFF" />
+                  <Text style={styles.datingBadgeText}>{purposeLabel}</Text>
+                </View>
+              ) : candidate.intent === 'community' ? (
+                <View style={[styles.intentBadge, styles.communityBadge]}>
+                  <Feather name="users" size={11} color="#382E25" />
+                  <Text style={styles.communityBadgeText}>{purposeLabel}</Text>
+                </View>
+              ) : (
+                <View style={[styles.intentBadge, styles.playdateBadge]}>
+                  <Feather name="smile" size={11} color="#0E4833" />
+                  <Text style={styles.playdateBadgeText}>{purposeLabel}</Text>
+                </View>
+              )}
 
-          {candidate.intent === 'dating' && (
-            <View style={[styles.intentBadge, styles.datingBadge]}>
-              <Feather name="heart" size={11} color="#FFFFFF" />
-              <Text style={styles.datingBadgeText}>{purposeLabel}</Text>
-            </View>
-          )}
+              {/* Thông báo số bé thú cưng đi cùng */}
+              {candidate.pets && candidate.pets.length > 0 && (
+                <View style={styles.petCounterPill}>
+                  <Text style={styles.petCounterPillText}>
+                    🐾 Có {candidate.pets.length} bé cưng
+                  </Text>
+                </View>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Badge bé thú cưng đang hiển thị */}
+              <View style={styles.petActiveSlideBadge}>
+                <Text style={styles.petActiveSlideBadgeText}>
+                  🐾 Bé cưng {currentSlide.petIndex}/{currentSlide.totalPets}
+                </Text>
+              </View>
 
-          {candidate.intent === 'community' && (
-            <View style={[styles.intentBadge, styles.communityBadge]}>
-              <Feather name="users" size={11} color="#382E25" />
-              <Text style={styles.communityBadgeText}>{purposeLabel}</Text>
-            </View>
-          )}
-
-          {extraPetsCount > 0 && (
-            <TouchableOpacity
-              style={styles.extraPetsBadge}
-              onPress={onOpenDetails}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.extraPetsBadgeText}>+{extraPetsCount} bé khác</Text>
-            </TouchableOpacity>
+              {currentSlide.pet?.isVaccinatedAndRabies && (
+                <View style={styles.petVaccinatedPill}>
+                  <Feather name="shield" size={10} color="#0E4833" />
+                  <Text style={styles.petVaccinatedPillText}>Đã tiêm phòng đủ</Text>
+                </View>
+              )}
+            </>
           )}
         </View>
 
+        {/* Nội dung thông tin chi tiết đáy thẻ */}
         <View style={styles.infoContentRow}>
           <View style={styles.infoTextColumn}>
-            {primaryPet ? (
+            {currentSlide.type === 'owner' ? (
               <>
+                {/* 1. THÔNG TIN CHỦ NUÔI */}
                 <Text style={styles.primaryTitle} numberOfLines={1}>
-                  {candidate.pets.length > 1
-                    ? `${candidate.pets.map((p) => p.name).join(' & ')} · ${primaryPet.ageLabel}`
-                    : `${primaryPet.name} · ${primaryPet.ageLabel}`}
+                  {currentSlide.ownerName}, {currentSlide.ownerAge}
                 </Text>
                 <Text style={styles.secondaryMeta} numberOfLines={1}>
-                  {primaryPet.breed} {primaryPet.weightKg ? `· ${primaryPet.weightKg} kg` : ''}
-                </Text>
-                <Text style={styles.tertiarySub} numberOfLines={1}>
-                  Đi cùng {cleanOwnerName} ({candidate.ownerAge}t)
+                  {currentSlide.area || 'Cộng đồng Pawty'}
+                  {currentSlide.gender ? ` · ${currentSlide.gender}` : ''}
                 </Text>
                 <View style={styles.distanceBadgeRow}>
                   <Feather name="navigation" size={12} color="#A3E4D7" />
-                  <Text style={styles.distanceBadgeText}>Cách bạn {candidate.distanceKm} km</Text>
+                  <Text style={styles.distanceBadgeText}>
+                    Cách bạn {currentSlide.distanceKm} km
+                  </Text>
                 </View>
+                {currentSlide.bio ? (
+                  <Text style={styles.tertiarySub} numberOfLines={2}>
+                    {currentSlide.bio}
+                  </Text>
+                ) : null}
               </>
             ) : (
               <>
+                {/* 2. THÔNG TIN THÚ CƯNG (Khi lướt hết ảnh người) */}
                 <Text style={styles.primaryTitle} numberOfLines={1}>
-                  {cleanOwnerName}, {candidate.ownerAge}
+                  {currentSlide.pet?.name} · {currentSlide.pet?.ageLabel}
                 </Text>
                 <Text style={styles.secondaryMeta} numberOfLines={1}>
-                  {candidate.area || 'Cộng đồng Pawty'}
+                  {currentSlide.pet?.breed}{' '}
+                  {currentSlide.pet?.weightKg ? `· ${currentSlide.pet.weightKg} kg` : ''}
+                </Text>
+                <Text style={styles.tertiarySub} numberOfLines={1}>
+                  Bé cưng của {currentSlide.ownerName} ({currentSlide.ownerAge}t)
                 </Text>
                 <View style={styles.distanceBadgeRow}>
                   <Feather name="navigation" size={12} color="#A3E4D7" />
-                  <Text style={styles.distanceBadgeText}>Cách bạn {candidate.distanceKm} km</Text>
+                  <Text style={styles.distanceBadgeText}>
+                    Cách bạn {currentSlide.distanceKm} km
+                  </Text>
                 </View>
-                <Text style={styles.tertiarySub} numberOfLines={1}>
-                  {candidate.bio || purposeLabel}
-                </Text>
               </>
             )}
           </View>
 
+          {/* Nút mũi tên mở Drawer xem toàn bộ hồ sơ */}
           <TouchableOpacity
             style={styles.expandCircleBtn}
             onPress={onOpenDetails}
@@ -221,81 +241,80 @@ const styles = StyleSheet.create({
   },
   segmentedBarRow: {
     position: 'absolute',
-    top: 12,
-    left: 14,
-    right: 14,
+    top: 10,
+    left: 12,
+    right: 12,
     flexDirection: 'row',
-    gap: 6,
-    zIndex: 10,
+    gap: 4,
+    zIndex: 30,
   },
   barSegment: {
     flex: 1,
-    height: 4,
+    height: 3.5,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255, 255, 255, 0.38)',
   },
   barSegmentActive: {
     backgroundColor: '#FFFFFF',
   },
   stampBase: {
     position: 'absolute',
-    top: 40,
-    borderWidth: 3,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 12,
-    zIndex: 20,
+    top: 48,
+    borderWidth: 3.5,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    zIndex: 40,
   },
   likeStamp: {
     left: 20,
-    borderColor: '#3E8E6C',
-    backgroundColor: 'rgba(234, 247, 241, 0.95)',
-    transform: [{ rotate: '-12deg' }],
+    borderColor: '#10B981',
+    transform: [{ rotate: '-15deg' }],
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
   },
   likeStampText: {
-    fontSize: 18,
+    fontSize: 26,
     fontWeight: '900',
-    color: '#165A42',
-    letterSpacing: 1,
+    color: '#10B981',
+    letterSpacing: 1.5,
   },
   nopeStamp: {
     right: 20,
-    borderColor: '#D9534F',
-    backgroundColor: 'rgba(253, 237, 237, 0.95)',
-    transform: [{ rotate: '12deg' }],
+    borderColor: '#EF4444',
+    transform: [{ rotate: '15deg' }],
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
   },
   nopeStampText: {
-    fontSize: 18,
+    fontSize: 26,
     fontWeight: '900',
-    color: '#B52B27',
-    letterSpacing: 1,
+    color: '#EF4444',
+    letterSpacing: 1.5,
   },
   bottomGradient: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 36,
-    paddingBottom: 20,
+    paddingBottom: 16,
     justifyContent: 'flex-end',
-    zIndex: 8,
   },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
     gap: 6,
+    alignItems: 'center',
     marginBottom: 8,
   },
   likedMeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: '#FF6F61',
     paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: '#E04F67',
+    borderRadius: 10,
   },
   likedMeBadgeText: {
     fontSize: 11,
@@ -307,8 +326,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 4.5,
+    borderRadius: 10,
   },
   playdateBadge: {
     backgroundColor: '#A3E4D7',
@@ -319,7 +338,7 @@ const styles = StyleSheet.create({
     color: '#0E4833',
   },
   datingBadge: {
-    backgroundColor: '#FF6F61',
+    backgroundColor: '#E11D48',
   },
   datingBadgeText: {
     fontSize: 11,
@@ -327,23 +346,48 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   communityBadge: {
-    backgroundColor: '#EBE4D8',
+    backgroundColor: '#F7EDE2',
   },
   communityBadgeText: {
     fontSize: 11,
     fontWeight: '800',
     color: '#382E25',
   },
-  extraPetsBadge: {
+  petCounterPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    borderRadius: 10,
   },
-  extraPetsBadgeText: {
+  petCounterPillText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  petActiveSlideBadge: {
+    backgroundColor: '#FF6F61',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  petActiveSlideBadgeText: {
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
-    color: '#FFFFFF',
+  },
+  petVaccinatedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#A3E4D7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  petVaccinatedPillText: {
+    color: '#0E4833',
+    fontSize: 11,
+    fontWeight: '700',
   },
   infoContentRow: {
     flexDirection: 'row',
@@ -353,25 +397,22 @@ const styles = StyleSheet.create({
   },
   infoTextColumn: {
     flex: 1,
-    paddingRight: 4,
+    gap: 2,
   },
   primaryTitle: {
     fontSize: 25,
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: -0.3,
+    lineHeight: 30,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1.5 },
+    textShadowRadius: 4,
   },
   secondaryMeta: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#E8E1D9',
-    marginTop: 2,
-  },
-  tertiarySub: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#D4C9BC',
-    marginTop: 2,
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.92)',
+    marginTop: 1,
   },
   distanceBadgeRow: {
     flexDirection: 'row',
@@ -381,17 +422,23 @@ const styles = StyleSheet.create({
   },
   distanceBadgeText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#A3E4D7',
+  },
+  tertiarySub: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 2,
+    lineHeight: 16,
   },
   expandCircleBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.45)',
   },
 });

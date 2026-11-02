@@ -15,7 +15,7 @@ import { TinderActionBar } from './tinder/TinderActionBar';
 import { TinderProfileDetailModal } from './tinder/TinderProfileDetailModal';
 import { TinderFilterModal } from './tinder/TinderFilterModal';
 import { TinderMenuModal } from './tinder/TinderMenuModal';
-import { TINDER_PURPOSE_OPTIONS } from '../types/mobileTypes';
+import { TINDER_PURPOSE_OPTIONS, getCandidateSlides } from '../types/mobileTypes';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD = 85;
@@ -122,13 +122,8 @@ export const MobileTinderScreen: React.FC = () => {
             elapsed < 280;
 
           if (isTap && currentCandidate) {
-            const petPhotosList = (currentCandidate.pets || [])
-              .map((p) => p.imageUrl)
-              .filter(Boolean);
-            const extraPhotos = (currentCandidate.photoUrls || []).filter(
-              (u) => Boolean(u) && !petPhotosList.includes(u)
-            );
-            const photosCount = Math.max(petPhotosList.length + extraPhotos.length, 1);
+            const slides = getCandidateSlides(currentCandidate);
+            const photosCount = Math.max(slides.length, 1);
 
             if (gestureState.x0 < SCREEN_WIDTH / 2) {
               setPhotoIdx((prev) => (prev > 0 ? prev - 1 : Math.max(photosCount - 1, 0)));

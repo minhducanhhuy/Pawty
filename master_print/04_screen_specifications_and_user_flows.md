@@ -156,5 +156,16 @@
   - Nhãn `specChipValue` được cấu hình `numberOfLines={1}` và `adjustsFontSizeToFit={true}` với `fontSize: 11` cho chuỗi ngày sinh `DD/MM/YYYY`, đảm bảo không bao giờ bị rớt dòng thành `01/01/20 \n 24` trên các màn hình có mật độ hiển thị nhỏ.
   - Ảnh đại diện Boss khi chưa tải ảnh lên sẽ sử dụng fallback banner màu ấm chất lượng cao thay cho khung nền màu đơn điệu.
 
+### 2.18 Cơ Chế Phân Đoạn Slide Thẻ Radar Tinder (Owner-First Then Pets Sequence)
+- **Chuỗi trình tự hiển thị Story/Slide trên thẻ Radar:**
+  - **Nhóm 1 - Slide Chủ Nuôi (Owner Slides):** Xuất hiện đầu tiên trong chuỗi slide.
+    - Hiển thị toàn bộ album ảnh cá nhân của người dùng (`photoUrls` của chủ nuôi).
+    - Thông tin đáy thẻ: Tên chủ nuôi & Tuổi (`Minh Anh, 24`), Khu vực sống & Giới tính (`Vinhomes Central Park · Nữ`), Khoảng cách tương đối (`Cách bạn 1.5 km`), Châm ngôn / Bio hẹn hò, kèm Chip thông báo số lượng Boss (`🐾 Có 2 bé cưng: Huhu, Miu`).
+  - **Nhóm 2 - Slide Thú Cưng (Pet Slides):** Xuất hiện nối tiếp ngay sau khi người dùng bấm chuyển hết toàn bộ ảnh cá nhân của chủ nuôi.
+    - Hiển thị lần lượt từng bé thú cưng trong danh sách `candidate.pets`.
+    - Thông tin đáy thẻ chuyển động đồng bộ theo đúng bé thú cưng đang hiển thị: Tên bé & Tuổi (`Huhu · 1 tuổi`), Giống loài & Cân nặng (`Phốc Sóc (Pomeranian) · 2.5 kg`), Mối quan hệ với chủ nuôi (`Bé cưng của Minh Anh (24t)`), Khoảng cách, kèm Badge thứ tự (`🐾 Bé cưng 1/2`).
+  - **Thanh đo tiến độ Dash Bar:** Tổng số vạch dash trên đầu thẻ bằng tổng số `[Ảnh cá nhân + Ảnh các bé thú cưng]`. Vạch sáng chuyển động nhịp nhàng theo đúng slide người dùng đang xem.
+
+
 
 

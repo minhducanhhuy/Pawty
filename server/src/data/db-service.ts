@@ -2099,6 +2099,13 @@ export class DatabaseService {
     const intent = normalizeTinderIntent(tSetup.intent || tSetup.lookingFor || u.primaryNeed);
     const intentLabel = getTinderIntentLabel(intent);
 
+    const deterministicDistances = [0.8, 1.5, 2.4, 3.8, 5.2, 8.6, 12.0];
+    const distanceKm = deterministicDistances[indexSeed % deterministicDistances.length];
+
+    const resolvedGender = (tSetup.gender ||
+      meta.gender ||
+      (indexSeed % 2 === 1 ? 'Nam' : 'Nữ')) as 'Nam' | 'Nữ' | 'Khác';
+
     const customPhotos = (
       Array.isArray(tSetup.photos) && tSetup.photos.length > 0
         ? tSetup.photos
@@ -2106,19 +2113,15 @@ export class DatabaseService {
         ? tSetup.photoUrls
         : []
     ).filter(Boolean);
-    const fallbackPhotos = [
-      ...candidatePets.map((p: any) => p.imageUrl),
+
+    const defaultOwnerPhoto =
       u.avatarUrl ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-    ].filter(Boolean);
-    const photoUrls = customPhotos.length > 0 ? customPhotos : fallbackPhotos;
+      (resolvedGender === 'Nam'
+        ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80'
+        : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80');
 
-    const deterministicDistances = [0.8, 1.5, 2.4, 3.8, 5.2, 8.6, 12.0];
-    const distanceKm = deterministicDistances[indexSeed % deterministicDistances.length];
-
-    const resolvedGender = (tSetup.gender ||
-      meta.gender ||
-      (indexSeed % 2 === 1 ? 'Nam' : 'Nữ')) as 'Nam' | 'Nữ' | 'Khác';
+    // photoUrls CHỈ chứa album ảnh cá nhân của chủ nuôi, không lẫn ảnh thú cưng
+    const photoUrls = customPhotos.length > 0 ? customPhotos : [defaultOwnerPhoto];
 
     const rawName = tSetup.displayName || u.displayName || 'Bạn mới';
     const cleanOwnerName = cleanDisplayName(rawName);
