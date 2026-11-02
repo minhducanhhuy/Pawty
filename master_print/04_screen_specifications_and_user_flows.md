@@ -166,6 +166,24 @@
     - Thông tin đáy thẻ chuyển động đồng bộ theo đúng bé thú cưng đang hiển thị: Tên bé & Tuổi (`Huhu · 1 tuổi`), Giống loài & Cân nặng (`Phốc Sóc (Pomeranian) · 2.5 kg`), Mối quan hệ với chủ nuôi (`Bé cưng của Minh Anh (24t)`), Khoảng cách, kèm Badge thứ tự (`🐾 Bé cưng 1/2`).
   - **Thanh đo tiến độ Dash Bar:** Tổng số vạch dash trên đầu thẻ bằng tổng số `[Ảnh cá nhân + Ảnh các bé thú cưng]`. Vạch sáng chuyển động nhịp nhàng theo đúng slide người dùng đang xem.
 
+### 2.19 Làm Sạch Luồng Đăng Ký & Form Thú Cưng Mới (Zero Dummy Data & Clean Onboarding)
+- **Chuẩn hóa luồng Đăng ký tài khoản mới:**
+  - Người dùng đăng ký chỉ điền Họ tên, Số điện thoại, Mật khẩu, Tên bé, Giống loài.
+  - Backend và Client tuyệt đối KHÔNG tự sinh dữ liệu giả (fake dummy data): tuổi, ngày sinh, cung hoàng đạo, MBTI, nghề nghiệp, học vấn, phong cách sống (hút thuốc, dắt cún, giao lưu) sẽ ở trạng thái `null` / `undefined`.
+  - Không tự gán ảnh Unsplash hay sổ tiêm mẫu "verified" vào bé cưng mới tạo. Khi chưa tải ảnh, hiển thị placeholder chuẩn thương hiệu (Card màu ấm kem, icon bàn chân dễ thương kèm nút `+ Thêm ảnh`).
+  - Toàn bộ thông tin nâng cao (Cân nặng, Thói quen, Sổ tiêm, Sở thích ăn uống) khi chưa nhập sẽ hiển thị trạng thái "Chưa cập nhật", khuyến khích người dùng tự hoàn thiện trong trang cá nhân.
+- **Chuẩn hóa Modal "Thêm bé cưng mới" & "Chỉnh sửa bé cưng":**
+  - Khởi tạo form ở trạng thái rỗng (`''`, `[]`), không tự điền trước bất kỳ giá trị mặc định nào (không mặc định 4.8kg, không mặc định Vàng kem, không mặc định Hạt dinh dưỡng & Ức gà, không tự thêm thói quen hay sổ tiêm).
+  - Loại bỏ hoàn toàn bộ chọn "Độ tuổi" (tự động tính từ ngày sinh khi có ngày sinh, nếu chưa có ngày sinh thì hiển thị "Chưa rõ").
+  - Lưu hồ sơ chỉ gửi đúng các trường người dùng thực sự nhập, không ép dữ liệu giả vào PostgreSQL.
+
+### 2.20 Chuẩn Hóa Điều Kiện Huy Hiệu "An Tâm Dạo Chung" (Safe Pet Verification Guard)
+- Huy hiệu `[✓ An tâm dạo chung]` trên thẻ chi tiết ứng viên Tinder và hồ sơ công khai chỉ được hiển thị khi:
+  - Chủ nuôi có ít nhất 1 thú cưng (`candidate.pets.length > 0`).
+  - Có ít nhất một bé đã được xác minh tiêm phòng đầy đủ (`candidate.pets.some(p => p.isVaccinatedAndRabies)`).
+- Nếu chủ nuôi chưa có thú cưng (`0 bé`) hoặc chưa tiêm phòng đầy đủ: Tuyệt đối KHÔNG hiển thị huy hiệu "An tâm dạo chung".
+
+
 
 
 

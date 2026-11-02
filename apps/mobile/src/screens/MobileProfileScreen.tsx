@@ -420,38 +420,42 @@ export const MobileProfileScreen: React.FC = () => {
   const [newPetCustomSpecies, setNewPetCustomSpecies] = useState('');
   const [newPetName, setNewPetName] = useState('');
   const [newPetGender, setNewPetGender] = useState<'Đực' | 'Cái'>('Đực');
-  const [newPetBreed, setNewPetBreed] = useState(POPULAR_DOG_BREEDS[0]);
-  const [newPetWeight, setNewPetWeight] = useState('4.8');
-  const [newPetAge, setNewPetAge] = useState(PET_AGE_OPTIONS[4] || '1 tuổi');
-  const [newPetBirthDate, setNewPetBirthDate] = useState('01/01/2024');
-  const [newPetFurColor, setNewPetFurColor] = useState(PET_FUR_COLOR_OPTIONS[0]);
+  const [newPetBreed, setNewPetBreed] = useState('');
+  const [newPetWeight, setNewPetWeight] = useState('');
+  const [newPetAge, setNewPetAge] = useState('');
+  const [newPetBirthDate, setNewPetBirthDate] = useState('');
+  const [newPetFurColor, setNewPetFurColor] = useState('');
   const [newPetBio, setNewPetBio] = useState('');
-  const [newPetFavoriteFood, setNewPetFavoriteFood] = useState(PET_FOOD_OPTIONS[0]);
-  const [newPetDewormingHistory, setNewPetDewormingHistory] = useState(PET_DEWORMING_OPTIONS[0]);
-  const [newPetMedicalHistory, setNewPetMedicalHistory] = useState(PET_MEDICAL_OPTIONS[0]);
-  const [newPetGoodHabits, setNewPetGoodHabits] = useState<string[]>([
-    PET_GOOD_HABIT_OPTIONS[0],
-    PET_GOOD_HABIT_OPTIONS[1],
-  ]);
-  const [newPetCautionHabits, setNewPetCautionHabits] = useState<string[]>([
-    PET_CAUTION_HABIT_OPTIONS[0],
-  ]);
-  const [newPetVaccinated, setNewPetVaccinated] = useState(true);
-  const [newPetWeightHistory, setNewPetWeightHistory] = useState<PetWeightEntry[]>([
-    { month: 'T08', weightKg: 4.2 },
-    { month: 'T09', weightKg: 4.6 },
-    { month: 'T10', weightKg: 4.8 },
-  ]);
-  const [newPetVaccineRecords, setNewPetVaccineRecords] = useState<PetVaccineRecord[]>([
-    {
-      id: 'vac-1',
-      vaccineName: PET_VACCINE_NAME_OPTIONS[0],
-      date: '10/08/2025',
-      doseNumber: 2,
-      clinic: PET_CLINIC_OPTIONS[0],
-      isSafeVerified: true,
-    },
-  ]);
+  const [newPetFavoriteFood, setNewPetFavoriteFood] = useState('');
+  const [newPetDewormingHistory, setNewPetDewormingHistory] = useState('');
+  const [newPetMedicalHistory, setNewPetMedicalHistory] = useState('');
+  const [newPetGoodHabits, setNewPetGoodHabits] = useState<string[]>([]);
+  const [newPetCautionHabits, setNewPetCautionHabits] = useState<string[]>([]);
+  const [newPetVaccinated, setNewPetVaccinated] = useState(false);
+  const [newPetWeightHistory, setNewPetWeightHistory] = useState<PetWeightEntry[]>([]);
+  const [newPetVaccineRecords, setNewPetVaccineRecords] = useState<PetVaccineRecord[]>([]);
+
+  const resetNewPetForm = () => {
+    setNewPetPhotoUrl('');
+    setNewPetSpecies('Chó');
+    setNewPetCustomSpecies('');
+    setNewPetName('');
+    setNewPetGender('Đực');
+    setNewPetBreed('');
+    setNewPetWeight('');
+    setNewPetAge('');
+    setNewPetBirthDate('');
+    setNewPetFurColor('');
+    setNewPetBio('');
+    setNewPetFavoriteFood('');
+    setNewPetDewormingHistory('');
+    setNewPetMedicalHistory('');
+    setNewPetGoodHabits([]);
+    setNewPetCautionHabits([]);
+    setNewPetVaccinated(false);
+    setNewPetWeightHistory([]);
+    setNewPetVaccineRecords([]);
+  };
   const [tempWeightMonth, setTempWeightMonth] = useState('T11');
   const [tempWeightKg, setTempWeightKg] = useState('4.8');
   const [tempVacName, setTempVacName] = useState(PET_VACCINE_NAME_OPTIONS[0]);
@@ -830,30 +834,25 @@ export const MobileProfileScreen: React.FC = () => {
 
     setIsCreatingPetSubmitting(true);
     try {
-      const defaultImg =
-        newPetSpecies === 'Mèo'
-          ? 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80'
-          : 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80';
-
-      const finalAvatar = newPetPhotoUrl || defaultImg;
+      const finalAvatar = newPetPhotoUrl.trim() || '';
 
       const created = await addNewPetProfile({
         name: newPetName.trim(),
         species: newPetSpecies,
         customSpecies: newPetSpecies === 'Khác' ? newPetCustomSpecies : undefined,
-        breed: newPetBreed.trim() || (newPetSpecies === 'Chó' ? 'Golden Retriever' : 'Mèo Anh lông ngắn'),
+        breed: newPetBreed.trim() || 'Chưa rõ',
         gender: newPetGender,
-        weightKg: parseFloat(newPetWeight) || 4.8,
-        ageLabel: calculatePetAgeFromBirthDate(newPetBirthDate) || '1 tuổi',
-        birthDate: newPetBirthDate,
-        furColor: newPetFurColor,
-        bio: newPetBio.trim(),
+        weightKg: newPetWeight.trim() ? parseFloat(newPetWeight) || undefined : undefined,
+        ageLabel: newPetBirthDate ? calculatePetAgeFromBirthDate(newPetBirthDate) : 'Chưa rõ',
+        birthDate: newPetBirthDate.trim() || undefined,
+        furColor: newPetFurColor.trim() || undefined,
+        bio: newPetBio.trim() || undefined,
         avatarUrl: finalAvatar,
-        galleryUrls: [finalAvatar],
+        galleryUrls: finalAvatar ? [finalAvatar] : [],
         isVaccinatedAndRabies: newPetVaccinated,
-        favoriteFood: newPetFavoriteFood,
-        dewormingHistory: newPetDewormingHistory,
-        medicalHistory: newPetMedicalHistory,
+        favoriteFood: newPetFavoriteFood.trim() || undefined,
+        dewormingHistory: newPetDewormingHistory.trim() || undefined,
+        medicalHistory: newPetMedicalHistory.trim() || undefined,
         goodHabits: newPetGoodHabits,
         cautionHabits: newPetCautionHabits,
         vaccineRecords: newPetVaccineRecords,
@@ -862,9 +861,7 @@ export const MobileProfileScreen: React.FC = () => {
 
       if (created) {
         setIsAddingPetModal(false);
-        setNewPetPhotoUrl('');
-        setNewPetName('');
-        setNewPetBio('');
+        resetNewPetForm();
         setTimeout(() => {
           scrollToPage(displayedPets.length);
         }, 300);
@@ -1356,15 +1353,10 @@ export const MobileProfileScreen: React.FC = () => {
         {/* PAGES 1..N: HỒ SƠ TỪNG BÉ THÚ CƯNG (FULLSCREEN PHOTO)     */}
         {/* ========================================================= */}
         {displayedPets.map((pet) => {
-          const fallbackForPet =
-            pet.species === 'Mèo' ? DEFAULT_FALLBACK_CAT : DEFAULT_FALLBACK_DOG;
-          const defaultList =
-            pet.species === 'Mèo' ? DEFAULT_CAT_GALLERY : DEFAULT_DOG_GALLERY;
-          const cleanGallery = [
+          const rawUserPhotos = [
             ...(pet.galleryUrls || []),
             pet.coverUrl,
             pet.avatarUrl,
-            ...defaultList,
           ].filter(
             (u): u is string =>
               typeof u === 'string' &&
@@ -1372,21 +1364,46 @@ export const MobileProfileScreen: React.FC = () => {
               !u.includes('undefined') &&
               !u.includes('null')
           );
-          const gallery = Array.from(new Set(cleanGallery));
-          const activePhotoIdx = (petGalleryIndices[pet.id] || 0) % gallery.length;
-          const currentPetImg = gallery[activePhotoIdx] || fallbackForPet;
+          const gallery = Array.from(new Set(rawUserPhotos));
+          const hasUserPhotos = gallery.length > 0;
+          const activePhotoIdx = hasUserPhotos
+            ? (petGalleryIndices[pet.id] || 0) % gallery.length
+            : 0;
+          const currentPetImg = hasUserPhotos ? gallery[activePhotoIdx] : null;
           const isExpanded = !!expandedPetDetails[pet.id];
           const isLiked = pet.isLiked ?? false;
-          const likesCount = pet.likesCount ?? 148;
+          const likesCount = pet.likesCount ?? 0;
 
           return (
             <View key={pet.id} style={styles.petFullScreenContainer}>
-              {/* 1. Fullscreen Background Image */}
-              <Image
-                source={{ uri: currentPetImg }}
-                style={StyleSheet.absoluteFill}
-                resizeMode="cover"
-              />
+              {/* 1. Fullscreen Background Image or Clean Placeholder */}
+              {hasUserPhotos && currentPetImg ? (
+                <Image
+                  source={{ uri: currentPetImg }}
+                  style={StyleSheet.absoluteFill}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[StyleSheet.absoluteFill, styles.emptyPetPhotoPlaceholder]}>
+                  <View style={styles.emptyPetPhotoContent}>
+                    <View style={styles.emptyPetPhotoIconCircle}>
+                      <Feather name="camera" size={38} color="#FF6F61" />
+                    </View>
+                    <Text style={styles.emptyPetPhotoTitle}>Bé {pet.name} chưa có ảnh đại diện</Text>
+                    <Text style={styles.emptyPetPhotoSub}>Chạm để thêm hình ảnh đầu tiên cho bé</Text>
+                    {!isViewingOther && (
+                      <TouchableOpacity
+                        style={styles.emptyPetPhotoAddBtn}
+                        onPress={() => handleAddPetPhotoFromDevice(pet.id)}
+                        activeOpacity={0.85}
+                      >
+                        <Feather name="plus" size={16} color="#FFFFFF" />
+                        <Text style={styles.emptyPetPhotoAddBtnText}>Thêm ảnh bé cưng</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
 
               {/* 2. Heart Burst Animated Overlay */}
               {burstPetId === pet.id && (
@@ -1591,7 +1608,7 @@ export const MobileProfileScreen: React.FC = () => {
                       <View style={styles.petDetailCardRow}>
                         <Text style={styles.petDetailCardLabel}>Sở thích ăn uống:</Text>
                         <Text style={styles.petDetailCardValue}>
-                          {pet.favoriteFood || 'Ức gà luộc, pate cá hồi, súp thưởng'}
+                          {pet.favoriteFood || 'Chủ nuôi chưa cập nhật'}
                         </Text>
                       </View>
 
@@ -1599,7 +1616,7 @@ export const MobileProfileScreen: React.FC = () => {
                       <View style={styles.petDetailCardRow}>
                         <Text style={styles.petDetailCardLabel}>Lịch sử tẩy giun:</Text>
                         <Text style={styles.petDetailCardValue}>
-                          {pet.dewormingHistory || 'Định kỳ 3 tháng/lần'}
+                          {pet.dewormingHistory || 'Chủ nuôi chưa cập nhật'}
                         </Text>
                       </View>
 
@@ -1607,7 +1624,7 @@ export const MobileProfileScreen: React.FC = () => {
                       <View style={styles.petDetailCardRow}>
                         <Text style={styles.petDetailCardLabel}>Tiền sử bệnh lý:</Text>
                         <Text style={styles.petDetailCardValue}>
-                          {pet.medicalHistory || 'Khỏe mạnh, không có bệnh nền'}
+                          {pet.medicalHistory || 'Chưa có ghi nhận bệnh lý'}
                         </Text>
                       </View>
 
@@ -1616,32 +1633,26 @@ export const MobileProfileScreen: React.FC = () => {
                         <Text style={styles.petHealthSectionTitle}>
                           Sổ tiêm chủng & Vắc-xin:
                         </Text>
-                        {(pet.vaccineRecords && pet.vaccineRecords.length > 0
-                          ? pet.vaccineRecords
-                          : [
-                              {
-                                id: 'v-1',
-                                vaccineName: 'Phòng dại & 7 bệnh cơ bản',
-                                date: '01/10/2025',
-                                doseNumber: 1,
-                                clinic: 'Bệnh viện thú y Pawty Care',
-                                isSafeVerified: true,
-                              },
-                            ]
-                        ).map((vac) => (
-                          <View key={vac.id} style={styles.vaccineCardItem}>
-                            <View style={styles.vaccineItemHeader}>
-                              <Feather name="shield" size={13} color="#A3E4D7" />
-                              <Text style={styles.vaccineItemName}>{vac.vaccineName}</Text>
-                              <View style={styles.doseBadge}>
-                                <Text style={styles.doseBadgeText}>Mũi {vac.doseNumber}</Text>
+                        {pet.vaccineRecords && pet.vaccineRecords.length > 0 ? (
+                          pet.vaccineRecords.map((vac) => (
+                            <View key={vac.id} style={styles.vaccineCardItem}>
+                              <View style={styles.vaccineItemHeader}>
+                                <Feather name="shield" size={13} color="#A3E4D7" />
+                                <Text style={styles.vaccineItemName}>{vac.vaccineName}</Text>
+                                <View style={styles.doseBadge}>
+                                  <Text style={styles.doseBadgeText}>Mũi {vac.doseNumber}</Text>
+                                </View>
                               </View>
+                              <Text style={styles.vaccineItemSub}>
+                                Ngày: {vac.date} • {vac.clinic || 'Phòng khám thú y'}
+                              </Text>
                             </View>
-                            <Text style={styles.vaccineItemSub}>
-                              Ngày: {vac.date} • {vac.clinic || 'Phòng khám thú y'}
-                            </Text>
-                          </View>
-                        ))}
+                          ))
+                        ) : (
+                          <Text style={styles.emptyVaccineText}>
+                            Chủ nuôi chưa cập nhật sổ tiêm chủng cho bé.
+                          </Text>
+                        )}
                       </View>
                     </View>
                   )}
@@ -2112,7 +2123,7 @@ export const MobileProfileScreen: React.FC = () => {
           <View style={styles.fullscreenModalCard}>
             <View style={styles.cleanModalHeaderRow}>
               <Text style={styles.cleanModalTitle}>Thêm bé cưng mới</Text>
-              <TouchableOpacity onPress={() => setIsAddingPetModal(false)} style={styles.modalCloseBtn}>
+              <TouchableOpacity onPress={() => { setIsAddingPetModal(false); resetNewPetForm(); }} style={styles.modalCloseBtn}>
                 <Feather name="x" size={18} color="#7E6E60" />
               </TouchableOpacity>
             </View>
@@ -2207,7 +2218,7 @@ export const MobileProfileScreen: React.FC = () => {
                     activeOpacity={0.8}
                   >
                     <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
-                      {newPetBreed || 'Chọn giống...'}
+                      {newPetBreed || 'Chọn hoặc nhập giống'}
                     </Text>
                     <Feather name="chevron-down" size={14} color="#7E6E60" />
                   </TouchableOpacity>
@@ -2274,7 +2285,7 @@ export const MobileProfileScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.pickerSelectorBtnText}>{newPetWeight} kg</Text>
+                    <Text style={styles.pickerSelectorBtnText}>{newPetWeight ? `${newPetWeight} kg` : 'Chọn hoặc nhập cân nặng'}</Text>
                     <Feather name="chevron-down" size={14} color="#7E6E60" />
                   </TouchableOpacity>
                 </View>
@@ -2290,7 +2301,7 @@ export const MobileProfileScreen: React.FC = () => {
                     }
                   >
                     <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
-                      {newPetFurColor}
+                      {newPetFurColor || 'Chọn màu lông'}
                     </Text>
                     <Feather name="chevron-down" size={14} color="#7E6E60" />
                   </TouchableOpacity>
@@ -2309,7 +2320,7 @@ export const MobileProfileScreen: React.FC = () => {
                   }
                 >
                   <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
-                    {newPetFavoriteFood}
+                    {newPetFavoriteFood || 'Chọn hoặc nhập sở thích'}
                   </Text>
                   <Feather name="chevron-down" size={14} color="#7E6E60" />
                 </TouchableOpacity>
@@ -2326,7 +2337,7 @@ export const MobileProfileScreen: React.FC = () => {
                   }
                 >
                   <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
-                    {newPetDewormingHistory}
+                    {newPetDewormingHistory || 'Chọn lịch tẩy giun'}
                   </Text>
                   <Feather name="chevron-down" size={14} color="#7E6E60" />
                 </TouchableOpacity>
@@ -2343,7 +2354,7 @@ export const MobileProfileScreen: React.FC = () => {
                   }
                 >
                   <Text style={styles.pickerSelectorBtnText} numberOfLines={1}>
-                    {newPetMedicalHistory}
+                    {newPetMedicalHistory || 'Chọn hoặc nhập tiền sử bệnh'}
                   </Text>
                   <Feather name="chevron-down" size={14} color="#7E6E60" />
                 </TouchableOpacity>
@@ -3061,6 +3072,62 @@ const dateStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  /* EMPTY PET PHOTO PLACEHOLDER */
+  emptyPetPhotoPlaceholder: {
+    backgroundColor: '#24201D',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  emptyPetPhotoContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  emptyPetPhotoIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 111, 97, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 111, 97, 0.35)',
+  },
+  emptyPetPhotoTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  emptyPetPhotoSub: {
+    fontSize: 13,
+    color: '#BDB4AC',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  emptyPetPhotoAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FF6F61',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 16,
+  },
+  emptyPetPhotoAddBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  emptyVaccineText: {
+    fontSize: 13,
+    color: '#8E8074',
+    fontStyle: 'italic',
+    paddingVertical: 8,
+  },
+
   rootContainer: {
     flex: 1,
     backgroundColor: '#FDFBF7',

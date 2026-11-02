@@ -271,20 +271,20 @@ export class DatabaseService {
     const lookingFor = getTinderIntentLabel(intent);
     const defaultTinderSetup = {
       displayName: user.displayName || 'Cư dân Pawty',
-      age: Number(meta.age || 24),
-      gender: meta.gender || 'Nữ',
+      age: meta.age ? Number(meta.age) : undefined,
+      gender: meta.gender || undefined,
       intent,
       lookingFor,
-      bio: user.bio || 'Mong muốn kết nối cùng hội yêu thú cưng quanh khu vực.',
+      bio: user.bio || '',
       datingPetId: '',
       photoUrls: user.avatarUrl ? [user.avatarUrl] : [],
       photos: user.avatarUrl ? [user.avatarUrl] : [],
-      zodiac: meta.zodiac || 'Sư Tử',
-      smoking: 'Không hút thuốc',
-      workout: 'Dắt thú đi bộ mỗi chiều',
-      drinking: 'Thỉnh thoảng giao lưu',
-      chatStyle: 'Thân thiện, phản hồi nhanh',
-      tags: ['#ThânThiện', '#ĐãTiêmPhòng', '#HộiYêuBoss'],
+      zodiac: meta.zodiac || undefined,
+      smoking: meta.smoking || undefined,
+      workout: meta.workout || undefined,
+      drinking: meta.drinking || undefined,
+      chatStyle: meta.chatStyle || undefined,
+      tags: Array.isArray(meta.tags) ? meta.tags : [],
     };
 
     const tinderSetup = meta.tinderSetup
@@ -317,16 +317,14 @@ export class DatabaseService {
       ...user,
       displayName: cleanDisplayName(user.displayName),
       handle: formatUserHandle(user),
-      coverUrl:
-        meta.coverUrl ||
-        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=80',
-      gender: meta.gender || 'Nữ',
-      age: Number(meta.age || 24),
-      birthDate: meta.birthDate || '15/08/2001',
-      zodiac: meta.zodiac || 'Sư Tử',
-      mbti: meta.mbti || 'ENFP',
-      occupation: meta.occupation || 'Thiết kế & Sáng tạo',
-      education: meta.education || 'Đại học',
+      coverUrl: meta.coverUrl || '',
+      gender: meta.gender || undefined,
+      age: meta.age ? Number(meta.age) : undefined,
+      birthDate: meta.birthDate || undefined,
+      zodiac: meta.zodiac || undefined,
+      mbti: meta.mbti || undefined,
+      occupation: meta.occupation || undefined,
+      education: meta.education || undefined,
       noteBubble: meta.noteBubble ?? '',
       privacySettings: meta.privacySettings || {
         profileVisibility: 'public',
@@ -573,16 +571,14 @@ export class DatabaseService {
       avatarUrl:
         u.avatarUrl ||
         'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
-      coverUrl:
-        meta.coverUrl ||
-        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=80',
-      gender: meta.gender || 'Nữ',
-      age: Number(meta.age || 24),
-      birthDate: meta.birthDate || '15/08/2001',
-      zodiac: meta.zodiac || 'Sư Tử',
-      mbti: meta.mbti || 'ENFP',
-      occupation: meta.occupation || 'Thiết kế & Sáng tạo',
-      education: meta.education || 'Đại học',
+      coverUrl: meta.coverUrl || '',
+      gender: meta.gender || undefined,
+      age: meta.age ? Number(meta.age) : undefined,
+      birthDate: meta.birthDate || undefined,
+      zodiac: meta.zodiac || undefined,
+      mbti: meta.mbti || undefined,
+      occupation: meta.occupation || undefined,
+      education: meta.education || undefined,
       noteBubble: meta.noteBubble || '',
       bio: u.bio || 'Yêu thương thú cưng và gắn kết cộng đồng cư dân Pawty.',
       area: u.neighborhood || u.district || 'Vinhomes Grand Park, TP. Thủ Đức',
@@ -977,25 +973,31 @@ export class DatabaseService {
       });
     }
 
-    const weightVal = parseSafeWeightKg(data.weightKg ?? data.weightLabel);
+    const weightVal = data.weightKg != null && data.weightKg !== ''
+      ? parseSafeWeightKg(data.weightKg ?? data.weightLabel)
+      : null;
     let avatarUrl =
       data.avatarUrl ||
       (Array.isArray(data.galleryUrls) && data.galleryUrls[0]) ||
-      'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80';
-    if (avatarUrl) {
+      '';
+    if (avatarUrl && avatarUrl.startsWith('data:')) {
       avatarUrl = await cloudinaryService.uploadImage(avatarUrl, 'pawty/pets');
     }
 
     let galleryUrls =
       Array.isArray(data.galleryUrls) && data.galleryUrls.length > 0
         ? data.galleryUrls
-        : [avatarUrl];
+        : (avatarUrl ? [avatarUrl] : []);
     if (Array.isArray(galleryUrls) && galleryUrls.length > 0) {
       galleryUrls = await cloudinaryService.uploadMultipleImages(galleryUrls, 'pawty/pets');
     }
 
     const speciesRaw = String(data.species || 'Chó').slice(0, 20);
     const genderRaw = String(data.gender || 'Đực').slice(0, 10);
+    const vaccinationStatus =
+      data.isVaccinatedAndRabies === true
+        ? 'verified'
+        : (data.vaccinationStatus || 'pending');
 
     const createdPet = await prisma.pet.create({
       data: {
@@ -1005,14 +1007,13 @@ export class DatabaseService {
         gender: genderRaw,
         householdId: data.householdId || household.id,
         ownerId,
-        avatarUrl,
-        coverPhotoUrl: data.coverPhotoUrl || avatarUrl,
+        avatarUrl: avatarUrl || '',
+        coverPhotoUrl: data.coverPhotoUrl || avatarUrl || '',
         weightKg: weightVal,
         isNeutered: Boolean(data.isSterilized ?? data.isNeutered ?? false),
         allergies: data.medicalHistory ? String(data.medicalHistory) : undefined,
         medicalNotes: data.bio ? String(data.bio) : undefined,
-        vaccinationStatus:
-          data.isVaccinatedAndRabies === false ? 'pending' : data.vaccinationStatus || 'verified',
+        vaccinationStatus,
         isPublic: true,
       },
     });

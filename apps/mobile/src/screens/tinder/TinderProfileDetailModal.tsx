@@ -70,8 +70,14 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
 
   const cleanOwnerNickname = useMemo(() => {
     if (!candidate?.ownerNickname) return '';
-    const clean = candidate.ownerNickname.replace(/\s*\(@[^)]+\)/g, '').replace(/@\w+/g, '').trim();
-    return clean.toLowerCase() === cleanOwnerName.toLowerCase() ? '' : clean;
+    const clean = candidate.ownerNickname
+      .replace(/\s*\(@[^)]*\)?/g, '')
+      .replace(/@\w+/g, '')
+      .replace(/\s*@.*$/, '')
+      .replace(/\s*\([^)]*\)$/g, '')
+      .trim();
+    if (!clean || clean.toLowerCase() === cleanOwnerName.toLowerCase()) return '';
+    return clean;
   }, [candidate, cleanOwnerName]);
 
   return (
@@ -133,10 +139,12 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
                   Hồ sơ thú cưng ({candidate.pets.length} bé)
                 </Text>
               </View>
-              <View style={styles.petSafeBadge}>
-                <Feather name="check" size={11} color="#165A42" />
-                <Text style={styles.petSafeBadgeText}>An tâm dạo chung</Text>
-              </View>
+              {candidate.pets.length > 0 && candidate.pets.some((p) => p.isVaccinatedAndRabies) && (
+                <View style={styles.petSafeBadge}>
+                  <Feather name="check" size={11} color="#165A42" />
+                  <Text style={styles.petSafeBadgeText}>An tâm dạo chung</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.petCardsList}>

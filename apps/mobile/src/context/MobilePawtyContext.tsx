@@ -459,7 +459,7 @@ interface MobilePawtyContextType {
     customSpecies?: string;
     breed: string;
     gender?: 'Đực' | 'Cái';
-    weightKg: number;
+    weightKg?: number;
     ageLabel: string;
     birthDate?: string;
     furColor?: string;
@@ -1555,7 +1555,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       customSpecies?: string;
       breed: string;
       gender?: 'Đực' | 'Cái';
-      weightKg: number;
+      weightKg?: number;
       ageLabel: string;
       birthDate?: string;
       furColor?: string;

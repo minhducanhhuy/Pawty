@@ -219,7 +219,7 @@ const server = http.createServer(async (req, res) => {
           ownerId: createdUser.id,
           name: body.petName.trim(),
           species: String(body.petSpecies || 'Chó'),
-          breed: String(body.petBreed || 'Golden Retriever'),
+          breed: body.petBreed && String(body.petBreed).trim() ? String(body.petBreed).trim() : 'Chưa rõ',
           weightKg: body.petWeightKg,
           gender: body.petGender || 'Đực',
         });
