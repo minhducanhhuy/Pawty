@@ -143,3 +143,6 @@ temp/
 install-app.bat
 install-app.ps1
 /docs
+
+# Local upload fallbacks
+server/public/uploads/

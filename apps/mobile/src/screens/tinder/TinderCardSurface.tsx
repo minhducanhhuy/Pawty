@@ -35,6 +35,11 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
 
   const primaryPet = candidate.pets && candidate.pets.length > 0 ? candidate.pets[0] : null;
 
+  const cleanOwnerName = React.useMemo(() => {
+    if (!candidate?.ownerName) return '';
+    return candidate.ownerName.replace(/\s*\(@[^)]+\)/g, '').trim();
+  }, [candidate?.ownerName]);
+
   const candidatePhotos = React.useMemo(() => {
     const petPhotos = (candidate.pets || [])
       .map((p) => p.imageUrl)
@@ -156,17 +161,25 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
                   {primaryPet.breed} {primaryPet.weightKg ? `· ${primaryPet.weightKg} kg` : ''}
                 </Text>
                 <Text style={styles.tertiarySub} numberOfLines={1}>
-                  Đi cùng {candidate.ownerName} ({candidate.ownerAge}t) · cách {candidate.distanceKm} km
+                  Đi cùng {cleanOwnerName} ({candidate.ownerAge}t)
                 </Text>
+                <View style={styles.distanceBadgeRow}>
+                  <Feather name="navigation" size={12} color="#A3E4D7" />
+                  <Text style={styles.distanceBadgeText}>Cách bạn {candidate.distanceKm} km</Text>
+                </View>
               </>
             ) : (
               <>
                 <Text style={styles.primaryTitle} numberOfLines={1}>
-                  {candidate.ownerName}, {candidate.ownerAge}
+                  {cleanOwnerName}, {candidate.ownerAge}
                 </Text>
                 <Text style={styles.secondaryMeta} numberOfLines={1}>
-                  {candidate.area || 'Cộng đồng Pawty'} · cách {candidate.distanceKm} km
+                  {candidate.area || 'Cộng đồng Pawty'}
                 </Text>
+                <View style={styles.distanceBadgeRow}>
+                  <Feather name="navigation" size={12} color="#A3E4D7" />
+                  <Text style={styles.distanceBadgeText}>Cách bạn {candidate.distanceKm} km</Text>
+                </View>
                 <Text style={styles.tertiarySub} numberOfLines={1}>
                   {candidate.bio || purposeLabel}
                 </Text>
@@ -359,6 +372,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#D4C9BC',
     marginTop: 2,
+  },
+  distanceBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
+  },
+  distanceBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#A3E4D7',
   },
   expandCircleBtn: {
     width: 44,

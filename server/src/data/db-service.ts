@@ -8,6 +8,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config();
 
 import { PrismaClient } from '@prisma/client';
+import { cloudinaryService } from '../services/cloudinary.service';
 
 export const prisma = new PrismaClient();
 
@@ -263,7 +264,9 @@ export class DatabaseService {
       intent,
       lookingFor,
       bio: user.bio || 'Mong muốn kết nối cùng hội yêu thú cưng quanh khu vực.',
+      datingPetId: '',
       photoUrls: user.avatarUrl ? [user.avatarUrl] : [],
+      photos: user.avatarUrl ? [user.avatarUrl] : [],
       zodiac: meta.zodiac || 'Sư Tử',
       smoking: 'Không hút thuốc',
       workout: 'Dắt thú đi bộ mỗi chiều',
@@ -276,6 +279,21 @@ export class DatabaseService {
       ? {
           ...defaultTinderSetup,
           ...meta.tinderSetup,
+          displayName: meta.tinderSetup.displayName || defaultTinderSetup.displayName,
+          bio: meta.tinderSetup.bio || defaultTinderSetup.bio,
+          datingPetId: meta.tinderSetup.datingPetId || '',
+          photos:
+            Array.isArray(meta.tinderSetup.photos) && meta.tinderSetup.photos.length > 0
+              ? meta.tinderSetup.photos
+              : Array.isArray(meta.tinderSetup.photoUrls) && meta.tinderSetup.photoUrls.length > 0
+              ? meta.tinderSetup.photoUrls
+              : defaultTinderSetup.photos,
+          photoUrls:
+            Array.isArray(meta.tinderSetup.photoUrls) && meta.tinderSetup.photoUrls.length > 0
+              ? meta.tinderSetup.photoUrls
+              : Array.isArray(meta.tinderSetup.photos) && meta.tinderSetup.photos.length > 0
+              ? meta.tinderSetup.photos
+              : defaultTinderSetup.photoUrls,
           intent: normalizeTinderIntent(meta.tinderSetup.intent || meta.tinderSetup.lookingFor || user.primaryNeed),
           lookingFor: getTinderIntentLabel(
             normalizeTinderIntent(meta.tinderSetup.intent || meta.tinderSetup.lookingFor || user.primaryNeed)
@@ -822,7 +840,7 @@ export class DatabaseService {
     }
 
     if (typeof data.avatarUrl === 'string') {
-      dbUpdate.avatarUrl = data.avatarUrl;
+      dbUpdate.avatarUrl = await cloudinaryService.uploadImage(data.avatarUrl, 'pawty/avatars');
     }
 
     if (typeof data.bio === 'string') {
@@ -881,6 +899,19 @@ export class DatabaseService {
         metaPatch[k] = data[k];
       }
     }
+    if (metaPatch.coverUrl && typeof metaPatch.coverUrl === 'string') {
+      metaPatch.coverUrl = await cloudinaryService.uploadImage(metaPatch.coverUrl, 'pawty/covers');
+    }
+    const rawTinderPhotos =
+      metaPatch.tinderSetup?.photos || metaPatch.tinderSetup?.photoUrls;
+    if (Array.isArray(rawTinderPhotos) && rawTinderPhotos.length > 0) {
+      const uploadedTinderPhotos = await cloudinaryService.uploadMultipleImages(
+        rawTinderPhotos,
+        'pawty/tinder'
+      );
+      metaPatch.tinderSetup.photos = uploadedTinderPhotos;
+      metaPatch.tinderSetup.photoUrls = uploadedTinderPhotos;
+    }
     if (metaPatch.tinderSetup) {
       const normalizedIntent = normalizeTinderIntent(
         metaPatch.tinderSetup.intent || metaPatch.tinderSetup.lookingFor || dbUpdate.primaryNeed
@@ -934,14 +965,21 @@ export class DatabaseService {
     }
 
     const weightVal = parseSafeWeightKg(data.weightKg ?? data.weightLabel);
-    const avatarUrl =
+    let avatarUrl =
       data.avatarUrl ||
       (Array.isArray(data.galleryUrls) && data.galleryUrls[0]) ||
       'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80';
-    const galleryUrls =
+    if (avatarUrl) {
+      avatarUrl = await cloudinaryService.uploadImage(avatarUrl, 'pawty/pets');
+    }
+
+    let galleryUrls =
       Array.isArray(data.galleryUrls) && data.galleryUrls.length > 0
         ? data.galleryUrls
         : [avatarUrl];
+    if (Array.isArray(galleryUrls) && galleryUrls.length > 0) {
+      galleryUrls = await cloudinaryService.uploadMultipleImages(galleryUrls, 'pawty/pets');
+    }
 
     const speciesRaw = String(data.species || 'Chó').slice(0, 20);
     const genderRaw = String(data.gender || 'Đực').slice(0, 10);
@@ -1053,10 +1091,12 @@ export class DatabaseService {
         : formattedCurrent.weightKg;
 
     const nextGalleryUrls = Array.isArray(data.galleryUrls)
-      ? data.galleryUrls
+      ? await cloudinaryService.uploadMultipleImages(data.galleryUrls, 'pawty/pets')
       : formattedCurrent.galleryUrls;
-    const nextAvatarUrl =
-      data.avatarUrl || nextGalleryUrls[0] || existingPet.avatarUrl || formattedCurrent.avatarUrl;
+    const rawNextAvatar = data.avatarUrl || nextGalleryUrls[0] || existingPet.avatarUrl || formattedCurrent.avatarUrl;
+    const nextAvatarUrl = rawNextAvatar
+      ? await cloudinaryService.uploadImage(rawNextAvatar, 'pawty/pets')
+      : rawNextAvatar;
 
     await prisma.pet.update({
       where: { id: petId },
@@ -1275,7 +1315,8 @@ export class DatabaseService {
       throw new Error('Không tìm thấy tài khoản người đăng bài trong cơ sở dữ liệu.');
     }
 
-    const mediaUrls = Array.isArray(data.mediaUrls) ? data.mediaUrls.filter(Boolean) : [];
+    const rawMediaUrls = Array.isArray(data.mediaUrls) ? data.mediaUrls.filter(Boolean) : [];
+    const mediaUrls = await cloudinaryService.uploadMultipleImages(rawMediaUrls, 'pawty/posts');
     const hashtags = Array.isArray(data.hashtags)
       ? data.hashtags
       : Array.isArray(data.tags)
@@ -1858,6 +1899,12 @@ export class DatabaseService {
   }
 
   public async createSosAlert(data: any) {
+    if (data.imageUrl && typeof data.imageUrl === 'string') {
+      data.imageUrl = await cloudinaryService.uploadImage(data.imageUrl, 'pawty/sos');
+    }
+    if (data.photoUrl && typeof data.photoUrl === 'string') {
+      data.photoUrl = await cloudinaryService.uploadImage(data.photoUrl, 'pawty/sos');
+    }
     let userId = data.userId;
     let petId = data.petId;
 
@@ -2031,10 +2078,21 @@ export class DatabaseService {
     });
 
     const tSetup = meta.tinderSetup || {};
+    if (tSetup.datingPetId && Array.isArray(candidatePets)) {
+      candidatePets.sort((a: any, b: any) =>
+        a.id === tSetup.datingPetId ? -1 : b.id === tSetup.datingPetId ? 1 : 0
+      );
+    }
     const intent = normalizeTinderIntent(tSetup.intent || tSetup.lookingFor || u.primaryNeed);
     const intentLabel = getTinderIntentLabel(intent);
 
-    const customPhotos = Array.isArray(tSetup.photoUrls) ? tSetup.photoUrls.filter(Boolean) : [];
+    const customPhotos = (
+      Array.isArray(tSetup.photos) && tSetup.photos.length > 0
+        ? tSetup.photos
+        : Array.isArray(tSetup.photoUrls)
+        ? tSetup.photoUrls
+        : []
+    ).filter(Boolean);
     const fallbackPhotos = [
       ...candidatePets.map((p: any) => p.imageUrl),
       u.avatarUrl ||
@@ -2045,16 +2103,23 @@ export class DatabaseService {
     const deterministicDistances = [0.8, 1.5, 2.4, 3.8, 5.2, 8.6, 12.0];
     const distanceKm = deterministicDistances[indexSeed % deterministicDistances.length];
 
+    const resolvedGender = (tSetup.gender ||
+      meta.gender ||
+      (indexSeed % 2 === 1 ? 'Nam' : 'Nữ')) as 'Nam' | 'Nữ' | 'Khác';
+
+    const rawName = tSetup.displayName || u.displayName || 'Bạn mới';
+    const cleanOwnerName = rawName.replace(/\s*\(@[^)]+\)/g, '').trim() || 'Bạn mới';
+
     return {
       id: u.id,
-      ownerName: tSetup.displayName || u.displayName,
+      ownerName: cleanOwnerName,
       ownerHandle: formatUserHandle(u),
       ownerAge: Number(tSetup.age || meta.age || 24),
-      gender: (tSetup.gender || meta.gender || 'Nữ') as 'Nam' | 'Nữ' | 'Khác',
+      gender: resolvedGender,
       ownerNickname: meta.occupation || u.displayName,
       avatarUrl:
-        u.avatarUrl ||
         photoUrls[0] ||
+        u.avatarUrl ||
         'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
       photoUrls,
       distanceKm,
@@ -2084,7 +2149,11 @@ export class DatabaseService {
     };
   }
 
-  public async getTinderCandidates(currentUserId = 'user-test1', intentFilter?: string) {
+  public async getTinderCandidates(
+    currentUserId = 'user-test1',
+    intentFilter?: string,
+    genderFilter?: string
+  ) {
     const [incomingLikes, activeMatches, userMetaMap] = await Promise.all([
       prisma.match.findMany({
         where: {
@@ -2128,20 +2197,30 @@ export class DatabaseService {
     });
 
     const candidates = users
-      .filter((u) => {
-        const uMeta = userMetaMap[u.id] || {};
-        if (uMeta.privacySettings?.tinderVisibility === false) return false;
-        if (intentFilter && intentFilter !== 'all') {
-          const uIntent = normalizeTinderIntent(
-            uMeta.tinderSetup?.intent || uMeta.tinderSetup?.lookingFor || u.primaryNeed
-          );
-          return uIntent === normalizeTinderIntent(intentFilter);
-        }
-        return true;
-      })
       .map((u, idx) =>
         this.buildTinderCandidateOutput(u, userMetaMap[u.id] || {}, usersWhoLikedMe.has(u.id), idx)
-      );
+      )
+      .filter((candidate) => {
+        const uMeta = userMetaMap[candidate.id] || {};
+        if (uMeta.privacySettings?.tinderVisibility === false) return false;
+        if (intentFilter && intentFilter !== 'all') {
+          if (normalizeTinderIntent(candidate.intent) !== normalizeTinderIntent(intentFilter)) {
+            return false;
+          }
+        }
+        if (genderFilter && genderFilter !== 'all' && genderFilter !== 'Mọi người') {
+          const isTargetFemale =
+            genderFilter === 'female' ||
+            genderFilter === 'Nữ' ||
+            genderFilter === 'nu' ||
+            genderFilter === 'N?';
+          const isTargetMale =
+            genderFilter === 'male' || genderFilter === 'Nam' || genderFilter === 'nam';
+          if (isTargetFemale && candidate.gender !== 'Nữ') return false;
+          if (isTargetMale && candidate.gender !== 'Nam') return false;
+        }
+        return true;
+      });
 
     return candidates;
   }
@@ -2203,18 +2282,20 @@ export class DatabaseService {
   private async ensureDirectConversation(
     userAId: string,
     userBId: string,
-    defaultGreeting: string
+    defaultGreeting: string,
+    convType: 'dating' | 'direct' = 'direct'
   ) {
     let conversation = await prisma.conversation.findFirst({
       where: {
         participantIds: { hasEvery: [userAId, userBId] },
+        type: convType,
       },
     });
 
     if (!conversation) {
       conversation = await prisma.conversation.create({
         data: {
-          type: 'direct',
+          type: convType,
           participantIds: [userAId, userBId],
           lastMessageText: defaultGreeting,
           lastMessageAt: new Date(),
@@ -2268,7 +2349,8 @@ export class DatabaseService {
         const conversation = await this.ensureDirectConversation(
           userId,
           targetUserId,
-          'Bạn và đối phương vừa tương hợp! Hãy gửi lời chào đầu tiên.'
+          'Bạn và đối phương vừa tương hợp! Hãy gửi lời chào đầu tiên.',
+          'dating'
         );
 
         const [userA, userB] = await Promise.all([
@@ -2400,9 +2482,6 @@ export class DatabaseService {
 
       const partnerName = partner?.displayName || 'Bạn mới';
       const partnerHandle = partner ? formatUserHandle(partner) : '@user';
-      const partnerAvatar =
-        partner?.avatarUrl ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80';
       const petSummary =
         partner?.pets && partner.pets.length > 0
           ? partner.pets.map((p) => `${p.name} (${p.breed || p.species})`).join(', ')
@@ -2419,8 +2498,11 @@ export class DatabaseService {
         continue;
       }
 
+      // Phân định rõ ràng chatType dựa vào type thực tế lưu trong Conversation:
+      // conv.type === 'dating' -> Hẹn hò (bắt nguồn từ Tinder Match)
+      // conv.type === 'direct' -> Mạng xã hội (tự do)
+      const chatType: 'dating' | 'social' = conv.type === 'dating' ? 'dating' : 'social';
       const isMatched = pairMatches.some((m) => m.status === 'matched');
-      const chatType: 'dating' | 'social' = isMatched ? 'dating' : 'social';
       const canMessage = true; // Mạng xã hội nhắn tin trực tiếp tự do
 
       let candidateProfile: any = null;
@@ -2431,6 +2513,27 @@ export class DatabaseService {
           false,
           0
         );
+      }
+
+      // Tách biệt avatar theo đúng phân hệ:
+      // - Hồ sơ hẹn hò: dùng ảnh thẻ hẹn hò (photoUrls[0] hoặc tinderSetup.photos[0])
+      // - Hồ sơ mạng xã hội: dùng ảnh đại diện người dùng (partner.avatarUrl)
+      let partnerAvatar =
+        partner?.avatarUrl ||
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80';
+      if (chatType === 'dating') {
+        const datingPhotos =
+          userMetaMap[partnerId]?.tinderSetup?.photos ||
+          userMetaMap[partnerId]?.tinderSetup?.photoUrls;
+        if (Array.isArray(datingPhotos) && datingPhotos.length > 0 && datingPhotos[0]) {
+          partnerAvatar = datingPhotos[0];
+        } else if (
+          candidateProfile &&
+          Array.isArray(candidateProfile.photoUrls) &&
+          candidateProfile.photoUrls.length > 0
+        ) {
+          partnerAvatar = candidateProfile.photoUrls[0];
+        }
       }
 
       const messagesFormatted = conv.messages.map((m) => ({
@@ -2456,7 +2559,7 @@ export class DatabaseService {
         canMessage,
         isFriend: isMatched,
         unreadCount: conv.messages.filter((m) => m.senderId !== userId && !m.isRead).length,
-        matchSource: (isMatched ? 'tinder_match' : 'friend') as
+        matchSource: (chatType === 'dating' ? 'tinder_match' : 'friend') as
           | 'friend'
           | 'tinder_match'
           | 'service',
@@ -2469,23 +2572,32 @@ export class DatabaseService {
     return result;
   }
 
-  public async openOrCreateDirectChat(userId: string, partnerIdentifier: string) {
+  public async openOrCreateDirectChat(
+    userId: string,
+    partnerIdentifier: string,
+    chatType: 'social' | 'dating' = 'social'
+  ) {
     const partner = await this.resolveUserByHandleOrId(partnerIdentifier);
     if (!partner) {
       throw new Error('Không tìm thấy người dùng để mở cuộc trò chuyện.');
     }
     const canMsg = await this.canUsersMessageEachOther(userId, partner.id);
+    const targetConvType = chatType === 'dating' ? 'dating' : 'direct';
     let conv = await prisma.conversation.findFirst({
       where: {
         participantIds: { hasEvery: [userId, partner.id] },
+        type: targetConvType,
       },
     });
     if (!conv && canMsg) {
       conv = await prisma.conversation.create({
         data: {
-          type: 'direct',
+          type: targetConvType,
           participantIds: [userId, partner.id],
-          lastMessageText: 'Bắt đầu cuộc trò chuyện mới',
+          lastMessageText:
+            chatType === 'dating'
+              ? 'Hai bạn đã tương hợp trên Kết nối!'
+              : 'Bắt đầu cuộc trò chuyện mới',
           lastMessageAt: new Date(),
         },
       });
@@ -2587,12 +2699,17 @@ export class DatabaseService {
       }
     }
 
+    let safeMediaUrl = mediaUrl;
+    if (safeMediaUrl && typeof safeMediaUrl === 'string') {
+      safeMediaUrl = await cloudinaryService.uploadImage(safeMediaUrl, 'pawty/chat');
+    }
+
     const message = await prisma.message.create({
       data: {
         conversationId: conv.id,
         senderId,
         text,
-        mediaUrl,
+        mediaUrl: safeMediaUrl,
         isRead: false,
       },
     });

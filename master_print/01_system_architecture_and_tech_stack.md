@@ -34,7 +34,8 @@ pawty/
   - React Native + Expo SDK 58 (`expo`, `react-native`, `expo-status-bar`, `expo-constants`), chạy trực tiếp trên thiết bị thật qua **Expo Go**.
   - **100% Database-Driven (Zero Client Mock Data):** Toàn bộ dữ liệu ứng dụng (Users, Pets, Feed Posts, Tinder Candidates, Likes You, Chats, SOS Alerts, Notifications, Public Profiles) được lưu trữ và tải trực tiếp từ PostgreSQL qua Backend API Gateway (`http://<LAN_IP>:3000/api/*`).
 - **Backend (`server`):**
-  - API Gateway (`server/src/main.ts`, hỗ trợ payload JSON Base64 ảnh tới 25MB) lắng nghe trên `0.0.0.0:3000`, lưu trữ dữ liệu trực tiếp vào PostgreSQL qua Prisma Client (`server/prisma/schema.prisma`), khởi tạo dữ liệu qua `server/src/data/seed-db.ts`.
+  - API Gateway (`server/src/main.ts`, hỗ trợ payload JSON Base64 ảnh tới 35MB) lắng nghe trên `0.0.0.0:3000`, lưu trữ dữ liệu trực tiếp vào PostgreSQL qua Prisma Client (`server/prisma/schema.prisma`), khởi tạo dữ liệu qua `server/src/data/seed-db.ts`.
+  - **Media Storage (Cloudinary CDN):** Tích hợp Cloudinary v2 SDK (`server/src/services/cloudinary.service.ts`). Mọi hình ảnh media tải lên từ ứng dụng (Avatar người dùng, Ảnh bìa, Ảnh thú cưng, Khoảnh khắc bài viết, Ảnh tin SOS) đều được tải lên Cloudinary lưu trữ bền vững. Cơ sở dữ liệu PostgreSQL chỉ lưu lại đường link HTTPS Cloudinary (`secure_url`), tuyệt đối không lưu dữ liệu chuỗi Base64 thô vào database.
   - Modular Services: `ModerationService` (kiểm duyệt từ khóa tự động & gắn cảnh báo y tế) và `PawRankAndSpatialService`.
 - **Phạm vi AI Duy Nhất (`GeminiVisionService` + Google Gemini 2.5 Flash):**
   - **Chỉ thực hiện 1 chức năng AI duy nhất:** Đọc bức ảnh thú cưng mà chủ nuôi tải lên trong biểu mẫu tạo tin SOS (`POST /api/ai/describe-pet`) để tự động sinh đoạn văn mô tả đặc điểm nhận dạng bằng tiếng Việt.

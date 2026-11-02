@@ -126,6 +126,15 @@ export const apiClient = {
     return request<any>(`/api/bootstrap${query}`);
   },
 
+  // Media Upload (Cloudinary)
+  async uploadImage(image: string, folder = 'pawty/media') {
+    const res = await request<{ success: boolean; url: string }>('/api/upload', {
+      method: 'POST',
+      body: JSON.stringify({ image, folder }),
+    });
+    return res?.url || image;
+  },
+
   // 2. User & Profile
   async getMyProfile(userId?: string) {
     const query = userId ? `?userId=${encodeURIComponent(userId)}` : '';
@@ -292,8 +301,11 @@ export const apiClient = {
   },
 
   // 6. Tinder / Radar Candidates, Likes You & Matches
-  async getTinderCandidates(userId = 'user-test1', intent?: string) {
-    const query = intent && intent !== 'all' ? `&intent=${encodeURIComponent(intent)}` : '';
+  async getTinderCandidates(userId = 'user-test1', intent?: string, gender?: string) {
+    let query = intent && intent !== 'all' ? `&intent=${encodeURIComponent(intent)}` : '';
+    if (gender && gender !== 'all' && gender !== 'Mọi người') {
+      query += `&gender=${encodeURIComponent(gender)}`;
+    }
     return request<{ candidates: any[] }>(
       `/api/tinder/candidates?userId=${encodeURIComponent(userId)}${query}`
     );
@@ -327,7 +339,11 @@ export const apiClient = {
     return request<{ chats: any[] }>(`/api/chats?userId=${encodeURIComponent(userId)}`);
   },
 
-  async openDirectChat(userId: string, partnerHandle: string) {
+  async openDirectChat(
+    userId: string,
+    partnerHandle: string,
+    chatType: 'social' | 'dating' = 'social'
+  ) {
     return request<{
       success: boolean;
       conversationId: string;
@@ -335,7 +351,7 @@ export const apiClient = {
       isFriend: boolean;
     }>('/api/chats/open', {
       method: 'POST',
-      body: JSON.stringify({ userId, partnerHandle }),
+      body: JSON.stringify({ userId, partnerHandle, chatType }),
     });
   },
 

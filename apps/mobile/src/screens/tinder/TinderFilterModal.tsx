@@ -14,6 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '../../components/FeatherIcon';
 import { TinderIntent, TINDER_PURPOSE_OPTIONS } from '../../types/mobileTypes';
 
+export type TinderGenderOption = 'all' | 'female' | 'male';
+
 interface TinderFilterModalProps {
   visible: boolean;
   onClose: () => void;
@@ -21,7 +23,15 @@ interface TinderFilterModalProps {
   onSelectGoal: (goal: TinderIntent | 'all') => void;
   distanceLimit: number | 'all';
   onSelectDistanceLimit: (dist: number | 'all') => void;
+  genderLimit?: 'all' | 'female' | 'male';
+  onSelectGenderLimit?: (gender: 'all' | 'female' | 'male') => void;
 }
+
+const GENDER_OPTIONS: { id: 'all' | 'female' | 'male'; label: string; icon: string }[] = [
+  { id: 'all', label: 'Mọi người', icon: 'users' },
+  { id: 'female', label: 'Nữ', icon: 'user' },
+  { id: 'male', label: 'Nam', icon: 'user' },
+];
 
 const GOAL_OPTIONS: { id: TinderIntent | 'all'; label: string; desc: string; icon: string }[] = [
   {
@@ -65,19 +75,23 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
   onSelectGoal,
   distanceLimit,
   onSelectDistanceLimit,
+  genderLimit = 'all',
+  onSelectGenderLimit,
 }) => {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 16);
 
   const [draftGoal, setDraftGoal] = useState<TinderIntent | 'all'>(currentGoal);
   const [draftDistance, setDraftDistance] = useState<number | 'all'>(distanceLimit);
+  const [draftGender, setDraftGender] = useState<TinderGenderOption>(genderLimit);
 
   useEffect(() => {
     if (visible) {
       setDraftGoal(currentGoal);
       setDraftDistance(distanceLimit);
+      setDraftGender(genderLimit);
     }
-  }, [visible, currentGoal, distanceLimit]);
+  }, [visible, currentGoal, distanceLimit, genderLimit]);
 
   const [trackWidth, setTrackWidth] = useState(280);
   const trackWidthRef = useRef(280);
@@ -129,6 +143,7 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
   const handleApplyFilter = () => {
     onSelectGoal(draftGoal);
     onSelectDistanceLimit(draftDistance);
+    onSelectGenderLimit?.(draftGender);
     onClose();
   };
 
@@ -156,6 +171,36 @@ export const TinderFilterModal: React.FC<TinderFilterModalProps> = ({
             contentContainerStyle={styles.bodyContent}
             showsVerticalScrollIndicator={false}
           >
+            <Text style={styles.sectionHeading}>GIỚI TÍNH ĐỐI TƯỢNG MUỐN GHÉP ĐÔI</Text>
+            <Text style={styles.sectionSubhint}>
+              Lọc danh sách ứng viên theo giới tính chủ nuôi (Mọi người, Nữ, hoặc Nam).
+            </Text>
+
+            <View style={styles.genderOptionsRow}>
+              {GENDER_OPTIONS.map((g) => {
+                const isSelected = draftGender === g.id;
+                return (
+                  <TouchableOpacity
+                    key={g.id}
+                    style={[styles.genderCard, isSelected && styles.genderCardSelected]}
+                    onPress={() => setDraftGender(g.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Feather
+                      name={g.icon}
+                      size={16}
+                      color={isSelected ? '#FFFFFF' : '#6C6055'}
+                    />
+                    <Text
+                      style={[styles.genderCardText, isSelected && styles.genderCardTextSelected]}
+                    >
+                      {g.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
             <Text style={styles.sectionHeading}>MỤC ĐÍCH TÌM KIẾM</Text>
             <Text style={styles.sectionSubhint}>
               Đồng bộ trực tiếp với thuộc tính Mục đích trong Hồ sơ Kết nối của các thành viên.
@@ -426,6 +471,37 @@ const styles = StyleSheet.create({
     color: '#7A6E63',
     lineHeight: 17,
     marginBottom: 12,
+  },
+  genderOptionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+    marginBottom: 20,
+  },
+  genderCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#EFEBE4',
+  },
+  genderCardSelected: {
+    backgroundColor: '#FF6F61',
+    borderColor: '#FF6F61',
+  },
+  genderCardText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3D312A',
+  },
+  genderCardTextSelected: {
+    color: '#FFFFFF',
   },
   optionsList: {
     gap: 10,

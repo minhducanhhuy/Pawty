@@ -19,6 +19,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
+import { apiClient } from '../services/apiClient';
 import { SelectorPickerModal, ConfirmActionModal } from '../components/SelectorFieldModal';
 import {
   MobilePet,
@@ -568,9 +569,11 @@ export const MobileProfileScreen: React.FC = () => {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const newUri = asset.base64
+        const rawUri = asset.base64
           ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
           : asset.uri;
+        showToast('Đang tải ảnh lên Cloudinary...');
+        const newUri = await apiClient.uploadImage(rawUri, 'pawty/pets');
         const targetPet = pets.find((p) => p.id === petId);
         if (targetPet) {
           const currentGallery = targetPet.galleryUrls && targetPet.galleryUrls.length > 0
@@ -603,11 +606,13 @@ export const MobileProfileScreen: React.FC = () => {
       });
       if (!res.canceled && res.assets?.[0]) {
         const asset = res.assets[0];
-        const dataUrl = asset.base64
+        const rawUrl = asset.base64
           ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
           : asset.uri;
+        showToast('Đang tải ảnh đại diện lên Cloudinary...');
+        const dataUrl = await apiClient.uploadImage(rawUrl, 'pawty/avatars');
         setOwnerAvatarUrl(dataUrl);
-        showToast('Đã cập nhật ảnh đại diện mới lên cơ sở dữ liệu!');
+        showToast('Đã cập nhật ảnh đại diện mới thành công!');
       }
     } catch {
       showToast('Chưa chọn ảnh đại diện');
@@ -626,12 +631,14 @@ export const MobileProfileScreen: React.FC = () => {
       });
       if (!res.canceled && res.assets?.[0]) {
         const asset = res.assets[0];
-        const dataUrl = asset.base64
+        const rawUrl = asset.base64
           ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
           : asset.uri;
+        showToast('Đang tải ảnh bìa lên Cloudinary...');
+        const dataUrl = await apiClient.uploadImage(rawUrl, 'pawty/covers');
         setOwnerCoverUrl(dataUrl);
         setIsChangingCoverModal(false);
-        showToast('Đã cập nhật ảnh bìa mới lên cơ sở dữ liệu!');
+        showToast('Đã cập nhật ảnh bìa mới thành công!');
       }
     } catch {
       showToast('Chưa chọn ảnh bìa');
@@ -649,11 +656,13 @@ export const MobileProfileScreen: React.FC = () => {
       });
       if (!res.canceled && res.assets?.[0]) {
         const asset = res.assets[0];
-        const dataUrl = asset.base64
+        const rawUrl = asset.base64
           ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
           : asset.uri;
+        showToast('Đang tải ảnh bé cưng lên Cloudinary...');
+        const dataUrl = await apiClient.uploadImage(rawUrl, 'pawty/pets');
         setNewPetPhotoUrl(dataUrl);
-        showToast('Đã chọn ảnh cho bé cưng!');
+        showToast('Đã tải ảnh bé cưng lên Cloudinary thành công!');
       }
     } catch {
       showToast('Không thể chọn ảnh từ thiết bị');
@@ -1349,93 +1358,7 @@ export const MobileProfileScreen: React.FC = () => {
                 resizeMode="cover"
               />
 
-              {/* 2. Double-tap touchable overlay */}
-              <TouchableOpacity
-                activeOpacity={1}
-                style={StyleSheet.absoluteFill}
-                onPress={() => handlePetContainerTap(pet.id)}
-              />
-
-              {/* 3. Top Floating Bar */}
-              <View style={styles.petTopFloatingBar}>
-                <View style={styles.petSpeciesPillBadge}>
-                  <Text style={styles.petSpeciesPillText}>
-                    {pet.species === 'Khác' && pet.customSpecies
-                      ? pet.customSpecies
-                      : `Loài ${pet.species}`}
-                  </Text>
-                </View>
-
-                <View style={styles.petTopRightActionsRow}>
-                  {/* Heart Like */}
-                  <TouchableOpacity
-                    style={[
-                      styles.petFloatingLikeBtn,
-                      isLiked && styles.petFloatingLikeBtnActive,
-                    ]}
-                    onPress={() => togglePetLike(pet.id)}
-                    activeOpacity={0.85}
-                  >
-                    <Feather
-                      name="heart"
-                      size={15}
-                      color={isLiked ? '#FF6F61' : '#FFFFFF'}
-                    />
-                    <Text
-                      style={[
-                        styles.petFloatingLikeText,
-                        isLiked && { color: '#FF6F61' },
-                      ]}
-                    >
-                      {likesCount}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Camera: Add photo (ONLY when viewing self) */}
-                  {!isViewingOther && (
-                    <TouchableOpacity
-                      style={styles.petFloatingEditBtn}
-                      onPress={() => handleAddPetPhotoFromDevice(pet.id)}
-                      activeOpacity={0.85}
-                    >
-                      <Feather name="camera" size={15} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  )}
-
-                  {/* Pen: Edit pet (ONLY when viewing self) */}
-                  {!isViewingOther && (
-                    <TouchableOpacity
-                      style={styles.petFloatingEditBtn}
-                      onPress={() => openEditPetModal(pet)}
-                      activeOpacity={0.85}
-                    >
-                      <Feather name="edit-2" size={15} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-
-              {/* 4. Frosted Navigation Buttons on Left and Right edges */}
-              {gallery.length > 1 && (
-                <>
-                  <TouchableOpacity
-                    style={styles.petGalleryPrevBtn}
-                    onPress={() => handlePrevPetPhoto(pet.id, gallery.length)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.petGalleryNavArrow}>‹</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.petGalleryNextBtn}
-                    onPress={() => handleNextPetPhoto(pet.id, gallery.length)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.petGalleryNavArrow}>›</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-
-              {/* 5. Heart Burst Animated Overlay */}
+              {/* 2. Heart Burst Animated Overlay */}
               {burstPetId === pet.id && (
                 <Animated.View
                   pointerEvents="none"
@@ -1451,19 +1374,100 @@ export const MobileProfileScreen: React.FC = () => {
                 </Animated.View>
               )}
 
-              {/* 6. Vertical ScrollView overlying the fullscreen photo: Cuộn xuôi xuống dưới */}
+              {/* 3. Vertical ScrollView overlying the fullscreen photo: Cuộn xuôi mượt mà */}
               <ScrollView
                 style={styles.petScrollOverFullscreen}
                 contentContainerStyle={styles.petScrollOverFullscreenContent}
                 nestedScrollEnabled={true}
                 showsVerticalScrollIndicator={false}
               >
-                {/* Vùng Spacer trong suốt để lộ ảnh bé */}
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={styles.petPhotoSpacerArea}
-                  onPress={() => handlePetContainerTap(pet.id)}
-                />
+                {/* Vùng ảnh kèm các nút điều khiển ảnh cuộn tự nhiên theo ảnh, không đè lên thẻ sổ tiêm */}
+                <View style={styles.petPhotoSpacerArea}>
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    style={StyleSheet.absoluteFill}
+                    onPress={() => handlePetContainerTap(pet.id)}
+                  />
+
+                  {/* Top Floating Bar: Loài cún, Nút Tim, Camera, Sửa */}
+                  <View style={styles.petTopFloatingBar} pointerEvents="box-none">
+                    <View style={styles.petSpeciesPillBadge}>
+                      <Text style={styles.petSpeciesPillText}>
+                        {pet.species === 'Khác' && pet.customSpecies
+                          ? pet.customSpecies
+                          : `Loài ${pet.species}`}
+                      </Text>
+                    </View>
+
+                    <View style={styles.petTopRightActionsRow}>
+                      {/* Heart Like */}
+                      <TouchableOpacity
+                        style={[
+                          styles.petFloatingLikeBtn,
+                          isLiked && styles.petFloatingLikeBtnActive,
+                        ]}
+                        onPress={() => togglePetLike(pet.id)}
+                        activeOpacity={0.85}
+                      >
+                        <Feather
+                          name="heart"
+                          size={15}
+                          color={isLiked ? '#FF6F61' : '#FFFFFF'}
+                        />
+                        <Text
+                          style={[
+                            styles.petFloatingLikeText,
+                            isLiked && { color: '#FF6F61' },
+                          ]}
+                        >
+                          {likesCount}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Camera: Add photo (ONLY when viewing self) */}
+                      {!isViewingOther && (
+                        <TouchableOpacity
+                          style={styles.petFloatingEditBtn}
+                          onPress={() => handleAddPetPhotoFromDevice(pet.id)}
+                          activeOpacity={0.85}
+                        >
+                          <Feather name="camera" size={15} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Pen: Edit pet (ONLY when viewing self) */}
+                      {!isViewingOther && (
+                        <TouchableOpacity
+                          style={styles.petFloatingEditBtn}
+                          onPress={() => openEditPetModal(pet)}
+                          activeOpacity={0.85}
+                        >
+                          <Feather name="edit-2" size={15} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Nút chuyển ảnh Trái/Phải nằm trong vùng ảnh */}
+                  {gallery.length > 1 && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.petGalleryPrevBtn}
+                        onPress={() => handlePrevPetPhoto(pet.id, gallery.length)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.petGalleryNavArrow}>‹</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.petGalleryNextBtn}
+                        onPress={() => handleNextPetPhoto(pet.id, gallery.length)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.petGalleryNavArrow}>›</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
 
                 {/* Thẻ Kính Mờ: Nhìn thấu ảnh & cuộn xuôi xuống */}
                 <View style={styles.petScrollableFrostedCard}>
@@ -1836,7 +1840,7 @@ export const MobileProfileScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalScrollBody} showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.modalScrollBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {/* Họ và tên */}
               <View style={styles.fieldBlock}>
                 <View style={styles.labelBetweenRow}>
@@ -2676,7 +2680,7 @@ export const MobileProfileScreen: React.FC = () => {
                   style={styles.postPreviewAvatar}
                 />
                 <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={styles.previewAuthorHandle}>{selectedPreviewPost.authorHandle}</Text>
+                  <Text style={styles.previewAuthorHandle}>{displayName || 'Bạn'}</Text>
                   <Text style={styles.previewMetaText}>Vừa xong • Công khai</Text>
                 </View>
                 <TouchableOpacity onPress={() => setSelectedPreviewPost(null)} style={styles.previewCloseBtn}>
@@ -2784,7 +2788,7 @@ export const MobileProfileScreen: React.FC = () => {
                     />
                     <View style={{ flex: 1, marginLeft: 10 }}>
                       <Text style={styles.postDetailAuthorName}>{activePostDetail.authorName}</Text>
-                      <Text style={styles.postDetailAuthorHandle}>{activePostDetail.authorHandle}</Text>
+                      
                     </View>
                   </View>
 
@@ -3498,7 +3502,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   petScrollOverFullscreenContent: {
-    paddingBottom: 60,
+    paddingBottom: 95,
   },
   petPhotoSpacerArea: {
     height: Math.round(SCREEN_HEIGHT * 0.44),
@@ -3560,7 +3564,8 @@ const styles = StyleSheet.create({
   petGalleryPrevBtn: {
     position: 'absolute',
     left: 14,
-    top: '40%',
+    top: '48%',
+    marginTop: -20,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -3574,7 +3579,8 @@ const styles = StyleSheet.create({
   petGalleryNextBtn: {
     position: 'absolute',
     right: 14,
-    top: '40%',
+    top: '48%',
+    marginTop: -20,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -3835,7 +3841,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    height: SCREEN_HEIGHT * 0.88,
+    height: '88%',
+    maxHeight: '88%',
+    flexShrink: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 20,

@@ -27,6 +27,8 @@ export const MobileTinderScreen: React.FC = () => {
     likesYouCandidates,
     tinderFilterGoal,
     setTinderFilterGoal,
+    tinderGenderFilter,
+    setTinderGenderFilter,
     tinderDistanceLimit,
     setTinderDistanceLimit,
     swipeTinderCandidate,
@@ -350,6 +352,11 @@ export const MobileTinderScreen: React.FC = () => {
         onSelectGoal={(goal) => setTinderFilterGoal(goal)}
         distanceLimit={tinderDistanceLimit}
         onSelectDistanceLimit={(dist) => setTinderDistanceLimit(dist)}
+        genderLimit={tinderGenderFilter}
+        onSelectGenderLimit={(gender) => {
+          setTinderGenderFilter(gender);
+          reloadTinderDeck(true, gender);
+        }}
       />
 
       {/* 5. Modal Menu phụ (Mở khóa 100% miễn phí) */}

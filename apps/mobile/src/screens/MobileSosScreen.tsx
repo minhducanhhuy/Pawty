@@ -75,14 +75,16 @@ export const MobileSosScreen: React.FC = () => {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+        const rawUri = asset.base64
+          ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
+          : asset.uri;
         if (asset.base64) {
           setSosPhotoBase64(asset.base64);
-          setSosPhotoUri(`data:image/jpeg;base64,${asset.base64}`);
-        } else {
-          setSosPhotoBase64(null);
-          setSosPhotoUri(asset.uri);
         }
-        showToast('Đã tải ảnh thú cưng từ điện thoại lên.');
+        showToast('Đang tải ảnh SOS lên Cloudinary...');
+        const uploadedUrl = await apiClient.uploadImage(rawUri, 'pawty/sos');
+        setSosPhotoUri(uploadedUrl);
+        showToast('Đã tải ảnh thú cưng lên Cloudinary thành công!');
       }
     } catch {
       showToast('Không thể mở thư viện ảnh trên thiết bị.');
@@ -515,8 +517,7 @@ export const MobileSosScreen: React.FC = () => {
                     onPress={() => openPublicUserProfile(sos.ownerHandle)}
                   >
                     <Text style={styles.sosMetaText}>
-                      Đăng bởi: <Text style={{ fontWeight: '800' }}>{sos.ownerName}</Text> (
-                      {sos.ownerHandle}) {isAuthor ? '· Bài của bạn' : ''} · {sos.lastSeenTime}
+                      Đăng bởi: <Text style={{ fontWeight: '800' }}>{sos.ownerName}</Text> {isAuthor ? '· Bài của bạn' : ''} · {sos.lastSeenTime}
                     </Text>
                   </TouchableOpacity>
                   <Text style={styles.sosRewardText}>{sos.rewardAmount}</Text>
@@ -590,7 +591,7 @@ export const MobileSosScreen: React.FC = () => {
                 <View style={styles.resolvedFooter}>
                   <Feather name="check-circle" size={14} color="#2E7D5B" />
                   <Text style={styles.resolvedFooterText}>
-                    Gia đình ({sos.ownerHandle}) đã đón bé về nhà an toàn.
+                    Gia đình ({sos.ownerName}) đã đón bé về nhà an toàn.
                   </Text>
                 </View>
               )}

@@ -22,6 +22,7 @@ import { SelectorPickerModal, ConfirmActionModal } from './SelectorFieldModal';
 import {
   useMobilePawty,
 } from '../context/MobilePawtyContext';
+import { apiClient } from '../services/apiClient';
 import {
   SUGGESTED_HASHTAGS,
   TINDER_PURPOSE_OPTIONS,
@@ -165,6 +166,8 @@ export const MobileModals: React.FC = () => {
     activeDeviceName,
     forceRevokeOtherDevices,
     updateOwnerAndPetProfile,
+    pets,
+    activePetId,
     activePet,
     deletePetProfile,
     createPost,
@@ -226,9 +229,23 @@ export const MobileModals: React.FC = () => {
   const [editPetWeight, setEditPetWeight] = useState(String(activePet.weightKg || '4.8'));
   const [editPetVaccinated, setEditPetVaccinated] = useState(activePet.isVaccinatedAndRabies);
 
-  // 3. Tinder Setup State (Single-select Purpose 1-to-1 + Selectors + Self-description limit)
+  // 3. Tinder Setup State (Dedicated Dating Profile + Photos + Name + Bio + Pet + Purpose)
+  const [tinderDisplayNameInput, setTinderDisplayNameInput] = useState(
+    userTinderSetup.displayName || ownerName || ''
+  );
+  const [tinderBioInput, setTinderBioInput] = useState(userTinderSetup.bio || '');
+  const [tinderDatingPetIdInput, setTinderDatingPetIdInput] = useState(
+    userTinderSetup.datingPetId || activePetId || ''
+  );
+  const [tinderPhotosInput, setTinderPhotosInput] = useState<string[]>(
+    Array.isArray(userTinderSetup.photos) && userTinderSetup.photos.length > 0
+      ? userTinderSetup.photos
+      : Array.isArray(userTinderSetup.photoUrls) && userTinderSetup.photoUrls.length > 0
+      ? userTinderSetup.photoUrls
+      : []
+  );
   const [tinderAgeInput, setTinderAgeInput] = useState(String(userTinderSetup.age || 24));
-  const [tinderGenderInput, setTinderGenderInput] = useState<'Nam' | 'Nữ'>(
+  const [tinderGenderInput, setTinderGenderInput] = useState<'Nam' | 'Nữ' | 'Khác'>(
     userTinderSetup.gender || 'Nữ'
   );
   const [tinderIntentInput, setTinderIntentInput] = useState<TinderIntent>(
@@ -280,8 +297,18 @@ export const MobileModals: React.FC = () => {
   }, [ownerName, ownerBio, ownerArea, ownerNoteBubble, activePet, activeModal]);
 
   useEffect(() => {
+    setTinderDisplayNameInput(userTinderSetup.displayName || ownerName || '');
+    setTinderBioInput(userTinderSetup.bio || '');
+    setTinderDatingPetIdInput(userTinderSetup.datingPetId || activePetId || '');
+    setTinderPhotosInput(
+      Array.isArray(userTinderSetup.photos) && userTinderSetup.photos.length > 0
+        ? userTinderSetup.photos
+        : Array.isArray(userTinderSetup.photoUrls) && userTinderSetup.photoUrls.length > 0
+        ? userTinderSetup.photoUrls
+        : []
+    );
     setTinderAgeInput(String(userTinderSetup.age || 24));
-    setTinderGenderInput(userTinderSetup.gender === 'Nam' ? 'Nam' : 'Nữ');
+    setTinderGenderInput(userTinderSetup.gender || 'Nữ');
     setTinderIntentInput(
       resolveTinderIntentFromLabel(userTinderSetup.intent || userTinderSetup.lookingFor)
     );
@@ -338,6 +365,43 @@ export const MobileModals: React.FC = () => {
     showToast(`Đã thêm hashtag ${cleanTag}`);
   };
 
+  const handlePickTinderPhotos = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        showToast('Vui lòng cấp quyền truy cập Thư viện ảnh để chọn ảnh.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        selectionLimit: 5,
+        base64: true,
+        quality: 0.5,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        showToast('Đang tải ảnh hẹn hò lên Cloudinary...');
+        const pickedDataUrls = result.assets.map((asset) =>
+          asset.base64
+            ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
+            : asset.uri
+        );
+        const uploadedUrls = await Promise.all(
+          pickedDataUrls.map((raw) => apiClient.uploadImage(raw, 'pawty/tinder'))
+        );
+        setTinderPhotosInput((prev) => [...prev, ...uploadedUrls].slice(0, 6));
+        showToast(`Đã thêm ${uploadedUrls.length} ảnh hẹn hò vào bộ ảnh!`);
+      }
+    } catch (err) {
+      console.warn('[Tinder Photo Picker] Lỗi:', err);
+      showToast('Không thể chọn ảnh từ thiết bị.');
+    }
+  };
+
+  const handleRemoveTinderPhoto = (index: number) => {
+    setTinderPhotosInput((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   const handlePickMediaFromDevice = async () => {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -353,14 +417,18 @@ export const MobileModals: React.FC = () => {
         quality: 0.45,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        showToast('Đang tải ảnh lên Cloudinary...');
         const pickedDataUrls = result.assets.map((asset) =>
           asset.base64
             ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
             : asset.uri
         );
-        setSelectedMediaUrls((prev) => [...prev, ...pickedDataUrls].slice(0, 8));
+        const uploadedUrls = await Promise.all(
+          pickedDataUrls.map((raw) => apiClient.uploadImage(raw, 'pawty/posts'))
+        );
+        setSelectedMediaUrls((prev) => [...prev, ...uploadedUrls].slice(0, 8));
         setIsSelectedVideo(false);
-        showToast(`Đã thêm ${pickedDataUrls.length} ảnh từ điện thoại.`);
+        showToast(`Đã tải ${uploadedUrls.length} ảnh lên Cloudinary thành công!`);
       }
     } catch (err) {
       console.warn('[Post Media Picker] Lỗi chọn ảnh:', err);
@@ -382,12 +450,14 @@ export const MobileModals: React.FC = () => {
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const dataUrl = asset.base64
+        const rawUrl = asset.base64
           ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
           : asset.uri;
-        setSelectedMediaUrls((prev) => [dataUrl, ...prev].slice(0, 8));
+        showToast('Đang tải ảnh vừa chụp lên Cloudinary...');
+        const uploadedUrl = await apiClient.uploadImage(rawUrl, 'pawty/posts');
+        setSelectedMediaUrls((prev) => [uploadedUrl, ...prev].slice(0, 8));
         setIsSelectedVideo(false);
-        showToast('Đã thêm ảnh vừa chụp.');
+        showToast('Đã tải ảnh chụp lên Cloudinary thành công!');
       }
     } catch (err) {
       console.warn('[Post Camera] Lỗi chụp ảnh:', err);
@@ -1019,8 +1089,116 @@ export const MobileModals: React.FC = () => {
             {activeModal === 'tinder_setup' && (
               <View>
                 <Text style={styles.subHintText}>
-                  Mục đích tìm kiếm được chọn duy nhất 1 mục và đồng bộ trực tiếp với bộ lọc trên Radar Kết nối.
+                  Hồ sơ Hẹn hò hoạt động hoàn toàn độc lập với Hồ sơ Con sen. Bạn có thể đặt biệt danh riêng, bộ ảnh thẻ hẹn hò riêng, lời giới thiệu riêng và chọn Boss đồng hành dắt dạo.
                 </Text>
+
+                {/* BỘ ẢNH THẺ HẸN HÒ (CLOUDINARY) */}
+                <Text style={styles.label}>Bộ ảnh thẻ Hẹn hò (Ảnh đầu làm ảnh đại diện)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                  <TouchableOpacity
+                    style={styles.tinderAddPhotoBtn}
+                    onPress={handlePickTinderPhotos}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="plus-circle" size={24} color={theme.primary} />
+                    <Text style={styles.tinderAddPhotoText}>Thêm ảnh</Text>
+                  </TouchableOpacity>
+                  {tinderPhotosInput.map((photo, idx) => (
+                    <View key={`${photo}-${idx}`} style={styles.tinderPhotoThumbWrap}>
+                      <Image source={{ uri: photo }} style={styles.tinderPhotoThumb} />
+                      {idx === 0 && (
+                        <View style={styles.tinderPrimaryPhotoBadge}>
+                          <Text style={styles.tinderPrimaryPhotoText}>Đại diện</Text>
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        style={styles.tinderDeletePhotoBtn}
+                        onPress={() => handleRemoveTinderPhoto(idx)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Feather name="x" size={12} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+
+                {/* TÊN HIỂN THỊ TRÊN THẺ HẸN HÒ */}
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.label}>Tên / Biệt danh hiển thị Hẹn hò *</Text>
+                  <Text style={styles.counterText}>{tinderDisplayNameInput.length}/35</Text>
+                </View>
+                <TextInput
+                  style={[styles.input, { marginBottom: 12 }]}
+                  maxLength={35}
+                  value={tinderDisplayNameInput}
+                  onChangeText={setTinderDisplayNameInput}
+                  placeholder="VD: Minh Anh, Candy, Alex..."
+                  placeholderTextColor="#A3968A"
+                />
+
+                {/* LỜI GIỚI THIỆU HẸN HÒ */}
+                <View style={styles.labelBetweenRow}>
+                  <Text style={styles.label}>Giới thiệu Hẹn hò & Đi dạo</Text>
+                  <Text style={styles.counterText}>{tinderBioInput.length}/200</Text>
+                </View>
+                <TextInput
+                  style={[styles.input, { height: 68, textAlignVertical: 'top', marginBottom: 12 }]}
+                  multiline
+                  maxLength={200}
+                  value={tinderBioInput}
+                  onChangeText={setTinderBioInput}
+                  placeholder="Chia sẻ tính cách, thời gian rảnh hoặc điều bạn tìm kiếm ở bạn dắt dạo..."
+                  placeholderTextColor="#A3968A"
+                />
+
+                {/* BÉ CƯNG ĐỒNG HÀNH TRÊN RADAR */}
+                <Text style={styles.label}>Bé cưng đồng hành cùng bạn trên Radar</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.chipBtn,
+                      !tinderDatingPetIdInput && {
+                        backgroundColor: theme.primary,
+                        borderColor: theme.primary,
+                      },
+                    ]}
+                    onPress={() => setTinderDatingPetIdInput('')}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        !tinderDatingPetIdInput && { color: '#FFFFFF' },
+                      ]}
+                    >
+                      Đi một mình (Không Boss)
+                    </Text>
+                  </TouchableOpacity>
+                  {pets.map((p) => {
+                    const isSelected = tinderDatingPetIdInput === p.id;
+                    return (
+                      <TouchableOpacity
+                        key={p.id}
+                        style={[
+                          styles.chipBtn,
+                          isSelected && {
+                            backgroundColor: theme.primary,
+                            borderColor: theme.primary,
+                          },
+                        ]}
+                        onPress={() => setTinderDatingPetIdInput(p.id)}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            isSelected && { color: '#FFFFFF' },
+                          ]}
+                        >
+                          {p.name} ({p.species})
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
 
                 {/* MỤC ĐÍCH TÌM KIẾM — CHỈ ĐƯỢC CHỌN 1 (SINGLE-SELECT) */}
                 <Text style={styles.label}>Mục đích tìm kiếm của bạn (Chọn 1)</Text>
@@ -1081,7 +1259,7 @@ export const MobileModals: React.FC = () => {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.label}>Giới tính</Text>
                     <View style={[styles.twoCol, { marginBottom: 0 }]}>
-                      {(['Nữ', 'Nam'] as const).map((g) => (
+                      {(['Nữ', 'Nam', 'Khác'] as const).map((g) => (
                         <TouchableOpacity
                           key={g}
                           style={[
@@ -1216,6 +1394,11 @@ export const MobileModals: React.FC = () => {
                   style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
                   onPress={async () => {
                     await updateUserTinderSetup({
+                      displayName: tinderDisplayNameInput.trim(),
+                      bio: tinderBioInput.trim(),
+                      datingPetId: tinderDatingPetIdInput,
+                      photos: tinderPhotosInput,
+                      photoUrls: tinderPhotosInput,
                       age: parseInt(tinderAgeInput, 10) || 24,
                       gender: tinderGenderInput,
                       intent: tinderIntentInput,
@@ -2626,5 +2809,62 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
+  },
+  tinderAddPhotoBtn: {
+    width: 80,
+    height: 100,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E8DED3',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FDFBF7',
+    marginRight: 10,
+  },
+  tinderAddPhotoText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7A6E63',
+    marginTop: 4,
+  },
+  tinderPhotoThumbWrap: {
+    width: 80,
+    height: 100,
+    borderRadius: 14,
+    marginRight: 10,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#EBE5DE',
+  },
+  tinderPhotoThumb: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  tinderPrimaryPhotoBadge: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingVertical: 2,
+    alignItems: 'center',
+  },
+  tinderPrimaryPhotoText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  tinderDeletePhotoBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

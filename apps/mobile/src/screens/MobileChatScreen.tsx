@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -128,6 +128,28 @@ export const MobileChatScreen: React.FC = () => {
   const isDatingChat = activeChat
     ? activeChat.chatType === 'dating' || activeChat.matchSource === 'tinder_match'
     : false;
+
+  const lastSeenMyMessageId = useMemo(() => {
+    if (!activeChat?.messages) return null;
+    for (let i = activeChat.messages.length - 1; i >= 0; i--) {
+      const m = activeChat.messages[i];
+      if (m.sender === 'me' && m.isRead) {
+        return m.id;
+      }
+    }
+    return null;
+  }, [activeChat?.messages]);
+
+  const lastMyMessageId = useMemo(() => {
+    if (!activeChat?.messages) return null;
+    for (let i = activeChat.messages.length - 1; i >= 0; i--) {
+      const m = activeChat.messages[i];
+      if (m.sender === 'me') {
+        return m.id;
+      }
+    }
+    return null;
+  }, [activeChat?.messages]);
 
   // Với Mạng xã hội: nhắn tin tự do chuẩn Facebook/Pinterest, không chặn vì kết bạn
   // Với Hẹn hò: nhắn tin khi còn tương hợp
@@ -313,9 +335,7 @@ export const MobileChatScreen: React.FC = () => {
                   <Text style={[styles.headerName, { color: theme.text }]} numberOfLines={1}>
                     {activeChat.partnerName}
                   </Text>
-                  <Text style={[styles.handleText, { color: theme.textMuted }]} numberOfLines={1}>
-                    {activeChat.partnerHandle}
-                  </Text>
+
                 </View>
                 <Text style={[styles.headerSub, { color: theme.textMuted }]} numberOfLines={1}>
                   {activeChat.petSummary} · {activeChat.distanceLabel}
@@ -385,10 +405,13 @@ export const MobileChatScreen: React.FC = () => {
               const displayHeader = showHeader || isTapped;
               const isNextSameSender =
                 nextMsg && nextMsg.sender === msg.sender && !shouldShowSessionHeader(nextMsg, msg);
-              const isLastMyMessage =
-                isMe &&
-                (index === activeChat.messages.length - 1 ||
-                  activeChat.messages.slice(index + 1).every((m) => m.sender !== 'me'));
+              const isLastSeenMessage = isMe && msg.id === lastSeenMyMessageId;
+              const isUnreadLastMessage = isMe && msg.id === lastMyMessageId && !msg.isRead;
+              const showSeenOrSentReceipt = isLastSeenMessage || isUnreadLastMessage || (isTapped && isMe);
+
+
+
+
 
               return (
                 <React.Fragment key={msg.id}>
@@ -431,7 +454,7 @@ export const MobileChatScreen: React.FC = () => {
                       </Text>
                     </TouchableOpacity>
 
-                    {(isLastMyMessage || (isTapped && isMe)) && (
+                    {showSeenOrSentReceipt && (
                       <View style={styles.seenReceiptRow}>
                         {msg.isRead ? (
                           <View style={styles.seenStatusWrap}>
@@ -787,8 +810,8 @@ export const MobileChatScreen: React.FC = () => {
             onChangeText={setSearchFriend}
             placeholder={
               chatSection === 'social'
-                ? "Tìm theo tên, @tài_khoản..."
-                : "Tìm theo tên bạn hẹn hò..."
+                ? "Tìm cuộc trò chuyện..."
+                : "Tìm bạn hẹn hò..."
             }
             placeholderTextColor={theme.textMuted}
             style={[styles.searchInput, { color: theme.text }]}
@@ -907,11 +930,7 @@ export const MobileChatScreen: React.FC = () => {
                           Tương hợp
                         </Text>
                       </View>
-                    ) : (
-                      <Text style={[styles.chatHandleText, { color: theme.textMuted }]}>
-                        {room.partnerHandle}
-                      </Text>
-                    )}
+                    ) : null}
                   </View>
                   <Text style={[styles.chatTime, { color: theme.textMuted }]}>
                     {lastMsg?.time || ''}

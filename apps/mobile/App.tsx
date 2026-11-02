@@ -7,6 +7,7 @@ import {
   StatusBar,
   Image,
   BackHandler,
+  Modal,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from './src/components/FeatherIcon';
@@ -378,13 +379,21 @@ const MainMobileShell: React.FC = () => {
         </View>
       )}
 
-      {/* Toast Banner */}
-      {toastMessage && (
-        <View style={[styles.toastBar, styles.toastInfo]} pointerEvents="none">
-          <Feather name="check-circle" size={16} color="#48BB78" />
-          <Text style={styles.toastText}>{toastMessage}</Text>
+      {/* Toast Banner (Always on top of all native Modals) */}
+      <Modal
+        visible={Boolean(toastMessage)}
+        transparent
+        statusBarTranslucent
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View style={styles.toastModalContainer} pointerEvents="box-none">
+          <View style={[styles.toastBar, styles.toastInfo]} pointerEvents="none">
+            <Feather name="check-circle" size={16} color="#48BB78" />
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
         </View>
-      )}
+      </Modal>
 
       {/* Shared Modals */}
       <MobileModals />
@@ -548,11 +557,15 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
   },
+  toastModalContainer: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingTop: 54,
+  },
   toastBar: {
-    position: 'absolute',
-    top: 64,
-    left: 20,
-    right: 20,
+    maxWidth: '92%',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

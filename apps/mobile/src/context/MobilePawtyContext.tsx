@@ -540,13 +540,15 @@ interface MobilePawtyContextType {
   unfriendUser: (handle: string) => Promise<void>;
   unmatchCandidate: (partnerHandleOrId: string) => Promise<void>;
   toggleFollowUser: (handle: string) => Promise<void>;
-  startDirectChatWithUser: (handle: string) => Promise<void>;
+  startDirectChatWithUser: (handle: string, chatType?: 'social' | 'dating') => Promise<void>;
 
   // Kết nối (Tinder) Tab — 100% Free & Unlimited Distance
   tinderIntent: TinderIntent;
   setTinderIntent: (intent: TinderIntent) => void;
   tinderFilterGoal: TinderIntent | 'all';
   setTinderFilterGoal: (goal: TinderIntent | 'all') => void;
+  tinderGenderFilter: 'all' | 'female' | 'male';
+  setTinderGenderFilter: (gender: 'all' | 'female' | 'male') => void;
   setPassportArea: (area: string) => void;
   tinderCandidates: TinderCandidate[];
   likesYouCandidates: TinderCandidate[];
@@ -555,7 +557,7 @@ interface MobilePawtyContextType {
   matchedCandidateModal: TinderCandidate | null;
   closeMatchedCandidateModal: () => void;
   swipeTinderCandidate: (candidateId: string, direction: 'left' | 'right') => Promise<void>;
-  reloadTinderDeck: (silent?: boolean) => Promise<void>;
+  reloadTinderDeck: (silent?: boolean, overrideGender?: 'all' | 'female' | 'male') => Promise<void>;
   likeBackCandidate: (candidate: TinderCandidate) => Promise<void>;
   passLikesYouCandidate: (candidate: TinderCandidate) => Promise<void>;
   rewindLastSwipe: () => Promise<void>;
@@ -705,6 +707,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Kết nối (Tinder) — Mặc định không giới hạn khoảng cách ('all')
   const [tinderIntent, setTinderIntentState] = useState<TinderIntent>('playdate');
   const [tinderFilterGoal, setTinderFilterGoal] = useState<TinderIntent | 'all'>('all');
+  const [tinderGenderFilter, setTinderGenderFilter] = useState<'all' | 'female' | 'male'>('all');
   const [tinderCandidates, setTinderCandidates] = useState<TinderCandidate[]>([]);
   const [likesYouCandidates, setLikesYouCandidates] = useState<TinderCandidate[]>([]);
   const [swipedCandidateHistory, setSwipedCandidateHistory] = useState<TinderCandidate[]>([]);
@@ -826,7 +829,15 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         );
         const resolvedPurposeLabel = getTinderPurposeLabel(resolvedIntent);
         setTinderIntentState(resolvedIntent);
+        const tinderPhotos = Array.isArray(u.tinderSetup?.photos) && u.tinderSetup.photos.length > 0
+          ? u.tinderSetup.photos
+          : Array.isArray(u.tinderSetup?.photoUrls) && u.tinderSetup.photoUrls.length > 0
+          ? u.tinderSetup.photoUrls
+          : [];
         setUserTinderSetup({
+          displayName: u.tinderSetup?.displayName || u.displayName || 'Bạn mới',
+          bio: u.tinderSetup?.bio || '',
+          datingPetId: u.tinderSetup?.datingPetId || '',
           age: Number(u.tinderSetup?.age || u.age || 24),
           gender: u.tinderSetup?.gender === 'Nam' || u.gender === 'Nam' ? 'Nam' : 'Nữ',
           intent: resolvedIntent,
@@ -836,8 +847,9 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
           drinking: u.tinderSetup?.drinking || 'Không uống rượu bia',
           zodiac: u.tinderSetup?.zodiac || u.zodiac || 'Sư Tử',
           chatStyle: u.tinderSetup?.chatStyle || 'Thân thiện, phản hồi nhanh',
-          promptQuote: u.tinderSetup?.promptQuote ?? u.bio ?? '',
-          photoUrls: Array.isArray(u.tinderSetup?.photoUrls) ? u.tinderSetup.photoUrls : [],
+          promptQuote: u.tinderSetup?.promptQuote ?? '',
+          photoUrls: tinderPhotos,
+          photos: tinderPhotos,
         });
 
         // Pets
@@ -1061,7 +1073,35 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const notifPoller = setInterval(async () => {
       try {
-        const res = await apiClient.getNotifications(currentUserId);
+        const [res, chatsRes, likesRes] = await Promise.all([
+          apiClient.getNotifications(currentUserId),
+          apiClient.getChats(currentUserId),
+          apiClient.getLikesYouCandidates(currentUserId),
+        ]);
+
+        if (chatsRes && Array.isArray(chatsRes.chats)) {
+          setChats((prev) => {
+            if (prev.length !== chatsRes.chats.length) return chatsRes.chats;
+            const hasChange = chatsRes.chats.some((nc: any, idx: number) => {
+              const pc = prev[idx];
+              if (!pc || pc.id !== nc.id) return true;
+              if (pc.messages.length !== (nc.messages?.length || 0)) return true;
+              if (pc.unreadCount !== nc.unreadCount) return true;
+              return false;
+            });
+            return hasChange ? chatsRes.chats : prev;
+          });
+        }
+
+        if (likesRes && Array.isArray(likesRes.likesYou)) {
+          setLikesYouCandidates((prev) => {
+            if (prev.length !== likesRes.likesYou.length) return likesRes.likesYou;
+            const hasChange = likesRes.likesYou.some(
+              (nl: any, idx: number) => prev[idx]?.id !== nl.id
+            );
+            return hasChange ? likesRes.likesYou : prev;
+          });
+        }
         if (res && Array.isArray(res.notifications)) {
           const freshNotifs: MobileNotificationItem[] = res.notifications.map((n: any) => ({
             id: String(n.id),
@@ -1101,6 +1141,38 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setActiveChatId(null);
       setIsSearchPanelOpen(false);
       // Khi nhấn trực tiếp vào Tab "Tôi" dưới thanh điều hướng -> mở hồ sơ bản thân
+      if (nextTab === 'tinder' && currentUserId) {
+        apiClient
+          .getLikesYouCandidates(currentUserId)
+          .then((res) => {
+            if (res && Array.isArray(res.likesYou)) {
+              setLikesYouCandidates(res.likesYou);
+            }
+          })
+          .catch(() => {});
+        apiClient
+          .getTinderCandidates(
+            currentUserId,
+            tinderFilterGoal !== 'all' ? tinderFilterGoal : undefined,
+            tinderGenderFilter !== 'all' ? tinderGenderFilter : undefined
+          )
+          .then((res) => {
+            if (res && Array.isArray(res.candidates)) {
+              setTinderCandidates(res.candidates);
+            }
+          })
+          .catch(() => {});
+      }
+      if (nextTab === 'chat' && currentUserId) {
+        apiClient
+          .getChats(currentUserId)
+          .then((res) => {
+            if (res && Array.isArray(res.chats)) {
+              setChats(res.chats);
+            }
+          })
+          .catch(() => {});
+      }
       if (nextTab === 'profile') {
         setSelectedProfileHandle(null);
         setViewedUserHandle(null);
@@ -1112,7 +1184,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return nextTab;
       });
     },
-    [setActiveChatId]
+    [setActiveChatId, currentUserId, tinderFilterGoal, tinderGenderFilter]
   );
 
   const goBackFromOtherProfile = useCallback(() => {
@@ -1673,8 +1745,18 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const normalizedIntent = resolveTinderIntentFromLabel(
         nextSetup.intent || nextSetup.lookingFor
       );
+      const tPhotos = Array.isArray(nextSetup.photos) && nextSetup.photos.length > 0
+        ? nextSetup.photos
+        : Array.isArray(nextSetup.photoUrls) && nextSetup.photoUrls.length > 0
+        ? nextSetup.photoUrls
+        : [];
       const normalizedPayload: UserTinderSetupProfile = {
         ...nextSetup,
+        displayName: (nextSetup.displayName || '').trim(),
+        bio: (nextSetup.bio || '').trim(),
+        datingPetId: nextSetup.datingPetId || '',
+        photos: tPhotos,
+        photoUrls: tPhotos,
         intent: normalizedIntent,
         lookingFor: getTinderPurposeLabel(normalizedIntent),
         promptQuote: (nextSetup.promptQuote || '').slice(0, 140),
@@ -2256,16 +2338,18 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 
   const startDirectChatWithUser = useCallback(
-    async (handle: string) => {
+    async (handle: string, chatType: 'social' | 'dating' = 'social') => {
       if (!currentUserId) return;
       const normalized = handle.startsWith('@') ? handle : `@${handle}`;
 
       const existingRoom = chats.find(
-        (c) => c.partnerHandle.toLowerCase() === normalized.toLowerCase()
+        (c) =>
+          c.partnerHandle.toLowerCase() === normalized.toLowerCase() &&
+          c.chatType === chatType
       );
 
       try {
-        const opened = await apiClient.openDirectChat(currentUserId, normalized);
+        const opened = await apiClient.openDirectChat(currentUserId, normalized, chatType);
         await refreshData(currentUserId, false, true);
         setSelectedProfileHandle(null);
         setViewedUserHandle(null);
@@ -2291,23 +2375,34 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // TINDER SWIPE, LIKES YOU & MATCHES (100% Free & Unlimited Distance)
   // =========================================================================
   const reloadTinderDeck = useCallback(
-    async (silent = false) => {
+    async (silent = false, overrideGender?: 'all' | 'female' | 'male') => {
       if (!currentUserId) return;
       try {
         const res = await apiClient.getTinderCandidates(
           currentUserId,
-          tinderFilterGoal !== 'all' ? tinderFilterGoal : undefined
+          tinderFilterGoal !== 'all' ? tinderFilterGoal : undefined,
+          (overrideGender ?? tinderGenderFilter) !== 'all' ? (overrideGender ?? tinderGenderFilter) : undefined
         );
         const fresh = res?.candidates;
         if (Array.isArray(fresh) && fresh.length > 0) {
           setTinderCandidates(fresh);
           setSwipedCandidateHistory([]);
+
           if (!silent) {
             showToast(`Đã làm mới ${fresh.length} hồ sơ kết nối!`);
           }
-        } else if (swipedCandidateHistory.length > 0) {
-          setTinderCandidates(swipedCandidateHistory);
-          setSwipedCandidateHistory([]);
+        } else {
+          setSwipedCandidateHistory((prevHistory) => {
+            if (prevHistory.length > 0) {
+              setTinderCandidates(prevHistory);
+              if (!silent) {
+                showToast('Đã làm mới lại hồ sơ phù hợp!');
+              }
+            }
+            return [];
+          });
+
+
           if (!silent) {
             showToast('Đã làm mới lại hồ sơ phù hợp!');
           }
@@ -2316,7 +2411,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         console.warn('[Pawty Tinder] Lỗi làm mới cọc thẻ:', err);
       }
     },
-    [currentUserId, tinderFilterGoal, swipedCandidateHistory, showToast]
+    [currentUserId, tinderFilterGoal, tinderGenderFilter, showToast]
   );
 
   // Định kỳ tự động làm mới cọc thẻ hẹn hò sau mỗi 2 phút (chỉ lấy người chưa match)
@@ -2439,7 +2534,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const openChatWithMatchedCandidate = useCallback(
     async (candidate: TinderCandidate) => {
       setMatchedCandidateModal(null);
-      await startDirectChatWithUser(candidate.ownerHandle);
+      await startDirectChatWithUser(candidate.ownerHandle, 'dating');
     },
     [startDirectChatWithUser]
   );
@@ -2471,7 +2566,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 ...r,
                 messages: [
                   ...r.messages,
-                  { id: tempId, sender: 'me', text: clean, time: timeStr, isRead: true },
+                  { id: tempId, sender: 'me', text: clean, time: timeStr, isRead: false },
                 ],
               }
             : r
@@ -2493,7 +2588,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
                             sender: 'me',
                             text: res.message.text || clean,
                             time: res.message.time || timeStr,
-                            isRead: true,
+                            isRead: false,
                           }
                         : m
                     ),
@@ -2691,7 +2786,13 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const candidateIntent = resolveTinderIntentFromLabel(c.intent || c.lookingFor);
     const passGoal =
       tinderFilterGoal === 'all' ? true : candidateIntent === tinderFilterGoal;
-    return passDistance && passGoal;
+    const passGender =
+      tinderGenderFilter === 'all'
+        ? true
+        : tinderGenderFilter === 'female'
+        ? (c.gender === 'Nữ' || (c.gender as any) === 'female' || (c.gender as any) === 'nu')
+        : (c.gender === 'Nam' || (c.gender as any) === 'male' || (c.gender as any) === 'nam');
+    return passDistance && passGoal && passGender;
   });
 
   return (
@@ -2802,6 +2903,8 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setTinderIntent,
         tinderFilterGoal,
         setTinderFilterGoal,
+        tinderGenderFilter,
+        setTinderGenderFilter,
         setPassportArea,
         tinderCandidates: filteredTinderCandidates,
         likesYouCandidates,

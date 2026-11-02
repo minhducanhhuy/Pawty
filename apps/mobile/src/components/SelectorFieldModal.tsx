@@ -36,14 +36,14 @@ export const SelectorPickerModal: React.FC<SelectorPickerModalProps> = ({
   onClose,
 }) => {
   const [query, setQuery] = useState('');
-  const [draftMulti, setDraftMulti] = useState<string[]>(selectedValues);
+  const [draftMulti, setDraftMulti] = useState<string[]>(selectedValues || []);
 
   useEffect(() => {
     if (visible) {
       setQuery('');
-      setDraftMulti(selectedValues);
+      setDraftMulti(selectedValues || []);
     }
-  }, [visible, selectedValues]);
+  }, [visible, (selectedValues || []).join('__')]);
 
   const filteredOptions = useMemo(() => {
     const q = query.trim().toLowerCase();

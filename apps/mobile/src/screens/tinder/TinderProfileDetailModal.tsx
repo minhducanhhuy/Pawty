@@ -70,7 +70,12 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
     if (candidate.pets && candidate.pets.length > 0) {
       return candidate.pets.map((p) => p.name).join(' & ');
     }
-    return candidate.ownerName;
+    return candidate.ownerName.replace(/\s*\(@[^)]+\)/g, '').trim();
+  }, [candidate]);
+
+  const cleanOwnerName = useMemo(() => {
+    if (!candidate?.ownerName) return '';
+    return candidate.ownerName.replace(/\s*\(@[^)]+\)/g, '').trim();
   }, [candidate]);
 
   return (
@@ -218,21 +223,14 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
                 <Text style={styles.sectionTitle}>Thông tin chủ nuôi (Hẹn hò)</Text>
               </View>
 
-              <TouchableOpacity
-                style={{ display: 'none' }}
-                onPress={undefined}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Feather name="grid" size={12} color="#2C2520" />
-                <Text style={styles.viewOwnerProfileBtnText}>Xem trang mạng xã hội</Text>
-              </TouchableOpacity>
+              
             </View>
 
             <View style={styles.ownerBriefRow}>
               <Image source={{ uri: candidate.avatarUrl }} style={styles.ownerAvatarSmall} />
               <View style={styles.ownerBriefTextCol}>
                 <View style={styles.ownerNameRow}>
-                  <Text style={styles.ownerNameText}>{candidate.ownerName}</Text>
+                  <Text style={styles.ownerNameText}>{cleanOwnerName}</Text>
                   {candidate.ownerAge ? (
                     <Text style={styles.ownerAgeText}>· {candidate.ownerAge} tuổi</Text>
                   ) : null}
@@ -242,7 +240,6 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
                     </View>
                   )}
                 </View>
-                <Text style={styles.ownerHandleText}>{candidate.ownerHandle}</Text>
                 {candidate.ownerNickname ? (
                   <Text style={styles.nicknameText}>"{candidate.ownerNickname}"</Text>
                 ) : null}

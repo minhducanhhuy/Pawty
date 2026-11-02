@@ -172,8 +172,11 @@ export interface TinderCandidate {
 }
 
 export interface UserTinderSetupProfile {
+  displayName?: string;
+  bio?: string;
+  datingPetId?: string;
   age: number;
-  gender: 'Nam' | 'Nữ';
+  gender: 'Nam' | 'Nữ' | 'Khác';
   intent: TinderIntent;
   lookingFor: string;
   smoking: string;
@@ -183,6 +186,7 @@ export interface UserTinderSetupProfile {
   chatStyle: string;
   promptQuote: string;
   photoUrls?: string[];
+  photos?: string[];
 }
 
 export interface SuggestedPersonCard {
@@ -344,6 +348,9 @@ export function getTinderPurposeLabel(intent: TinderIntent): string {
 }
 
 export const EMPTY_USER_TINDER_SETUP: UserTinderSetupProfile = {
+  displayName: '',
+  bio: '',
+  datingPetId: '',
   age: 24,
   gender: 'Nữ',
   intent: 'playdate',
@@ -354,6 +361,8 @@ export const EMPTY_USER_TINDER_SETUP: UserTinderSetupProfile = {
   zodiac: 'Sư Tử',
   chatStyle: 'Thân thiện, phản hồi nhanh',
   promptQuote: '',
+  photoUrls: [],
+  photos: [],
 };
 
 /* ========================================================================== */

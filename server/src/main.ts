@@ -1,5 +1,6 @@
 import * as dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
@@ -10,6 +11,7 @@ import { URL } from 'url';
 import { ModerationService } from './modules/moderation/moderation.service';
 import { GeminiVisionService } from './modules/sos/gemini-vision.service';
 import { dbService, prisma } from './data/db-service';
+import { cloudinaryService } from './services/cloudinary.service';
 
 const moderationService = new ModerationService();
 const geminiVisionService = new GeminiVisionService();
@@ -91,6 +93,53 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       sendJson(res, 200, data);
+      return;
+    }
+
+    // Static Media Handler (dành cho local fallback storage)
+    if (pathname.startsWith('/uploads/') && method === 'GET') {
+      const filename = path.basename(pathname);
+      const filePath = path.resolve(process.cwd(), 'public', 'uploads', filename);
+      if (fs.existsSync(filePath)) {
+        const ext = path.extname(filename).toLowerCase();
+        const mimeMap: Record<string, string> = {
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.png': 'image/png',
+          '.gif': 'image/gif',
+          '.webp': 'image/webp',
+        };
+        res.writeHead(200, {
+          'Content-Type': mimeMap[ext] || 'application/octet-stream',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=86400',
+        });
+        fs.createReadStream(filePath).pipe(res);
+        return;
+      }
+      sendJson(res, 404, { success: false, error: 'Tệp tin hình ảnh không tồn tại.' });
+      return;
+    }
+
+    // Media Upload API (Cloudinary CDN & Fallback)
+    if (pathname === '/api/upload' && method === 'POST') {
+      const body = await parseJsonBody(req);
+      const image = body.image || body.file || body.dataUrl || body.data;
+      const folder = String(body.folder || 'pawty/media');
+      if (!image || typeof image !== 'string') {
+        sendJson(res, 400, {
+          success: false,
+          error: 'Vui lòng cung cấp dữ liệu hình ảnh (chuỗi base64 hoặc URL).',
+        });
+        return;
+      }
+      const host = req.headers.host || 'localhost:3000';
+      const url = await cloudinaryService.uploadImage(image, folder, host);
+      sendJson(res, 200, {
+        success: true,
+        url,
+        message: 'Tải ảnh lên thành công.',
+      });
       return;
     }
 
@@ -670,7 +719,11 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/tinder/candidates' && method === 'GET') {
       const userId = parsedUrl.searchParams.get('userId') || 'user-test1';
       const intent = parsedUrl.searchParams.get('intent') || undefined;
-      const candidates = await dbService.getTinderCandidates(userId, intent);
+      const gender =
+        parsedUrl.searchParams.get('gender') ||
+        parsedUrl.searchParams.get('targetGender') ||
+        undefined;
+      const candidates = await dbService.getTinderCandidates(userId, intent, gender);
       sendJson(res, 200, { candidates });
       return;
     }
@@ -745,11 +798,12 @@ const server = http.createServer(async (req, res) => {
       const body = await parseJsonBody(req);
       const userId = String(body.userId || '');
       const partnerIdentifier = String(body.partnerHandle || body.partnerId || '');
+      const chatType = body.chatType === 'dating' ? 'dating' : 'social';
       if (!userId || !partnerIdentifier) {
         sendJson(res, 400, { success: false, error: 'Thiếu thông tin người trò chuyện.' });
         return;
       }
-      const opened = await dbService.openOrCreateDirectChat(userId, partnerIdentifier);
+      const opened = await dbService.openOrCreateDirectChat(userId, partnerIdentifier, chatType);
       sendJson(res, 200, { success: true, ...opened });
       return;
     }

@@ -112,7 +112,7 @@ export const MobileExploreScreen: React.FC = () => {
           <Feather name="search" size={16} color="#8E8074" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Tìm bài viết, #hashtag, @tài_khoản..."
+            placeholder="Tìm bài viết, #hashtag, người dùng..."
             placeholderTextColor="#A3968A"
             value={searchQuery}
             onFocus={() => setIsSearchPanelOpen(true)}
@@ -266,7 +266,7 @@ export const MobileExploreScreen: React.FC = () => {
                     <View style={{ flex: 1 }}>
                       <View style={styles.authorRow}>
                         <Text style={styles.authorName}>{post.authorName}</Text>
-                        <Text style={styles.authorHandleText}>{post.authorHandle}</Text>
+                        
                       </View>
                       <Text style={styles.postMeta}>
                         {post.categoryLabel} · {post.createdAt}

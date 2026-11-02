@@ -187,19 +187,11 @@ export const MobileOnboardingScreen: React.FC = () => {
           </Text>
         </View>
 
-        {/* Single Device Security Banner */}
-        <View style={styles.securityNoticeCard}>
-          <Feather name="smartphone" size={16} color={theme.primary} />
-          <Text style={styles.securityNoticeText}>
-            Bảo mật 1 thiết bị: Tài khoản chỉ được đăng nhập trên 1 điện thoại tại một thời điểm. Khi đăng nhập ở máy mới, thiết bị cũ sẽ tự động đăng xuất.
-          </Text>
-        </View>
-
         {mode === 'welcome' && hasSavedSession && (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Chào mừng bạn quay lại</Text>
             <Text style={styles.sectionSub}>
-              Thiết bị này đã lưu phiên đăng nhập trước đó. Hệ thống sẽ xác thực kết nối Database trước khi vào ứng dụng.
+              Thiết bị đã lưu phiên đăng nhập của bạn. Chạm vào tài khoản bên dưới để tiếp tục.
             </Text>
 
             {authError && (
@@ -239,7 +231,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               <View style={{ flex: 1 }}>
                 <Text style={styles.savedName}>{ownerName || savedSessionIdentifier}</Text>
                 <Text style={styles.savedMeta} numberOfLines={1}>
-                  {ownerHandle} {ownerBio ? `· ${ownerBio}` : ''}
+                  {ownerBio || 'Cư dân Pawty'}
                 </Text>
               </View>
               <View style={[styles.enterBadge, { backgroundColor: theme.primary }]}>
@@ -279,7 +271,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               }}
             >
               <Feather name="log-in" size={16} color="#4A3F35" />
-              <Text style={styles.secondaryBtnText}>Đăng nhập bằng SĐT / Username</Text>
+              <Text style={styles.secondaryBtnText}>Đăng nhập bằng SĐT hoặc Tên tài khoản</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -309,14 +301,14 @@ export const MobileOnboardingScreen: React.FC = () => {
               </View>
             )}
 
-            <Text style={styles.inputLabel}>Số điện thoại hoặc Tên đăng nhập (Username)</Text>
+            <Text style={styles.inputLabel}>Số điện thoại hoặc Tên đăng nhập</Text>
             <TextInput
               style={styles.input}
               value={identifierInput}
               onChangeText={setIdentifierInput}
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="VD: 0900000001 hoặc test1"
+              placeholder="Nhập số điện thoại hoặc tên đăng nhập"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(140)}
             />
@@ -359,7 +351,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               ) : (
                 <>
                   <Feather name="check" size={16} color="#FFFFFF" />
-                  <Text style={styles.primaryBtnText}>Đăng nhập ngay (1 Thiết bị)</Text>
+                  <Text style={styles.primaryBtnText}>Đăng nhập</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -401,7 +393,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               style={styles.input}
               value={fullNameInput}
               onChangeText={setFullNameInput}
-              placeholder="VD: Mai Nguyễn"
+              placeholder="Nhập họ và tên của bạn"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(120)}
             />
@@ -412,19 +404,19 @@ export const MobileOnboardingScreen: React.FC = () => {
               value={phoneInput}
               onChangeText={setPhoneInput}
               keyboardType="phone-pad"
-              placeholder="0912345678"
+              placeholder="Nhập số điện thoại của bạn"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(170)}
             />
 
-            <Text style={styles.inputLabel}>Tên đăng nhập (Username)</Text>
+            <Text style={styles.inputLabel}>Tên tài khoản (Tùy chọn)</Text>
             <TextInput
               style={styles.input}
               value={usernameInput}
               onChangeText={setUsernameInput}
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="VD: mai_nguyen"
+              placeholder="Tên tài khoản (ví dụ: mai_nguyen)"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(220)}
             />
