@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   StatusBar,
   Image,
   BackHandler,
+  Animated,
+  Easing,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from './src/components/FeatherIcon';
@@ -35,22 +37,49 @@ const BOTTOM_TABS: { id: Exclude<MobileMainTab, 'sos'>; label: string; icon: str
 ];
 
 const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    const timer = setTimeout(onFinish, 2200);
+    Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: 2200,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      useNativeDriver: false,
+    }).start();
+
+    const timer = setTimeout(onFinish, 2500);
     return () => clearTimeout(timer);
-  }, [onFinish]);
+  }, [onFinish, progressAnim]);
 
   return (
     <SafeAreaView style={styles.splashContainer} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.splashCenter}>
         <View style={styles.splashLogoBox}>
-          <MobileAnimatedLogo width={210} withReveal />
+          <MobileAnimatedLogo width={220} withReveal />
         </View>
         <Text style={styles.splashTagline}>Những bàn chân nhỏ đang tới</Text>
         <Text style={styles.splashSub}>
-          Mạng xã hội hình ảnh · Kết nối bạn đi dạo · Báo động SOS
+          Mạng xã hội kết nối người nuôi thú cưng
         </Text>
+      </View>
+
+      {/* Bottom Loading Progress Bar and Connection Status (Image 1) */}
+      <View style={styles.splashFooter}>
+        <View style={styles.progressBarTrack}>
+          <Animated.View
+            style={[
+              styles.progressBarFill,
+              {
+                width: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '100%'],
+                }),
+              },
+            ]}
+          />
+        </View>
+        <Text style={styles.splashFooterText}>ĐANG KẾT NỐI CỘNG ĐỒNG BOSS...</Text>
       </View>
     </SafeAreaView>
   );
@@ -408,36 +437,63 @@ const styles = StyleSheet.create({
   },
   splashContainer: {
     flex: 1,
-    backgroundColor: '#FAF7F2',
+    backgroundColor: '#FDFBF7',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 28,
   },
   splashCenter: {
     alignItems: 'center',
+    transform: [{ translateY: -25 }],
   },
   splashLogoBox: {
-    width: 220,
-    height: 92,
-    borderRadius: 26,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#EFE9E1',
-    marginBottom: 14,
+    marginBottom: 16,
+    backgroundColor: 'transparent',
   },
   splashTagline: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#2C2520',
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#FF6F61',
     textAlign: 'center',
+    letterSpacing: 0.2,
+    textShadowColor: 'rgba(255, 111, 97, 0.24)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   splashSub: {
-    fontSize: 12,
-    color: '#8E8074',
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#7A6E63',
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: 8,
+    letterSpacing: 0.2,
+  },
+  splashFooter: {
+    position: 'absolute',
+    bottom: 42,
+    alignItems: 'center',
+    width: '100%',
+  },
+  progressBarTrack: {
+    width: 140,
+    height: 3.5,
+    borderRadius: 2,
+    backgroundColor: '#EFE7DC',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: '#FF6F61',
+  },
+  splashFooterText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#A89F95',
+    letterSpacing: 1.5,
+    marginTop: 10,
   },
   header: {
     flexDirection: 'row',

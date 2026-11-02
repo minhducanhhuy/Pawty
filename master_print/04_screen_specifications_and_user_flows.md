@@ -64,7 +64,17 @@
 - **Đồng nhất tuyệt đối bố cục Hồ sơ giữa "Bản thân tự nhìn" và "Người ngoài nhìn vào":**
   - Giữ nguyên bố cục chuẩn: Ảnh bìa, Avatar nổi 50%, Dấu cộng ghi chú trạng thái ở góc trên bên phải avatar, Thông tin cá nhân, Chips tính cách, Lưới khoảnh khắc. Phía người ngoài xem chỉ hiển thị thêm cụm nút quan hệ `[Kết bạn]` / `[Theo dõi]` / `[Nhắn tin]`.
 
-### 2.3 Tab 4 & Xem Hồ Sơ Cá Nhân: Đồng Nhất Bố Cục 100% & Selector-First UX
+### 2.6 Màn Hình Khởi Động Mobile (Splash Screen) & Logo Animation (Calligraphy Brush Effect)
+- **Quy chuẩn Splash Screen Mobile (Chuẩn Hình 1):**
+  - **Màu nền toàn màn hình:** `#FDFBF7` (trắng kem ấm áp thương hiệu Pawty).
+  - **Khung Logo:** Loại bỏ hộp thẻ trắng và đường viền cứng (`backgroundColor: 'transparent'`, `borderWidth: 0`), logo hòa trực tiếp vào nền kem với vệt sáng hào quang ấm nhẹ (`radial aura`).
+  - **Tiêu đề chính:** "Những bàn chân nhỏ đang tới" định dạng chữ béo tròn, đậm nét, màu đỏ san hô thương hiệu `#FF6F61` với hiệu ứng đổ bóng phát sáng ấm (`textShadowColor: 'rgba(255, 111, 97, 0.28)'`).
+  - **Dòng phụ đề:** "Mạng xã hội kết nối người nuôi thú cưng" màu xám ấm `#7A6E63`, phông chữ nhẹ nhàng thanh lịch.
+  - **Thanh tiến trình & Tải trang dưới đáy:** Thanh tải mỏng màu san hô `#FF6F61` chạy từ 0 đến 100% kèm dòng trạng thái `ĐANG KẾT NỐI CỘNG ĐỒNG BOSS...` màu `#A89F95` dãn chữ (`letterSpacing: 1.5`).
+- **Hiệu ứng Logo Chữ Viết Cọ Mực (Calligraphy Brush Reveal & Dog Tail Wag):**
+  - **Khắc phục triệt để lỗi đứt gãy khớp đuôi chữ Y:** Neo tâm quay chuẩn xác tại tọa độ tiếp giáp đuôi và thân chữ Y (`transform-origin: 66.4% 67.4% 0px`), đảm bảo khi lắc đuôi góc từ `-8deg` đến `+11deg`, khớp nối hoàn toàn liền mạch không tách rời một pixel nào.
+  - **Hiệu ứng Cây cọ viết (Brush Writing Reveal):** Mô phỏng nét cọ vẽ mực ướt từ trái sang phải, chữ "Pawty" được hé lộ tuần tự từ chữ P đội nón sinh nhật sang chữ y bằng clipping mask động kết hợp mờ ảo (bloom) và nét cọ dẫn đường. Khi nét cọ hoàn thành chữ y, đuôi cún lập tức xuất hiện và vẫy mừng vui nhộn cùng sóng âm xanh mint.
+
 - **Đồng nhất tuyệt đối bố cục Hồ sơ giữa "Bản thân tự nhìn" và "Người ngoài nhìn vào":**
   - Khi người dùng bấm xem trang cá nhân của người khác từ **Khám phá**, **Tin nhắn**, **Kết nối (Tinder)**, **SOS**, hoặc **Thông báo**, hệ thống điều hướng về đúng giao diện chuẩn của **`MobileProfileScreen`** (thay thế hoàn toàn modal rút gọn không đồng nhất trước đây).
   - **Bố cục 2 bên giống hệt nhau 100%** (lấy bố cục của bản thân làm chuẩn):
