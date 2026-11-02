@@ -32,10 +32,23 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
   isBackground = false,
 }) => {
   const [imageError, setImageError] = useState(false);
+  const [isFlippedToPet, setIsFlippedToPet] = useState(false);
 
   const primaryPet = candidate.pets && candidate.pets.length > 0 ? candidate.pets[0] : null;
 
   const candidatePhotos = React.useMemo(() => {
+    if (isFlippedToPet) {
+      const petPhotos = (candidate.pets || [])
+        .map((p) => p.imageUrl)
+        .filter(Boolean);
+      if (petPhotos.length > 0) return petPhotos;
+    } else {
+      if (candidate.avatarUrl) {
+        const otherPhotos = (candidate.photoUrls || []).filter((u) => u !== candidate.avatarUrl);
+        return [candidate.avatarUrl, ...otherPhotos];
+      }
+    }
+
     const petPhotos = (candidate.pets || [])
       .map((p) => p.imageUrl)
       .filter(Boolean);
@@ -48,7 +61,7 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
     if (merged.length > 0) return merged;
     if (candidate.avatarUrl) return [candidate.avatarUrl];
     return [FALLBACK_PET_IMG];
-  }, [candidate]);
+  }, [candidate, isFlippedToPet]);
 
   const activePhotoUrl =
     candidatePhotos[photoIdx % Math.max(candidatePhotos.length, 1)] || FALLBACK_PET_IMG;
@@ -79,6 +92,27 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
           ))}
         </View>
       )}
+
+      {/* Top 2-Sided indicator & Flip Button */}
+      <View style={styles.topIndicatorRow}>
+        <View style={styles.sideTypeBadge}>
+          <Feather name={isFlippedToPet ? 'smile' : 'user'} size={11} color="#FFFFFF" />
+          <Text style={styles.sideTypeText}>
+            {isFlippedToPet ? 'Mặt sau: Boss cưng' : 'Mặt trước: Chủ nuôi'}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.flipBtn}
+          onPress={() => setIsFlippedToPet((prev) => !prev)}
+          activeOpacity={0.8}
+        >
+          <Feather name="refresh-cw" size={11} color="#FFFFFF" />
+          <Text style={styles.flipBtnText}>
+            {isFlippedToPet ? 'Lật xem Sen 👤' : 'Lật xem Boss 🐾'}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {!isBackground && likeBadgeOpacity !== undefined && (
         <Animated.View
@@ -145,18 +179,28 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
 
         <View style={styles.infoContentRow}>
           <View style={styles.infoTextColumn}>
-            {primaryPet ? (
+            {!isFlippedToPet ? (
               <>
                 <Text style={styles.primaryTitle} numberOfLines={1}>
-                  {candidate.pets.length > 1
-                    ? `${candidate.pets.map((p) => p.name).join(' & ')} · ${primaryPet.ageLabel}`
-                    : `${primaryPet.name} · ${primaryPet.ageLabel}`}
+                  {candidate.ownerName}, {candidate.ownerAge} tuổi
                 </Text>
                 <Text style={styles.secondaryMeta} numberOfLines={1}>
-                  {primaryPet.breed} {primaryPet.weightKg ? `· ${primaryPet.weightKg} kg` : ''}
+                  {candidate.area || 'Khu vực quanh bạn'} · cách {candidate.distanceKm} km
                 </Text>
                 <Text style={styles.tertiarySub} numberOfLines={1}>
-                  Đi cùng {candidate.ownerName} ({candidate.ownerAge}t) · cách {candidate.distanceKm} km
+                  {candidate.bio || purposeLabel}
+                </Text>
+              </>
+            ) : primaryPet ? (
+              <>
+                <Text style={styles.primaryTitle} numberOfLines={1}>
+                  {primaryPet.name} · {primaryPet.ageLabel || ''}
+                </Text>
+                <Text style={styles.secondaryMeta} numberOfLines={1}>
+                  {primaryPet.breed} {primaryPet.weightKg ? `· ${primaryPet.weightKg} kg` : ''} · Nuôi bởi {candidate.ownerName}
+                </Text>
+                <Text style={styles.tertiarySub} numberOfLines={1}>
+                  ✓ Đã tiêm phòng · {purposeLabel}
                 </Text>
               </>
             ) : (
@@ -165,7 +209,7 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
                   {candidate.ownerName}, {candidate.ownerAge}
                 </Text>
                 <Text style={styles.secondaryMeta} numberOfLines={1}>
-                  {candidate.area || 'Cộng đồng Pawty'} · cách {candidate.distanceKm} km
+                  {candidate.area || 'Khu vực quanh bạn'} · cách {candidate.distanceKm} km
                 </Text>
                 <Text style={styles.tertiarySub} numberOfLines={1}>
                   {candidate.bio || purposeLabel}
@@ -256,6 +300,49 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#B52B27',
     letterSpacing: 1,
+  },
+  topIndicatorRow: {
+    position: 'absolute',
+    top: 24,
+    left: 14,
+    right: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 15,
+  },
+  sideTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 20,
+  },
+  sideTypeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  flipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FF6F61',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  flipBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
   },
   bottomGradient: {
     position: 'absolute',
