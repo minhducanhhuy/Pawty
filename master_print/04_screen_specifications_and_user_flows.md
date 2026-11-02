@@ -134,3 +134,27 @@
   - **Trang SOS:** Thay thế hiển thị username bằng tên chủ nuôi sạch sẽ (`sos.ownerName`).
   - **Trang Onboarding:** Thay thế `@handle` bằng tên hiển thị hoặc nhãn thân thiện.
 
+### 2.14 Form Thêm & Sửa Thú Cưng Thông Minh (Smart Pet Onboarding & Custom Inputs)
+- **Validate ngày sinh nghiêm ngặt:** Kiểm tra chặt chẽ ngày sinh không được vượt quá ngày hiện tại (không cho phép chọn ngày tương lai). Tự động cảnh báo Toast nếu ngày chọn không hợp lệ.
+- **Tự động suy ra độ tuổi:** Loại bỏ bộ chọn độ tuổi thủ công; hệ thống tự động tính toán độ tuổi chính xác từ ngày sinh (`tuần tuổi`, `tháng tuổi`, `x.5 tuổi`, `x tuổi`) và lưu vào `ageLabel`.
+- **Hỗ trợ nhập text tay tùy chỉnh (Custom Text Input):** Cung cấp ô nhập text tự do ngay trong bộ chọn (Selector) và form đối với: Cân nặng (`weightKg`), Màu lông (`furColor`), Sở thích ăn uống (`favoriteFood`), Lịch sử tẩy giun (`dewormingHistory`), Tiền sử bệnh lý (`medicalHistory`), Thói quen tốt (`goodHabits`), và Lưu ý khi dạo chung (`cautionHabits`). Người dùng có thể chọn nhanh từ danh sách gợi ý hoặc tự gõ nội dung thực tế của thú cưng.
+
+### 2.15 Tối Ưu Hóa Hiệu Năng Cuộn Danh Sách Dài Với FlatList (Virtualization & 60 FPS Scrolling)
+- Thay thế toàn bộ các `ScrollView` chứa mảng danh sách bài viết / tin nhắn dài (Bảng tin mạng xã hội `MobileExploreScreen`, Danh sách phòng chat `MobileChatScreen`) bằng **`FlatList`** chuẩn React Native.
+- Tận dụng cơ chế ảo hóa (Virtualization) và tái sử dụng component (`initialNumToRender={4}`, `maxToRenderPerBatch={4}`, `windowSize={5}`) giúp cuộn mượt mà 60 FPS và triệt tiêu tràn RAM trên thiết bị thật.
+
+### 2.16 Triệt Để Loại Bỏ @handle Trong Tiêu Đề Chat, Danh Sách Phòng Chat & Hồ Sơ Tinder (Zero Residual Handles)
+- Áp dụng bộ lọc `cleanName()` triệt để tại mọi điểm hiển thị tên đối phương:
+  - **Tiêu đề thanh Header phòng chat (`MobileChatScreen`):** Cả phân hệ Mạng xã hội lẫn Hẹn hò đều bắt buộc bọc `{cleanName(activeChat.partnerName)}` và các dialog xác nhận (`Xem Hồ sơ`, `Hủy tương hợp`, `Hủy kết bạn`).
+  - **Danh sách phòng chat (`MobileChatScreen`):** Render tên người trò chuyện chuẩn qua `cleanName(room.partnerName)`.
+  - **Hồ sơ chi tiết Tinder (`TinderProfileDetailModal`):** Loại bỏ nickname nếu trùng với tên chính sau khi làm sạch, và loại trừ toàn bộ chuỗi dạng `(@...)` hoặc `@username`.
+  - **Bộ lọc Regex chuẩn hóa:** `cleanName` mở rộng xóa sạch cả pattern `(@...)` thiếu ngoặc đóng hoặc trailing `@.*`.
+
+### 2.17 Chống Rớt Dòng Ngày Sinh & Tinh Chỉnh Khung Thông Số Thú Cưng (Pet Specs Layout Integrity)
+- Tinh chỉnh `specFrostedChip` trong `MobileProfileScreen`:
+  - `minWidth: 64`, `paddingHorizontal: 4`.
+  - Nhãn `specChipValue` được cấu hình `numberOfLines={1}` và `adjustsFontSizeToFit={true}` với `fontSize: 11` cho chuỗi ngày sinh `DD/MM/YYYY`, đảm bảo không bao giờ bị rớt dòng thành `01/01/20 \n 24` trên các màn hình có mật độ hiển thị nhỏ.
+  - Ảnh đại diện Boss khi chưa tải ảnh lên sẽ sử dụng fallback banner màu ấm chất lượng cao thay cho khung nền màu đơn điệu.
+
+
+

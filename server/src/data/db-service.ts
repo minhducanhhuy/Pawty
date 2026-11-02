@@ -36,7 +36,14 @@ export function getTinderIntentLabel(intent: CanonicalTinderIntent): string {
 
 export function cleanDisplayName(name?: string | null): string {
   if (!name) return 'Cư dân Pawty';
-  return name.replace(/\s*\(@[^)]+\)/g, '').replace(/@\w+/g, '').trim() || 'Cư dân Pawty';
+  return (
+    name
+      .replace(/\s*\(@[^)]*\)?/g, '')
+      .replace(/@\w+/g, '')
+      .replace(/\s*@.*$/, '')
+      .replace(/\s*\([^)]*\)$/g, '')
+      .trim() || 'Cư dân Pawty'
+  );
 }
 
 function formatUserHandle(user: { username?: string | null; displayName?: string | null }): string {

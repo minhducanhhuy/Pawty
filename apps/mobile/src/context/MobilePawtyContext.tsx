@@ -27,7 +27,14 @@ import {
 
 export const cleanName = (name?: string | null): string => {
   if (!name) return 'Cư dân Pawty';
-  return name.replace(/\s*\(@[^)]+\)/g, '').replace(/@\w+/g, '').trim() || 'Cư dân Pawty';
+  return (
+    name
+      .replace(/\s*\(@[^)]*\)?/g, '')
+      .replace(/@\w+/g, '')
+      .replace(/\s*@.*$/, '')
+      .replace(/\s*\([^)]*\)$/g, '')
+      .trim() || 'Cư dân Pawty'
+  );
 };
 
 const EMPTY_PET_PLACEHOLDER: MobilePet = {

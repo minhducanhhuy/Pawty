@@ -687,3 +687,50 @@ export const POPULAR_CAT_BREEDS: string[] = [
   'Mèo Mướp lai',
   'Khác',
 ];
+
+export function isFutureDate(dateStr?: string | null): boolean {
+  if (!dateStr) return false;
+  const parts = dateStr.split(/[\/\-\.]/);
+  if (parts.length < 3) return false;
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const year = parseInt(parts[2], 10);
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
+
+  const date = new Date(year, month, day);
+  const now = new Date();
+  now.setHours(23, 59, 59, 999);
+  return date > now;
+}
+
+export function calculatePetAgeFromBirthDate(birthDateStr?: string | null): string {
+  if (!birthDateStr) return '1 tuổi';
+  const parts = birthDateStr.split(/[\/\-\.]/);
+  if (parts.length < 3) return '1 tuổi';
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const year = parseInt(parts[2], 10);
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return '1 tuổi';
+
+  const birth = new Date(year, month, day);
+  const now = new Date();
+  if (birth > now) return 'Mới sinh';
+
+  const diffMs = now.getTime() - birth.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffMonths = Math.floor(diffDays / 30.4375);
+  const diffYears = Math.floor(diffDays / 365.25);
+
+  if (diffMonths < 1) {
+    const weeks = Math.max(1, Math.floor(diffDays / 7));
+    return `${weeks} tuần tuổi`;
+  }
+  if (diffMonths < 12) {
+    return `${diffMonths} tháng tuổi`;
+  }
+  const remainingMonths = diffMonths % 12;
+  if (remainingMonths >= 3 && remainingMonths <= 9) {
+    return `${diffYears}.5 tuổi`;
+  }
+  return `${diffYears} tuổi`;
+}

@@ -3,6 +3,7 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   Image,
   TextInput,
@@ -333,7 +334,7 @@ export const MobileChatScreen: React.FC = () => {
               <View style={{ flex: 1 }}>
                 <View style={styles.partnerTitleRow}>
                   <Text style={[styles.headerName, { color: theme.text }]} numberOfLines={1}>
-                    {activeChat.partnerName}
+                    {cleanName(activeChat.partnerName)}
                   </Text>
 
                 </View>
@@ -592,7 +593,7 @@ export const MobileChatScreen: React.FC = () => {
                       <Feather name="heart" size={17} color="#E11D48" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.menuRowTitle}>Xem Hồ sơ Hẹn hò của {activeChat.partnerName}</Text>
+                      <Text style={styles.menuRowTitle}>Xem Hồ sơ Hẹn hò của {cleanName(activeChat.partnerName)}</Text>
                       <Text style={styles.menuRowSub}>Xem album ảnh, mục đích kết nối và thói quen thú cưng</Text>
                     </View>
                   </TouchableOpacity>
@@ -649,7 +650,7 @@ export const MobileChatScreen: React.FC = () => {
                       <Feather name="user" size={17} color="#2E7D5B" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.menuRowTitle}>Xem Trang cá nhân của {activeChat.partnerName}</Text>
+                      <Text style={styles.menuRowTitle}>Xem Trang cá nhân của {cleanName(activeChat.partnerName)}</Text>
                       <Text style={styles.menuRowSub}>Xem bài viết khoảnh khắc, follower và các bé thú cưng</Text>
                     </View>
                   </TouchableOpacity>
@@ -695,9 +696,9 @@ export const MobileChatScreen: React.FC = () => {
           visible={confirmType !== null}
           title={
             confirmType === 'unmatch'
-              ? `Bỏ tương hợp với ${activeChat.partnerName}?`
+              ? `Bỏ tương hợp với ${cleanName(activeChat.partnerName)}?`
               : confirmType === 'unfriend'
-              ? `Hủy kết bạn với ${activeChat.partnerName}?`
+              ? `Hủy kết bạn với ${cleanName(activeChat.partnerName)}?`
               : 'Xóa toàn bộ tin nhắn?'
           }
           message={
@@ -734,13 +735,15 @@ export const MobileChatScreen: React.FC = () => {
   }
 
   return (
-    <ScrollView
+    <FlatList
       style={[styles.container, { backgroundColor: theme.bg }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
-    >
-      <View
+      data={filteredChats}
+      keyExtractor={(item: any) => item.id}
+      ListHeaderComponent={
+        <View
         style={[
           styles.topToolCard,
           { backgroundColor: theme.surface, borderColor: theme.border },
@@ -854,8 +857,8 @@ export const MobileChatScreen: React.FC = () => {
           })}
         </View>
       </View>
-
-      {filteredChats.length === 0 ? (
+      }
+      ListEmptyComponent={
         <View
           style={[
             styles.emptyBox,
@@ -880,9 +883,9 @@ export const MobileChatScreen: React.FC = () => {
               : 'Hãy quẹt thẻ ở mục Kết nối để tìm Boss và Sen phù hợp cùng dắt cún đi dạo!'}
           </Text>
         </View>
-      ) : (
-        filteredChats.map((room) => {
-          const lastMsg = room.messages[room.messages.length - 1];
+      }
+      renderItem={({ item: room }: { item: any }) => {
+                  const lastMsg = room.messages[room.messages.length - 1];
           const isDatingRoom =
             room.chatType === 'dating' || room.matchSource === 'tinder_match';
           const roomLocked = isDatingRoom && room.canMessage === false;
@@ -978,10 +981,13 @@ export const MobileChatScreen: React.FC = () => {
                 </View>
               )}
             </TouchableOpacity>
-          );
-        })
-      )}
-    </ScrollView>
+        );
+      }}
+      ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+      initialNumToRender={8}
+      maxToRenderPerBatch={8}
+      windowSize={7}
+    />
   );
 };
 

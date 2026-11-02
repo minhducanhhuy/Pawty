@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
+  FlatList,
   ScrollView,
   RefreshControl,
   TouchableOpacity,
@@ -90,11 +91,13 @@ export const MobileExploreScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView
+    <FlatList
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      data={filteredPosts}
+      keyExtractor={(item) => item.id}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
@@ -105,7 +108,8 @@ export const MobileExploreScreen: React.FC = () => {
           titleColor="#78706A"
         />
       }
-    >
+      ListHeaderComponent={
+        <View style={{ marginBottom: 12 }}>
       {/* Search Bar with History & Trending Dropdown */}
       <View style={styles.searchSection}>
         <View style={styles.searchBar}>
@@ -207,8 +211,10 @@ export const MobileExploreScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Empty State when no posts exist yet */}
-      {filteredPosts.length === 0 ? (
+
+        </View>
+      }
+      ListEmptyComponent={
         <View style={styles.emptyFeedCard}>
           <View style={[styles.emptyFeedIconCircle, { backgroundColor: theme.primarySoft }]}>
             <Feather name="paw" size={28} color={theme.primary} />
@@ -233,9 +239,8 @@ export const MobileExploreScreen: React.FC = () => {
             </TouchableOpacity>
           )}
         </View>
-      ) : (
-        <View style={styles.stack}>
-          {filteredPosts.map((post) => {
+      }
+      renderItem={({ item: post }) => {
             const isCommentOpen = expandedCommentId === post.id;
             const isPlayingVideo = playingVideoId === post.id;
             const galleryUrls = post.mediaUrls.length > 0 ? post.mediaUrls : [];
@@ -514,11 +519,14 @@ export const MobileExploreScreen: React.FC = () => {
                   </View>
                 )}
               </View>
-            );
-          })}
-        </View>
-      )}
-    </ScrollView>
+        );
+      }}
+      ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+      initialNumToRender={4}
+      maxToRenderPerBatch={4}
+      windowSize={5}
+      removeClippedSubviews={true}
+    />
   );
 };
 

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -46,6 +46,8 @@ import {
   OCCUPATION_OPTIONS,
   EDUCATION_OPTIONS,
   LIVING_AREA_OPTIONS,
+  isFutureDate,
+  calculatePetAgeFromBirthDate,
 } from '../types/mobileTypes';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -118,8 +120,20 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({
     return Array.from({ length: count }, (_, i) => String(startYear + i)).reverse();
   }, [isPet]);
 
+  const [dateError, setDateError] = useState('');
+
+  useEffect(() => {
+    setDateError('');
+  }, [visible, initialDate]);
+
   const handleConfirm = () => {
-    onConfirm(`${selectedDay}/${selectedMonth}/${selectedYear}`);
+    const formatted = `${selectedDay}/${selectedMonth}/${selectedYear}`;
+    if (isPet && isFutureDate(formatted)) {
+      setDateError('Ngày sinh của bé không được vượt quá ngày hiện tại!');
+      return;
+    }
+    setDateError('');
+    onConfirm(formatted);
     onClose();
   };
 
@@ -193,6 +207,14 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({
               Đã chọn: {selectedDay}/{selectedMonth}/{selectedYear}
             </Text>
           </View>
+
+          {dateError ? (
+            <View style={{ backgroundColor: '#FEE2E2', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, marginTop: 8, alignItems: 'center' }}>
+              <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '700' }}>
+                {dateError}
+              </Text>
+            </View>
+          ) : null}
 
           <TouchableOpacity style={dateStyles.confirmBtn} onPress={handleConfirm} activeOpacity={0.85}>
             <Text style={dateStyles.confirmBtnText}>Xác nhận ngày sinh</Text>
@@ -760,6 +782,10 @@ export const MobileProfileScreen: React.FC = () => {
       showToast('Vui lòng nhập tên cho bé thú cưng.');
       return;
     }
+    if (isFutureDate(editPetBirthDateDraft)) {
+      showToast('Ngày sinh của bé không được vượt quá ngày hiện tại!');
+      return;
+    }
     const finalSpecies = editPetSpeciesDraft === 'Khác' && editPetCustomSpeciesDraft.trim()
       ? editPetCustomSpeciesDraft.trim()
       : editPetSpeciesDraft;
@@ -771,7 +797,7 @@ export const MobileProfileScreen: React.FC = () => {
       gender: editPetGenderDraft,
       breed: editPetBreedDraft.trim() || 'Thuần chủng',
       weightKg: parseFloat(editPetWeightDraft) || editingPet.weightKg,
-      ageLabel: editPetAgeDraft.trim() || '1 tuổi',
+      ageLabel: calculatePetAgeFromBirthDate(editPetBirthDateDraft) || editPetAgeDraft.trim() || '1 tuổi',
       birthDate: editPetBirthDateDraft.trim(),
       furColor: editPetFurColorDraft,
       bio: editPetBioDraft.trim(),
@@ -797,6 +823,10 @@ export const MobileProfileScreen: React.FC = () => {
       showToast('Vui lòng nhập tên bé thú cưng.');
       return;
     }
+    if (isFutureDate(newPetBirthDate)) {
+      showToast('Ngày sinh của bé không được vượt quá ngày hiện tại!');
+      return;
+    }
 
     setIsCreatingPetSubmitting(true);
     try {
@@ -814,7 +844,7 @@ export const MobileProfileScreen: React.FC = () => {
         breed: newPetBreed.trim() || (newPetSpecies === 'Chó' ? 'Golden Retriever' : 'Mèo Anh lông ngắn'),
         gender: newPetGender,
         weightKg: parseFloat(newPetWeight) || 4.8,
-        ageLabel: newPetAge.trim() || '1 tuổi',
+        ageLabel: calculatePetAgeFromBirthDate(newPetBirthDate) || '1 tuổi',
         birthDate: newPetBirthDate,
         furColor: newPetFurColor,
         bio: newPetBio.trim(),
@@ -1496,7 +1526,13 @@ export const MobileProfileScreen: React.FC = () => {
                     {pet.birthDate ? (
                       <View style={styles.specFrostedChip}>
                         <Text style={styles.specChipLabel}>Ngày sinh</Text>
-                        <Text style={styles.specChipValue}>{pet.birthDate}</Text>
+                        <Text
+                          style={[styles.specChipValue, { fontSize: 11 }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                        >
+                          {pet.birthDate}
+                        </Text>
                       </View>
                     ) : null}
                   </View>
@@ -2216,18 +2252,13 @@ export const MobileProfileScreen: React.FC = () => {
                 </View>
 
                 <View style={[styles.fieldBlock, { flex: 1, marginLeft: 8 }]}>
-                  <Text style={styles.fieldLabel}>Độ tuổi</Text>
-                  <TouchableOpacity
-                    style={styles.pickerSelectorBtn}
-                    onPress={() =>
-                      openSelector('Chọn độ tuổi của bé', PET_AGE_OPTIONS, newPetAge, (val) =>
-                        setNewPetAge(val)
-                      )
-                    }
-                  >
-                    <Text style={styles.pickerSelectorBtnText}>{newPetAge}</Text>
-                    <Feather name="chevron-down" size={14} color="#7E6E60" />
-                  </TouchableOpacity>
+                  <Text style={styles.fieldLabel}>Độ tuổi (Tự động tính)</Text>
+                  <View style={[styles.pickerSelectorBtn, { backgroundColor: '#F8F4EE', borderColor: '#E5DDD3' }]}>
+                    <Text style={[styles.pickerSelectorBtnText, { color: '#2C2520', fontWeight: '800' }]}>
+                      {calculatePetAgeFromBirthDate(newPetBirthDate) || 'Chưa rõ'}
+                    </Text>
+                    <Feather name="sparkles" size={14} color="#FF6F61" />
+                  </View>
                 </View>
               </View>
 
@@ -2542,18 +2573,13 @@ export const MobileProfileScreen: React.FC = () => {
               {/* Độ tuổi & Cân nặng */}
               <View style={styles.fieldsTwoColRow}>
                 <View style={[styles.fieldBlock, { flex: 1, marginRight: 8 }]}>
-                  <Text style={styles.fieldLabel}>Độ tuổi</Text>
-                  <TouchableOpacity
-                    style={styles.pickerSelectorBtn}
-                    onPress={() =>
-                      openSelector('Chọn độ tuổi của bé', PET_AGE_OPTIONS, editPetAgeDraft, (val) =>
-                        setEditPetAgeDraft(val)
-                      )
-                    }
-                  >
-                    <Text style={styles.pickerSelectorBtnText}>{editPetAgeDraft}</Text>
-                    <Feather name="chevron-down" size={14} color="#7E6E60" />
-                  </TouchableOpacity>
+                  <Text style={styles.fieldLabel}>Độ tuổi (Tự động tính)</Text>
+                  <View style={[styles.pickerSelectorBtn, { backgroundColor: '#F8F4EE', borderColor: '#E5DDD3' }]}>
+                    <Text style={[styles.pickerSelectorBtnText, { color: '#2C2520', fontWeight: '800' }]}>
+                      {calculatePetAgeFromBirthDate(editPetBirthDateDraft) || editPetAgeDraft || 'Chưa rõ'}
+                    </Text>
+                    <Feather name="sparkles" size={14} color="#FF6F61" />
+                  </View>
                 </View>
 
                 <View style={[styles.fieldBlock, { flex: 1, marginLeft: 8 }]}>
@@ -3659,11 +3685,11 @@ const styles = StyleSheet.create({
   },
   specFrostedChip: {
     flex: 1,
-    minWidth: 70,
+    minWidth: 64,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 12,
     paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     alignItems: 'center',
   },
   specChipLabel: {
