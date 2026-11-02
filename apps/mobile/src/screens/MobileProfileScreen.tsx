@@ -1027,11 +1027,15 @@ export const MobileProfileScreen: React.FC = () => {
                 });
               }}
             >
-              <Image
-                source={{ uri: displayCoverUrl }}
-                style={styles.ownerCoverImg}
-                resizeMode="cover"
-              />
+              {displayCoverUrl && displayCoverUrl.trim() ? (
+                <Image
+                  source={{ uri: displayCoverUrl }}
+                  style={styles.ownerCoverImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.ownerCoverImg, styles.defaultWarmCover]} />
+              )}
             </TouchableOpacity>
 
             {!isViewingOther && (
@@ -1530,7 +1534,7 @@ export const MobileProfileScreen: React.FC = () => {
                   <View style={styles.petSpecsWrapRow}>
                     <View style={styles.specFrostedChip}>
                       <Text style={styles.specChipLabel}>Giới tính</Text>
-                      <Text style={styles.specChipValue}>{pet.gender || 'Đực'}</Text>
+                      <Text style={styles.specChipValue}>{pet.gender || 'Chưa rõ'}</Text>
                     </View>
                     <View style={styles.specFrostedChip}>
                       <Text style={styles.specChipLabel}>Tuổi</Text>
@@ -1538,7 +1542,7 @@ export const MobileProfileScreen: React.FC = () => {
                     </View>
                     <View style={styles.specFrostedChip}>
                       <Text style={styles.specChipLabel}>Cân nặng</Text>
-                      <Text style={styles.specChipValue}>{pet.weightKg} kg</Text>
+                      <Text style={styles.specChipValue}>{pet.weightKg && pet.weightKg > 0 ? `${pet.weightKg} kg` : 'Chưa rõ'}</Text>
                     </View>
                     {pet.birthDate ? (
                       <View style={styles.specFrostedChip}>
@@ -2712,10 +2716,16 @@ export const MobileProfileScreen: React.FC = () => {
           {selectedPreviewPost && (
             <View style={styles.previewCard}>
               <View style={styles.previewHeaderRow}>
-                <Image
-                  source={{ uri: selectedPreviewPost.authorAvatar || displayAvatarUrl }}
-                  style={styles.postPreviewAvatar}
-                />
+                {selectedPreviewPost.authorAvatar || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
+                  <Image
+                    source={{ uri: selectedPreviewPost.authorAvatar || displayAvatarUrl }}
+                    style={styles.postPreviewAvatar}
+                  />
+                ) : (
+                  <View style={[styles.postPreviewAvatar, { backgroundColor: '#EADFD3', alignItems: 'center', justifyContent: 'center' }]}>
+                    <Feather name="user" size={16} color="#7E6E60" />
+                  </View>
+                )}
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={styles.previewAuthorHandle}>{displayName || 'Bạn'}</Text>
                   <Text style={styles.previewMetaText}>Vừa xong • Công khai</Text>
@@ -2738,11 +2748,17 @@ export const MobileProfileScreen: React.FC = () => {
                   });
                 }}
               >
-                <Image
-                  source={{ uri: selectedPreviewPost.mediaUrls?.[0] || displayAvatarUrl }}
-                  style={styles.previewPostImage}
-                  resizeMode="cover"
-                />
+                {selectedPreviewPost.mediaUrls?.[0] || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
+                  <Image
+                    source={{ uri: selectedPreviewPost.mediaUrls?.[0] || displayAvatarUrl }}
+                    style={styles.previewPostImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.previewPostImage, { backgroundColor: '#EADFD3', alignItems: 'center', justifyContent: 'center' }]}>
+                    <Feather name="image" size={32} color="#7E6E60" />
+                  </View>
+                )}
               </TouchableOpacity>
 
               <View style={styles.previewCaptionBox}>
@@ -2819,21 +2835,29 @@ export const MobileProfileScreen: React.FC = () => {
               <>
                 <ScrollView style={styles.modalScrollBody} showsVerticalScrollIndicator={false}>
                   <View style={styles.postDetailAuthorRow}>
-                    <Image
-                      source={{ uri: activePostDetail.authorAvatar || displayAvatarUrl }}
-                      style={styles.postDetailAvatar}
-                    />
+                    {activePostDetail.authorAvatar || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
+                      <Image
+                        source={{ uri: activePostDetail.authorAvatar || displayAvatarUrl }}
+                        style={styles.postDetailAvatar}
+                      />
+                    ) : (
+                      <View style={[styles.postDetailAvatar, { backgroundColor: '#EADFD3', alignItems: 'center', justifyContent: 'center' }]}>
+                        <Feather name="user" size={16} color="#7E6E60" />
+                      </View>
+                    )}
                     <View style={{ flex: 1, marginLeft: 10 }}>
                       <Text style={styles.postDetailAuthorName}>{activePostDetail.authorName}</Text>
                       
                     </View>
                   </View>
 
-                  <Image
-                    source={{ uri: activePostDetail.mediaUrls?.[0] || displayAvatarUrl }}
-                    style={styles.postDetailImage}
-                    resizeMode="cover"
-                  />
+                  {activePostDetail.mediaUrls?.[0] || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
+                    <Image
+                      source={{ uri: activePostDetail.mediaUrls?.[0] || displayAvatarUrl }}
+                      style={styles.postDetailImage}
+                      resizeMode="cover"
+                    />
+                  ) : null}
 
                   <Text style={styles.postDetailContentText}>{activePostDetail.content}</Text>
 
@@ -2862,7 +2886,13 @@ export const MobileProfileScreen: React.FC = () => {
                     {(activePostDetail.comments || []).map((cmt) => (
                       <View key={cmt.id} style={styles.commentItemWrap}>
                         <View style={styles.commentRow}>
-                          <Image source={{ uri: cmt.authorAvatar || displayAvatarUrl }} style={styles.commentAvatar} />
+                          {cmt.authorAvatar || (displayAvatarUrl && displayAvatarUrl.trim()) ? (
+                            <Image source={{ uri: cmt.authorAvatar || displayAvatarUrl }} style={styles.commentAvatar} />
+                          ) : (
+                            <View style={[styles.commentAvatar, { backgroundColor: '#EADFD3', alignItems: 'center', justifyContent: 'center' }]}>
+                              <Feather name="user" size={12} color="#7E6E60" />
+                            </View>
+                          )}
                           <View style={styles.commentBubble}>
                             <Text style={styles.commentAuthorName}>{cmt.authorName}</Text>
                             <Text style={styles.commentContentText}>{cmt.content}</Text>
@@ -3072,6 +3102,9 @@ const dateStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  defaultWarmCover: {
+    backgroundColor: '#EAE1D6',
+  },
   /* EMPTY PET PHOTO PLACEHOLDER */
   emptyPetPhotoPlaceholder: {
     backgroundColor: '#24201D',

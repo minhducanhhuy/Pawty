@@ -68,10 +68,17 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
     return await res.json();
   } catch (error: any) {
-    if (error.name === 'AbortError') {
-      console.warn(`[Pawty API] Timeout 20s requesting ${endpoint}`);
+    if (error instanceof ApiRequestError) {
+      throw error;
+    }
+    if (
+      error.name === 'AbortError' ||
+      String(error?.message || '').includes('Fetch request has been canceled') ||
+      String(error?.message || '').includes('canceled')
+    ) {
+      console.warn(`[Pawty API] Timeout / Canceled requesting ${endpoint}`);
       throw new Error(
-        'Kết nối máy chủ quá hạn (Timeout 20s). Vui lòng kiểm tra kết nối mạng và Backend.'
+        'Kết nối tới máy chủ bị gián đoạn hoặc quá hạn (Timeout). Vui lòng thử lại.'
       );
     }
     if (

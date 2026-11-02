@@ -31,6 +31,7 @@ export const MobileOnboardingScreen: React.FC = () => {
     savedSessionIdentifier,
     bootAuthError,
     loginOrRegister,
+    showToast,
   } = useMobilePawty();
 
   const [mode, setMode] = useState<'welcome' | 'login' | 'register'>(
@@ -150,7 +151,9 @@ export const MobileOnboardingScreen: React.FC = () => {
         petBreed: petBreedInput.trim(),
       });
     } catch (err: any) {
-      setAuthError(err.message || 'Đăng ký không thành công. Vui lòng thử lại.');
+      const msg = err.message || 'Đăng ký không thành công. Vui lòng thử lại.';
+      setAuthError(msg);
+      showToast(msg);
     } finally {
       setIsLoading(false);
     }

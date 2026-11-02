@@ -23,6 +23,7 @@ import {
   EMPTY_USER_TINDER_SETUP,
   resolveTinderIntentFromLabel,
   getTinderPurposeLabel,
+  calculatePetAgeFromBirthDate,
 } from '../types/mobileTypes';
 
 export const cleanName = (name?: string | null): string => {
@@ -210,14 +211,14 @@ function normalizePetFromServer(p: any): MobilePet {
     species: normalizeSpeciesLabel(p.species),
     customSpecies: p.customSpecies || undefined,
     breed: p.breed || 'Chưa rõ',
-    gender: p.gender === 'female' || p.gender === 'Cái' ? 'Cái' : 'Đực',
-    birthDate: p.birthDate || '01/01/2024',
-    ageLabel: p.ageLabel || '1 tuổi',
-    weightKg: Number(p.weightKg ?? 0),
-    furColor: p.furColor || 'Vàng kem',
+    gender: p.gender === 'female' || p.gender === 'Cái' ? 'Cái' : (p.gender || 'Đực'),
+    birthDate: p.birthDate || '',
+    ageLabel: p.ageLabel || (p.birthDate ? calculatePetAgeFromBirthDate(p.birthDate) : 'Chưa rõ'),
+    weightKg: p.weightKg ? Number(p.weightKg) : 0,
+    furColor: p.furColor || '',
     microchipOrMark: p.microchipOrMark || '',
-    favoriteFood: p.favoriteFood || 'Hạt dinh dưỡng & Ức gà',
-    allergies: p.allergies || p.medicalHistory || 'Không',
+    favoriteFood: p.favoriteFood || '',
+    allergies: p.allergies || p.medicalHistory || '',
     avatarUrl: primaryPhoto,
     coverUrl: p.coverPhotoUrl || p.coverUrl || primaryPhoto,
     bio: p.bio || '',
@@ -230,8 +231,8 @@ function normalizePetFromServer(p: any): MobilePet {
     galleryUrls,
     weightHistory: Array.isArray(p.weightHistory) ? p.weightHistory : [],
     vaccineRecords,
-    dewormingHistory: p.dewormingHistory || 'Định kỳ 3 tháng/lần',
-    medicalHistory: p.medicalHistory || 'Khỏe mạnh, không có bệnh nền',
+    dewormingHistory: p.dewormingHistory || '',
+    medicalHistory: p.medicalHistory || '',
     likesCount: Number(p.likesCount ?? 0),
     isLiked: Boolean(p.isLiked ?? false),
   };
@@ -661,11 +662,11 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [ownerArea, setOwnerArea] = useState('');
   const [ownerNoteBubble, setOwnerNoteBubbleState] = useState('');
   const [isPrivateProfile, setIsPrivateProfile] = useState(false);
-  const [ownerGender, setOwnerGender] = useState('Nữ');
-  const [ownerAge, setOwnerAge] = useState(24);
-  const [ownerBirthDate, setOwnerBirthDate] = useState('01/01/2002');
-  const [ownerZodiac, setOwnerZodiac] = useState('Sư Tử');
-  const [ownerMbti, setOwnerMbti] = useState('ENFP');
+  const [ownerGender, setOwnerGender] = useState('');
+  const [ownerAge, setOwnerAge] = useState(0);
+  const [ownerBirthDate, setOwnerBirthDate] = useState('');
+  const [ownerZodiac, setOwnerZodiac] = useState('');
+  const [ownerMbti, setOwnerMbti] = useState('');
   const [ownerEducation, setOwnerEducation] = useState('');
   const [ownerMajor, setOwnerMajor] = useState('');
   const [ownerOccupation, setOwnerOccupation] = useState('');
@@ -819,11 +820,11 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setOwnerAvatar(u.avatarUrl || '');
         setOwnerAvatarUrlState(u.avatarUrl || '');
         setOwnerCoverUrlState(u.coverUrl || '');
-        setOwnerGender(u.gender || 'Nữ');
-        setOwnerAge(Number(u.age || 24));
-        setOwnerBirthDate(u.birthDate || '01/01/2002');
-        setOwnerZodiac(u.zodiac || 'Sư Tử');
-        setOwnerMbti(u.mbti || 'ENFP');
+        setOwnerGender(u.gender || '');
+        setOwnerAge(u.age ? Number(u.age) : 0);
+        setOwnerBirthDate(u.birthDate || '');
+        setOwnerZodiac(u.zodiac || '');
+        setOwnerMbti(u.mbti || '');
         setOwnerOccupation(u.occupation || '');
         setOwnerEducation(u.education || '');
         setOwnerNoteBubbleState(u.noteBubble || '');

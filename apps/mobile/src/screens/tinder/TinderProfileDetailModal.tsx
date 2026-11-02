@@ -231,7 +231,15 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
             </View>
 
             <View style={styles.ownerBriefRow}>
-              <Image source={{ uri: candidate.avatarUrl }} style={styles.ownerAvatarSmall} />
+              {candidate.avatarUrl && candidate.avatarUrl.trim() ? (
+                <Image source={{ uri: candidate.avatarUrl }} style={styles.ownerAvatarSmall} />
+              ) : (
+                <View style={[styles.ownerAvatarSmall, { backgroundColor: '#FF6F61', alignItems: 'center', justifyContent: 'center' }]}>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 16 }}>
+                    {(cleanOwnerName[0] || 'P').toUpperCase()}
+                  </Text>
+                </View>
+              )}
               <View style={styles.ownerBriefTextCol}>
                 <View style={styles.ownerNameRow}>
                   <Text style={styles.ownerNameText}>{cleanOwnerName}</Text>

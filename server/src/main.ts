@@ -197,10 +197,17 @@ const server = http.createServer(async (req, res) => {
       const existingByUsername = username
         ? await dbService.findUserByIdentifier(username)
         : null;
-      if (existingByPhone || existingByUsername) {
+      if (existingByPhone) {
         sendJson(res, 409, {
           success: false,
-          error: 'Số điện thoại hoặc tên đăng nhập này đã được sử dụng.',
+          error: `Số điện thoại ${phone} đã được sử dụng. Vui lòng đăng nhập hoặc dùng số khác.`,
+        });
+        return;
+      }
+      if (existingByUsername) {
+        sendJson(res, 409, {
+          success: false,
+          error: `Tên tài khoản (username) "${username}" đã có người sử dụng. Vui lòng chọn tên khác.`,
         });
         return;
       }
