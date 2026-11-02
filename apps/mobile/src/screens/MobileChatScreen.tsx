@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   Image,
   TextInput,
@@ -15,7 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '../components/FeatherIcon';
-import { useMobilePawty } from '../context/MobilePawtyContext';
+import { useMobilePawty, cleanName } from '../context/MobilePawtyContext';
 import { ConfirmActionModal } from '../components/SelectorFieldModal';
 import { TinderProfileDetailModal } from './tinder/TinderProfileDetailModal';
 import { TinderCandidate } from '../types/mobileTypes';
@@ -128,6 +129,28 @@ export const MobileChatScreen: React.FC = () => {
   const isDatingChat = activeChat
     ? activeChat.chatType === 'dating' || activeChat.matchSource === 'tinder_match'
     : false;
+
+  const lastSeenMyMessageId = useMemo(() => {
+    if (!activeChat?.messages) return null;
+    for (let i = activeChat.messages.length - 1; i >= 0; i--) {
+      const m = activeChat.messages[i];
+      if (m.sender === 'me' && m.isRead) {
+        return m.id;
+      }
+    }
+    return null;
+  }, [activeChat?.messages]);
+
+  const lastMyMessageId = useMemo(() => {
+    if (!activeChat?.messages) return null;
+    for (let i = activeChat.messages.length - 1; i >= 0; i--) {
+      const m = activeChat.messages[i];
+      if (m.sender === 'me') {
+        return m.id;
+      }
+    }
+    return null;
+  }, [activeChat?.messages]);
 
   // Với Mạng xã hội: nhắn tin tự do chuẩn Facebook/Pinterest, không chặn vì kết bạn
   // Với Hẹn hò: nhắn tin khi còn tương hợp
@@ -282,7 +305,7 @@ export const MobileChatScreen: React.FC = () => {
               <View style={{ flex: 1 }}>
                 <View style={styles.partnerTitleRow}>
                   <Text style={[styles.headerName, { color: theme.text }]} numberOfLines={1}>
-                    {activeChat.partnerName}
+                    {cleanName(activeChat.partnerName)}
                   </Text>
                   <View style={[styles.matchTag, { backgroundColor: '#FFE4E6' }]}>
                     <Feather name="heart" size={10} color="#E11D48" />
@@ -311,11 +334,9 @@ export const MobileChatScreen: React.FC = () => {
               <View style={{ flex: 1 }}>
                 <View style={styles.partnerTitleRow}>
                   <Text style={[styles.headerName, { color: theme.text }]} numberOfLines={1}>
-                    {activeChat.partnerName}
+                    {cleanName(activeChat.partnerName)}
                   </Text>
-                  <Text style={[styles.handleText, { color: theme.textMuted }]} numberOfLines={1}>
-                    {activeChat.partnerHandle}
-                  </Text>
+
                 </View>
                 <Text style={[styles.headerSub, { color: theme.textMuted }]} numberOfLines={1}>
                   {activeChat.petSummary} · {activeChat.distanceLabel}
@@ -385,10 +406,13 @@ export const MobileChatScreen: React.FC = () => {
               const displayHeader = showHeader || isTapped;
               const isNextSameSender =
                 nextMsg && nextMsg.sender === msg.sender && !shouldShowSessionHeader(nextMsg, msg);
-              const isLastMyMessage =
-                isMe &&
-                (index === activeChat.messages.length - 1 ||
-                  activeChat.messages.slice(index + 1).every((m) => m.sender !== 'me'));
+              const isLastSeenMessage = isMe && msg.id === lastSeenMyMessageId;
+              const isUnreadLastMessage = isMe && msg.id === lastMyMessageId && !msg.isRead;
+              const showSeenOrSentReceipt = isLastSeenMessage || isUnreadLastMessage || (isTapped && isMe);
+
+
+
+
 
               return (
                 <React.Fragment key={msg.id}>
@@ -431,7 +455,7 @@ export const MobileChatScreen: React.FC = () => {
                       </Text>
                     </TouchableOpacity>
 
-                    {(isLastMyMessage || (isTapped && isMe)) && (
+                    {showSeenOrSentReceipt && (
                       <View style={styles.seenReceiptRow}>
                         {msg.isRead ? (
                           <View style={styles.seenStatusWrap}>
@@ -569,7 +593,7 @@ export const MobileChatScreen: React.FC = () => {
                       <Feather name="heart" size={17} color="#E11D48" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.menuRowTitle}>Xem Hồ sơ Hẹn hò của {activeChat.partnerName}</Text>
+                      <Text style={styles.menuRowTitle}>Xem Hồ sơ Hẹn hò của {cleanName(activeChat.partnerName)}</Text>
                       <Text style={styles.menuRowSub}>Xem album ảnh, mục đích kết nối và thói quen thú cưng</Text>
                     </View>
                   </TouchableOpacity>
@@ -626,7 +650,7 @@ export const MobileChatScreen: React.FC = () => {
                       <Feather name="user" size={17} color="#2E7D5B" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.menuRowTitle}>Xem Trang cá nhân của {activeChat.partnerName}</Text>
+                      <Text style={styles.menuRowTitle}>Xem Trang cá nhân của {cleanName(activeChat.partnerName)}</Text>
                       <Text style={styles.menuRowSub}>Xem bài viết khoảnh khắc, follower và các bé thú cưng</Text>
                     </View>
                   </TouchableOpacity>
@@ -672,9 +696,9 @@ export const MobileChatScreen: React.FC = () => {
           visible={confirmType !== null}
           title={
             confirmType === 'unmatch'
-              ? `Bỏ tương hợp với ${activeChat.partnerName}?`
+              ? `Bỏ tương hợp với ${cleanName(activeChat.partnerName)}?`
               : confirmType === 'unfriend'
-              ? `Hủy kết bạn với ${activeChat.partnerName}?`
+              ? `Hủy kết bạn với ${cleanName(activeChat.partnerName)}?`
               : 'Xóa toàn bộ tin nhắn?'
           }
           message={
@@ -711,13 +735,15 @@ export const MobileChatScreen: React.FC = () => {
   }
 
   return (
-    <ScrollView
+    <FlatList
       style={[styles.container, { backgroundColor: theme.bg }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
-    >
-      <View
+      data={filteredChats}
+      keyExtractor={(item: any) => item.id}
+      ListHeaderComponent={
+        <View
         style={[
           styles.topToolCard,
           { backgroundColor: theme.surface, borderColor: theme.border },
@@ -787,8 +813,8 @@ export const MobileChatScreen: React.FC = () => {
             onChangeText={setSearchFriend}
             placeholder={
               chatSection === 'social'
-                ? "Tìm theo tên, @tài_khoản..."
-                : "Tìm theo tên bạn hẹn hò..."
+                ? "Tìm cuộc trò chuyện..."
+                : "Tìm bạn hẹn hò..."
             }
             placeholderTextColor={theme.textMuted}
             style={[styles.searchInput, { color: theme.text }]}
@@ -831,8 +857,8 @@ export const MobileChatScreen: React.FC = () => {
           })}
         </View>
       </View>
-
-      {filteredChats.length === 0 ? (
+      }
+      ListEmptyComponent={
         <View
           style={[
             styles.emptyBox,
@@ -857,9 +883,9 @@ export const MobileChatScreen: React.FC = () => {
               : 'Hãy quẹt thẻ ở mục Kết nối để tìm Boss và Sen phù hợp cùng dắt cún đi dạo!'}
           </Text>
         </View>
-      ) : (
-        filteredChats.map((room) => {
-          const lastMsg = room.messages[room.messages.length - 1];
+      }
+      renderItem={({ item: room }: { item: any }) => {
+                  const lastMsg = room.messages[room.messages.length - 1];
           const isDatingRoom =
             room.chatType === 'dating' || room.matchSource === 'tinder_match';
           const roomLocked = isDatingRoom && room.canMessage === false;
@@ -893,7 +919,7 @@ export const MobileChatScreen: React.FC = () => {
                 <View style={styles.chatRowTop}>
                   <View style={styles.partnerNameRow}>
                     <Text style={[styles.chatName, { color: theme.text }]} numberOfLines={1}>
-                      {room.partnerName}
+                      {cleanName(room.partnerName)}
                     </Text>
                     {roomLocked ? (
                       <View style={styles.unfriendedTag}>
@@ -907,11 +933,7 @@ export const MobileChatScreen: React.FC = () => {
                           Tương hợp
                         </Text>
                       </View>
-                    ) : (
-                      <Text style={[styles.chatHandleText, { color: theme.textMuted }]}>
-                        {room.partnerHandle}
-                      </Text>
-                    )}
+                    ) : null}
                   </View>
                   <Text style={[styles.chatTime, { color: theme.textMuted }]}>
                     {lastMsg?.time || ''}
@@ -959,10 +981,13 @@ export const MobileChatScreen: React.FC = () => {
                 </View>
               )}
             </TouchableOpacity>
-          );
-        })
-      )}
-    </ScrollView>
+        );
+      }}
+      ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+      initialNumToRender={8}
+      maxToRenderPerBatch={8}
+      windowSize={7}
+    />
   );
 };
 

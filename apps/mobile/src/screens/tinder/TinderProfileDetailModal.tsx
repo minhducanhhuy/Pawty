@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '../../components/FeatherIcon';
-import { TinderCandidate } from '../../types/mobileTypes';
+import { TinderCandidate, getCandidateSlides } from '../../types/mobileTypes';
 
 interface TinderProfileDetailModalProps {
   visible: boolean;
@@ -26,8 +26,15 @@ interface TinderProfileDetailModalProps {
   onShare: (name: string) => void;
 }
 
-const FALLBACK_PET_IMG =
-  'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=900&q=80';
+const FALLBACK_OWNER_MALE =
+  'https://cdn.24h.com.vn/upload/2-2026/images/2026-04-30/hieuthuhai-2-1777539695-750-width1366height1366.jpg';
+const FALLBACK_OWNER_FEMALE =
+  'https://kenh14cdn.com/203336854389633024/2023/4/3/laem-chipu0415-16805352397721941667135.jpeg';
+const FALLBACK_PET_DOG =
+  'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80';
+const FALLBACK_PET_CAT =
+  'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=900&q=80';
+const FALLBACK_PET_IMG = FALLBACK_PET_DOG;
 
 export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> = ({
   visible,
@@ -49,29 +56,40 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
   const bottomInset =
     Platform.OS === 'android' ? Math.max(insets.bottom, 24) : Math.max(insets.bottom, 16);
 
-  // Album ảnh: 100% là ảnh các bé thú cưng
-  const petPhotos = useMemo(() => {
-    const fromPets = (candidate.pets || [])
-      .map((p) => p.imageUrl)
-      .filter(Boolean);
-    const fromAlbum = (candidate.photoUrls || []).filter(
-      (u) => u !== candidate.avatarUrl && !fromPets.includes(u)
-    );
-    const combined = [...fromPets, ...fromAlbum];
-    if (combined.length > 0) return combined;
-    return [candidate.avatarUrl || FALLBACK_PET_IMG];
-  }, [candidate]);
+  // Danh sách slides: Ảnh chủ nuôi -> Ảnh các bé thú cưng
+  const slides = useMemo(() => getCandidateSlides(candidate), [candidate]);
 
-  const currentPhoto =
-    petPhotos[activePhotoIdx % Math.max(petPhotos.length, 1)] || FALLBACK_PET_IMG;
+  const currentSlide = slides[activePhotoIdx % Math.max(slides.length, 1)] || slides[0];
+  const isOwnerSlide = currentSlide?.type === 'owner';
+  const defaultPhoto = isOwnerSlide
+    ? (candidate.gender === 'Nam' ? FALLBACK_OWNER_MALE : FALLBACK_OWNER_FEMALE)
+    : (currentSlide?.pet?.species === 'Mèo' ? FALLBACK_PET_CAT : FALLBACK_PET_DOG);
+  const currentPhoto = currentSlide?.imageUrl || defaultPhoto;
 
   // Tiêu đề đầu trang: Ưu tiên tên các bé thú cưng
   const petHeaderTitle = useMemo(() => {
     if (candidate.pets && candidate.pets.length > 0) {
       return candidate.pets.map((p) => p.name).join(' & ');
     }
-    return candidate.ownerName;
+    return candidate.ownerName.replace(/\s*\(@[^)]+\)/g, '').trim();
   }, [candidate]);
+
+  const cleanOwnerName = useMemo(() => {
+    if (!candidate?.ownerName) return '';
+    return candidate.ownerName.replace(/\s*\(@[^)]+\)/g, '').replace(/@\w+/g, '').trim();
+  }, [candidate]);
+
+  const cleanOwnerNickname = useMemo(() => {
+    if (!candidate?.ownerNickname) return '';
+    const clean = candidate.ownerNickname
+      .replace(/\s*\(@[^)]*\)?/g, '')
+      .replace(/@\w+/g, '')
+      .replace(/\s*@.*$/, '')
+      .replace(/\s*\([^)]*\)$/g, '')
+      .trim();
+    if (!clean || clean.toLowerCase() === cleanOwnerName.toLowerCase()) return '';
+    return clean;
+  }, [candidate, cleanOwnerName]);
 
   return (
     <Modal
@@ -118,7 +136,7 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
             <View style={styles.photoCountBadge}>
               <Feather name="image" size={12} color="#FFFFFF" />
               <Text style={styles.photoCountText}>
-                {(activePhotoIdx % petPhotos.length) + 1} / {petPhotos.length}
+                {(activePhotoIdx % slides.length) + 1} / {slides.length}
               </Text>
             </View>
           </View>
@@ -132,10 +150,12 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
                   Hồ sơ thú cưng ({candidate.pets.length} bé)
                 </Text>
               </View>
-              <View style={styles.petSafeBadge}>
-                <Feather name="check" size={11} color="#165A42" />
-                <Text style={styles.petSafeBadgeText}>An tâm dạo chung</Text>
-              </View>
+              {candidate.pets.length > 0 && candidate.pets.some((p) => p.isVaccinatedAndRabies) && (
+                <View style={styles.petSafeBadge}>
+                  <Feather name="check" size={11} color="#165A42" />
+                  <Text style={styles.petSafeBadgeText}>An tâm dạo chung</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.petCardsList}>
@@ -218,21 +238,22 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
                 <Text style={styles.sectionTitle}>Thông tin chủ nuôi (Hẹn hò)</Text>
               </View>
 
-              <TouchableOpacity
-                style={{ display: 'none' }}
-                onPress={undefined}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Feather name="grid" size={12} color="#2C2520" />
-                <Text style={styles.viewOwnerProfileBtnText}>Xem trang mạng xã hội</Text>
-              </TouchableOpacity>
+              
             </View>
 
             <View style={styles.ownerBriefRow}>
-              <Image source={{ uri: candidate.avatarUrl }} style={styles.ownerAvatarSmall} />
+              {candidate.avatarUrl && candidate.avatarUrl.trim() ? (
+                <Image source={{ uri: candidate.avatarUrl }} style={styles.ownerAvatarSmall} />
+              ) : (
+                <View style={[styles.ownerAvatarSmall, { backgroundColor: '#FF6F61', alignItems: 'center', justifyContent: 'center' }]}>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 16 }}>
+                    {(cleanOwnerName[0] || 'P').toUpperCase()}
+                  </Text>
+                </View>
+              )}
               <View style={styles.ownerBriefTextCol}>
                 <View style={styles.ownerNameRow}>
-                  <Text style={styles.ownerNameText}>{candidate.ownerName}</Text>
+                  <Text style={styles.ownerNameText}>{cleanOwnerName}</Text>
                   {candidate.ownerAge ? (
                     <Text style={styles.ownerAgeText}>· {candidate.ownerAge} tuổi</Text>
                   ) : null}
@@ -242,9 +263,8 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
                     </View>
                   )}
                 </View>
-                <Text style={styles.ownerHandleText}>{candidate.ownerHandle}</Text>
-                {candidate.ownerNickname ? (
-                  <Text style={styles.nicknameText}>"{candidate.ownerNickname}"</Text>
+                {cleanOwnerNickname ? (
+                  null
                 ) : null}
               </View>
             </View>

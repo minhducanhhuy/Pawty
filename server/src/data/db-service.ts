@@ -8,6 +8,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config();
 
 import { PrismaClient } from '@prisma/client';
+import { cloudinaryService } from '../services/cloudinary.service';
 
 export const prisma = new PrismaClient();
 
@@ -31,6 +32,18 @@ export function normalizeTinderIntent(raw?: string | null): CanonicalTinderInten
 
 export function getTinderIntentLabel(intent: CanonicalTinderIntent): string {
   return INTENT_TO_LABEL[intent] || INTENT_TO_LABEL.playdate;
+}
+
+export function cleanDisplayName(name?: string | null): string {
+  if (!name) return 'Cư dân Pawty';
+  return (
+    name
+      .replace(/\s*\(@[^)]*\)?/g, '')
+      .replace(/@\w+/g, '')
+      .replace(/\s*@.*$/, '')
+      .replace(/\s*\([^)]*\)$/g, '')
+      .trim() || 'Cư dân Pawty'
+  );
 }
 
 function formatUserHandle(user: { username?: string | null; displayName?: string | null }): string {
@@ -66,6 +79,38 @@ function parseSafeWeightKg(rawWeight: unknown): number {
 function formatClockTime(dateInput: Date | string): string {
   const d = new Date(dateInput);
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+}
+
+export function calculatePetAgeFromBirthDate(birthDateStr?: string | null): string {
+  if (!birthDateStr || !birthDateStr.trim()) return 'Chưa rõ';
+  const parts = birthDateStr.split(/[\/\-\.]/);
+  if (parts.length < 3) return 'Chưa rõ';
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const year = parseInt(parts[2], 10);
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return 'Chưa rõ';
+
+  const birth = new Date(year, month, day);
+  const now = new Date();
+  if (birth > now) return 'Chưa rõ';
+
+  const diffMs = now.getTime() - birth.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffMonths = Math.floor(diffDays / 30.4375);
+  const diffYears = Math.floor(diffDays / 365.25);
+
+  if (diffMonths < 1) {
+    const weeks = Math.max(1, Math.floor(diffDays / 7));
+    return `${weeks} tuần tuổi`;
+  }
+  if (diffMonths < 12) {
+    return `${diffMonths} tháng tuổi`;
+  }
+  const remainingMonths = diffMonths % 12;
+  if (remainingMonths >= 3 && remainingMonths <= 9) {
+    return `${diffYears}.5 tuổi`;
+  }
+  return `${diffYears} tuổi`;
 }
 
 export class DatabaseService {
@@ -187,14 +232,29 @@ export class DatabaseService {
     const avatarUrl =
       p.avatarUrl ||
       (Array.isArray(meta.galleryUrls) && meta.galleryUrls[0]) ||
-      'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80';
+      '';
 
     const galleryUrls =
       Array.isArray(meta.galleryUrls) && meta.galleryUrls.length > 0
         ? meta.galleryUrls
-        : [avatarUrl];
+        : avatarUrl
+        ? [avatarUrl]
+        : [];
 
-    const weightVal = Number(p.weightKg || meta.weightKg || 5);
+    const weightVal =
+      p.weightKg !== null && p.weightKg !== undefined
+        ? Number(p.weightKg)
+        : meta.weightKg !== undefined && meta.weightKg !== null
+        ? Number(meta.weightKg)
+        : undefined;
+
+    const birthDate =
+      meta.birthDate ||
+      (p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('vi-VN') : '');
+
+    const ageLabel =
+      meta.ageLabel ||
+      (birthDate ? calculatePetAgeFromBirthDate(birthDate) : 'Chưa rõ');
 
     return {
       id: p.id,
@@ -205,13 +265,11 @@ export class DatabaseService {
       customSpecies: meta.customSpecies || undefined,
       breed: p.breed || 'Chưa rõ',
       gender: (p.gender === 'Cái' || p.gender === 'female' ? 'Cái' : 'Đực') as 'Đực' | 'Cái',
-      birthDate:
-        meta.birthDate ||
-        (p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('vi-VN') : '01/01/2024'),
-      ageLabel: meta.ageLabel || '1 tuổi',
+      birthDate,
+      ageLabel,
       weightKg: weightVal,
-      weightLabel: meta.weightLabel || `${weightVal} kg`,
-      furColor: meta.furColor || 'Vàng kem',
+      weightLabel: meta.weightLabel || (weightVal !== undefined ? `${weightVal} kg` : 'Chưa rõ'),
+      furColor: meta.furColor || '',
       avatarUrl,
       coverPhotoUrl: p.coverPhotoUrl || avatarUrl,
       galleryUrls,
@@ -221,11 +279,11 @@ export class DatabaseService {
         Boolean(meta.isVaccinatedAndRabies) ||
         p.vaccinationStatus === 'verified' ||
         mappedVaccines.length > 0,
-      vaccinationStatus: p.vaccinationStatus || 'verified',
+      vaccinationStatus: p.vaccinationStatus || 'pending',
       bio: meta.bio || p.medicalNotes || '',
-      favoriteFood: meta.favoriteFood || 'Hạt dinh dưỡng & Ức gà',
-      dewormingHistory: meta.dewormingHistory || 'Định kỳ 3 tháng/lần',
-      medicalHistory: meta.medicalHistory || p.allergies || 'Khỏe mạnh, không có bệnh nền',
+      favoriteFood: meta.favoriteFood || '',
+      dewormingHistory: meta.dewormingHistory || '',
+      medicalHistory: meta.medicalHistory || p.allergies || '',
       goodHabits:
         goodHabitsFromDb.length > 0
           ? goodHabitsFromDb
@@ -240,7 +298,9 @@ export class DatabaseService {
           : [],
       weightHistory: Array.isArray(meta.weightHistory)
         ? meta.weightHistory
-        : [{ month: 'Hiện tại', weightKg: weightVal }],
+        : weightVal !== undefined
+        ? [{ month: 'Hiện tại', weightKg: weightVal }]
+        : [],
       vaccineRecords: mappedVaccines,
       vaccinations,
       behaviors,
@@ -258,24 +318,41 @@ export class DatabaseService {
     const lookingFor = getTinderIntentLabel(intent);
     const defaultTinderSetup = {
       displayName: user.displayName || 'Cư dân Pawty',
-      age: Number(meta.age || 24),
-      gender: meta.gender || 'Nữ',
+      age: meta.age ? Number(meta.age) : undefined,
+      gender: meta.gender || undefined,
       intent,
       lookingFor,
-      bio: user.bio || 'Mong muốn kết nối cùng hội yêu thú cưng quanh khu vực.',
+      bio: user.bio || '',
+      datingPetId: '',
       photoUrls: user.avatarUrl ? [user.avatarUrl] : [],
-      zodiac: meta.zodiac || 'Sư Tử',
-      smoking: 'Không hút thuốc',
-      workout: 'Dắt thú đi bộ mỗi chiều',
-      drinking: 'Thỉnh thoảng giao lưu',
-      chatStyle: 'Thân thiện, phản hồi nhanh',
-      tags: ['#ThânThiện', '#ĐãTiêmPhòng', '#HộiYêuBoss'],
+      photos: user.avatarUrl ? [user.avatarUrl] : [],
+      zodiac: meta.zodiac || undefined,
+      smoking: meta.smoking || undefined,
+      workout: meta.workout || undefined,
+      drinking: meta.drinking || undefined,
+      chatStyle: meta.chatStyle || undefined,
+      tags: Array.isArray(meta.tags) ? meta.tags : [],
     };
 
     const tinderSetup = meta.tinderSetup
       ? {
           ...defaultTinderSetup,
           ...meta.tinderSetup,
+          displayName: meta.tinderSetup.displayName || defaultTinderSetup.displayName,
+          bio: meta.tinderSetup.bio || defaultTinderSetup.bio,
+          datingPetId: meta.tinderSetup.datingPetId || '',
+          photos:
+            Array.isArray(meta.tinderSetup.photos) && meta.tinderSetup.photos.length > 0
+              ? meta.tinderSetup.photos
+              : Array.isArray(meta.tinderSetup.photoUrls) && meta.tinderSetup.photoUrls.length > 0
+              ? meta.tinderSetup.photoUrls
+              : defaultTinderSetup.photos,
+          photoUrls:
+            Array.isArray(meta.tinderSetup.photoUrls) && meta.tinderSetup.photoUrls.length > 0
+              ? meta.tinderSetup.photoUrls
+              : Array.isArray(meta.tinderSetup.photos) && meta.tinderSetup.photos.length > 0
+              ? meta.tinderSetup.photos
+              : defaultTinderSetup.photoUrls,
           intent: normalizeTinderIntent(meta.tinderSetup.intent || meta.tinderSetup.lookingFor || user.primaryNeed),
           lookingFor: getTinderIntentLabel(
             normalizeTinderIntent(meta.tinderSetup.intent || meta.tinderSetup.lookingFor || user.primaryNeed)
@@ -285,17 +362,16 @@ export class DatabaseService {
 
     return {
       ...user,
+      displayName: cleanDisplayName(user.displayName),
       handle: formatUserHandle(user),
-      coverUrl:
-        meta.coverUrl ||
-        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=80',
-      gender: meta.gender || 'Nữ',
-      age: Number(meta.age || 24),
-      birthDate: meta.birthDate || '15/08/2001',
-      zodiac: meta.zodiac || 'Sư Tử',
-      mbti: meta.mbti || 'ENFP',
-      occupation: meta.occupation || 'Thiết kế & Sáng tạo',
-      education: meta.education || 'Đại học',
+      coverUrl: meta.coverUrl || '',
+      gender: meta.gender || undefined,
+      age: meta.age ? Number(meta.age) : undefined,
+      birthDate: meta.birthDate || undefined,
+      zodiac: meta.zodiac || undefined,
+      mbti: meta.mbti || undefined,
+      occupation: meta.occupation || undefined,
+      education: meta.education || undefined,
       noteBubble: meta.noteBubble ?? '',
       privacySettings: meta.privacySettings || {
         profileVisibility: 'public',
@@ -406,9 +482,7 @@ export class DatabaseService {
         name: u.displayName,
         handle,
         nickname: uMeta.occupation || 'Cư dân Pawty',
-        avatarUrl:
-          u.avatarUrl ||
-          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
+        avatarUrl: u.avatarUrl || '',
         petSummary,
         mutualText: u.neighborhood || u.district || 'Gần khu vực của bạn',
         isPrivate: uMeta.privacySettings?.profileVisibility === 'private',
@@ -494,12 +568,10 @@ export class DatabaseService {
       return {
         id: p.id,
         authorId: u.id,
-        authorName: u.displayName || cleanHandle,
+        authorName: cleanDisplayName(u.displayName || cleanHandle),
         authorHandle: handle,
-        authorNickname: meta.occupation || u.displayName || 'Cư dân Pawty',
-        authorAvatar:
-          u.avatarUrl ||
-          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
+        authorNickname: cleanDisplayName(meta.occupation || 'Cư dân Pawty'),
+        authorAvatar: u.avatarUrl || '',
         location: p.locationName || u.neighborhood || 'TP. Hồ Chí Minh',
         createdAt: formatClockTime(p.createdAt),
         content: p.textContent || '',
@@ -517,10 +589,9 @@ export class DatabaseService {
               id: c.id,
               authorName: c.author?.displayName || 'Cư dân Pawty',
               authorHandle: formatUserHandle(c.author || {}),
-              authorAvatar:
-                c.author?.avatarUrl ||
-                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+              authorAvatar: c.author?.avatarUrl || '',
               text: c.textContent,
+              parentId: c.parentId || null,
               createdAt: formatClockTime(c.createdAt),
             }))
           : [],
@@ -537,21 +608,17 @@ export class DatabaseService {
     return {
       id: u.id,
       handle,
-      name: u.displayName || cleanHandle,
-      nickname: meta.occupation || u.displayName || 'Cư dân Pawty',
-      avatarUrl:
-        u.avatarUrl ||
-        'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
-      coverUrl:
-        meta.coverUrl ||
-        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=80',
-      gender: meta.gender || 'Nữ',
-      age: Number(meta.age || 24),
-      birthDate: meta.birthDate || '15/08/2001',
-      zodiac: meta.zodiac || 'Sư Tử',
-      mbti: meta.mbti || 'ENFP',
-      occupation: meta.occupation || 'Thiết kế & Sáng tạo',
-      education: meta.education || 'Đại học',
+      name: cleanDisplayName(u.displayName || cleanHandle),
+      nickname: cleanDisplayName(meta.occupation || 'Cư dân Pawty'),
+      avatarUrl: u.avatarUrl || '',
+      coverUrl: meta.coverUrl || '',
+      gender: meta.gender || undefined,
+      age: meta.age ? Number(meta.age) : undefined,
+      birthDate: meta.birthDate || undefined,
+      zodiac: meta.zodiac || undefined,
+      mbti: meta.mbti || undefined,
+      occupation: meta.occupation || undefined,
+      education: meta.education || undefined,
       noteBubble: meta.noteBubble || '',
       bio: u.bio || 'Yêu thương thú cưng và gắn kết cộng đồng cư dân Pawty.',
       area: u.neighborhood || u.district || 'Vinhomes Grand Park, TP. Thủ Đức',
@@ -722,7 +789,12 @@ export class DatabaseService {
     const clean = identifier.trim().replace(/^@/, '');
     return prisma.user.findFirst({
       where: {
-        OR: [{ phone: clean }, { username: { equals: clean, mode: 'insensitive' } }],
+        OR: [
+          { phone: clean },
+          { username: { equals: clean, mode: 'insensitive' } },
+          { id: clean },
+          { id: `user-${clean}` },
+        ],
       },
       include: { pets: { include: { vaccinations: true, behaviors: true, careRecords: true } } },
     });
@@ -822,7 +894,7 @@ export class DatabaseService {
     }
 
     if (typeof data.avatarUrl === 'string') {
-      dbUpdate.avatarUrl = data.avatarUrl;
+      dbUpdate.avatarUrl = await cloudinaryService.uploadImage(data.avatarUrl, 'pawty/avatars');
     }
 
     if (typeof data.bio === 'string') {
@@ -881,6 +953,19 @@ export class DatabaseService {
         metaPatch[k] = data[k];
       }
     }
+    if (metaPatch.coverUrl && typeof metaPatch.coverUrl === 'string') {
+      metaPatch.coverUrl = await cloudinaryService.uploadImage(metaPatch.coverUrl, 'pawty/covers');
+    }
+    const rawTinderPhotos =
+      metaPatch.tinderSetup?.photos || metaPatch.tinderSetup?.photoUrls;
+    if (Array.isArray(rawTinderPhotos) && rawTinderPhotos.length > 0) {
+      const uploadedTinderPhotos = await cloudinaryService.uploadMultipleImages(
+        rawTinderPhotos,
+        'pawty/tinder'
+      );
+      metaPatch.tinderSetup.photos = uploadedTinderPhotos;
+      metaPatch.tinderSetup.photoUrls = uploadedTinderPhotos;
+    }
     if (metaPatch.tinderSetup) {
       const normalizedIntent = normalizeTinderIntent(
         metaPatch.tinderSetup.intent || metaPatch.tinderSetup.lookingFor || dbUpdate.primaryNeed
@@ -933,18 +1018,31 @@ export class DatabaseService {
       });
     }
 
-    const weightVal = parseSafeWeightKg(data.weightKg ?? data.weightLabel);
-    const avatarUrl =
+    const weightVal = data.weightKg != null && data.weightKg !== ''
+      ? parseSafeWeightKg(data.weightKg ?? data.weightLabel)
+      : null;
+    let avatarUrl =
       data.avatarUrl ||
       (Array.isArray(data.galleryUrls) && data.galleryUrls[0]) ||
-      'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80';
-    const galleryUrls =
+      '';
+    if (avatarUrl && avatarUrl.startsWith('data:')) {
+      avatarUrl = await cloudinaryService.uploadImage(avatarUrl, 'pawty/pets');
+    }
+
+    let galleryUrls =
       Array.isArray(data.galleryUrls) && data.galleryUrls.length > 0
         ? data.galleryUrls
-        : [avatarUrl];
+        : (avatarUrl ? [avatarUrl] : []);
+    if (Array.isArray(galleryUrls) && galleryUrls.length > 0) {
+      galleryUrls = await cloudinaryService.uploadMultipleImages(galleryUrls, 'pawty/pets');
+    }
 
     const speciesRaw = String(data.species || 'Chó').slice(0, 20);
     const genderRaw = String(data.gender || 'Đực').slice(0, 10);
+    const vaccinationStatus =
+      data.isVaccinatedAndRabies === true
+        ? 'verified'
+        : (data.vaccinationStatus || 'pending');
 
     const createdPet = await prisma.pet.create({
       data: {
@@ -954,14 +1052,13 @@ export class DatabaseService {
         gender: genderRaw,
         householdId: data.householdId || household.id,
         ownerId,
-        avatarUrl,
-        coverPhotoUrl: data.coverPhotoUrl || avatarUrl,
+        avatarUrl: avatarUrl || '',
+        coverPhotoUrl: data.coverPhotoUrl || avatarUrl || '',
         weightKg: weightVal,
         isNeutered: Boolean(data.isSterilized ?? data.isNeutered ?? false),
         allergies: data.medicalHistory ? String(data.medicalHistory) : undefined,
         medicalNotes: data.bio ? String(data.bio) : undefined,
-        vaccinationStatus:
-          data.isVaccinatedAndRabies === false ? 'pending' : data.vaccinationStatus || 'verified',
+        vaccinationStatus,
         isPublic: true,
       },
     });
@@ -1006,17 +1103,17 @@ export class DatabaseService {
         isPrivate: false,
         dataJson: {
           customSpecies: data.customSpecies || undefined,
-          birthDate: data.birthDate || '01/01/2024',
-          ageLabel: data.ageLabel || '1 tuổi',
+          birthDate: data.birthDate || '',
+          ageLabel: data.ageLabel || (data.birthDate ? calculatePetAgeFromBirthDate(data.birthDate) : 'Chưa rõ'),
           weightKg: weightVal,
-          weightLabel: data.weightLabel || `${weightVal} kg`,
-          furColor: data.furColor || 'Vàng kem',
+          weightLabel: weightVal !== null ? `${weightVal} kg` : 'Chưa rõ',
+          furColor: data.furColor || '',
           bio: data.bio ? String(data.bio).slice(0, 160) : '',
-          favoriteFood: data.favoriteFood || 'Hạt dinh dưỡng & Ức gà',
-          dewormingHistory: data.dewormingHistory || 'Định kỳ 3 tháng/lần',
-          medicalHistory: data.medicalHistory || 'Khỏe mạnh, không có bệnh nền',
+          favoriteFood: data.favoriteFood || '',
+          dewormingHistory: data.dewormingHistory || '',
+          medicalHistory: data.medicalHistory || '',
           isSterilized: Boolean(data.isSterilized ?? false),
-          isVaccinatedAndRabies: Boolean(data.isVaccinatedAndRabies ?? true),
+          isVaccinatedAndRabies: Boolean(data.isVaccinatedAndRabies ?? false),
           goodHabits,
           cautionHabits,
           galleryUrls,
@@ -1024,7 +1121,9 @@ export class DatabaseService {
           weightHistory:
             Array.isArray(data.weightHistory) && data.weightHistory.length > 0
               ? data.weightHistory
-              : [{ month: 'Hiện tại', weightKg: weightVal }],
+              : weightVal !== null
+              ? [{ month: 'Hiện tại', weightKg: weightVal }]
+              : [],
           vaccineRecords,
         },
       },
@@ -1053,10 +1152,12 @@ export class DatabaseService {
         : formattedCurrent.weightKg;
 
     const nextGalleryUrls = Array.isArray(data.galleryUrls)
-      ? data.galleryUrls
+      ? await cloudinaryService.uploadMultipleImages(data.galleryUrls, 'pawty/pets')
       : formattedCurrent.galleryUrls;
-    const nextAvatarUrl =
-      data.avatarUrl || nextGalleryUrls[0] || existingPet.avatarUrl || formattedCurrent.avatarUrl;
+    const rawNextAvatar = data.avatarUrl || nextGalleryUrls[0] || existingPet.avatarUrl || formattedCurrent.avatarUrl;
+    const nextAvatarUrl = rawNextAvatar
+      ? await cloudinaryService.uploadImage(rawNextAvatar, 'pawty/pets')
+      : rawNextAvatar;
 
     await prisma.pet.update({
       where: { id: petId },
@@ -1275,7 +1376,8 @@ export class DatabaseService {
       throw new Error('Không tìm thấy tài khoản người đăng bài trong cơ sở dữ liệu.');
     }
 
-    const mediaUrls = Array.isArray(data.mediaUrls) ? data.mediaUrls.filter(Boolean) : [];
+    const rawMediaUrls = Array.isArray(data.mediaUrls) ? data.mediaUrls.filter(Boolean) : [];
+    const mediaUrls = await cloudinaryService.uploadMultipleImages(rawMediaUrls, 'pawty/posts');
     const hashtags = Array.isArray(data.hashtags)
       ? data.hashtags
       : Array.isArray(data.tags)
@@ -1401,7 +1503,7 @@ export class DatabaseService {
     return { isLiked: true, likes: count };
   }
 
-  public async addPostComment(postId: string, authorId: string, textContent: string) {
+  public async addPostComment(postId: string, authorId: string, textContent: string, parentId?: string) {
     const post = await prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new Error('Không tìm thấy bài viết.');
 
@@ -1410,6 +1512,7 @@ export class DatabaseService {
         postId,
         authorId,
         textContent: textContent.trim(),
+        parentId: parentId || null,
       },
       include: { author: true },
     });
@@ -1438,9 +1541,7 @@ export class DatabaseService {
       id: comment.id,
       authorName: comment.author?.displayName || 'Cư dân Pawty',
       authorHandle: formatUserHandle(comment.author || {}),
-      authorAvatar:
-        comment.author?.avatarUrl ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+      authorAvatar: comment.author?.avatarUrl || '',
       text: comment.textContent,
       createdAt: formatClockTime(comment.createdAt),
     };
@@ -1858,6 +1959,12 @@ export class DatabaseService {
   }
 
   public async createSosAlert(data: any) {
+    if (data.imageUrl && typeof data.imageUrl === 'string') {
+      data.imageUrl = await cloudinaryService.uploadImage(data.imageUrl, 'pawty/sos');
+    }
+    if (data.photoUrl && typeof data.photoUrl === 'string') {
+      data.photoUrl = await cloudinaryService.uploadImage(data.photoUrl, 'pawty/sos');
+    }
     let userId = data.userId;
     let petId = data.petId;
 
@@ -2031,31 +2138,46 @@ export class DatabaseService {
     });
 
     const tSetup = meta.tinderSetup || {};
+    if (tSetup.datingPetId && Array.isArray(candidatePets)) {
+      candidatePets.sort((a: any, b: any) =>
+        a.id === tSetup.datingPetId ? -1 : b.id === tSetup.datingPetId ? 1 : 0
+      );
+    }
     const intent = normalizeTinderIntent(tSetup.intent || tSetup.lookingFor || u.primaryNeed);
     const intentLabel = getTinderIntentLabel(intent);
-
-    const customPhotos = Array.isArray(tSetup.photoUrls) ? tSetup.photoUrls.filter(Boolean) : [];
-    const fallbackPhotos = [
-      ...candidatePets.map((p: any) => p.imageUrl),
-      u.avatarUrl ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-    ].filter(Boolean);
-    const photoUrls = customPhotos.length > 0 ? customPhotos : fallbackPhotos;
 
     const deterministicDistances = [0.8, 1.5, 2.4, 3.8, 5.2, 8.6, 12.0];
     const distanceKm = deterministicDistances[indexSeed % deterministicDistances.length];
 
+    const resolvedGender = (tSetup.gender ||
+      meta.gender ||
+      (indexSeed % 2 === 1 ? 'Nam' : 'Nữ')) as 'Nam' | 'Nữ' | 'Khác';
+
+    const customPhotos = (
+      Array.isArray(tSetup.photos) && tSetup.photos.length > 0
+        ? tSetup.photos
+        : Array.isArray(tSetup.photoUrls)
+        ? tSetup.photoUrls
+        : []
+    ).filter(Boolean);
+
+    const defaultOwnerPhoto = u.avatarUrl || '';
+    const photoUrls = customPhotos.length > 0 ? customPhotos : (defaultOwnerPhoto ? [defaultOwnerPhoto] : []);
+
+    const rawName = tSetup.displayName || u.displayName || 'Bạn mới';
+    const cleanOwnerName = cleanDisplayName(rawName);
+    const rawNick = tSetup.displayName || meta.occupation || '';
+    const cleanNick = cleanDisplayName(rawNick);
+    const finalNickname = cleanNick.toLowerCase() === cleanOwnerName.toLowerCase() ? '' : cleanNick;
+
     return {
       id: u.id,
-      ownerName: tSetup.displayName || u.displayName,
+      ownerName: cleanOwnerName,
       ownerHandle: formatUserHandle(u),
       ownerAge: Number(tSetup.age || meta.age || 24),
-      gender: (tSetup.gender || meta.gender || 'Nữ') as 'Nam' | 'Nữ' | 'Khác',
-      ownerNickname: meta.occupation || u.displayName,
-      avatarUrl:
-        u.avatarUrl ||
-        photoUrls[0] ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
+      gender: resolvedGender,
+      ownerNickname: finalNickname,
+      avatarUrl: photoUrls[0] || u.avatarUrl || '',
       photoUrls,
       distanceKm,
       area: u.neighborhood || u.district || 'TP. Hồ Chí Minh',
@@ -2084,8 +2206,12 @@ export class DatabaseService {
     };
   }
 
-  public async getTinderCandidates(currentUserId = 'user-test1', intentFilter?: string) {
-    const [incomingLikes, activeMatches, userMetaMap] = await Promise.all([
+  public async getTinderCandidates(
+    currentUserId = 'user-test1',
+    intentFilter?: string,
+    genderFilter?: string
+  ) {
+    const [incomingLikes, alreadySwipedOrMatched, userMetaMap] = await Promise.all([
       prisma.match.findMany({
         where: {
           userBId: currentUserId,
@@ -2093,11 +2219,12 @@ export class DatabaseService {
         },
         select: { userAId: true },
       }),
-      // CHỈ LOẠI TRỪ NHỮNG NGƯỜI ĐANG MATCH HOẠT ĐỘNG (status: 'matched')
+      // Loại trừ tất cả những người mà currentUserId đã quẹt (userAId === currentUserId: pending, rejected, matched, v.v.)
+      // và những người đã match thành công với currentUserId (userBId === currentUserId và status: matched)
       prisma.match.findMany({
         where: {
           OR: [
-            { userAId: currentUserId, status: 'matched' },
+            { userAId: currentUserId },
             { userBId: currentUserId, status: 'matched' },
           ],
         },
@@ -2106,19 +2233,25 @@ export class DatabaseService {
       this.getUserMetaMap(),
     ]);
 
-    const activeMatchedUserIds = new Set<string>();
-    activeMatches.forEach((m) => {
-      if (m.userAId !== currentUserId) activeMatchedUserIds.add(m.userAId);
-      if (m.userBId !== currentUserId) activeMatchedUserIds.add(m.userBId);
+    const excludedUserIds = new Set<string>();
+    alreadySwipedOrMatched.forEach((m) => {
+      if (m.userAId === currentUserId) {
+        // currentUserId đã quẹt m.userBId -> loại trừ khỏi cọc thẻ
+        excludedUserIds.add(m.userBId);
+      }
+      if (m.userBId === currentUserId) {
+        // m.userAId đã match với currentUserId -> loại trừ khỏi cọc thẻ
+        excludedUserIds.add(m.userAId);
+      }
     });
 
     const usersWhoLikedMe = new Set(
-      incomingLikes.map((m) => m.userAId).filter((id) => !activeMatchedUserIds.has(id))
+      incomingLikes.map((m) => m.userAId).filter((id) => !excludedUserIds.has(id))
     );
 
     const users = await prisma.user.findMany({
       where: {
-        id: { not: currentUserId, notIn: Array.from(activeMatchedUserIds) },
+        id: { not: currentUserId, notIn: Array.from(excludedUserIds) },
       },
       include: {
         pets: {
@@ -2128,20 +2261,30 @@ export class DatabaseService {
     });
 
     const candidates = users
-      .filter((u) => {
-        const uMeta = userMetaMap[u.id] || {};
-        if (uMeta.privacySettings?.tinderVisibility === false) return false;
-        if (intentFilter && intentFilter !== 'all') {
-          const uIntent = normalizeTinderIntent(
-            uMeta.tinderSetup?.intent || uMeta.tinderSetup?.lookingFor || u.primaryNeed
-          );
-          return uIntent === normalizeTinderIntent(intentFilter);
-        }
-        return true;
-      })
       .map((u, idx) =>
         this.buildTinderCandidateOutput(u, userMetaMap[u.id] || {}, usersWhoLikedMe.has(u.id), idx)
-      );
+      )
+      .filter((candidate) => {
+        const uMeta = userMetaMap[candidate.id] || {};
+        if (uMeta.privacySettings?.tinderVisibility === false) return false;
+        if (intentFilter && intentFilter !== 'all') {
+          if (normalizeTinderIntent(candidate.intent) !== normalizeTinderIntent(intentFilter)) {
+            return false;
+          }
+        }
+        if (genderFilter && genderFilter !== 'all' && genderFilter !== 'Mọi người') {
+          const isTargetFemale =
+            genderFilter === 'female' ||
+            genderFilter === 'Nữ' ||
+            genderFilter === 'nu' ||
+            genderFilter === 'N?';
+          const isTargetMale =
+            genderFilter === 'male' || genderFilter === 'Nam' || genderFilter === 'nam';
+          if (isTargetFemale && candidate.gender !== 'Nữ') return false;
+          if (isTargetMale && candidate.gender !== 'Nam') return false;
+        }
+        return true;
+      });
 
     return candidates;
   }
@@ -2203,18 +2346,20 @@ export class DatabaseService {
   private async ensureDirectConversation(
     userAId: string,
     userBId: string,
-    defaultGreeting: string
+    defaultGreeting: string,
+    convType: 'dating' | 'direct' = 'direct'
   ) {
     let conversation = await prisma.conversation.findFirst({
       where: {
         participantIds: { hasEvery: [userAId, userBId] },
+        type: convType,
       },
     });
 
     if (!conversation) {
       conversation = await prisma.conversation.create({
         data: {
-          type: 'direct',
+          type: convType,
           participantIds: [userAId, userBId],
           lastMessageText: defaultGreeting,
           lastMessageAt: new Date(),
@@ -2268,7 +2413,8 @@ export class DatabaseService {
         const conversation = await this.ensureDirectConversation(
           userId,
           targetUserId,
-          'Bạn và đối phương vừa tương hợp! Hãy gửi lời chào đầu tiên.'
+          'Bạn và đối phương vừa tương hợp! Hãy gửi lời chào đầu tiên.',
+          'dating'
         );
 
         const [userA, userB] = await Promise.all([
@@ -2398,11 +2544,10 @@ export class DatabaseService {
         include: { pets: true },
       });
 
-      const partnerName = partner?.displayName || 'Bạn mới';
+      const chatType: 'dating' | 'social' = conv.type === 'dating' ? 'dating' : 'social';
+      const rawPartnerName = chatType === 'dating' ? (userMetaMap[partnerId]?.tinderSetup?.displayName || partner?.displayName || 'Bạn mới') : (partner?.displayName || 'Bạn mới');
+      const partnerName = cleanDisplayName(rawPartnerName);
       const partnerHandle = partner ? formatUserHandle(partner) : '@user';
-      const partnerAvatar =
-        partner?.avatarUrl ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80';
       const petSummary =
         partner?.pets && partner.pets.length > 0
           ? partner.pets.map((p) => `${p.name} (${p.breed || p.species})`).join(', ')
@@ -2419,8 +2564,10 @@ export class DatabaseService {
         continue;
       }
 
+      // Phân định rõ ràng chatType dựa vào type thực tế lưu trong Conversation:
+      // conv.type === 'dating' -> Hẹn hò (bắt nguồn từ Tinder Match)
+      // conv.type === 'direct' -> Mạng xã hội (tự do)
       const isMatched = pairMatches.some((m) => m.status === 'matched');
-      const chatType: 'dating' | 'social' = isMatched ? 'dating' : 'social';
       const canMessage = true; // Mạng xã hội nhắn tin trực tiếp tự do
 
       let candidateProfile: any = null;
@@ -2431,6 +2578,25 @@ export class DatabaseService {
           false,
           0
         );
+      }
+
+      // Tách biệt avatar theo đúng phân hệ:
+      // - Hồ sơ hẹn hò: dùng ảnh thẻ hẹn hò (photoUrls[0] hoặc tinderSetup.photos[0])
+      // - Hồ sơ mạng xã hội: dùng ảnh đại diện người dùng (partner.avatarUrl)
+      let partnerAvatar = partner?.avatarUrl || '';
+      if (chatType === 'dating') {
+        const datingPhotos =
+          userMetaMap[partnerId]?.tinderSetup?.photos ||
+          userMetaMap[partnerId]?.tinderSetup?.photoUrls;
+        if (Array.isArray(datingPhotos) && datingPhotos.length > 0 && datingPhotos[0]) {
+          partnerAvatar = datingPhotos[0];
+        } else if (
+          candidateProfile &&
+          Array.isArray(candidateProfile.photoUrls) &&
+          candidateProfile.photoUrls.length > 0
+        ) {
+          partnerAvatar = candidateProfile.photoUrls[0];
+        }
       }
 
       const messagesFormatted = conv.messages.map((m) => ({
@@ -2448,7 +2614,7 @@ export class DatabaseService {
         partnerId,
         partnerName,
         partnerHandle,
-        partnerNickname: userMetaMap[partnerId]?.occupation || partnerName,
+        partnerNickname: cleanDisplayName(userMetaMap[partnerId]?.occupation || partnerName),
         partnerAvatar,
         petSummary,
         distanceLabel: partner?.neighborhood || 'Gần khu vực của bạn',
@@ -2456,7 +2622,7 @@ export class DatabaseService {
         canMessage,
         isFriend: isMatched,
         unreadCount: conv.messages.filter((m) => m.senderId !== userId && !m.isRead).length,
-        matchSource: (isMatched ? 'tinder_match' : 'friend') as
+        matchSource: (chatType === 'dating' ? 'tinder_match' : 'friend') as
           | 'friend'
           | 'tinder_match'
           | 'service',
@@ -2469,23 +2635,32 @@ export class DatabaseService {
     return result;
   }
 
-  public async openOrCreateDirectChat(userId: string, partnerIdentifier: string) {
+  public async openOrCreateDirectChat(
+    userId: string,
+    partnerIdentifier: string,
+    chatType: 'social' | 'dating' = 'social'
+  ) {
     const partner = await this.resolveUserByHandleOrId(partnerIdentifier);
     if (!partner) {
       throw new Error('Không tìm thấy người dùng để mở cuộc trò chuyện.');
     }
     const canMsg = await this.canUsersMessageEachOther(userId, partner.id);
+    const targetConvType = chatType === 'dating' ? 'dating' : 'direct';
     let conv = await prisma.conversation.findFirst({
       where: {
         participantIds: { hasEvery: [userId, partner.id] },
+        type: targetConvType,
       },
     });
     if (!conv && canMsg) {
       conv = await prisma.conversation.create({
         data: {
-          type: 'direct',
+          type: targetConvType,
           participantIds: [userId, partner.id],
-          lastMessageText: 'Bắt đầu cuộc trò chuyện mới',
+          lastMessageText:
+            chatType === 'dating'
+              ? 'Hai bạn đã tương hợp trên Kết nối!'
+              : 'Bắt đầu cuộc trò chuyện mới',
           lastMessageAt: new Date(),
         },
       });
@@ -2587,12 +2762,17 @@ export class DatabaseService {
       }
     }
 
+    let safeMediaUrl = mediaUrl;
+    if (safeMediaUrl && typeof safeMediaUrl === 'string') {
+      safeMediaUrl = await cloudinaryService.uploadImage(safeMediaUrl, 'pawty/chat');
+    }
+
     const message = await prisma.message.create({
       data: {
         conversationId: conv.id,
         senderId,
         text,
-        mediaUrl,
+        mediaUrl: safeMediaUrl,
         isRead: false,
       },
     });

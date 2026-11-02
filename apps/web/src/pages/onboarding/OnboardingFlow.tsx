@@ -320,7 +320,7 @@ export const OnboardingFlow: React.FC = () => {
                     type="text"
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="VD: 0900000001 hoặc test1..."
+                    placeholder="Nhập số điện thoại hoặc tên đăng nhập..."
                     style={{ color: theme.text }}
                     className="w-full bg-transparent text-sm font-medium focus:outline-none"
                   />

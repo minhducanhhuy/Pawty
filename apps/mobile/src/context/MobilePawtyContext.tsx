@@ -23,7 +23,20 @@ import {
   EMPTY_USER_TINDER_SETUP,
   resolveTinderIntentFromLabel,
   getTinderPurposeLabel,
+  calculatePetAgeFromBirthDate,
 } from '../types/mobileTypes';
+
+export const cleanName = (name?: string | null): string => {
+  if (!name) return 'Cư dân Pawty';
+  return (
+    name
+      .replace(/\s*\(@[^)]*\)?/g, '')
+      .replace(/@\w+/g, '')
+      .replace(/\s*@.*$/, '')
+      .replace(/\s*\([^)]*\)$/g, '')
+      .trim() || 'Cư dân Pawty'
+  );
+};
 
 const EMPTY_PET_PLACEHOLDER: MobilePet = {
   id: '',
@@ -198,14 +211,14 @@ function normalizePetFromServer(p: any): MobilePet {
     species: normalizeSpeciesLabel(p.species),
     customSpecies: p.customSpecies || undefined,
     breed: p.breed || 'Chưa rõ',
-    gender: p.gender === 'female' || p.gender === 'Cái' ? 'Cái' : 'Đực',
-    birthDate: p.birthDate || '01/01/2024',
-    ageLabel: p.ageLabel || '1 tuổi',
-    weightKg: Number(p.weightKg ?? 0),
-    furColor: p.furColor || 'Vàng kem',
+    gender: p.gender === 'female' || p.gender === 'Cái' ? 'Cái' : (p.gender || 'Đực'),
+    birthDate: p.birthDate || '',
+    ageLabel: p.ageLabel || (p.birthDate ? calculatePetAgeFromBirthDate(p.birthDate) : 'Chưa rõ'),
+    weightKg: p.weightKg ? Number(p.weightKg) : 0,
+    furColor: p.furColor || '',
     microchipOrMark: p.microchipOrMark || '',
-    favoriteFood: p.favoriteFood || 'Hạt dinh dưỡng & Ức gà',
-    allergies: p.allergies || p.medicalHistory || 'Không',
+    favoriteFood: p.favoriteFood || '',
+    allergies: p.allergies || p.medicalHistory || '',
     avatarUrl: primaryPhoto,
     coverUrl: p.coverPhotoUrl || p.coverUrl || primaryPhoto,
     bio: p.bio || '',
@@ -218,8 +231,8 @@ function normalizePetFromServer(p: any): MobilePet {
     galleryUrls,
     weightHistory: Array.isArray(p.weightHistory) ? p.weightHistory : [],
     vaccineRecords,
-    dewormingHistory: p.dewormingHistory || 'Định kỳ 3 tháng/lần',
-    medicalHistory: p.medicalHistory || 'Khỏe mạnh, không có bệnh nền',
+    dewormingHistory: p.dewormingHistory || '',
+    medicalHistory: p.medicalHistory || '',
     likesCount: Number(p.likesCount ?? 0),
     isLiked: Boolean(p.isLiked ?? false),
   };
@@ -254,12 +267,11 @@ function normalizePostFromServer(post: any, currentUserId: string): MobilePost {
   return {
     id: String(post.id),
     authorId: post.authorId || post.author?.id,
-    authorName: post.authorName || post.author?.displayName || 'Cư dân Pawty',
+    authorName: cleanName(post.authorName || post.author?.displayName),
     authorHandle,
     authorAvatar: post.authorAvatar || post.author?.avatarUrl || '',
     authorNickname:
-      post.authorNickname ||
-      (post.author?.role === 'expert' ? 'Bác sĩ Thú Y' : post.author?.displayName || 'Cư dân'),
+      cleanName(post.authorNickname || (post.author?.role === 'expert' ? 'Bác sĩ Thú Y' : post.author?.displayName || 'Cư dân')),
     category: (post.contentType === 'tip'
       ? 'health_tip'
       : post.contentType === 'question'
@@ -294,28 +306,118 @@ function normalizePostFromServer(post: any, currentUserId: string): MobilePost {
     userReaction: isLikedByMe ? 'paws' : null,
     shareCount: Number(post.shareCount || 0),
     isSaved: Boolean(post.isSaved),
-    comments: Array.isArray(post.comments)
-      ? post.comments.map((c: any) => ({
-          id: String(c.id),
-          authorName: c.authorName || c.author?.displayName || 'Cư dân',
-          authorHandle:
-            c.authorHandle || (c.author?.username ? `@${c.author.username}` : '@cudan'),
-          authorAvatar: c.authorAvatar || c.author?.avatarUrl || '',
-          content: c.content ?? c.textContent ?? c.text ?? '',
-          createdAt:
-            typeof c.createdAt === 'string' && !c.createdAt.includes('T')
-              ? c.createdAt
-              : c.createdAt
-              ? new Date(c.createdAt).toLocaleTimeString('vi-VN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : 'Vừa xong',
-          likesCount: Number(c.likesCount ?? c.reactionCount ?? 0),
-          isLiked: Boolean(c.isLiked),
-          replies: Array.isArray(c.replies) ? c.replies : [],
-        }))
-      : [],
+    comments: (() => {
+      if (!Array.isArray(post.comments)) return [];
+      const rawList = post.comments;
+
+      // Đánh chỉ mục toàn bộ comment để tra cứu ngược cây phả hệ
+      const commentMap = new Map<string, any>();
+      rawList.forEach((c: any) => {
+        if (c && c.id) {
+          commentMap.set(String(c.id), c);
+        }
+      });
+
+      // Hàm tìm comment gốc (Root Parent ID) đa thế hệ (kể cả rep của rep)
+      const findRootParentId = (item: any): string | null => {
+        let parentId = item.parentId || item.parentCommentId;
+        if (!parentId) return null; // Bình luận gốc
+
+        const visited = new Set<string>();
+        let currentParentId = String(parentId);
+
+        while (currentParentId) {
+          if (visited.has(currentParentId)) break; // Chống lặp vô hạn
+          visited.add(currentParentId);
+
+          const parentObj = commentMap.get(currentParentId);
+          if (!parentObj) {
+            // Không tìm thấy trong bài viết, coi chính ID này là gốc
+            return currentParentId;
+          }
+          const nextParentId = parentObj.parentId || parentObj.parentCommentId;
+          if (!nextParentId) {
+            // parentObj chính là bình luận gốc cha!
+            return String(parentObj.id);
+          }
+          currentParentId = String(nextParentId);
+        }
+        return currentParentId;
+      };
+
+      // Bước 1: Gom các câu trả lời phụ theo Root Parent ID
+      const replyMap: Record<string, any[]> = {};
+      rawList.forEach((c: any) => {
+        const rootPId = findRootParentId(c);
+        if (rootPId) {
+          const key = String(rootPId);
+          if (!replyMap[key]) replyMap[key] = [];
+
+          // Xác định xem câu trả lời này trực tiếp phản hồi cho ai (nếu rep 1 reply)
+          const directPId = c.parentId || c.parentCommentId;
+          let replyToName: string | undefined = undefined;
+          if (directPId && String(directPId) !== key) {
+            const directParent = commentMap.get(String(directPId));
+            if (directParent) {
+              replyToName = cleanName(directParent.authorName || directParent.author?.displayName || '');
+            }
+          }
+
+          replyMap[key].push({
+            id: String(c.id),
+            authorName: cleanName(c.authorName || c.author?.displayName || 'Cư dân'),
+            authorHandle: c.authorHandle || (c.author?.username ? `@${c.author.username}` : '@cudan'),
+            authorAvatar: c.authorAvatar || c.author?.avatarUrl || '',
+            content: c.content ?? c.textContent ?? c.text ?? '',
+            replyToName,
+            createdAt:
+              typeof c.createdAt === 'string' && !c.createdAt.includes('T')
+                ? c.createdAt
+                : c.createdAt
+                ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                : 'Vừa xong',
+            likesCount: Number(c.likesCount ?? c.reactionCount ?? 0),
+            isLiked: Boolean(c.isLiked),
+          });
+        }
+      });
+
+      // Bước 2: Gom các bình luận gốc và đính kèm danh sách replies đầy đủ
+      const parentComments: any[] = [];
+      rawList.forEach((c: any) => {
+        const rootPId = findRootParentId(c);
+        if (!rootPId) {
+          const cId = String(c.id);
+          const existingReplies = Array.isArray(c.replies) ? c.replies : [];
+          const dbReplies = replyMap[cId] || [];
+          const mergedReplies = [...existingReplies];
+          dbReplies.forEach((r) => {
+            if (!mergedReplies.some((x) => String(x.id) === String(r.id))) {
+              mergedReplies.push(r);
+            }
+          });
+
+          parentComments.push({
+            id: cId,
+            authorName: cleanName(c.authorName || c.author?.displayName || 'Cư dân'),
+            authorHandle: c.authorHandle || (c.author?.username ? `@${c.author.username}` : '@cudan'),
+            authorAvatar: c.authorAvatar || c.author?.avatarUrl || '',
+            content: c.content ?? c.textContent ?? c.text ?? '',
+            createdAt:
+              typeof c.createdAt === 'string' && !c.createdAt.includes('T')
+                ? c.createdAt
+                : c.createdAt
+                ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                : 'Vừa xong',
+            likesCount: Number(c.likesCount ?? c.reactionCount ?? 0),
+            isLiked: Boolean(c.isLiked),
+            replies: mergedReplies,
+          });
+        }
+      });
+
+      return parentComments;
+    })(),
     createdAt:
       typeof post.createdAt === 'string' && !post.createdAt.includes('T')
         ? post.createdAt
@@ -433,6 +535,11 @@ interface MobilePawtyContextType {
     petName?: string;
     petSpecies?: 'Chó' | 'Mèo';
     petBreed?: string;
+    petGender?: string;
+    petBirthDate?: string;
+    petWeightKg?: number;
+    petAvatarUrl?: string;
+    petVaccinated?: boolean;
   }) => Promise<void>;
   logoutUser: () => Promise<void>;
   forceRevokeOtherDevices: () => void;
@@ -448,7 +555,7 @@ interface MobilePawtyContextType {
     customSpecies?: string;
     breed: string;
     gender?: 'Đực' | 'Cái';
-    weightKg: number;
+    weightKg?: number;
     ageLabel: string;
     birthDate?: string;
     furColor?: string;
@@ -508,7 +615,7 @@ interface MobilePawtyContextType {
   sharePost: (postId: string) => void;
   addComment: (postId: string, content: string) => Promise<void>;
   toggleCommentLike: (postId: string, commentId: string) => void;
-  addCommentReply: (postId: string, commentId: string, content: string) => void;
+  addCommentReply: (postId: string, commentId: string, content: string, replyToAuthorName?: string) => void;
   createPost: (params: {
     content: string;
     tags: string[];
@@ -540,13 +647,15 @@ interface MobilePawtyContextType {
   unfriendUser: (handle: string) => Promise<void>;
   unmatchCandidate: (partnerHandleOrId: string) => Promise<void>;
   toggleFollowUser: (handle: string) => Promise<void>;
-  startDirectChatWithUser: (handle: string) => Promise<void>;
+  startDirectChatWithUser: (handle: string, chatType?: 'social' | 'dating') => Promise<void>;
 
   // Kết nối (Tinder) Tab — 100% Free & Unlimited Distance
   tinderIntent: TinderIntent;
   setTinderIntent: (intent: TinderIntent) => void;
   tinderFilterGoal: TinderIntent | 'all';
   setTinderFilterGoal: (goal: TinderIntent | 'all') => void;
+  tinderGenderFilter: 'all' | 'female' | 'male';
+  setTinderGenderFilter: (gender: 'all' | 'female' | 'male') => void;
   setPassportArea: (area: string) => void;
   tinderCandidates: TinderCandidate[];
   likesYouCandidates: TinderCandidate[];
@@ -555,7 +664,7 @@ interface MobilePawtyContextType {
   matchedCandidateModal: TinderCandidate | null;
   closeMatchedCandidateModal: () => void;
   swipeTinderCandidate: (candidateId: string, direction: 'left' | 'right') => Promise<void>;
-  reloadTinderDeck: (silent?: boolean) => Promise<void>;
+  reloadTinderDeck: (silent?: boolean, overrideGender?: 'all' | 'female' | 'male') => Promise<void>;
   likeBackCandidate: (candidate: TinderCandidate) => Promise<void>;
   passLikesYouCandidate: (candidate: TinderCandidate) => Promise<void>;
   rewindLastSwipe: () => Promise<void>;
@@ -648,11 +757,11 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [ownerArea, setOwnerArea] = useState('');
   const [ownerNoteBubble, setOwnerNoteBubbleState] = useState('');
   const [isPrivateProfile, setIsPrivateProfile] = useState(false);
-  const [ownerGender, setOwnerGender] = useState('Nữ');
-  const [ownerAge, setOwnerAge] = useState(24);
-  const [ownerBirthDate, setOwnerBirthDate] = useState('01/01/2002');
-  const [ownerZodiac, setOwnerZodiac] = useState('Sư Tử');
-  const [ownerMbti, setOwnerMbti] = useState('ENFP');
+  const [ownerGender, setOwnerGender] = useState('');
+  const [ownerAge, setOwnerAge] = useState(0);
+  const [ownerBirthDate, setOwnerBirthDate] = useState('');
+  const [ownerZodiac, setOwnerZodiac] = useState('');
+  const [ownerMbti, setOwnerMbti] = useState('');
   const [ownerEducation, setOwnerEducation] = useState('');
   const [ownerMajor, setOwnerMajor] = useState('');
   const [ownerOccupation, setOwnerOccupation] = useState('');
@@ -705,9 +814,11 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Kết nối (Tinder) — Mặc định không giới hạn khoảng cách ('all')
   const [tinderIntent, setTinderIntentState] = useState<TinderIntent>('playdate');
   const [tinderFilterGoal, setTinderFilterGoal] = useState<TinderIntent | 'all'>('all');
+  const [tinderGenderFilter, setTinderGenderFilter] = useState<'all' | 'female' | 'male'>('all');
   const [tinderCandidates, setTinderCandidates] = useState<TinderCandidate[]>([]);
   const [likesYouCandidates, setLikesYouCandidates] = useState<TinderCandidate[]>([]);
   const [swipedCandidateHistory, setSwipedCandidateHistory] = useState<TinderCandidate[]>([]);
+  const swipedCandidateIdsRef = useRef<Set<string>>(new Set());
   const [matchedCandidateModal, setMatchedCandidateModal] = useState<TinderCandidate | null>(null);
   const [showLikesYouDrawer, setShowLikesYouDrawer] = useState(false);
   const [tinderDistanceLimit, setTinderDistanceLimit] = useState<number | 'all'>('all');
@@ -791,25 +902,25 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         const u = bootstrap.user;
         setCurrentUserId(u.id);
-        setOwnerName(u.displayName || '');
+        setOwnerName(cleanName(u.displayName));
         const resolvedHandle =
           u.handle ||
           (u.username
             ? `@${u.username}`
             : `@${(u.displayName || 'user').toLowerCase().replace(/\s+/g, '')}`);
         setOwnerHandle(resolvedHandle);
-        setOwnerNickname(u.displayName || '');
+        setOwnerNickname(cleanName(u.displayName));
         setOwnerPhone(u.phone || '');
         setOwnerBio(u.bio || '');
         setOwnerArea(u.neighborhood || u.district || '');
         setOwnerAvatar(u.avatarUrl || '');
         setOwnerAvatarUrlState(u.avatarUrl || '');
         setOwnerCoverUrlState(u.coverUrl || '');
-        setOwnerGender(u.gender || 'Nữ');
-        setOwnerAge(Number(u.age || 24));
-        setOwnerBirthDate(u.birthDate || '01/01/2002');
-        setOwnerZodiac(u.zodiac || 'Sư Tử');
-        setOwnerMbti(u.mbti || 'ENFP');
+        setOwnerGender(u.gender || '');
+        setOwnerAge(u.age ? Number(u.age) : 0);
+        setOwnerBirthDate(u.birthDate || '');
+        setOwnerZodiac(u.zodiac || '');
+        setOwnerMbti(u.mbti || '');
         setOwnerOccupation(u.occupation || '');
         setOwnerEducation(u.education || '');
         setOwnerNoteBubbleState(u.noteBubble || '');
@@ -826,7 +937,15 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         );
         const resolvedPurposeLabel = getTinderPurposeLabel(resolvedIntent);
         setTinderIntentState(resolvedIntent);
+        const tinderPhotos = Array.isArray(u.tinderSetup?.photos) && u.tinderSetup.photos.length > 0
+          ? u.tinderSetup.photos
+          : Array.isArray(u.tinderSetup?.photoUrls) && u.tinderSetup.photoUrls.length > 0
+          ? u.tinderSetup.photoUrls
+          : [];
         setUserTinderSetup({
+          displayName: u.tinderSetup?.displayName || u.displayName || 'Bạn mới',
+          bio: u.tinderSetup?.bio || '',
+          datingPetId: u.tinderSetup?.datingPetId || '',
           age: Number(u.tinderSetup?.age || u.age || 24),
           gender: u.tinderSetup?.gender === 'Nam' || u.gender === 'Nam' ? 'Nam' : 'Nữ',
           intent: resolvedIntent,
@@ -836,8 +955,9 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
           drinking: u.tinderSetup?.drinking || 'Không uống rượu bia',
           zodiac: u.tinderSetup?.zodiac || u.zodiac || 'Sư Tử',
           chatStyle: u.tinderSetup?.chatStyle || 'Thân thiện, phản hồi nhanh',
-          promptQuote: u.tinderSetup?.promptQuote ?? u.bio ?? '',
-          photoUrls: Array.isArray(u.tinderSetup?.photoUrls) ? u.tinderSetup.photoUrls : [],
+          promptQuote: u.tinderSetup?.promptQuote ?? '',
+          photoUrls: tinderPhotos,
+          photos: tinderPhotos,
         });
 
         // Pets
@@ -914,11 +1034,29 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
 
         // Tinder Candidates & Likes You
-        setTinderCandidates(Array.isArray(bootstrap.candidates) ? bootstrap.candidates : []);
-        setLikesYouCandidates(Array.isArray(bootstrap.likesYou) ? bootstrap.likesYou : []);
+        const mappedCandidates = (Array.isArray(bootstrap.candidates) ? bootstrap.candidates : [])
+          .filter((c: any) => !swipedCandidateIdsRef.current.has(c.id))
+          .map((c: any) => ({
+          ...c,
+          ownerName: cleanName(c.ownerName),
+          ownerNickname: cleanName(c.ownerNickname).toLowerCase() === cleanName(c.ownerName).toLowerCase() ? '' : cleanName(c.ownerNickname),
+        }));
+        setTinderCandidates(mappedCandidates);
+
+        const mappedLikesYou = (Array.isArray(bootstrap.likesYou) ? bootstrap.likesYou : []).map((c: any) => ({
+          ...c,
+          ownerName: cleanName(c.ownerName),
+          ownerNickname: cleanName(c.ownerNickname).toLowerCase() === cleanName(c.ownerName).toLowerCase() ? '' : cleanName(c.ownerNickname),
+        }));
+        setLikesYouCandidates(mappedLikesYou);
 
         // Chats (with canMessage & isFriend)
-        setChats(Array.isArray(bootstrap.chats) ? bootstrap.chats : []);
+        const mappedChats = (Array.isArray(bootstrap.chats) ? bootstrap.chats : []).map((room: any) => ({
+          ...room,
+          partnerName: cleanName(room.partnerName),
+          partnerNickname: cleanName(room.partnerNickname),
+        }));
+        setChats(mappedChats);
 
         // Notifications
         if (Array.isArray(bootstrap.notifications)) {
@@ -962,6 +1100,8 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
             if (!prof) continue;
             normalizedMap[k] = {
               ...prof,
+              name: cleanName(prof.name),
+              nickname: cleanName(prof.nickname),
               pets: Array.isArray(prof.pets)
                 ? prof.pets.map((pt: any) => normalizePetFromServer(pt))
                 : [],
@@ -1061,7 +1201,40 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const notifPoller = setInterval(async () => {
       try {
-        const res = await apiClient.getNotifications(currentUserId);
+        const [res, chatsRes, likesRes] = await Promise.all([
+          apiClient.getNotifications(currentUserId),
+          apiClient.getChats(currentUserId),
+          apiClient.getLikesYouCandidates(currentUserId),
+        ]);
+
+        if (chatsRes && Array.isArray(chatsRes.chats)) {
+          const sanitizedPollChats = chatsRes.chats.map((c: any) => ({
+            ...c,
+            partnerName: cleanName(c.partnerName),
+            partnerNickname: cleanName(c.partnerNickname),
+          }));
+          setChats((prev) => {
+            if (prev.length !== sanitizedPollChats.length) return sanitizedPollChats;
+            const hasChange = sanitizedPollChats.some((nc: any, idx: number) => {
+              const pc = prev[idx];
+              if (!pc || pc.id !== nc.id) return true;
+              if (pc.messages.length !== (nc.messages?.length || 0)) return true;
+              if (pc.unreadCount !== nc.unreadCount) return true;
+              return false;
+            });
+            return hasChange ? sanitizedPollChats : prev;
+          });
+        }
+
+        if (likesRes && Array.isArray(likesRes.likesYou)) {
+          setLikesYouCandidates((prev) => {
+            if (prev.length !== likesRes.likesYou.length) return likesRes.likesYou;
+            const hasChange = likesRes.likesYou.some(
+              (nl: any, idx: number) => prev[idx]?.id !== nl.id
+            );
+            return hasChange ? likesRes.likesYou : prev;
+          });
+        }
         if (res && Array.isArray(res.notifications)) {
           const freshNotifs: MobileNotificationItem[] = res.notifications.map((n: any) => ({
             id: String(n.id),
@@ -1101,6 +1274,45 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setActiveChatId(null);
       setIsSearchPanelOpen(false);
       // Khi nhấn trực tiếp vào Tab "Tôi" dưới thanh điều hướng -> mở hồ sơ bản thân
+      if (nextTab === 'tinder' && currentUserId) {
+        apiClient
+          .getLikesYouCandidates(currentUserId)
+          .then((res) => {
+            if (res && Array.isArray(res.likesYou)) {
+              setLikesYouCandidates(res.likesYou);
+            }
+          })
+          .catch(() => {});
+        apiClient
+          .getTinderCandidates(
+            currentUserId,
+            tinderFilterGoal !== 'all' ? tinderFilterGoal : undefined,
+            tinderGenderFilter !== 'all' ? tinderGenderFilter : undefined
+          )
+          .then((res) => {
+            if (res && Array.isArray(res.candidates)) {
+                const unswiped = res.candidates.filter(
+                  (c: TinderCandidate) => !swipedCandidateIdsRef.current.has(c.id)
+                );
+                setTinderCandidates(unswiped);
+              }
+          })
+          .catch(() => {});
+      }
+      if (nextTab === 'chat' && currentUserId) {
+        apiClient
+          .getChats(currentUserId)
+          .then((res) => {
+            if (res && Array.isArray(res.chats)) {
+              setChats(res.chats.map((c: any) => ({
+                ...c,
+                partnerName: cleanName(c.partnerName),
+                partnerNickname: cleanName(c.partnerNickname),
+              })));
+            }
+          })
+          .catch(() => {});
+      }
       if (nextTab === 'profile') {
         setSelectedProfileHandle(null);
         setViewedUserHandle(null);
@@ -1112,7 +1324,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return nextTab;
       });
     },
-    [setActiveChatId]
+    [setActiveChatId, currentUserId, tinderFilterGoal, tinderGenderFilter]
   );
 
   const goBackFromOtherProfile = useCallback(() => {
@@ -1215,6 +1427,11 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       petName?: string;
       petSpecies?: 'Chó' | 'Mèo';
       petBreed?: string;
+      petGender?: string;
+      petBirthDate?: string;
+      petWeightKg?: number;
+      petAvatarUrl?: string;
+      petVaccinated?: boolean;
     }) => {
       let authRes: { success: boolean; token: string; user: any; message: string };
       if (params.isRegister) {
@@ -1226,6 +1443,11 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
           petName: params.petName,
           petSpecies: params.petSpecies,
           petBreed: params.petBreed,
+          petGender: params.petGender,
+          petBirthDate: params.petBirthDate,
+          petWeightKg: params.petWeightKg,
+          petAvatarUrl: params.petAvatarUrl,
+          petVaccinated: params.petVaccinated,
         });
       } else {
         authRes = await apiClient.login(
@@ -1445,7 +1667,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       customSpecies?: string;
       breed: string;
       gender?: 'Đực' | 'Cái';
-      weightKg: number;
+      weightKg?: number;
       ageLabel: string;
       birthDate?: string;
       furColor?: string;
@@ -1673,8 +1895,18 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const normalizedIntent = resolveTinderIntentFromLabel(
         nextSetup.intent || nextSetup.lookingFor
       );
+      const tPhotos = Array.isArray(nextSetup.photos) && nextSetup.photos.length > 0
+        ? nextSetup.photos
+        : Array.isArray(nextSetup.photoUrls) && nextSetup.photoUrls.length > 0
+        ? nextSetup.photoUrls
+        : [];
       const normalizedPayload: UserTinderSetupProfile = {
         ...nextSetup,
+        displayName: (nextSetup.displayName || '').trim(),
+        bio: (nextSetup.bio || '').trim(),
+        datingPetId: nextSetup.datingPetId || '',
+        photos: tPhotos,
+        photoUrls: tPhotos,
         intent: normalizedIntent,
         lookingFor: getTinderPurposeLabel(normalizedIntent),
         promptQuote: (nextSetup.promptQuote || '').slice(0, 140),
@@ -1840,7 +2072,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
                       id: createdComment?.id || `cm-${Date.now()}`,
                       authorName: createdComment?.authorName || ownerName,
                       authorHandle: createdComment?.authorHandle || ownerHandle,
-                      authorAvatar: createdComment?.authorAvatar || ownerAvatarUrl,
+                      authorAvatar: (ownerAvatarUrl || ownerAvatar || '').trim(),
                       content: createdComment?.text || clean,
                       createdAt: createdComment?.createdAt || 'Vừa xong',
                       likesCount: 0,
@@ -1856,7 +2088,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         showToast(err?.message || 'Không thể gửi bình luận.');
       }
     },
-    [currentUserId, ownerName, ownerHandle, ownerAvatarUrl, showToast]
+    [currentUserId, ownerName, ownerHandle, ownerAvatarUrl, ownerAvatar, showToast]
   );
 
   const toggleCommentLike = useCallback((postId: string, commentId: string) => {
@@ -1866,14 +2098,31 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return {
           ...post,
           comments: post.comments.map((cm) => {
-            if (cm.id !== commentId) return cm;
-            const nextLiked = !cm.isLiked;
-            const baseCount = cm.likesCount ?? 0;
-            return {
-              ...cm,
-              isLiked: nextLiked,
-              likesCount: nextLiked ? baseCount + 1 : Math.max(0, baseCount - 1),
-            };
+            if (cm.id === commentId) {
+              const nextLiked = !cm.isLiked;
+              const baseCount = cm.likesCount ?? 0;
+              return {
+                ...cm,
+                isLiked: nextLiked,
+                likesCount: nextLiked ? baseCount + 1 : Math.max(0, baseCount - 1),
+              };
+            }
+            if (Array.isArray(cm.replies) && cm.replies.some((r) => r.id === commentId)) {
+              return {
+                ...cm,
+                replies: cm.replies.map((r) => {
+                  if (r.id !== commentId) return r;
+                  const nextLiked = !r.isLiked;
+                  const baseCount = r.likesCount ?? 0;
+                  return {
+                    ...r,
+                    isLiked: nextLiked,
+                    likesCount: nextLiked ? baseCount + 1 : Math.max(0, baseCount - 1),
+                  };
+                }),
+              };
+            }
+            return cm;
           }),
         };
       })
@@ -1881,38 +2130,89 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   const addCommentReply = useCallback(
-    (postId: string, commentId: string, content: string) => {
-      if (!content.trim()) return;
+    async (postId: string, commentId: string, content: string, replyToAuthorName?: string) => {
+      const cleanText = content.trim();
+      if (!cleanText) return;
+
+      const tempId = `rp-${Date.now()}`;
+      let resolvedRootId = commentId;
+
+      // Tìm bình luận gốc cha (Root Comment) ngay cả khi commentId truyền vào là ID của một reply khác
       setPosts((prev) =>
         prev.map((post) => {
           if (post.id !== postId) return post;
+
+          const targetRoot = post.comments.find(
+            (cm) => cm.id === commentId || cm.replies?.some((r) => r.id === commentId)
+          );
+          if (targetRoot) {
+            resolvedRootId = targetRoot.id;
+          }
+
+          let formattedText = cleanText;
+          if (replyToAuthorName && !cleanText.startsWith(`@${replyToAuthorName}`)) {
+            formattedText = `@${replyToAuthorName} ${cleanText}`;
+          }
+
+          const newReply = {
+            id: tempId,
+            authorName: ownerName,
+            authorHandle: ownerHandle,
+            authorAvatar: (ownerAvatarUrl || ownerAvatar || '').trim(),
+            content: formattedText,
+            createdAt: 'Vừa xong',
+            likesCount: 0,
+            isLiked: false,
+          };
+
           return {
             ...post,
             comments: post.comments.map((cm) => {
-              if (cm.id !== commentId) return cm;
+              if (cm.id !== resolvedRootId) return cm;
               const prevReplies = cm.replies || [];
               return {
                 ...cm,
-                replies: [
-                  ...prevReplies,
-                  {
-                    id: `rp-${Date.now()}`,
-                    authorName: ownerName,
-                    authorHandle: ownerHandle,
-                    authorAvatar: ownerAvatarUrl || ownerAvatar,
-                    content: content.trim(),
-                    createdAt: 'Vừa xong',
-                    likesCount: 0,
-                    isLiked: false,
-                  },
-                ],
+                replies: [...prevReplies, newReply],
               };
             }),
           };
         })
       );
+
+      // Lưu bền vững vào cơ sở dữ liệu PostgreSQL
+      if (currentUserId) {
+        try {
+          let formattedText = cleanText;
+          if (replyToAuthorName && !cleanText.startsWith(`@${replyToAuthorName}`)) {
+            formattedText = `@${replyToAuthorName} ${cleanText}`;
+          }
+          const res = await apiClient.addPostComment(postId, currentUserId, formattedText, resolvedRootId);
+          if (res?.comment?.id) {
+            const realId = String(res.comment.id);
+            setPosts((prev) =>
+              prev.map((post) => {
+                if (post.id !== postId) return post;
+                return {
+                  ...post,
+                  comments: post.comments.map((cm) => {
+                    if (cm.id !== resolvedRootId) return cm;
+                    return {
+                      ...cm,
+                      replies: (cm.replies || []).map((r) =>
+                        r.id === tempId ? { ...r, id: realId } : r
+                      ),
+                    };
+                  }),
+                };
+              })
+            );
+          }
+        } catch (err) {
+          console.warn('[Pawty] Lỗi lưu câu trả lời bình luận lên server:', err);
+        }
+      }
     },
-    [ownerName, ownerHandle, ownerAvatarUrl, ownerAvatar]
+    [currentUserId, ownerName, ownerHandle, ownerAvatarUrl, ownerAvatar]
   );
 
   const createPost = useCallback(
@@ -2256,16 +2556,18 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 
   const startDirectChatWithUser = useCallback(
-    async (handle: string) => {
+    async (handle: string, chatType: 'social' | 'dating' = 'social') => {
       if (!currentUserId) return;
       const normalized = handle.startsWith('@') ? handle : `@${handle}`;
 
       const existingRoom = chats.find(
-        (c) => c.partnerHandle.toLowerCase() === normalized.toLowerCase()
+        (c) =>
+          c.partnerHandle.toLowerCase() === normalized.toLowerCase() &&
+          c.chatType === chatType
       );
 
       try {
-        const opened = await apiClient.openDirectChat(currentUserId, normalized);
+        const opened = await apiClient.openDirectChat(currentUserId, normalized, chatType);
         await refreshData(currentUserId, false, true);
         setSelectedProfileHandle(null);
         setViewedUserHandle(null);
@@ -2291,23 +2593,37 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // TINDER SWIPE, LIKES YOU & MATCHES (100% Free & Unlimited Distance)
   // =========================================================================
   const reloadTinderDeck = useCallback(
-    async (silent = false) => {
+    async (silent = false, overrideGender?: 'all' | 'female' | 'male') => {
       if (!currentUserId) return;
       try {
         const res = await apiClient.getTinderCandidates(
           currentUserId,
-          tinderFilterGoal !== 'all' ? tinderFilterGoal : undefined
+          tinderFilterGoal !== 'all' ? tinderFilterGoal : undefined,
+          (overrideGender ?? tinderGenderFilter) !== 'all' ? (overrideGender ?? tinderGenderFilter) : undefined
         );
-        const fresh = res?.candidates;
-        if (Array.isArray(fresh) && fresh.length > 0) {
+        const freshRaw = res?.candidates;
+          const fresh = (Array.isArray(freshRaw) ? freshRaw : []).filter(
+            (c: TinderCandidate) => !swipedCandidateIdsRef.current.has(c.id)
+          );
+          if (fresh.length > 0) {
           setTinderCandidates(fresh);
           setSwipedCandidateHistory([]);
+
           if (!silent) {
             showToast(`Đã làm mới ${fresh.length} hồ sơ kết nối!`);
           }
-        } else if (swipedCandidateHistory.length > 0) {
-          setTinderCandidates(swipedCandidateHistory);
-          setSwipedCandidateHistory([]);
+        } else {
+          setSwipedCandidateHistory((prevHistory) => {
+            if (prevHistory.length > 0) {
+              setTinderCandidates(prevHistory);
+              if (!silent) {
+                showToast('Đã làm mới lại hồ sơ phù hợp!');
+              }
+            }
+            return [];
+          });
+
+
           if (!silent) {
             showToast('Đã làm mới lại hồ sơ phù hợp!');
           }
@@ -2316,7 +2632,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         console.warn('[Pawty Tinder] Lỗi làm mới cọc thẻ:', err);
       }
     },
-    [currentUserId, tinderFilterGoal, swipedCandidateHistory, showToast]
+    [currentUserId, tinderFilterGoal, tinderGenderFilter, showToast]
   );
 
   // Định kỳ tự động làm mới cọc thẻ hẹn hò sau mỗi 2 phút (chỉ lấy người chưa match)
@@ -2346,8 +2662,9 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
       setLikesYouCandidates((prev) => prev.filter((c) => c.id !== candidateId));
 
-      if (!target) return;
-      setSwipedCandidateHistory((prev) => [...prev, target]);
+      swipedCandidateIdsRef.current.add(candidateId);
+        if (!target) return;
+        setSwipedCandidateHistory((prev) => [...prev, target]);
 
       try {
         const res = await apiClient.recordSwipe(
@@ -2395,7 +2712,8 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
 
     const lastCandidate = swipedCandidateHistory[swipedCandidateHistory.length - 1];
-    setSwipedCandidateHistory((prev) => prev.slice(0, -1));
+      swipedCandidateIdsRef.current.delete(lastCandidate.id);
+      setSwipedCandidateHistory((prev) => prev.slice(0, -1));
     setTinderCandidates((prev) => [
       lastCandidate,
       ...prev.filter((c) => c.id !== lastCandidate.id),
@@ -2439,7 +2757,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const openChatWithMatchedCandidate = useCallback(
     async (candidate: TinderCandidate) => {
       setMatchedCandidateModal(null);
-      await startDirectChatWithUser(candidate.ownerHandle);
+      await startDirectChatWithUser(candidate.ownerHandle, 'dating');
     },
     [startDirectChatWithUser]
   );
@@ -2471,7 +2789,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 ...r,
                 messages: [
                   ...r.messages,
-                  { id: tempId, sender: 'me', text: clean, time: timeStr, isRead: true },
+                  { id: tempId, sender: 'me', text: clean, time: timeStr, isRead: false },
                 ],
               }
             : r
@@ -2493,7 +2811,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
                             sender: 'me',
                             text: res.message.text || clean,
                             time: res.message.time || timeStr,
-                            isRead: true,
+                            isRead: false,
                           }
                         : m
                     ),
@@ -2691,7 +3009,13 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const candidateIntent = resolveTinderIntentFromLabel(c.intent || c.lookingFor);
     const passGoal =
       tinderFilterGoal === 'all' ? true : candidateIntent === tinderFilterGoal;
-    return passDistance && passGoal;
+    const passGender =
+      tinderGenderFilter === 'all'
+        ? true
+        : tinderGenderFilter === 'female'
+        ? (c.gender === 'Nữ' || (c.gender as any) === 'female' || (c.gender as any) === 'nu')
+        : (c.gender === 'Nam' || (c.gender as any) === 'male' || (c.gender as any) === 'nam');
+    return passDistance && passGoal && passGender;
   });
 
   return (
@@ -2802,6 +3126,8 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setTinderIntent,
         tinderFilterGoal,
         setTinderFilterGoal,
+        tinderGenderFilter,
+        setTinderGenderFilter,
         setPassportArea,
         tinderCandidates: filteredTinderCandidates,
         likesYouCandidates,

@@ -1,5 +1,6 @@
 import * as dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
@@ -10,6 +11,7 @@ import { URL } from 'url';
 import { ModerationService } from './modules/moderation/moderation.service';
 import { GeminiVisionService } from './modules/sos/gemini-vision.service';
 import { dbService, prisma } from './data/db-service';
+import { cloudinaryService } from './services/cloudinary.service';
 
 const moderationService = new ModerationService();
 const geminiVisionService = new GeminiVisionService();
@@ -94,6 +96,53 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Static Media Handler (dành cho local fallback storage)
+    if (pathname.startsWith('/uploads/') && method === 'GET') {
+      const filename = path.basename(pathname);
+      const filePath = path.resolve(process.cwd(), 'public', 'uploads', filename);
+      if (fs.existsSync(filePath)) {
+        const ext = path.extname(filename).toLowerCase();
+        const mimeMap: Record<string, string> = {
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.png': 'image/png',
+          '.gif': 'image/gif',
+          '.webp': 'image/webp',
+        };
+        res.writeHead(200, {
+          'Content-Type': mimeMap[ext] || 'application/octet-stream',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=86400',
+        });
+        fs.createReadStream(filePath).pipe(res);
+        return;
+      }
+      sendJson(res, 404, { success: false, error: 'Tệp tin hình ảnh không tồn tại.' });
+      return;
+    }
+
+    // Media Upload API (Cloudinary CDN & Fallback)
+    if (pathname === '/api/upload' && method === 'POST') {
+      const body = await parseJsonBody(req);
+      const image = body.image || body.file || body.dataUrl || body.data;
+      const folder = String(body.folder || 'pawty/media');
+      if (!image || typeof image !== 'string') {
+        sendJson(res, 400, {
+          success: false,
+          error: 'Vui lòng cung cấp dữ liệu hình ảnh (chuỗi base64 hoặc URL).',
+        });
+        return;
+      }
+      const host = req.headers.host || 'localhost:3000';
+      const url = await cloudinaryService.uploadImage(image, folder, host);
+      sendJson(res, 200, {
+        success: true,
+        url,
+        message: 'Tải ảnh lên thành công.',
+      });
+      return;
+    }
+
     // 1. Auth Endpoints
     if (pathname === '/api/auth/login' && method === 'POST') {
       const body = await parseJsonBody(req);
@@ -148,10 +197,17 @@ const server = http.createServer(async (req, res) => {
       const existingByUsername = username
         ? await dbService.findUserByIdentifier(username)
         : null;
-      if (existingByPhone || existingByUsername) {
+      if (existingByPhone) {
         sendJson(res, 409, {
           success: false,
-          error: 'Số điện thoại hoặc tên đăng nhập này đã được sử dụng.',
+          error: `Số điện thoại ${phone} đã được sử dụng. Vui lòng đăng nhập hoặc dùng số khác.`,
+        });
+        return;
+      }
+      if (existingByUsername) {
+        sendJson(res, 409, {
+          success: false,
+          error: `Tên tài khoản (username) "${username}" đã có người sử dụng. Vui lòng chọn tên khác.`,
         });
         return;
       }
@@ -170,9 +226,13 @@ const server = http.createServer(async (req, res) => {
           ownerId: createdUser.id,
           name: body.petName.trim(),
           species: String(body.petSpecies || 'Chó'),
-          breed: String(body.petBreed || 'Golden Retriever'),
-          weightKg: body.petWeightKg,
+          breed: body.petBreed && String(body.petBreed).trim() ? String(body.petBreed).trim() : 'Chưa rõ',
+          weightKg: body.petWeightKg != null ? Number(body.petWeightKg) : undefined,
           gender: body.petGender || 'Đực',
+          avatarUrl: body.petAvatarUrl || undefined,
+          galleryUrls: body.petAvatarUrl ? [body.petAvatarUrl] : undefined,
+          birthDate: body.petBirthDate || undefined,
+          isVaccinatedAndRabies: body.petVaccinated === true,
         });
       }
 
@@ -508,12 +568,13 @@ const server = http.createServer(async (req, res) => {
       const postId = postCommentMatch[1];
       const body = await parseJsonBody(req);
       const authorId = String(body.authorId || body.userId || '');
-      const text = String(body.text || body.textContent || '').trim();
+      const text = String(body.text || body.textContent || body.content || '').trim();
+      const parentId = body.parentId ? String(body.parentId) : undefined;
       if (!authorId || !text) {
         sendJson(res, 400, { success: false, error: 'Thiếu nội dung bình luận hoặc authorId.' });
         return;
       }
-      const comment = await dbService.addPostComment(postId, authorId, text);
+      const comment = await dbService.addPostComment(postId, authorId, text, parentId);
       sendJson(res, 201, { success: true, comment });
       return;
     }
@@ -670,7 +731,11 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/tinder/candidates' && method === 'GET') {
       const userId = parsedUrl.searchParams.get('userId') || 'user-test1';
       const intent = parsedUrl.searchParams.get('intent') || undefined;
-      const candidates = await dbService.getTinderCandidates(userId, intent);
+      const gender =
+        parsedUrl.searchParams.get('gender') ||
+        parsedUrl.searchParams.get('targetGender') ||
+        undefined;
+      const candidates = await dbService.getTinderCandidates(userId, intent, gender);
       sendJson(res, 200, { candidates });
       return;
     }
@@ -745,11 +810,12 @@ const server = http.createServer(async (req, res) => {
       const body = await parseJsonBody(req);
       const userId = String(body.userId || '');
       const partnerIdentifier = String(body.partnerHandle || body.partnerId || '');
+      const chatType = body.chatType === 'dating' ? 'dating' : 'social';
       if (!userId || !partnerIdentifier) {
         sendJson(res, 400, { success: false, error: 'Thiếu thông tin người trò chuyện.' });
         return;
       }
-      const opened = await dbService.openOrCreateDirectChat(userId, partnerIdentifier);
+      const opened = await dbService.openOrCreateDirectChat(userId, partnerIdentifier, chatType);
       sendJson(res, 200, { success: true, ...opened });
       return;
     }
