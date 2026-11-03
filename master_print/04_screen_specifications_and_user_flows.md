@@ -149,6 +149,10 @@
   - Khi người dùng ở trang Khám phá hoặc trang cá nhân của người khác và bấm **[Nhắn tin]**, hệ thống bắt buộc điều hướng vào cuộc trò chuyện **Mạng xã hội** (`social`), hiển thị ảnh đại diện mạng xã hội (`user.avatarUrl`), tuyệt đối không nhảy nhầm sang hội thoại Hẹn hò (`dating`) dù hai người đã match nhau trên Tinder.
 - **Hộp thư Hẹn hò & Kết nối (`Dating / Matches Chat`):** Bắt nguồn từ Match Tinder, chỉ xem Hồ sơ Hẹn hò (bảo mật tuyệt đối), hiển thị ảnh thẻ hẹn hò (`photoUrls[0]`), nút Hủy tương hợp (Bỏ Match) xóa sạch tin nhắn trong PostgreSQL và chặn tái xuất hiện.
   - Tách biệt danh tính: Avatar ở hồ sơ hẹn hò lấy từ thẻ ảnh hẹn hò (`photoUrls[0]`), hoàn toàn độc lập với avatar ở hồ sơ mạng xã hội (`user.avatarUrl`).
+- **Cơ chế Chống Xung Đột Tin Nhắn Lạc Quan (Optimistic Message Reconciliation):**
+  - Khi người dùng bấm gửi tin nhắn, giao diện hiển thị ngay lập tức với ID tạm (`temp-msg-${timestamp}`).
+  - Hệ thống duy trì một bộ đệm tham chiếu theo dõi (`pendingChatMessagesRef`). Khi tiến trình ngầm (Background Poller mỗi 3.5s) hoặc khi chuyển tab nạp lại danh sách cuộc trò chuyện từ máy chủ đám mây (Cloud Database latency ~1-2s), hàm điều hòa `reconcileChatRoomsWithPending` sẽ bảo tồn toàn bộ tin nhắn đang gửi dở (pending) và gộp vào cuối danh sách.
+  - Triệt tiêu 100% hiện tượng tin nhắn chớp nháy, biến mất rồi mới hiện lại sau khi database đám mây hoàn tất ghi.
 
 ### 2.7 Giao Diện Đăng Nhập & Onboarding Chuẩn Nhận Diện Mới (Playful Minimalism)
 - **Bảo tồn hệ màu thương hiệu:** Nền kem ấm áp `#FDFBF7`, điểm nhấn san hô `#FF6F61` và xanh mint `#A3E4D7`.

@@ -11,6 +11,7 @@ import {
   PetVaccineRecord,
   MobilePost,
   MobileChatRoom,
+  MobileChatMessage,
   MobileSosAlert,
   MobileNotificationItem,
   NotificationCategory,
@@ -828,6 +829,60 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [chats, setChats] = useState<MobileChatRoom[]>([]);
   const [activeChatId, setActiveChatIdState] = useState<string | null>(null);
 
+  const pendingChatMessagesRef = useRef<Map<string, {
+    tempId: string;
+    chatId: string;
+    message: MobileChatMessage;
+    realId?: string;
+    timestamp: number;
+  }>>(new Map());
+
+  const reconcileChatRoomsWithPending = useCallback(
+    (serverRooms: MobileChatRoom[], prevRooms: MobileChatRoom[]): MobileChatRoom[] => {
+      if (!serverRooms || serverRooms.length === 0) return prevRooms;
+
+      return serverRooms.map((sRoom) => {
+        const pRoom = prevRooms.find((r) => r.id === sRoom.id);
+
+        const pendingFromRef = Array.from(pendingChatMessagesRef.current.values()).filter(
+          (p) => p.chatId === sRoom.id && Date.now() - p.timestamp < 35000
+        );
+
+        const pendingFromPrev = pRoom
+          ? pRoom.messages.filter((m) => m.id.startsWith('temp-msg-'))
+          : [];
+
+        const allPendingMap = new Map<string, MobileChatMessage>();
+        pendingFromPrev.forEach((m) => allPendingMap.set(m.id, m));
+        pendingFromRef.forEach((p) => allPendingMap.set(p.tempId, p.message));
+
+        if (allPendingMap.size === 0) {
+          return sRoom;
+        }
+
+        const stillPending: MobileChatMessage[] = [];
+        allPendingMap.forEach((pMsg, tempId) => {
+          const tracked = pendingChatMessagesRef.current.get(tempId);
+          if (tracked?.realId && sRoom.messages.some((sm) => sm.id === tracked.realId)) {
+            pendingChatMessagesRef.current.delete(tempId);
+            return;
+          }
+          stillPending.push(pMsg);
+        });
+
+        if (stillPending.length === 0) {
+          return sRoom;
+        }
+
+        return {
+          ...sRoom,
+          messages: [...sRoom.messages, ...stillPending],
+        };
+      });
+    },
+    []
+  );
+
   // SOS & Notifications
   const [sosAlerts, setSosAlerts] = useState<MobileSosAlert[]>([]);
   const [notifications, setNotifications] = useState<MobileNotificationItem[]>([]);
@@ -1214,15 +1269,19 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
             partnerNickname: cleanName(c.partnerNickname),
           }));
           setChats((prev) => {
-            if (prev.length !== sanitizedPollChats.length) return sanitizedPollChats;
-            const hasChange = sanitizedPollChats.some((nc: any, idx: number) => {
+            const merged = reconcileChatRoomsWithPending(sanitizedPollChats, prev);
+            if (prev.length !== merged.length) return merged;
+            const hasChange = merged.some((nc: any, idx: number) => {
               const pc = prev[idx];
               if (!pc || pc.id !== nc.id) return true;
               if (pc.messages.length !== (nc.messages?.length || 0)) return true;
               if (pc.unreadCount !== nc.unreadCount) return true;
+              const pLast = pc.messages[pc.messages.length - 1];
+              const nLast = nc.messages[nc.messages.length - 1];
+              if (pLast?.id !== nLast?.id || pLast?.text !== nLast?.text) return true;
               return false;
             });
-            return hasChange ? sanitizedPollChats : prev;
+            return hasChange ? merged : prev;
           });
         }
 
@@ -1304,11 +1363,12 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
           .getChats(currentUserId)
           .then((res) => {
             if (res && Array.isArray(res.chats)) {
-              setChats(res.chats.map((c: any) => ({
+              const sanitizedChats = res.chats.map((c: any) => ({
                 ...c,
                 partnerName: cleanName(c.partnerName),
                 partnerNickname: cleanName(c.partnerNickname),
-              })));
+              }));
+              setChats((prev) => reconcileChatRoomsWithPending(sanitizedChats, prev));
             }
           })
           .catch(() => {});
@@ -2781,15 +2841,31 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         now.getMinutes()
       ).padStart(2, '0')}`;
       const tempId = `temp-msg-${Date.now()}`;
+      const tempMsg: MobileChatMessage = {
+        id: tempId,
+        sender: 'me',
+        text: clean,
+        time: timeStr,
+        isRead: false,
+      };
 
+      // Đưa vào pendingChatMessagesRef để chống polling/refresh ghi đè
+      pendingChatMessagesRef.current.set(tempId, {
+        tempId,
+        chatId,
+        message: tempMsg,
+        timestamp: Date.now(),
+      });
+
+      // Cập nhật Optimistic UI ngay lập tức
       setChats((prev) =>
         prev.map((r) =>
           r.id === chatId
             ? {
                 ...r,
                 messages: [
-                  ...r.messages,
-                  { id: tempId, sender: 'me', text: clean, time: timeStr, isRead: false },
+                  ...r.messages.filter((m) => m.id !== tempId),
+                  tempMsg,
                 ],
               }
             : r
@@ -2799,28 +2875,46 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       try {
         const res = await apiClient.sendChatMessage(chatId, clean, undefined, currentUserId);
         if (res?.message) {
+          const realMsg: MobileChatMessage = {
+            id: res.message.id,
+            sender: 'me',
+            text: res.message.text || clean,
+            time: res.message.time || timeStr,
+            isRead: false,
+          };
+
+          const tracked = pendingChatMessagesRef.current.get(tempId);
+          if (tracked) {
+            tracked.realId = res.message.id;
+          }
+
           setChats((prev) =>
-            prev.map((r) =>
-              r.id === chatId
-                ? {
-                    ...r,
-                    messages: r.messages.map((m) =>
-                      m.id === tempId
-                        ? {
-                            id: res.message.id,
-                            sender: 'me',
-                            text: res.message.text || clean,
-                            time: res.message.time || timeStr,
-                            isRead: false,
-                          }
-                        : m
-                    ),
-                  }
-                : r
-            )
+            prev.map((r) => {
+              if (r.id !== chatId) return r;
+              const hasTemp = r.messages.some((m) => m.id === tempId);
+              if (hasTemp) {
+                return {
+                  ...r,
+                  messages: r.messages.map((m) => (m.id === tempId ? realMsg : m)),
+                };
+              }
+              const hasReal = r.messages.some((m) => m.id === realMsg.id);
+              if (!hasReal) {
+                return {
+                  ...r,
+                  messages: [...r.messages, realMsg],
+                };
+              }
+              return r;
+            })
           );
+
+          setTimeout(() => {
+            pendingChatMessagesRef.current.delete(tempId);
+          }, 3000);
         }
       } catch (err: any) {
+        pendingChatMessagesRef.current.delete(tempId);
         // Rollback tin nhắn tạm khi bị chặn do hủy kết bạn (HTTP 403) hoặc lỗi mạng
         setChats((prev) =>
           prev.map((r) =>
