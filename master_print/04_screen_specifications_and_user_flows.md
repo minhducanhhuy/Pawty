@@ -109,12 +109,20 @@
 - **Hộp thư Hẹn hò & Kết nối (`Dating / Matches Chat`):** Bắt nguồn từ Match Tinder, chỉ xem Hồ sơ Hẹn hò (bảo mật tuyệt đối), hiển thị ảnh thẻ hẹn hò (`photoUrls[0]`), nút Hủy tương hợp (Bỏ Match) xóa sạch tin nhắn trong PostgreSQL và chặn tái xuất hiện.
   - Tách biệt danh tính: Avatar ở hồ sơ hẹn hò lấy từ thẻ ảnh hẹn hò (`photoUrls[0]`), hoàn toàn độc lập với avatar ở hồ sơ mạng xã hội (`user.avatarUrl`).
 
-### 2.7 Giao Diện Đăng Nhập & Đăng Ký Thân Thiện (Loại Bỏ Text Kỹ Thuật)
-- **Tối ưu văn phong thân thiện với người dùng cuối:**
-  - Ô nhập tài khoản: placeholder `Nhập số điện thoại hoặc tên đăng nhập` (loại bỏ hoàn toàn các chuỗi kỹ thuật `VD: 0900000001 hoặc test1`).
-  - Nhãn nút đăng nhập: `Đăng nhập` (loại bỏ hoàn toàn nhãn `Đăng nhập ngay (1 Thiết bị)`).
-  - Loại bỏ hoàn toàn khối thông báo mang tính kỹ thuật "Bảo mật 1 thiết bị: Tài khoản chỉ được đăng nhập trên 1 điện thoại...".
-  - Giữ lại đầy đủ tính năng ghi nhớ phiên đăng nhập trên thiết bị với nút **"Vào thẳng"** nhanh chóng và tiện lợi.
+### 2.7 Giao Diện Đăng Nhập & Onboarding Chuẩn Nhận Diện Mới (Playful Minimalism)
+- **Bảo tồn hệ màu thương hiệu:** Nền kem ấm áp `#FDFBF7`, điểm nhấn san hô `#FF6F61` và xanh mint `#A3E4D7`.
+- **Hòa nền Wordmark Logo:** Loại bỏ hoàn toàn khối thẻ card trắng bao bọc logo Pawty, logo hòa trực tiếp vào nền kem ấm `#FDFBF7` mượt mà, không viền cứng.
+- **Loại bỏ đường viền bo tròn màu cam nhạt:** Thẻ lưu tài khoản (`savedAccountBox`) và các khối form loại bỏ viền cam (`borderWidth: 0`), chuyển sang giao diện phẳng hiện đại, tinh tế.
+- **Tiêu đề sinh động "Những bàn chân nhỏ đang tới":**
+  - Loại bỏ icon nhỏ đính kèm trong pill.
+  - Sử dụng phông chữ bo tròn đáng yêu (`rounded font`), in đậm với hiệu ứng đổ bóng phát sáng mờ ảo (`blur text glow`).
+  - Tích hợp hiệu ứng hoạt cảnh **Nổi bọt biển nhảy nhót theo từng ký tự (Bubble Bouncing Letter Wave)** — từng chữ cái nhún nhảy nhẹ nhàng như bọt bóng nước tạo cảm giác vui tươi, thân thiện ngay từ màn hình đăng nhập.
+- **Tinh giản nội dung rườm rà:**
+  - Bỏ dòng chữ phụ dài dòng: *"Mạng xã hội hình ảnh, kết nối bạn đi dạo và đặt lịch chăm sóc thú cưng quanh bạn."*
+  - Bỏ dòng chữ giải thích nhỏ dưới tiêu đề *"Đăng nhập tài khoản"* và *"Chào mừng bạn quay lại"*.
+- **Tối ưu Form đăng nhập:**
+  - Placeholder ô tài khoản hiển thị đầy đủ, không bị cụt/thiếu: `SĐT hoặc tên đăng nhập`.
+  - Icon mở xem mật khẩu hiển thị chuẩn xác **Icon Con Mắt (`eye` / `eye-off`)** (khắc phục lỗi thiếu mapping icon trong `FeatherIcon`).
 
 ### 2.8 Hệ Thống Thông Báo Toast Đa Tầng (Multi-layer Toast Modal Overlay)
 - **Đảm bảo Toast luôn nổi trên cùng:** Toàn bộ thông báo hệ thống (`toastMessage`) được bao bọc trong một React Native `<Modal transparent statusBarTranslucent animationType="fade">` với `pointerEvents="box-none"`.
