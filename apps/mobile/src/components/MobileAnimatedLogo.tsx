@@ -184,17 +184,7 @@ export const MobileAnimatedLogo: React.FC<MobileAnimatedLogoProps> = ({
         />
       )}
 
-      {/* Warm Ambient Radial Aura */}
-      <View
-        style={[
-          styles.ambientAura,
-          {
-            width: width * 1.15,
-            height: height * 1.15,
-            borderRadius: (width * 1.15) / 2,
-          },
-        ]}
-      />
+      
 
       {/* Layer 1: Body with Calligraphy Brush Reveal (Left to Right Sweep) */}
       <Animated.View
@@ -212,20 +202,7 @@ export const MobileAnimatedLogo: React.FC<MobileAnimatedLogoProps> = ({
           resizeMode="contain"
         />
 
-        {/* Dynamic Wet Paint / Brush Tip Glow leading the stroke */}
-        {withReveal && (
-          <Animated.View
-            style={[
-              styles.brushTipGlow,
-              {
-                left: brushTipLeft,
-                top: height * 0.12,
-                height: height * 0.76,
-                opacity: brushTipOpacity,
-              },
-            ]}
-          />
-        )}
+        
       </Animated.View>
 
       {/* Layer 2: Wagging Tail with Exact Pivot Anchor (66.4% X, 67.4% Y) */}
@@ -298,6 +275,10 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#FF6F61',
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 10,
+    shadowOpacity: 0.35,
   },
   layer: {
     position: 'absolute',
@@ -309,19 +290,5 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     overflow: 'hidden',
-  },
-  brushTipGlow: {
-    position: 'absolute',
-    width: 22,
-    borderRadius: 11,
-    backgroundColor: '#FF6F61',
-    shadowColor: '#FF6F61',
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 12,
-    shadowOpacity: 0.7,
-  },
-  ambientAura: {
-    position: 'absolute',
-    backgroundColor: 'rgba(255, 111, 97, 0.05)',
   },
 });

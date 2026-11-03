@@ -82,7 +82,7 @@
 ### 2.6 Màn Hình Khởi Động Mobile (Splash Screen) & Logo Animation (Calligraphy Brush Effect)
 - **Quy chuẩn Splash Screen Mobile (Chuẩn Hình 1):**
   - **Màu nền toàn màn hình:** `#FDFBF7` (trắng kem ấm áp thương hiệu Pawty).
-  - **Khung Logo:** Loại bỏ hộp thẻ trắng và đường viền cứng (`backgroundColor: 'transparent'`, `borderWidth: 0`), logo hòa trực tiếp vào nền kem với vệt sáng hào quang ấm nhẹ (`radial aura`).
+  - **Khung Logo:** Tuyệt đối không có bất kỳ khung viền, thẻ card hay hình khối bo tròn (circle/oval/card) bao quanh. Chữ Pawty hòa trực tiếp vào nền kem, hiệu ứng mờ ảo (blur) tỏa sáng trực tiếp bám theo đường viền từng chữ cái (`letter-contour drop-shadow blur`).
   - **Tiêu đề chính:** "Những bàn chân nhỏ đang tới" định dạng chữ béo tròn, đậm nét, màu đỏ san hô thương hiệu `#FF6F61` với hiệu ứng đổ bóng phát sáng ấm (`textShadowColor: 'rgba(255, 111, 97, 0.28)'`).
   - **Dòng phụ đề:** "Mạng xã hội kết nối người nuôi thú cưng" màu xám ấm `#7A6E63`, phông chữ nhẹ nhàng thanh lịch.
   - **Thanh tiến trình & Tải trang dưới đáy:** Thanh tải mỏng màu san hô `#FF6F61` chạy từ 0 đến 100% kèm dòng trạng thái `ĐANG KẾT NỐI CỘNG ĐỒNG BOSS...` màu `#A89F95` dãn chữ (`letterSpacing: 1.5`).
@@ -111,7 +111,7 @@
 
 ### 2.7 Giao Diện Đăng Nhập & Onboarding Chuẩn Nhận Diện Mới (Playful Minimalism)
 - **Bảo tồn hệ màu thương hiệu:** Nền kem ấm áp `#FDFBF7`, điểm nhấn san hô `#FF6F61` và xanh mint `#A3E4D7`.
-- **Hòa nền Wordmark Logo:** Loại bỏ hoàn toàn khối thẻ card trắng bao bọc logo Pawty, logo hòa trực tiếp vào nền kem ấm `#FDFBF7` mượt mà, không viền cứng.
+- **Hòa nền Wordmark Logo:** Tuyệt đối không đóng khung chữ trong bất kỳ hình bo tròn, hình oval hay thẻ card nào. Hiệu ứng phát sáng mờ ảo bám sát theo từng chữ cái (`drop-shadow glow`) trên nền kem ấm `#FDFBF7`.
 - **Loại bỏ đường viền bo tròn màu cam nhạt:** Thẻ lưu tài khoản (`savedAccountBox`) và các khối form loại bỏ viền cam (`borderWidth: 0`), chuyển sang giao diện phẳng hiện đại, tinh tế.
 - **Tiêu đề sinh động "Những bàn chân nhỏ đang tới":**
   - Loại bỏ icon nhỏ đính kèm trong pill.

@@ -13,7 +13,7 @@ export const BubbleBouncingText: React.FC<BubbleBouncingTextProps> = ({
   color = '#FF6F61',
 }) => {
   const characters = text.split('');
-  
+
   // Create an animated value for each character
   const animValues = useRef(characters.map(() => new Animated.Value(0))).current;
 

@@ -143,8 +143,8 @@ export const MobileProfileScreen: React.FC = () => {
 
   const isViewingOther = Boolean(
     selectedProfileHandle &&
-      selectedProfileHandle.toLowerCase() !== (ownerHandle || '').toLowerCase() &&
-      selectedProfileHandle.replace(/^@/, '').toLowerCase() !== (ownerHandle || '').replace(/^@/, '').toLowerCase()
+    selectedProfileHandle.toLowerCase() !== (ownerHandle || '').toLowerCase() &&
+    selectedProfileHandle.replace(/^@/, '').toLowerCase() !== (ownerHandle || '').replace(/^@/, '').toLowerCase()
   );
 
   const otherProfile = isViewingOther && selectedProfileHandle
@@ -250,7 +250,7 @@ export const MobileProfileScreen: React.FC = () => {
     visible: false,
     title: '',
     initialDate: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
     isPet: false,
   });
 
@@ -1713,9 +1713,9 @@ export const MobileProfileScreen: React.FC = () => {
                 </View>
                 <View style={styles.menuItemContent}>
                   <Text style={[styles.menuItemTitle, { color: '#E74C3C' }]}>
-                    Đăng xuất tài khoản
+                    Tạm biệt Pawty
                   </Text>
-                  <Text style={styles.menuItemDesc}>Đăng xuất khỏi thiết bị này</Text>
+                  <Text style={styles.menuItemDesc}>Đăng xuất tài khoản</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -2165,8 +2165,8 @@ export const MobileProfileScreen: React.FC = () => {
                         newPetSpecies === 'Chó'
                           ? POPULAR_DOG_BREEDS
                           : newPetSpecies === 'Mèo'
-                          ? POPULAR_CAT_BREEDS
-                          : OTHER_SPECIES_OPTIONS;
+                            ? POPULAR_CAT_BREEDS
+                            : OTHER_SPECIES_OPTIONS;
                       openSelector(`Chọn giống ${newPetSpecies.toLowerCase()}`, options, newPetBreed, (val) => {
                         setNewPetBreed(val);
                         if (newPetSpecies === 'Khác') setNewPetCustomSpecies(val);
@@ -2549,8 +2549,8 @@ export const MobileProfileScreen: React.FC = () => {
                         editPetSpeciesDraft === 'Chó'
                           ? POPULAR_DOG_BREEDS
                           : editPetSpeciesDraft === 'Mèo'
-                          ? POPULAR_CAT_BREEDS
-                          : OTHER_SPECIES_OPTIONS;
+                            ? POPULAR_CAT_BREEDS
+                            : OTHER_SPECIES_OPTIONS;
                       openSelector(
                         `Chọn giống ${editPetSpeciesDraft.toLowerCase()}`,
                         options,

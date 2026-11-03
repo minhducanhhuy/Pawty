@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -63,7 +63,7 @@ const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
         </View>
         <Text style={styles.splashTagline}>Những bàn chân nhỏ đang tới</Text>
         <Text style={styles.splashSub}>
-          Mạng xã hội kết nối người nuôi thú cưng
+          Mạng xã hội kết nối người yêu thú cưng
         </Text>
       </View>
 
@@ -157,7 +157,7 @@ const MainMobileShell: React.FC = () => {
     tinderFilterGoal === 'all'
       ? 'Tất cả mục đích'
       : TINDER_PURPOSE_OPTIONS.find((opt) => opt.intent === tinderFilterGoal)?.shortLabel ||
-        'Tìm bạn dắt dạo';
+      'Tìm bạn dắt dạo';
 
   return (
     <SafeAreaView

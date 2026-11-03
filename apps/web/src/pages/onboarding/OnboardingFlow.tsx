@@ -107,7 +107,7 @@ export const OnboardingFlow: React.FC = () => {
     } catch (err: any) {
       setAuthError(
         err?.message ||
-          'Không thể kết nối cơ sở dữ liệu PostgreSQL để đăng nhập.'
+        'Không thể kết nối cơ sở dữ liệu PostgreSQL để đăng nhập.'
       );
     } finally {
       setIsLoading(false);
@@ -134,7 +134,7 @@ export const OnboardingFlow: React.FC = () => {
       } catch (err: any) {
         setAuthError(
           err?.message ||
-            'Đăng nhập thất bại: Không thể kết nối cơ sở dữ liệu PostgreSQL.'
+          'Đăng nhập thất bại: Không thể kết nối cơ sở dữ liệu PostgreSQL.'
         );
       } finally {
         setIsLoading(false);
@@ -173,7 +173,7 @@ export const OnboardingFlow: React.FC = () => {
     } catch (err: any) {
       setAuthError(
         err?.message ||
-          'Đăng ký thất bại: Không thể kết nối cơ sở dữ liệu PostgreSQL.'
+        'Đăng ký thất bại: Không thể kết nối cơ sở dữ liệu PostgreSQL.'
       );
     } finally {
       setIsLoading(false);
@@ -614,8 +614,8 @@ export const OnboardingFlow: React.FC = () => {
               {isLoading
                 ? 'Đang kết nối Database...'
                 : mode === 'login'
-                ? 'Đăng nhập vào Pawty'
-                : 'Hoàn tất & Vào ứng dụng'}
+                  ? 'Đăng nhập vào Pawty'
+                  : 'Hoàn tất & Vào ứng dụng'}
             </span>
           </button>
         </form>

@@ -282,7 +282,7 @@ export const MobileOnboardingScreen: React.FC = () => {
                 } catch (err: any) {
                   setAuthError(
                     err?.message ||
-                      'Không thể kết nối Cơ sở dữ liệu PostgreSQL để đăng nhập.'
+                    'Không thể kết nối Cơ sở dữ liệu PostgreSQL để đăng nhập.'
                   );
                 } finally {
                   setIsLoading(false);
@@ -343,7 +343,7 @@ export const MobileOnboardingScreen: React.FC = () => {
         {(mode === 'login' || (mode === 'welcome' && !hasSavedSession)) && (
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
-              <Text style={styles.sectionTitle}>Đăng nhập tài khoản</Text>
+              <Text style={styles.sectionTitle}>Chào mừng bạn đến với Pawty!</Text>
               {hasSavedSession && (
                 <TouchableOpacity onPress={() => {
                   setAuthError(null);
@@ -354,7 +354,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               )}
             </View>
 
-            
+
 
             {authError && (
               <View style={styles.errorBox}>
@@ -363,7 +363,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               </View>
             )}
 
-            <Text style={styles.inputLabel}>Số điện thoại hoặc Tên đăng nhập</Text>
+            <Text style={styles.inputLabel}>Đăng nhập tài khoản</Text>
             <TextInput
               style={styles.input}
               value={identifierInput}
@@ -413,7 +413,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               ) : (
                 <>
                   <Feather name="check" size={16} color="#FFFFFF" />
-                  <Text style={styles.primaryBtnText}>Đăng nhập</Text>
+                  <Text style={styles.primaryBtnText}>Khám phá Pawty nào</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -426,7 +426,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               }}
             >
               <Feather name="user-plus" size={16} color="#4A3F35" />
-              <Text style={styles.secondaryBtnText}>Chưa có tài khoản? Tạo tài khoản mới</Text>
+              <Text style={styles.secondaryBtnText}>Chưa có tài khoản? Gia nhập Pawty nè!</Text>
             </TouchableOpacity>
           </View>
         )}
