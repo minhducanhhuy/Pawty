@@ -79,17 +79,25 @@
 - **Đồng nhất tuyệt đối bố cục Hồ sơ giữa "Bản thân tự nhìn" và "Người ngoài nhìn vào":**
   - Khi người dùng bấm xem trang cá nhân của người khác từ **Khám phá**, **Tin nhắn**, **Kết nối (Tinder)**, **SOS**, hoặc **Thông báo**, hệ thống điều hướng về đúng giao diện chuẩn của **`MobileProfileScreen`**.
 
-### 2.6 Màn Hình Khởi Động Mobile (Splash Screen) & Logo Animation (Calligraphy Brush Effect)
-- **Quy chuẩn Splash Screen Mobile (Chuẩn Hình 1):**
+### 2.6 Màn Hình Khởi Động Mobile (Splash Screen) & Hoạt Ảnh Mascot Frame-by-Frame (Hình 5)
+- **Quy chuẩn Splash Screen Mobile:**
   - **Màu nền toàn màn hình:** `#FDFBF7` (trắng kem ấm áp thương hiệu Pawty).
-  - **Khung Logo:** Tuyệt đối không có bất kỳ khung viền, thẻ card hay hình khối bo tròn (circle/oval/card) bao quanh. Chữ Pawty hòa trực tiếp vào nền kem, hiệu ứng mờ ảo (blur) tỏa sáng trực tiếp bám theo đường viền từng chữ cái (`letter-contour drop-shadow blur`).
-  - **Tiêu đề chính:** "Những bàn chân nhỏ đang tới" định dạng chữ béo tròn, đậm nét, màu đỏ san hô thương hiệu `#FF6F61` với hiệu ứng đổ bóng phát sáng ấm (`textShadowColor: 'rgba(255, 111, 97, 0.28)'`).
-  - **Dòng phụ đề:** "Mạng xã hội kết nối người nuôi thú cưng" màu xám ấm `#7A6E63`, phông chữ nhẹ nhàng thanh lịch.
-  - **Thanh tiến trình & Tải trang dưới đáy:** Thanh tải mỏng màu san hô `#FF6F61` chạy từ 0 đến 100% kèm dòng trạng thái `ĐANG KẾT NỐI CỘNG ĐỒNG BOSS...` màu `#A89F95` dãn chữ (`letterSpacing: 1.5`).
+  - **Cụm đầu trang (Đẩy lên trên một chút):** Chữ Pawty hòa trực tiếp vào nền kem với hiệu ứng phát sáng mờ ảo bám sát từng nét chữ (`letter-contour drop-shadow blur`), tiêu đề "Những bàn chân nhỏ đang tới" màu san hô `#FF6F61` và dòng chữ nhỏ "Mạng xã hội kết nối người nuôi thú cưng" màu xám ấm `#7A6E63`.
+  - **Hoạt cảnh Mascot Chữ P Frame-by-Frame (Vị trí ô 1):**
+    - Tách riêng nguyên chữ P từ 4 hình gốc của người dùng, loại bỏ đường gạch chân và thanh bar cũ.
+    - Hoạt cảnh lặp tuần hoàn 4 khung hình chuyển động siêu đáng yêu:
+      1. Khung 1: Chữ P đứng vẫy nón sinh nhật vui tươi.
+      2. Khung 2: Chữ P nghiêng người chạy tăng tốc với nón ngủ vẫy theo gió.
+      3. Khung 3: Chữ P nằm bẹp ngủ say kèm bọt khí "z z Z".
+      4. Khung 4: Chữ P thức dậy phóng vụt về phía trước.
+    - Chuyển khung mượt mà mỗi ~300ms, căn chỉnh chân chữ P đồng phẳng mặt sàn, không giật hình.
+  - **Thanh chạy tiến trình liên tiếp (Vị trí ô 2):**
+    - Nằm ngay dưới hoạt cảnh mascot chữ P: Thanh chạy liên tiếp vô tận (`continuous indeterminate running bar`) với vệt san hô `#FF6F61` trượt tuần hoàn từ trái sang phải trên rãnh mờ, tạo cảm giác tải ứng dụng sống động.
+    - Dưới cùng là dòng trạng thái tải: `ĐANG KẾT NỐI CỘNG ĐỒNG BOSS...` màu `#A89F95` dãn chữ (`letterSpacing: 1.5`).
 - **Hiệu ứng Logo Chữ Viết Cọ Mực (Calligraphy Brush Reveal & Dog Tail Wag):**
   - **Khắc phục triệt để lỗi đứt gãy khớp đuôi chữ Y:** Neo tâm quay chuẩn xác tại tọa độ tiếp giáp đuôi và thân chữ Y (`transform-origin: 66.4% 67.4% 0px`), đảm bảo khi lắc đuôi góc từ `-8deg` đến `+11deg`, khớp nối hoàn toàn liền mạch không tách rời một pixel nào.
-  - **Hiệu ứng Cây cọ viết (Brush Writing Reveal):** Mô phỏng nét cọ vẽ mực ướt từ trái sang phải, chữ "Pawty" được hé lộ tuần tự từ chữ P đội nón sinh nhật sang chữ y bằng clipping mask động kết hợp mờ ảo (bloom) và nét cọ dẫn đường. Khi nét cọ hoàn thành chữ y, đuôi cún lập tức xuất hiện và vẫy mừng vui nhộn cùng sóng âm xanh mint.
-  - **Bố cục 2 bên giống hệt nhau 100%** (lấy bố cục của bản thân làm chuẩn):
+  - **Hiệu ứng Cây cọ viết (Brush Writing Reveal):** Mô phỏng nét cọ vẽ mực ướt từ trái sang phải, chữ "Pawty" được hé lộ tuần tự từ chữ P đội nón sinh nhật sang chữ y bằng clipping mask động kết hợp mờ ảo (bloom). Khi nét cọ hoàn thành chữ y, đuôi cún lập tức xuất hiện và vẫy mừng vui nhộn cùng sóng âm xanh mint.
+- **Bố cục 2 bên giống hệt nhau 100%** (lấy bố cục của bản thân làm chuẩn):
     - Cùng thanh tab ngang: `[Con sen]` và các tab `[Tên từng bé thú cưng]`.
     - Trang Con sen: Cùng khung Ảnh bìa, Avatar tròn chồng 50% lên ảnh bìa, Tên, Nghề nghiệp, Câu giới thiệu, Khu vực, Chips thông tin (Cung hoàng đạo, MBTI, Tuổi, Học vấn), Thẻ thống kê và Lưới bài đăng Khoảnh khắc.
     - Trang Thú cưng: Cùng giao diện Ảnh bé cưng tràn toàn màn hình, nút `< >` chuyển ảnh, chạm đúp thả tim nổ, và thẻ kính mờ nửa dưới cuộn xuôi xuống xem đầy đủ Tính cách, Thói quen tốt, Lưu ý dạo chung, Sở thích ăn uống, Lịch sử tẩy giun, Tiền sử bệnh lý và Sổ tiêm chủng.

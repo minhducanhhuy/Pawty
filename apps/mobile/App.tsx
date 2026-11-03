@@ -28,6 +28,7 @@ import { MobileSosScreen } from './src/screens/MobileSosScreen';
 import { MobileOnboardingScreen } from './src/screens/MobileOnboardingScreen';
 import { MobileModals } from './src/components/MobileModals';
 import { MobileAnimatedLogo } from './src/components/MobileAnimatedLogo';
+import { MascotFrameAnimation } from './src/components/MascotFrameAnimation';
 import { TINDER_PURPOSE_OPTIONS } from './src/types/mobileTypes';
 
 const PAWTY_LOGO_FULL = require('./assets/pawty-logo-full.png');
@@ -40,45 +41,59 @@ const BOTTOM_TABS: { id: Exclude<MobileMainTab, 'sos'>; label: string; icon: str
 ];
 
 const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  const runnerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: 2200,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-      useNativeDriver: false,
-    }).start();
+    // Continuous looping runner animation (Circle 2)
+    const runnerLoop = Animated.loop(
+      Animated.timing(runnerAnim, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+        useNativeDriver: true,
+      })
+    );
+    runnerLoop.start();
 
-    const timer = setTimeout(onFinish, 2500);
-    return () => clearTimeout(timer);
-  }, [onFinish, progressAnim]);
+    const timer = setTimeout(onFinish, 3000);
+    return () => {
+      runnerLoop.stop();
+      clearTimeout(timer);
+    };
+  }, [onFinish, runnerAnim]);
 
   return (
     <SafeAreaView style={styles.splashContainer} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.splashCenter}>
+
+      {/* Top Section: Wordmark + Tagline + Subtitle (Pushed up slightly) */}
+      <View style={styles.splashTopSection}>
         <View style={styles.splashLogoBox}>
-          <MobileAnimatedLogo width={220} withReveal />
+          <MobileAnimatedLogo width={210} withReveal />
         </View>
         <Text style={styles.splashTagline}>Những bàn chân nhỏ đang tới</Text>
         <Text style={styles.splashSub}>
-          Mạng xã hội kết nối người yêu thú cưng
+          Mạng xã hội kết nối người nuôi thú cưng
         </Text>
       </View>
 
-      {/* Bottom Loading Progress Bar and Connection Status (Image 1) */}
+      {/* Middle Section (Circle 1): Frame-by-Frame Mascot Letter P Animation */}
+      <View style={styles.splashMascotBox}>
+        <MascotFrameAnimation width={145} frameDuration={300} />
+      </View>
+
+      {/* Bottom Section (Circle 2): Continuous Running Bar + Status */}
       <View style={styles.splashFooter}>
-        <View style={styles.progressBarTrack}>
+        <View style={styles.continuousRunnerTrack}>
           <Animated.View
             style={[
-              styles.progressBarFill,
+              styles.continuousRunnerPill,
               {
                 transform: [
                   {
-                    scaleX: progressAnim.interpolate({
+                    translateX: runnerAnim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [0.01, 1],
+                       outputRange: [-65, 185],
                     }),
                   },
                 ],
@@ -460,17 +475,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FDFBF7',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 45,
+    paddingBottom: 38,
     paddingHorizontal: 28,
   },
-  splashCenter: {
+  splashTopSection: {
     alignItems: 'center',
-    transform: [{ translateY: -25 }],
+    marginTop: 15,
   },
   splashLogoBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     backgroundColor: 'transparent',
   },
   splashTagline: {
@@ -488,35 +505,38 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#7A6E63',
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 6,
     letterSpacing: 0.2,
   },
+  splashMascotBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
   splashFooter: {
-    position: 'absolute',
-    bottom: 42,
     alignItems: 'center',
     width: '100%',
   },
-  progressBarTrack: {
-    width: 140,
-    height: 3.5,
-    borderRadius: 2,
+  continuousRunnerTrack: {
+    width: 180,
+    height: 4.5,
+    borderRadius: 3,
     backgroundColor: '#EFE7DC',
     overflow: 'hidden',
+    position: 'relative',
   },
-  progressBarFill: {
-    width: 140,
+  continuousRunnerPill: {
+    width: 60,
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 3,
     backgroundColor: '#FF6F61',
-    transformOrigin: 'left',
   },
   splashFooterText: {
     fontSize: 10.5,
     fontWeight: '700',
     color: '#A89F95',
     letterSpacing: 1.5,
-    marginTop: 10,
+    marginTop: 12,
   },
   header: {
     flexDirection: 'row',
