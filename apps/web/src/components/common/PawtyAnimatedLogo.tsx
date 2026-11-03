@@ -54,29 +54,22 @@ export const PawtyAnimatedLogo: React.FC<PawtyAnimatedLogoProps> = ({
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
       <div
-        className={`relative flex items-center justify-center ${
-          withFloat ? 'animate-pawty-float' : ''
-        } ${withReveal ? 'animate-pawty-reveal' : ''}`}
+        className={`relative flex items-center justify-center ${withFloat ? 'animate-pawty-float' : ''
+          } ${withReveal ? 'animate-pawty-reveal' : ''}`}
         style={{
           width,
           height,
         }}
       >
-        {/* Soft Watercolor Pastel Aura Glow */}
-        {withAura && (
-          <div
-            className="absolute inset-0 -m-6 rounded-full blur-2xl pointer-events-none animate-pawty-aura"
-            style={{
-              background:
-                'radial-gradient(circle, rgba(255,111,97,0.22) 0%, rgba(163,228,215,0.25) 55%, transparent 75%)',
-            }}
-          />
-        )}
+        
 
         {/* 1024x764 Canvas Container maintaining perfect alignment */}
         <div
           className="relative w-full h-full"
-          style={{ aspectRatio: '1024 / 764' }}
+          style={{
+            aspectRatio: '1024 / 764',
+            filter: 'drop-shadow(0 3px 8px rgba(255, 111, 97, 0.35)) drop-shadow(0 0 14px rgba(255, 111, 97, 0.2))',
+          }}
         >
           {/* Layer 1: Pawty Lettering Body (P, a, w, t, and bottom hook of y) */}
           <img

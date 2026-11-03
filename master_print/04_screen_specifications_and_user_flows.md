@@ -78,7 +78,45 @@
 - **Cố định Theme Thương Hiệu Duy Nhất:** Loại bỏ chức năng chuyển đổi Theme màu. Toàn bộ ứng dụng sử dụng cố định bảng màu nhận diện chuẩn Pawty (`Coral`, `Mint`, `Warm Cream`). Xóa bỏ hoàn toàn mục đổi Theme trong cài đặt và menu hồ sơ.
 - **Đồng nhất tuyệt đối bố cục Hồ sơ giữa "Bản thân tự nhìn" và "Người ngoài nhìn vào":**
   - Khi người dùng bấm xem trang cá nhân của người khác từ **Khám phá**, **Tin nhắn**, **Kết nối (Tinder)**, **SOS**, hoặc **Thông báo**, hệ thống điều hướng về đúng giao diện chuẩn của **`MobileProfileScreen`**.
-  - **Bố cục 2 bên giống hệt nhau 100%** (lấy bố cục của bản thân làm chuẩn):
+
+### 2.6 Màn Hình Khởi Động Mobile (Splash Screen), Hoạt Ảnh Mascot Frame-by-Frame & Bộ Loading Xoay Tròn (Pawty Loading Spinner)
+- **Quy chuẩn Splash Screen Mobile:**
+  - **Màu nền toàn màn hình:** `#FDFBF7` (trắng kem ấm áp thương hiệu Pawty).
+  - **Thời gian chờ khởi động (Splash Boot Delay):** Kéo dài 3000ms (3s mặc định + 5s delay mở rộng theo yêu cầu người dùng) để trải nghiệm trọn vẹn chu kỳ hoạt cảnh chữ P đáng yêu trước khi chuyển tiếp vào màn hình chính / đăng nhập.
+  - **Cụm đầu trang (Đẩy lên trên một chút):** Chữ Pawty hòa trực tiếp vào nền kem với hiệu ứng phát sáng mờ ảo bám sát từng nét chữ (`letter-contour drop-shadow blur`), tiêu đề "Những bàn chân nhỏ đang tới" màu san hô `#FF6F61` và dòng chữ nhỏ "Mạng xã hội kết nối người nuôi thú cưng" màu xám ấm `#7A6E63`.
+  - **Hoạt cảnh Mascot Chữ P Frame-by-Frame Mượt Mà (Vị trí ô 1):**
+    - Tách riêng nguyên chữ P từ 4 hình gốc của người dùng, loại bỏ đường gạch chân và thanh bar cũ.
+    - Hoạt cảnh lặp tuần hoàn 4 khung hình chuyển động siêu đáng yêu với hiệu ứng hòa mờ mượt mà (`Crossfade Opacity Transition`) và nhún nhảy hoạt hình nhẹ nhàng (`organic idle bounce`):
+      1. Khung 1: Chữ P đứng vẫy nón sinh nhật vui tươi (450ms).
+      2. Khung 2: Chữ P nghiêng người chạy tăng tốc với nón ngủ vẫy theo gió (380ms).
+      3. Khung 3: Chữ P nằm bẹp ngủ say kèm bọt khí "z z Z" (650ms).
+      4. Khung 4: Chữ P thức dậy phóng vụt về phía trước (380ms).
+    - Căn chỉnh chân chữ P đồng phẳng mặt sàn, hiệu ứng chuyển khung có làm mờ chuyển tiếp triệt tiêu giật hình.
+  - **Thanh chạy tiến trình liên tiếp (Vị trí ô 2):**
+    - Nằm ngay dưới hoạt cảnh mascot chữ P: Thanh chạy liên tiếp vô tận (`continuous indeterminate running bar`) với vệt san hô `#FF6F61` trượt tuần hoàn từ trái sang phải trên rãnh mờ, tạo cảm giác tải ứng dụng sống động.
+    - Dưới cùng là dòng trạng thái tải: `ĐANG KẾT NỐI CỘNG ĐỒNG BOSS...` màu `#A89F95` dãn chữ (`letterSpacing: 1.5`).
+
+- **Bộ Biểu Tượng Tải Ứng Dụng (Pawty Loading Spinner & Loading State):**
+  - **Biểu tượng xoay tròn ribbon (PawtySpinner):**
+    - Sử dụng hình ảnh vòng dải băng san hô & xanh mint uốn lượn kèm biểu tượng chữ 'z z Z' đáng yêu (`pawty-spinner.png`).
+    - Hoạt cảnh xoay tròn 360 độ liên tục vô tận (`continuous 360-degree rotation`, chu kỳ 2000ms), xoay quanh đúng tâm hình học đồng trục.
+    - Kích thước hiển thị chuẩn 80-84px, đường nét đậm đà, sắc nét, tương phản cao, triệt tiêu hiện tượng mờ nhạt pastel.
+  - **Dòng thông điệp tải kèm hiệu ứng 3 chấm nhảy tuần tự (`PawtyLoadingState`):**
+    - Câu thông điệp dễ thương: `"Đợi Pawty xíu nha..."`.
+    - Dấu 3 chấm xuất hiện tuần tự từng dấu chấm một và lặp lại (`""` -> `"."` -> `".."` -> `"..."`, chu kỳ ~380ms/nhịp).
+  - **Quy chuẩn bố cục Không Đóng Thẻ Card (No Card Box Policy):**
+    - Tuyệt đối không đóng khung biểu tượng loading vào bất kỳ thẻ card trắng, viền bo tròn hay bóng đổ nào.
+    - Loading hòa trực tiếp và lơ lửng tự nhiên trên nền màu kem thương hiệu `#FDFBF7`.
+    - Triệt tiêu 100% vòng xoay mặc định của hệ điều hành Android (sử dụng `progressViewOffset={-1000}` đẩy hoàn toàn ra ngoài màn hình kết hợp `colors={['transparent']}` và `progressBackgroundColor="transparent"`).
+    - Thay thế toàn bộ bằng biểu tượng ribbon xoay tròn 360 độ của Pawty (`PawtySpinner.tsx`) nằm ngay phía trên dòng chữ "Đợi Pawty xíu nha...", mang lại trải nghiệm thương hiệu độc bản, không bị trùng lặp 2 biểu tượng loading.
+  - **Phạm vi áp dụng trong ứng dụng (In-App Loading):**
+    - Kéo làm mới bảng tin Khám phá (`Pull-to-refresh Explore Feed`) khi mạng yếu hoặc tắt Wi-Fi.
+    - Trạng thái chờ tải dữ liệu ban đầu của Bảng tin, Kết nối ghép đôi và Trang cá nhân.
+    - Modal xác thực hoặc chờ phản hồi từ máy chủ.
+- **Hiệu ứng Logo Chữ Viết Cọ Mực (Calligraphy Brush Reveal & Dog Tail Wag):**
+  - **Khắc phục triệt để lỗi đứt gãy khớp đuôi chữ Y:** Neo tâm quay chuẩn xác tại tọa độ tiếp giáp đuôi và thân chữ Y (`transform-origin: 66.4% 67.4% 0px`), đảm bảo khi lắc đuôi góc từ `-8deg` đến `+11deg`, khớp nối hoàn toàn liền mạch không tách rời một pixel nào.
+  - **Hiệu ứng Cây cọ viết (Brush Writing Reveal):** Mô phỏng nét cọ vẽ mực ướt từ trái sang phải, chữ "Pawty" được hé lộ tuần tự từ chữ P đội nón sinh nhật sang chữ y bằng clipping mask động kết hợp mờ ảo (bloom). Khi nét cọ hoàn thành chữ y, đuôi cún lập tức xuất hiện và vẫy mừng vui nhộn cùng sóng âm xanh mint.
+- **Bố cục 2 bên giống hệt nhau 100%** (lấy bố cục của bản thân làm chuẩn):
     - Cùng thanh tab ngang: `[Con sen]` và các tab `[Tên từng bé thú cưng]`.
     - Trang Con sen: Cùng khung Ảnh bìa, Avatar tròn chồng 50% lên ảnh bìa, Tên, Nghề nghiệp, Câu giới thiệu, Khu vực, Chips thông tin (Cung hoàng đạo, MBTI, Tuổi, Học vấn), Thẻ thống kê và Lưới bài đăng Khoảnh khắc.
     - Trang Thú cưng: Cùng giao diện Ảnh bé cưng tràn toàn màn hình, nút `< >` chuyển ảnh, chạm đúp thả tim nổ, và thẻ kính mờ nửa dưới cuộn xuôi xuống xem đầy đủ Tính cách, Thói quen tốt, Lưu ý dạo chung, Sở thích ăn uống, Lịch sử tẩy giun, Tiền sử bệnh lý và Sổ tiêm chủng.
@@ -98,12 +136,20 @@
 - **Hộp thư Hẹn hò & Kết nối (`Dating / Matches Chat`):** Bắt nguồn từ Match Tinder, chỉ xem Hồ sơ Hẹn hò (bảo mật tuyệt đối), hiển thị ảnh thẻ hẹn hò (`photoUrls[0]`), nút Hủy tương hợp (Bỏ Match) xóa sạch tin nhắn trong PostgreSQL và chặn tái xuất hiện.
   - Tách biệt danh tính: Avatar ở hồ sơ hẹn hò lấy từ thẻ ảnh hẹn hò (`photoUrls[0]`), hoàn toàn độc lập với avatar ở hồ sơ mạng xã hội (`user.avatarUrl`).
 
-### 2.7 Giao Diện Đăng Nhập & Đăng Ký Thân Thiện (Loại Bỏ Text Kỹ Thuật)
-- **Tối ưu văn phong thân thiện với người dùng cuối:**
-  - Ô nhập tài khoản: placeholder `Nhập số điện thoại hoặc tên đăng nhập` (loại bỏ hoàn toàn các chuỗi kỹ thuật `VD: 0900000001 hoặc test1`).
-  - Nhãn nút đăng nhập: `Đăng nhập` (loại bỏ hoàn toàn nhãn `Đăng nhập ngay (1 Thiết bị)`).
-  - Loại bỏ hoàn toàn khối thông báo mang tính kỹ thuật "Bảo mật 1 thiết bị: Tài khoản chỉ được đăng nhập trên 1 điện thoại...".
-  - Giữ lại đầy đủ tính năng ghi nhớ phiên đăng nhập trên thiết bị với nút **"Vào thẳng"** nhanh chóng và tiện lợi.
+### 2.7 Giao Diện Đăng Nhập & Onboarding Chuẩn Nhận Diện Mới (Playful Minimalism)
+- **Bảo tồn hệ màu thương hiệu:** Nền kem ấm áp `#FDFBF7`, điểm nhấn san hô `#FF6F61` và xanh mint `#A3E4D7`.
+- **Hòa nền Wordmark Logo:** Tuyệt đối không đóng khung chữ trong bất kỳ hình bo tròn, hình oval hay thẻ card nào. Hiệu ứng phát sáng mờ ảo bám sát theo từng chữ cái (`drop-shadow glow`) trên nền kem ấm `#FDFBF7`.
+- **Loại bỏ đường viền bo tròn màu cam nhạt:** Thẻ lưu tài khoản (`savedAccountBox`) và các khối form loại bỏ viền cam (`borderWidth: 0`), chuyển sang giao diện phẳng hiện đại, tinh tế.
+- **Tiêu đề sinh động "Những bàn chân nhỏ đang tới":**
+  - Loại bỏ icon nhỏ đính kèm trong pill.
+  - Sử dụng phông chữ bo tròn đáng yêu (`rounded font`), in đậm với hiệu ứng đổ bóng phát sáng mờ ảo (`blur text glow`).
+  - Tích hợp hiệu ứng hoạt cảnh **Nổi bọt biển nhảy nhót theo từng ký tự (Bubble Bouncing Letter Wave)** — từng chữ cái nhún nhảy nhẹ nhàng như bọt bóng nước tạo cảm giác vui tươi, thân thiện ngay từ màn hình đăng nhập.
+- **Tinh giản nội dung rườm rà:**
+  - Bỏ dòng chữ phụ dài dòng: *"Mạng xã hội hình ảnh, kết nối bạn đi dạo và đặt lịch chăm sóc thú cưng quanh bạn."*
+  - Bỏ dòng chữ giải thích nhỏ dưới tiêu đề *"Đăng nhập tài khoản"* và *"Chào mừng bạn quay lại"*.
+- **Tối ưu Form đăng nhập:**
+  - Placeholder ô tài khoản hiển thị đầy đủ, không bị cụt/thiếu: `SĐT hoặc tên đăng nhập`.
+  - Icon mở xem mật khẩu hiển thị chuẩn xác **Icon Con Mắt (`eye` / `eye-off`)** (khắc phục lỗi thiếu mapping icon trong `FeatherIcon`).
 
 ### 2.8 Hệ Thống Thông Báo Toast Đa Tầng (Multi-layer Toast Modal Overlay)
 - **Đảm bảo Toast luôn nổi trên cùng:** Toàn bộ thông báo hệ thống (`toastMessage`) được bao bọc trong một React Native `<Modal transparent statusBarTranslucent animationType="fade">` với `pointerEvents="box-none"`.

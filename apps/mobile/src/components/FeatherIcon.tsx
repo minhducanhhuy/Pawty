@@ -99,6 +99,8 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
   'corner-down-right': CornerDownRight,
   'edit-2': Edit2,
   'edit-3': Edit3,
+  eye: Eye,
+  'eye-off': EyeOff,
   'file-text': FileText,
   filter: Filter,
   globe: Globe,

@@ -241,8 +241,8 @@ export const MobileModals: React.FC = () => {
     Array.isArray(userTinderSetup.photos) && userTinderSetup.photos.length > 0
       ? userTinderSetup.photos
       : Array.isArray(userTinderSetup.photoUrls) && userTinderSetup.photoUrls.length > 0
-      ? userTinderSetup.photoUrls
-      : []
+        ? userTinderSetup.photoUrls
+        : []
   );
   const [tinderAgeInput, setTinderAgeInput] = useState(String(userTinderSetup.age || 24));
   const [tinderGenderInput, setTinderGenderInput] = useState<'Nam' | 'Nữ' | 'Khác'>(
@@ -275,7 +275,7 @@ export const MobileModals: React.FC = () => {
     title: '',
     options: [],
     selectedValue: '',
-    onSelect: () => {},
+    onSelect: () => { },
   });
 
   // 6. Lightbox Index State
@@ -304,8 +304,8 @@ export const MobileModals: React.FC = () => {
       Array.isArray(userTinderSetup.photos) && userTinderSetup.photos.length > 0
         ? userTinderSetup.photos
         : Array.isArray(userTinderSetup.photoUrls) && userTinderSetup.photoUrls.length > 0
-        ? userTinderSetup.photoUrls
-        : []
+          ? userTinderSetup.photoUrls
+          : []
     );
     setTinderAgeInput(String(userTinderSetup.age || 24));
     setTinderGenderInput(userTinderSetup.gender || 'Nữ');
@@ -815,7 +815,7 @@ export const MobileModals: React.FC = () => {
     my_settings: 'Cài đặt & Bảo mật',
     tinder_setup: 'Hồ sơ Hẹn hò & Kết nối',
     edit_profile: 'Chỉnh sửa nhanh Hồ sơ',
-    notifications: 'Trung tâm Thông báo',
+    notifications: 'Tin vui',
   };
 
   if (!activeModal || !modalTitleMap[activeModal]) return null;
@@ -937,7 +937,7 @@ export const MobileModals: React.FC = () => {
                 />
 
                 <Text style={styles.label}>Chủ đề Hashtag (Chọn hoặc tự nhập thêm)</Text>
-                
+
                 {/* Custom Hashtag Input Row */}
                 <View style={styles.customHashtagRow}>
                   <TextInput
@@ -1549,8 +1549,8 @@ export const MobileModals: React.FC = () => {
                               editPetSpecies === 'Chó'
                                 ? POPULAR_DOG_BREEDS
                                 : editPetSpecies === 'Mèo'
-                                ? POPULAR_CAT_BREEDS
-                                : OTHER_SPECIES_OPTIONS,
+                                  ? POPULAR_CAT_BREEDS
+                                  : OTHER_SPECIES_OPTIONS,
                               editPetBreed,
                               (v) => {
                                 setEditPetBreed(v);
@@ -1945,25 +1945,25 @@ export const MobileModals: React.FC = () => {
                           {(n.type === 'sos_alert' ||
                             n.type === 'sos_sighting' ||
                             n.type === 'sos') && (
-                            <View style={styles.notifInlineActionsRow}>
-                              <TouchableOpacity
-                                style={[
-                                  styles.notifInlinePrimaryBtn,
-                                  { backgroundColor: '#C9302C' },
-                                ]}
-                                onPress={() => {
-                                  markNotificationRead(n.id);
-                                  setActiveModal(null);
-                                  setActiveTab('sos');
-                                }}
-                              >
-                                <Feather name="map-pin" size={12} color="#FFFFFF" />
-                                <Text style={styles.notifInlinePrimaryText}>
-                                  Xem tin SOS khẩn cấp
-                                </Text>
-                              </TouchableOpacity>
-                            </View>
-                          )}
+                              <View style={styles.notifInlineActionsRow}>
+                                <TouchableOpacity
+                                  style={[
+                                    styles.notifInlinePrimaryBtn,
+                                    { backgroundColor: '#C9302C' },
+                                  ]}
+                                  onPress={() => {
+                                    markNotificationRead(n.id);
+                                    setActiveModal(null);
+                                    setActiveTab('sos');
+                                  }}
+                                >
+                                  <Feather name="map-pin" size={12} color="#FFFFFF" />
+                                  <Text style={styles.notifInlinePrimaryText}>
+                                    Xem tin SOS khẩn cấp
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            )}
                         </TouchableOpacity>
                       );
                     })}

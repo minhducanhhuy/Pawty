@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   StatusBar,
   Image,
   BackHandler,
+  Animated,
+  Easing,
   Modal,
   Keyboard,
   Platform,
@@ -26,6 +28,7 @@ import { MobileSosScreen } from './src/screens/MobileSosScreen';
 import { MobileOnboardingScreen } from './src/screens/MobileOnboardingScreen';
 import { MobileModals } from './src/components/MobileModals';
 import { MobileAnimatedLogo } from './src/components/MobileAnimatedLogo';
+import { MascotFrameAnimation } from './src/components/MascotFrameAnimation';
 import { TINDER_PURPOSE_OPTIONS } from './src/types/mobileTypes';
 
 const PAWTY_LOGO_FULL = require('./assets/pawty-logo-full.png');
@@ -38,22 +41,67 @@ const BOTTOM_TABS: { id: Exclude<MobileMainTab, 'sos'>; label: string; icon: str
 ];
 
 const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
+  const runnerAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    const timer = setTimeout(onFinish, 2200);
-    return () => clearTimeout(timer);
-  }, [onFinish]);
+    // Continuous looping runner animation (Circle 2)
+    const runnerLoop = Animated.loop(
+      Animated.timing(runnerAnim, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+        useNativeDriver: true,
+      })
+    );
+    runnerLoop.start();
+
+    const timer = setTimeout(onFinish, 3000);
+    return () => {
+      runnerLoop.stop();
+      clearTimeout(timer);
+    };
+  }, [onFinish, runnerAnim]);
 
   return (
     <SafeAreaView style={styles.splashContainer} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.splashCenter}>
+
+      {/* Top Section: Wordmark + Tagline + Subtitle (Pushed up slightly) */}
+      <View style={styles.splashTopSection}>
         <View style={styles.splashLogoBox}>
           <MobileAnimatedLogo width={210} withReveal />
         </View>
         <Text style={styles.splashTagline}>Những bàn chân nhỏ đang tới</Text>
         <Text style={styles.splashSub}>
-          Mạng xã hội hình ảnh · Kết nối bạn đi dạo · Báo động SOS
+          Mạng xã hội kết nối người nuôi thú cưng
         </Text>
+      </View>
+
+      {/* Middle Section (Circle 1): Frame-by-Frame Mascot Letter P Animation */}
+      <View style={styles.splashMascotBox}>
+        <MascotFrameAnimation width={145} />
+      </View>
+
+      {/* Bottom Section (Circle 2): Continuous Running Bar + Status */}
+      <View style={styles.splashFooter}>
+        <View style={styles.continuousRunnerTrack}>
+          <Animated.View
+            style={[
+              styles.continuousRunnerPill,
+              {
+                transform: [
+                  {
+                    translateX: runnerAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-65, 185],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+        </View>
+        <Text style={styles.splashFooterText}>ĐANG KẾT NỐI CỘNG ĐỒNG BOSS...</Text>
       </View>
     </SafeAreaView>
   );
@@ -124,7 +172,7 @@ const MainMobileShell: React.FC = () => {
     tinderFilterGoal === 'all'
       ? 'Tất cả mục đích'
       : TINDER_PURPOSE_OPTIONS.find((opt) => opt.intent === tinderFilterGoal)?.shortLabel ||
-        'Tìm bạn dắt dạo';
+      'Tìm bạn dắt dạo';
 
   return (
     <SafeAreaView
@@ -425,36 +473,70 @@ const styles = StyleSheet.create({
   },
   splashContainer: {
     flex: 1,
-    backgroundColor: '#FAF7F2',
+    backgroundColor: '#FDFBF7',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 45,
+    paddingBottom: 38,
     paddingHorizontal: 28,
   },
-  splashCenter: {
+  splashTopSection: {
     alignItems: 'center',
+    marginTop: 15,
   },
   splashLogoBox: {
-    width: 220,
-    height: 92,
-    borderRadius: 26,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#EFE9E1',
-    marginBottom: 14,
+    marginBottom: 12,
+    backgroundColor: 'transparent',
   },
   splashTagline: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#2C2520',
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#FF6F61',
     textAlign: 'center',
+    letterSpacing: 0.2,
+    textShadowColor: 'rgba(255, 111, 97, 0.24)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   splashSub: {
-    fontSize: 12,
-    color: '#8E8074',
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#7A6E63',
     textAlign: 'center',
     marginTop: 6,
+    letterSpacing: 0.2,
+  },
+  splashMascotBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
+  splashFooter: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  continuousRunnerTrack: {
+    width: 180,
+    height: 4.5,
+    borderRadius: 3,
+    backgroundColor: '#EFE7DC',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  continuousRunnerPill: {
+    width: 60,
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: '#FF6F61',
+  },
+  splashFooterText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#A89F95',
+    letterSpacing: 1.5,
+    marginTop: 12,
   },
   header: {
     flexDirection: 'row',

@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
 import { MobileAnimatedLogo } from '../components/MobileAnimatedLogo';
+import { BubbleBouncingText } from '../components/BubbleBouncingText';
 import { DatePickerModal } from '../components/DatePickerModal';
 import {
   POPULAR_DOG_BREEDS,
@@ -249,25 +250,14 @@ export const MobileOnboardingScreen: React.FC = () => {
         {/* Brand Header */}
         <View style={styles.brandSection}>
           <View style={styles.logoCard}>
-            <MobileAnimatedLogo width={160} />
+            <MobileAnimatedLogo width={210} withReveal />
           </View>
-          <View style={[styles.badgeRow, { backgroundColor: theme.primarySoft }]}>
-            <Image source={PAWTY_ICON} style={styles.smallIcon} resizeMode="contain" />
-            <Text style={[styles.badgeText, { color: theme.primary }]}>
-              Những bàn chân nhỏ đang tới
-            </Text>
-          </View>
-          <Text style={styles.subtitle}>
-            Mạng xã hội hình ảnh, kết nối bạn đi dạo và đặt lịch chăm sóc thú cưng quanh bạn.
-          </Text>
+          <BubbleBouncingText />
         </View>
 
         {mode === 'welcome' && hasSavedSession && (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Chào mừng bạn quay lại</Text>
-            <Text style={styles.sectionSub}>
-              Thiết bị đã lưu phiên đăng nhập của bạn. Chạm vào tài khoản bên dưới để tiếp tục.
-            </Text>
 
             {authError && (
               <View style={styles.errorBox}>
@@ -279,7 +269,6 @@ export const MobileOnboardingScreen: React.FC = () => {
             <TouchableOpacity
               style={[
                 styles.savedAccountBox,
-                { borderColor: theme.primary },
                 isLoading && { opacity: 0.7 },
               ]}
               disabled={isLoading}
@@ -293,7 +282,7 @@ export const MobileOnboardingScreen: React.FC = () => {
                 } catch (err: any) {
                   setAuthError(
                     err?.message ||
-                      'Không thể kết nối Cơ sở dữ liệu PostgreSQL để đăng nhập.'
+                    'Không thể kết nối Cơ sở dữ liệu PostgreSQL để đăng nhập.'
                   );
                 } finally {
                   setIsLoading(false);
@@ -354,7 +343,7 @@ export const MobileOnboardingScreen: React.FC = () => {
         {(mode === 'login' || (mode === 'welcome' && !hasSavedSession)) && (
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
-              <Text style={styles.sectionTitle}>Đăng nhập tài khoản</Text>
+              <Text style={styles.sectionTitle}>Chào mừng bạn đến với Pawty!</Text>
               {hasSavedSession && (
                 <TouchableOpacity onPress={() => {
                   setAuthError(null);
@@ -365,9 +354,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               )}
             </View>
 
-            <Text style={styles.sectionSub}>
-              Đăng nhập bằng Số điện thoại hoặc Tên đăng nhập và Mật khẩu của bạn.
-            </Text>
+
 
             {authError && (
               <View style={styles.errorBox}>
@@ -376,14 +363,14 @@ export const MobileOnboardingScreen: React.FC = () => {
               </View>
             )}
 
-            <Text style={styles.inputLabel}>Số điện thoại hoặc Tên đăng nhập</Text>
+            <Text style={styles.inputLabel}>Đăng nhập tài khoản</Text>
             <TextInput
               style={styles.input}
               value={identifierInput}
               onChangeText={setIdentifierInput}
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="Nhập số điện thoại hoặc tên đăng nhập"
+              placeholder="SĐT hoặc tên đăng nhập"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(140)}
             />
@@ -426,7 +413,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               ) : (
                 <>
                   <Feather name="check" size={16} color="#FFFFFF" />
-                  <Text style={styles.primaryBtnText}>Đăng nhập</Text>
+                  <Text style={styles.primaryBtnText}>Khám phá Pawty nào</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -439,7 +426,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               }}
             >
               <Feather name="user-plus" size={16} color="#4A3F35" />
-              <Text style={styles.secondaryBtnText}>Chưa có tài khoản? Tạo tài khoản mới</Text>
+              <Text style={styles.secondaryBtnText}>Chưa có tài khoản? Gia nhập Pawty nè!</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -1042,15 +1029,10 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   logoCard: {
-    width: 210,
-    height: 82,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#EFE9E1',
-    marginBottom: 10,
+    marginBottom: 6,
+    backgroundColor: 'transparent',
   },
   logoFull: {
     width: 175,
@@ -1131,11 +1113,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 12,
+    padding: 13,
     borderRadius: 18,
-    borderWidth: 1.5,
-    backgroundColor: '#FAF7F2',
-    marginBottom: 14,
+    backgroundColor: '#F8F4EE',
+    marginBottom: 16,
   },
   savedAvatar: {
     width: 44,
