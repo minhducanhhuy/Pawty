@@ -21,8 +21,8 @@
 ### 2.1 Tab 1: Khám Phá (`Explore`) & Đăng Bài
 - **Kéo xuống để làm mới (`Pull-to-Refresh`):** Tích hợp `RefreshControl` trên danh sách Khám phá; khi người dùng kéo từ đỉnh xuống sẽ gọi lại `/api/bootstrap` để tải bài viết, hồ sơ và thông báo mới nhất từ PostgreSQL.
 - **Tinh gọn giao diện Khám phá:** Loại bỏ thanh nhắc đăng bài ("Chia sẻ khoảnh khắc của thú cưng...") dưới thanh tìm kiếm do đã có nút dấu cộng (`+`) chuyên dụng trên thanh Header.
-- **Đăng bài mới (`new_moment`) lưu trữ thật vào PostgreSQL:**
-  - **Loại bỏ hoàn toàn ô nhập ảnh bằng URL.** Chỉ giữ nút chọn nhiều ảnh/video từ Thư viện máy và chụp từ Camera (`expo-image-picker` xuất Base64 nén tối ưu để lưu bền vững vào PostgreSQL và hiển thị trên mọi thiết bị).
+- **Đăng bài mới (`new_moment`) lưu trữ qua Cloudinary & PostgreSQL:**
+  - Nút chọn nhiều ảnh/video từ Thư viện máy và chụp từ Camera (`expo-image-picker`). Ảnh được đẩy lên Cloudinary CDN và PostgreSQL lưu lại đường link HTTPS chuẩn.
   - Hỗ trợ chọn tích lũy nhiều ảnh, xóa từng ảnh bằng nút `✕` hoặc `Xóa hết`.
   - **Bỏ chọn chuyên mục bài đăng:** Người dùng chỉ cần chọn ảnh, nhập caption và chọn hashtag.
   - **Hashtag thông minh:** Lưu lại toàn bộ lịch sử các hashtag người dùng đã sử dụng trước đó, đồng thời hỗ trợ ô nhập trực tiếp cho phép người dùng tự do thêm hashtag mới theo ý muốn (`#custom_tag`).
@@ -41,16 +41,31 @@
   - Tiêu đề gọn gàng: Icon Trái tim + chữ "Kết nối". Không chèn huy hiệu mục đích dài vào dòng tiêu đề gây tràn màn hình.
   - Cụm thao tác góc phải cân đối: Nút `Thích bạn ({count})` (compact pill), Nút `Bộ lọc` (có chấm báo trạng thái), Nút `Tùy chọn ⋮`.
   - Khắc phục triệt để lỗi modal: `MobileModals` chỉ can thiệp các modal toàn cục, không render đè bottom-sheet rỗng khi mở `TinderFilterModal` hay `TinderMenuModal`.
-- **Xem Ai Đã Thích Mình (`Likes You` — Mở khóa 100% Free):**
-  - Hiển thị trực tiếp danh sách tất cả người dùng đã thả tim hồ sơ của bạn (không làm mờ, không khóa VIP).
+- **Xem Ai Đã Thích Mình (`Likes You` — Mở khóa 100% Free) & Đồng Bộ Real-time:**
+  - Hiển thị trực tiếp danh sách tất cả người dùng đã thả tim hồ sơ của bạn (không làm mờ, không khóa VIP), kèm ảnh đại diện thẻ hẹn hò (`photoUrls[0]`).
+  - Tự động đồng bộ số lượng và danh sách ứng viên đã thích ngay khi người dùng chuyển qua lại giữa các tab hoặc qua chu kỳ polling định kỳ.
   - Cho phép bấm xem chi tiết hồ sơ của họ, bấm **[Thích lại & Kết nối ngay]** (tự động Match, bắn thông báo cho cả 2 bên và tạo phòng chat) hoặc **[Bỏ qua]**.
-- **Bộ lọc Khoảng cách Không Giới Hạn (Bỏ trần 160km):**
+  - **Đồng bộ phòng chat hẹn hò hai chiều:** Khi User B match User A, ngay lập tức cả User B và User A (người quẹt thích trước) đều xuất hiện cuộc trò chuyện mới trong tab Hẹn hò của màn hình Tin nhắn.
+- **Bộ lọc Khoảng cách & Giới tính Đối tượng (Lưu Trữ Bền Vững):**
   - Thanh trượt khoảng cách kéo rộng tới **500 km** hoặc chọn **`Không giới hạn`** để tìm kiếm không giới hạn bán kính địa lý.
+  - **Bộ lọc giới tính đối tượng muốn ghép đôi:** Cung cấp 3 tùy chọn bằng Chip selector: **`Mọi người`** (`all`), **`Nữ`** (`female`), và **`Nam`** (`male`). Trạng thái lựa chọn được lưu trữ bền vững trong state ứng dụng, tự động nạp lại cọc thẻ theo giới tính đã chọn ngay khi bấm áp dụng, và giữ nguyên lựa chọn khi mở lại bộ lọc.
+- **Bố Cục Thẻ Tinder Tinh Gọn & Con Dấu Quẹt Trực Quan (Borderless Swipe Icons):**
+  - **Con dấu Phản hồi Quẹt Thẻ (Swipe Icons):**
+    - Thiết kế tối giản, loại bỏ hoàn toàn khung viền vuông/squircle cứng nhắc (`borderWidth: 0`, `backgroundColor: 'transparent'`), sử dụng biểu tượng nổi bật với hiệu ứng đổ bóng mờ (`drop shadow`) để hiển thị sắc nét trên mọi bức ảnh thú cưng:
+      - **Quẹt sang phải (Thích / Like):** Biểu tượng **Trái tim Đỏ** (`Feather name="heart"`, size 58, màu `#EF4444`, `fill="#EF4444"`), nghiêng góc -15 độ, opacity mượt mà theo cử chỉ kéo ngón tay.
+      - **Quẹt sang trái (Bỏ qua / Pass):** Biểu tượng **Dấu X Trắng** (`Feather name="x"`, size 58, màu `#FFFFFF`, `strokeWidth={4}`), nghiêng góc 15 độ, opacity mượt mà theo cử chỉ kéo ngón tay.
+  - Khoảng cách địa lý (`Cách bạn ... km`) được bố trí trên một dòng riêng biệt với biểu tượng điều hướng để chống hoàn toàn hiện tượng tràn dòng mất chữ.
+  - Tên chủ nuôi hiển thị tên thật thân thiện, loại bỏ hoàn toàn hậu tố tài khoản mang tính kỹ thuật `(@test2)`.
+- **Trạng Thái Đọc Tin Nhắn Chuẩn Xác (Seen Receipt Không Nhấp Nháy):**
+  - Tin nhắn mới gửi đi mang trạng thái `isRead = false`, hiển thị nhãn **`Đã gửi`** kèm biểu tượng `check`.
+  - Chỉ hiển thị nhãn **`Đã xem`** kèm avatar tròn của đối phương tại đúng vị trí tin nhắn gần nhất mà đối phương đã thực tế đọc (`isRead = true`), khắc phục triệt để lỗi hiển thị nhấp nháy từ "Đã xem" sang "Đã gửi".
 - **Đồng bộ Mục Đích Tìm Kiếm Duy Nhất (`Single-Select Purpose Mapping`):**
   - Trong **Thiết lập hồ sơ kết nối (`tinder_setup`)**, thuộc tính **Mục đích tìm kiếm (`lookingFor` / `intent`)** bắt buộc chọn **đúng 1 trong 3 mục đích chuẩn** bằng Selector/Chips:
     1. `Cùng dắt thú cưng đi dạo` (`playdate`)
     2. `Hẹn hò cho người yêu thú` (`dating`)
     3. `Giao lưu hội nuôi thú cưng` (`community`)
+- **Triệt Tiêu Lỗi Vòng Lặp Vô Tận (Anti-loop Stability):**
+  - Đảm bảo cơ chế tự động nạp thẻ của Tinder và các Selector Modal sử dụng ref guards và immutable primitives thay vì dependency mảng/hàm không ổn định, ngăn chặn hoàn toàn lỗi "Maximum update depth exceeded".
 
 ### 2.3 Thông Báo Thiết Bị Tự Nhiên (`Native Mobile Push Notifications`)
 - **Tích hợp `expo-notifications` toàn diện:**
@@ -58,11 +73,11 @@
   - Xin cấp quyền thông báo hệ thống khi khởi động ứng dụng.
   - Cơ chế Polling thời gian thực kiểm tra thông báo mới từ PostgreSQL: Khi có người dùng khác gửi lời mời kết bạn, chấp nhận kết bạn hoặc Match, ứng dụng lập tức kích hoạt `Notifications.scheduleNotificationAsync` để đẩy thông báo nổi (Heads-up Notification) trên màn hình điện thoại ngay lập tức.
 
-### 2.4 Tab 4 & Xem Hồ Sơ Cá Nhân: Đồng Nhất Bố Cục & Cố Định Giao Diện
+### 2.4 Tab 4 & Xem Hồ Sơ Cá Nhân: Đồng Nhất Bố Cục 100% & Selector-First UX
 - **Bỏ theo dõi cân nặng theo tháng:** Cân nặng thú cưng là thông số được cài đặt 1 lần (hiển thị trên chip thông số chính), loại bỏ biểu đồ giả lập cân nặng theo tháng để giữ giao diện súc tích, thực tế.
 - **Cố định Theme Thương Hiệu Duy Nhất:** Loại bỏ chức năng chuyển đổi Theme màu. Toàn bộ ứng dụng sử dụng cố định bảng màu nhận diện chuẩn Pawty (`Coral`, `Mint`, `Warm Cream`). Xóa bỏ hoàn toàn mục đổi Theme trong cài đặt và menu hồ sơ.
 - **Đồng nhất tuyệt đối bố cục Hồ sơ giữa "Bản thân tự nhìn" và "Người ngoài nhìn vào":**
-  - Giữ nguyên bố cục chuẩn: Ảnh bìa, Avatar nổi 50%, Dấu cộng ghi chú trạng thái ở góc trên bên phải avatar, Thông tin cá nhân, Chips tính cách, Lưới khoảnh khắc. Phía người ngoài xem chỉ hiển thị thêm cụm nút quan hệ `[Kết bạn]` / `[Theo dõi]` / `[Nhắn tin]`.
+  - Khi người dùng bấm xem trang cá nhân của người khác từ **Khám phá**, **Tin nhắn**, **Kết nối (Tinder)**, **SOS**, hoặc **Thông báo**, hệ thống điều hướng về đúng giao diện chuẩn của **`MobileProfileScreen`**.
 
 ### 2.6 Màn Hình Khởi Động Mobile (Splash Screen) & Logo Animation (Calligraphy Brush Effect)
 - **Quy chuẩn Splash Screen Mobile (Chuẩn Hình 1):**
@@ -74,62 +89,189 @@
 - **Hiệu ứng Logo Chữ Viết Cọ Mực (Calligraphy Brush Reveal & Dog Tail Wag):**
   - **Khắc phục triệt để lỗi đứt gãy khớp đuôi chữ Y:** Neo tâm quay chuẩn xác tại tọa độ tiếp giáp đuôi và thân chữ Y (`transform-origin: 66.4% 67.4% 0px`), đảm bảo khi lắc đuôi góc từ `-8deg` đến `+11deg`, khớp nối hoàn toàn liền mạch không tách rời một pixel nào.
   - **Hiệu ứng Cây cọ viết (Brush Writing Reveal):** Mô phỏng nét cọ vẽ mực ướt từ trái sang phải, chữ "Pawty" được hé lộ tuần tự từ chữ P đội nón sinh nhật sang chữ y bằng clipping mask động kết hợp mờ ảo (bloom) và nét cọ dẫn đường. Khi nét cọ hoàn thành chữ y, đuôi cún lập tức xuất hiện và vẫy mừng vui nhộn cùng sóng âm xanh mint.
-
-- **Đồng nhất tuyệt đối bố cục Hồ sơ giữa "Bản thân tự nhìn" và "Người ngoài nhìn vào":**
-  - Khi người dùng bấm xem trang cá nhân của người khác từ **Khám phá**, **Tin nhắn**, **Kết nối (Tinder)**, **SOS**, hoặc **Thông báo**, hệ thống điều hướng về đúng giao diện chuẩn của **`MobileProfileScreen`** (thay thế hoàn toàn modal rút gọn không đồng nhất trước đây).
   - **Bố cục 2 bên giống hệt nhau 100%** (lấy bố cục của bản thân làm chuẩn):
     - Cùng thanh tab ngang: `[Con sen]` và các tab `[Tên từng bé thú cưng]`.
-    - Trang Con sen: Cùng khung Ảnh bìa, Avatar tròn chồng 50% lên ảnh bìa, Tên, Nghề nghiệp, Câu giới thiệu, Khu vực, Chips thông tin (Cung hoàng đạo, MBTI, Tuổi, Học vấn tuân thủ cài đặt ẩn/hiện của chủ hồ sơ), Thẻ thống kê (Người theo dõi, Đang theo dõi, Lượt thích) và Lưới bài đăng Khoảnh khắc.
-    - Trang Thú cưng: Cùng giao diện Ảnh bé cưng tràn toàn màn hình, nút `< >` chuyển ảnh, chạm đúp thả tim nổ, và thẻ kính mờ nửa dưới cuộn xuôi xuống xem đầy đủ Tính cách, Thói quen tốt, Lưu ý dạo chung, Sở thích ăn uống, Lịch sử tẩy giun, Tiền sử bệnh lý, Biểu đồ cân nặng và Sổ tiêm chủng.
+    - Trang Con sen: Cùng khung Ảnh bìa, Avatar tròn chồng 50% lên ảnh bìa, Tên, Nghề nghiệp, Câu giới thiệu, Khu vực, Chips thông tin (Cung hoàng đạo, MBTI, Tuổi, Học vấn), Thẻ thống kê và Lưới bài đăng Khoảnh khắc.
+    - Trang Thú cưng: Cùng giao diện Ảnh bé cưng tràn toàn màn hình, nút `< >` chuyển ảnh, chạm đúp thả tim nổ, và thẻ kính mờ nửa dưới cuộn xuôi xuống xem đầy đủ Tính cách, Thói quen tốt, Lưu ý dạo chung, Sở thích ăn uống, Lịch sử tẩy giun, Tiền sử bệnh lý và Sổ tiêm chủng.
   - **Điểm khác biệt duy nhất về nút thao tác:**
     - **Khi bản thân tự xem (`!isViewingOther`):** Hiển thị các nút chỉnh sửa (`Đổi ảnh bìa`, camera đổi avatar, dấu `+` ghi chú, bút chỉnh sửa chủ, nút `+` thêm thú cưng trên thanh tab, nút `+ Đăng bài`, tab `Được lưu`, nút camera & bút sửa thú cưng, menu `☰`).
-    - **Khi người ngoài xem (`isViewingOther`):** Ẩn 100% các nút chỉnh sửa của chủ nhân; hiển thị nút `← Quay lại` trên thanh đầu trang và cụm nút tương tác khách xem ngay dưới thông tin chủ nuôi: **`[Kết bạn / Đã gửi lời mời / Bạn bè]`**, **`[Theo dõi / Đang theo dõi]`**, và **`[Nhắn tin]`** (chỉ mở khi đã là bạn bè/kết nối).
-- **Sửa lỗi Tạo Hồ Sơ Thú Cưng Mới & Lưu Database 100%:**
-  - Sửa triệt để lỗi stale closure và kết nối trực tiếp `POST /api/pets`, `PUT /api/pets/:id`, `DELETE /api/pets/:id` để tạo/sửa/xóa thú cưng lưu vĩnh viễn vào PostgreSQL, hỗ trợ chọn ảnh từ máy/camera ngay khi tạo mới.
-- **Chuẩn Hóa Selector Toàn Diện (Chủ Nuôi & Thú Cưng):**
-  - Không bắt người dùng tự gõ các trường thuộc tính phân loại — chuyển toàn bộ sang **Selector chọn từ danh sách** (hoặc Multi-select Chips cho thói quen):
-    - **Hồ sơ Chủ nuôi:** Giới tính, Độ tuổi, Ngày sinh (Date Picker), Khu vực sinh sống (Selector danh sách khu đô thị/quận), Nghề nghiệp (Selector danh mục nghề nghiệp), Học vấn (Selector trường/trình độ), Cung hoàng đạo (Selector), MBTI (Selector). Chỉ giữ nhập tay cho **Tên hiển thị** (`maxLength = 40`) và **Câu tự giới thiệu bản thân (`bio`)** có giới hạn ký tự (`maxLength = 150` kèm bộ đếm ký tự).
-    - **Hồ sơ Thú cưng (Thêm mới & Chỉnh sửa):** Loài (Selector/Chips), Loài khác (Selector: Thỏ, Hamster, Nhím kiểng, Chim vẹt, Rùa, Sóc bay...), Giống loài (Selector), Giới tính (Selector/Chips), Ngày sinh (Date Picker), Độ tuổi (Selector), Cân nặng (Selector dải kg chuẩn), Sở thích ăn uống (Selector / Multi-chips), Lịch sử tẩy giun (Selector chu kỳ & loại thuốc), Tiền sử bệnh lý (Selector tình trạng sức khỏe), Thói quen tốt (Multi-select Chips), Lưu ý khi dạo chung (Multi-select Chips), Tên vắc-xin & Mũi tiêm & Ngày tiêm (Selector + Date Picker), Tháng & Cân nặng theo dõi (Selector). Chỉ giữ nhập tay cho **Tên bé** (`maxLength = 30`) và **Tự mô tả tính cách (`bio`)** có giới hạn ký tự (`maxLength = 160` kèm bộ đếm ký tự).
+    - **Khi người ngoài xem (`isViewingOther`):** Ẩn 100% các nút chỉnh sửa của chủ nhân; hiển thị nút `← Quay lại` trên thanh đầu trang và cụm nút tương tác khách xem: **`[Kết bạn / Đã gửi lời mời / Bạn bè]`**, **`[Theo dõi / Đang theo dõi]`**, và **`[Nhắn tin]`**.
+- **Chuẩn Hóa Selector Toàn Diện & Media Cloudinary:**
+  - Đổi ảnh đại diện, ảnh bìa, ảnh các bé thú cưng tự động đẩy lên Cloudinary và lưu lại liên kết HTTPS trên database.
 
-### 2.4 Nhánh `SOS Thú Lạc`: Miễn Phí 100% & Tinh Gọn AI Đúng Trọng Tâm
-- **Đăng bài SOS miễn phí 100%:** Gỡ bỏ hoàn toàn phí 39.000đ / 19.000đ và mã VietQR. Chủ nuôi điền thông tin và bấm **"Phát tín hiệu SOS khẩn cấp"** là bài đăng được xuất bản ngay lập tức. (Mức hậu tạ người tìm thấy chuyển thành Selector tùy chọn: `Không kèm hậu tạ`, `Hậu tạ cảm ơn nhẹ`, `500.000đ`, `1.000.000đ`, `2.000.000đ`, `Thương lượng trực tiếp`).
-- **Chức năng AI duy nhất:** Chỉ giữ nút **`AI Đọc Ảnh Tạo Mô Tả`** trong form đăng bài SOS — đọc bức ảnh thú cưng mà chủ gửi vào để tự động tạo câu mô tả đặc điểm nhận dạng. Xóa sạch toàn bộ chế độ Bản đồ AI Truy Vết lộ trình và banner AI quét Feed tự động.
+### 2.5 Nhánh `SOS Thú Lạc`: Miễn Phí 100% & Tinh Gọn AI Đúng Trọng Tâm
+- **Đăng bài SOS miễn phí 100%:** Gỡ bỏ hoàn toàn phí 39.000đ / 19.000đ và mã VietQR. Chủ nuôi điền thông tin và bấm **"Phát tín hiệu SOS khẩn cấp"** là bài đăng được xuất bản ngay lập tức.
+- **Chức năng AI duy nhất:** Chỉ giữ nút **`AI Đọc Ảnh Tạo Mô Tả`** trong form đăng bài SOS — đọc bức ảnh thú cưng mà chủ gửi vào để tự động tạo câu mô tả đặc điểm nhận dạng.
 
-### 2.5 Tab 3: Tin Nhắn (`Chat`) — Tách Biệt 2 Phân Hệ & Cơ Chế Hủy Match Xóa Sạch
+### 2.6 Tab 3: Tin Nhắn (`Chat`) — Tách Biệt 2 Phân Hệ & Cơ Chế Hủy Match Xóa Sạch
+- **Hộp thư Mạng xã hội (`Social DMs`):** Nhắn tin tự do không cần kết bạn, xem Hồ sơ Mạng xã hội, xóa toàn bộ tin nhắn.
+  - Khi người dùng ở trang Khám phá hoặc trang cá nhân của người khác và bấm **[Nhắn tin]**, hệ thống bắt buộc điều hướng vào cuộc trò chuyện **Mạng xã hội** (`social`), hiển thị ảnh đại diện mạng xã hội (`user.avatarUrl`), tuyệt đối không nhảy nhầm sang hội thoại Hẹn hò (`dating`) dù hai người đã match nhau trên Tinder.
+- **Hộp thư Hẹn hò & Kết nối (`Dating / Matches Chat`):** Bắt nguồn từ Match Tinder, chỉ xem Hồ sơ Hẹn hò (bảo mật tuyệt đối), hiển thị ảnh thẻ hẹn hò (`photoUrls[0]`), nút Hủy tương hợp (Bỏ Match) xóa sạch tin nhắn trong PostgreSQL và chặn tái xuất hiện.
+  - Tách biệt danh tính: Avatar ở hồ sơ hẹn hò lấy từ thẻ ảnh hẹn hò (`photoUrls[0]`), hoàn toàn độc lập với avatar ở hồ sơ mạng xã hội (`user.avatarUrl`).
 
-- **Tách riêng 2 phân hệ hộp thư độc lập:**
-  1. **Hộp thư Mạng xã hội (`Social DMs` — Mô hình Mở chuẩn Pinterest / Facebook):**
-     - **Nhắn tin không cần kết bạn:** Người dùng có thể nhắn tin trực tiếp với bất kỳ ai trên Pawty mà không bắt buộc phải gửi lời mời hay chờ đối phương đồng ý kết bạn. Nút "Nhắn tin" trên bài đăng Khám phá hay Trang cá nhân mở ngay phòng chat mở.
-     - **Xem hồ sơ chuẩn Mạng xã hội:** Khi bấm vào avatar, tên hoặc menu `⋮` trong phòng chat này, ứng dụng mở **Hồ sơ Mạng Xã Hội (Social Profile)** xem đầy đủ thông tin con sen, các bé thú cưng, sổ tiêm và lưới bài đăng khoảnh khắc.
-     - **Công cụ quản lý:** Hỗ trợ tìm kiếm bạn bè / cư dân trên thanh tìm kiếm và nút "Xóa toàn bộ tin nhắn" (có modal xác nhận).
-  2. **Hộp thư Hẹn hò & Kết nối (`Dating / Matches Chat`):**
-     - Chỉ lưu trữ các cuộc trò chuyện phát sinh từ việc 2 bên quẹt phải tương hợp (`Tinder Match`).
-     - **Cô lập danh tính 100% (Chỉ xem Hồ sơ Hẹn hò):**
-       - Ở phân hệ này, người dùng **CHỈ ĐƯỢC PHÉP XEM HỒ SƠ HẸN HÒ (Dating Profile)** của đối phương (bộ ảnh date, bio hẹn hò, mục đích kết nối, bé thú cưng đi cùng và lifestyle chips).
-       - **Tuyệt đối KHÔNG hiển thị hay điều hướng sang Hồ sơ Mạng xã hội** (không lộ bài đăng khoảnh khắc, không lộ trang cá nhân thường ngày) nhằm bảo vệ tính riêng tư tuyệt đối cho việc hẹn hò.
-     - **Cơ chế Hủy Tương Hợp (Bỏ Match) Triệt Để:**
-       - Trong menu `⋮` của phòng chat hẹn hò có nút **"Bỏ tương hợp (Hủy Match)"** kèm Modal xác nhận cảnh báo.
-       - Khi người dùng xác nhận bỏ match:
-         1. **Xóa sạch 100% tin nhắn:** Xóa toàn bộ nội dung tin nhắn giữa hai người trong PostgreSQL bảng `messages`.
-         2. **Xóa cuộc trò chuyện:** Xóa bản ghi trong bảng `conversations`.
-         3. **Chặn vĩnh viễn không hiển thị lại:** Cập nhật trạng thái `match` thành `unmatched` trong PostgreSQL. Người này sẽ bị loại trừ vĩnh viễn khỏi danh sách quẹt thẻ (`candidates`), danh sách thích bạn (`likes_you`) và tìm kiếm — **không bao giờ xuất hiện lại**.
+### 2.7 Giao Diện Đăng Nhập & Đăng Ký Thân Thiện (Loại Bỏ Text Kỹ Thuật)
+- **Tối ưu văn phong thân thiện với người dùng cuối:**
+  - Ô nhập tài khoản: placeholder `Nhập số điện thoại hoặc tên đăng nhập` (loại bỏ hoàn toàn các chuỗi kỹ thuật `VD: 0900000001 hoặc test1`).
+  - Nhãn nút đăng nhập: `Đăng nhập` (loại bỏ hoàn toàn nhãn `Đăng nhập ngay (1 Thiết bị)`).
+  - Loại bỏ hoàn toàn khối thông báo mang tính kỹ thuật "Bảo mật 1 thiết bị: Tài khoản chỉ được đăng nhập trên 1 điện thoại...".
+  - Giữ lại đầy đủ tính năng ghi nhớ phiên đăng nhập trên thiết bị với nút **"Vào thẳng"** nhanh chóng và tiện lợi.
 
-- **Menu Quản lý Phòng Chat:**
-  - Phòng Chat Mạng Xã Hội: `[Xem Trang Mạng Xã Hội]` · `[Xóa toàn bộ tin nhắn]`.
-  - Phòng Chat Hẹn Hò: `[Xem Hồ Sơ Hẹn Hò]` · `[Bỏ tương hợp & Xóa cuộc trò chuyện]`.
+### 2.8 Hệ Thống Thông Báo Toast Đa Tầng (Multi-layer Toast Modal Overlay)
+- **Đảm bảo Toast luôn nổi trên cùng:** Toàn bộ thông báo hệ thống (`toastMessage`) được bao bọc trong một React Native `<Modal transparent statusBarTranslucent animationType="fade">` với `pointerEvents="box-none"`.
+- Nhờ cơ chế Modal native, Toast không bao giờ bị che khuất hoặc in chìm bên dưới bất kỳ Modal giao diện nào (như Modal Thêm thú cưng, Sửa hồ sơ, Bộ lọc, Cài đặt). Người dùng luôn đọc được trọn vẹn thông báo phản hồi.
 
-### 2.6 Trung Tâm Thông Báo (`Notifications` — Thiết Kế Lại Toàn Diện)
-- **Phân loại danh sách trực quan bằng Thanh Tab Lọc:**
-  1. **`Tất cả`**: Toàn bộ thông báo mới nhất.
-  2. **`Kết bạn & Match`**:
-     - Lời mời kết bạn đến (`friend_request`): Hiển thị avatar người gửi, nội dung rõ ràng và 2 nút thao tác trực tiếp **`[Chấp nhận]`** / **`[Từ chối]`** (sau khi bấm cập nhật trạng thái ngay lập tức thành *"Đã chấp nhận lời mời kết bạn"* hoặc *"Đã từ chối"* và lưu vào DB).
-     - Phản hồi kết bạn (`friend_accepted`): Thông báo khi đối phương đã đồng ý kết bạn kèm nút **`[Nhắn tin ngay]`**.
-     - Ghép đôi thành công (`match`): Thông báo khi 2 bên tương hợp trên Kết nối kèm nút **`[Trò chuyện]`**.
-  3. **`Theo dõi & Tương tác`**:
-     - Người mới theo dõi (`follow`): Có nút xem hồ sơ / theo dõi lại.
-     - Bài viết mới từ người đang theo dõi (`new_post`), lượt thả Paw/Tim (`post_reaction`), bình luận mới (`post_comment`).
-  4. **`SOS`**: Thông báo tin SOS mới quanh khu vực hoặc manh mối nhìn thấy thú lạc (`sos_sighting`).
-- **Công cụ Quản lý Thông báo đầy đủ:**
-  - Nút **`Đọc tất cả`** (đánh dấu toàn bộ là đã đọc, xóa badge đỏ).
-  - Nút **`Xóa tất cả`** (có xác nhận) và nút **`✕`** xóa lẻ từng thông báo khỏi danh sách.
-  - Chạm vào avatar/nội dung thông báo tự động đánh dấu đã đọc và điều hướng chính xác tới Hồ sơ người đó, Phòng chat, Bài viết, hoặc trang SOS tương ứng.
+### 2.9 Tách Biệt Tuyệt Đối 100% Giữa Hồ Sơ Hẹn Hò & Mạng Xã Hội (Zero Cross-Profile Leak)
+- **Nguyên tắc cô lập danh tính 2 chiều:**
+  - **Từ Hẹn hò (Dating / Tinder / Chat Tinder):** Chỉ thấy Hồ sơ Hẹn hò (`TinderProfileDetailModal`), ảnh thẻ date, intent, lifestyle. Tuyệt đối KHÔNG hiển thị username mạng xã hội (`ownerHandle`), KHÔNG có nút hay liên kết "Xem trang mạng xã hội", không lộ feed bài đăng thường nhật.
+  - **Từ Mạng xã hội (Social / Khám phá / Chat Social):** Chỉ thấy Hồ sơ Mạng xã hội (`MobileProfileScreen`), avatar cá nhân, bio MXH, bài viết Moments và danh sách Boss gia đình. Tuyệt đối KHÔNG có thông tin Hẹn hò (không lộ mục đích tìm bạn Tinder, không lộ ảnh date, không có nút mở hồ sơ Hẹn hò).
+  - Người dùng dù biết tài khoản MXH của đối phương cũng không thể xem hoặc biết được hồ sơ Dating của họ, và ngược lại.
+
+### 2.10 Bố Cục Cuộn Hồ Sơ Boss Tránh Đè Lớp (Pet Profile Scroll Integrity)
+- Cụm nút thao tác trên ảnh thú cưng (nhãn loài thú cưng, nút thích, nút thêm ảnh, nút sửa thông tin, cùng 2 nút mũi tên chuyển ảnh `‹` và `›`) được đặt trọn vẹn bên trong khu vực ảnh (`petPhotoSpacerArea`) của ScrollView.
+- Khi người dùng cuộn xuống dưới đọc thông tin sổ sức khỏe & tiêm chủng, toàn bộ nút điều khiển ảnh sẽ cuộn lên trên cùng với ảnh một cách tự nhiên, triệt tiêu hoàn toàn hiện tượng nút và mũi tên bay lơ lửng đè lên văn bản.
+
+### 2.11 Hồ Sơ Hẹn Hò Chuyên Sâu Tách Biệt Toàn Diện (Dedicated Dating Identity)
+- **Tên hiển thị hẹn hò riêng biệt (`datingDisplayName`):** Người dùng có thể đặt biệt danh hoặc tên riêng trên thẻ hẹn hò (ví dụ: "Minh Anh", "Candy") hoàn toàn độc lập với tên thật trên hồ sơ Con Sen mạng xã hội.
+- **Bộ ảnh thẻ hẹn hò riêng biệt (`photoUrls` / `photos`):** Người dùng tải lên album ảnh riêng dành cho hẹn hò (lưu trữ trên Cloudinary folder `pawty/tinder`), hỗ trợ thêm/xóa ảnh linh hoạt, ảnh đầu tiên làm avatar thẻ Radar, hoàn toàn tách biệt với avatar và ảnh bìa mạng xã hội.
+- **Lời tự bạch hẹn hò (`datingBio`):** Đoạn giới thiệu bản thân riêng khi kết nối dắt dạo, tách biệt với bio mạng xã hội.
+- **Bé cưng đồng hành (`datingPetId`):** Người dùng chọn 1 bé thú cưng đại diện để đồng hành trên Radar Kết nối.
+- **Lối sống & Gu trò chuyện:** Cung cấp đầy đủ các thông số chi tiết (Độ tuổi, Giới tính, Mục đích kết nối chuẩn, Lối sống: Hút thuốc, Thể thao, Đồ uống, Cung hoàng đạo, Gu chat, Châm ngôn ấn tượng).
+
+### 2.12 Khắc Phục Lỗi Bàn Phím Đẩy View Mất Tiêu Đề Hồ Sơ Con Sen (Modal View Jump Fix)
+- Điều chỉnh cấu trúc `fullscreenModalCard` sử dụng `height: '88%'` và `maxHeight: '88%'` kết hợp `flexShrink: 1` và `ScrollView keyboardShouldPersistTaps="handled"`.
+- Khi bàn phím xuất hiện trên Android / iOS, modal tự động co giãn trong vùng viewport hiển thị khả dụng, giữ nguyên phần thanh tiêu đề (Header row với tên modal và nút đóng X) luôn nằm cố định trong tầm mắt người dùng, không bao giờ bị đẩy vượt mép trên màn hình.
+
+### 2.13 Ẩn Toàn Bộ Username / @handle Trên Tất Cả Màn Hình (Total Username Masking)
+- Scan toàn diện toàn bộ ứng dụng và loại bỏ hiển thị `@username` / `@handle`:
+  - **Trang Khám phá:** Ẩn text `@handle` dưới tên tác giả của bài viết; placeholder ô tìm kiếm chuyển thành `Tìm bài viết, #hashtag, người dùng...`.
+  - **Trang Chat:** Ẩn `@partnerHandle` trong thanh tiêu đề cuộc trò chuyện (Header) và danh sách phòng chat (Chat list), chỉ hiển thị tên thân thiện và mô tả thú cưng / khoảng cách. Placeholder ô tìm kiếm chuyển thành `Tìm cuộc trò chuyện...`.
+  - **Trang Hồ sơ cá nhân:** Ẩn `@handle` trong modal xem trước bài viết (`previewAuthorHandle`) và modal chi tiết bài viết (`postDetailAuthorHandle`).
+  - **Trang SOS:** Thay thế hiển thị username bằng tên chủ nuôi sạch sẽ (`sos.ownerName`).
+  - **Trang Onboarding:** Thay thế `@handle` bằng tên hiển thị hoặc nhãn thân thiện.
+
+### 2.14 Form Thêm & Sửa Thú Cưng Thông Minh (Smart Pet Onboarding & Custom Inputs)
+- **Validate ngày sinh nghiêm ngặt:** Kiểm tra chặt chẽ ngày sinh không được vượt quá ngày hiện tại (không cho phép chọn ngày tương lai). Tự động cảnh báo Toast nếu ngày chọn không hợp lệ.
+- **Tự động suy ra độ tuổi:** Loại bỏ bộ chọn độ tuổi thủ công; hệ thống tự động tính toán độ tuổi chính xác từ ngày sinh (`tuần tuổi`, `tháng tuổi`, `x.5 tuổi`, `x tuổi`) và lưu vào `ageLabel`.
+- **Hỗ trợ nhập text tay tùy chỉnh (Custom Text Input):** Cung cấp ô nhập text tự do ngay trong bộ chọn (Selector) và form đối với: Cân nặng (`weightKg`), Màu lông (`furColor`), Sở thích ăn uống (`favoriteFood`), Lịch sử tẩy giun (`dewormingHistory`), Tiền sử bệnh lý (`medicalHistory`), Thói quen tốt (`goodHabits`), và Lưu ý khi dạo chung (`cautionHabits`). Người dùng có thể chọn nhanh từ danh sách gợi ý hoặc tự gõ nội dung thực tế của thú cưng.
+
+### 2.15 Tối Ưu Hóa Hiệu Năng Cuộn Danh Sách Dài Với FlatList (Virtualization & 60 FPS Scrolling)
+- Thay thế toàn bộ các `ScrollView` chứa mảng danh sách bài viết / tin nhắn dài (Bảng tin mạng xã hội `MobileExploreScreen`, Danh sách phòng chat `MobileChatScreen`) bằng **`FlatList`** chuẩn React Native.
+- Tận dụng cơ chế ảo hóa (Virtualization) và tái sử dụng component (`initialNumToRender={4}`, `maxToRenderPerBatch={4}`, `windowSize={5}`) giúp cuộn mượt mà 60 FPS và triệt tiêu tràn RAM trên thiết bị thật.
+
+### 2.16 Triệt Để Loại Bỏ @handle Trong Tiêu Đề Chat, Danh Sách Phòng Chat & Hồ Sơ Tinder (Zero Residual Handles)
+- Áp dụng bộ lọc `cleanName()` triệt để tại mọi điểm hiển thị tên đối phương:
+  - **Tiêu đề thanh Header phòng chat (`MobileChatScreen`):** Cả phân hệ Mạng xã hội lẫn Hẹn hò đều bắt buộc bọc `{cleanName(activeChat.partnerName)}` và các dialog xác nhận (`Xem Hồ sơ`, `Hủy tương hợp`, `Hủy kết bạn`).
+  - **Danh sách phòng chat (`MobileChatScreen`):** Render tên người trò chuyện chuẩn qua `cleanName(room.partnerName)`.
+  - **Hồ sơ chi tiết Tinder (`TinderProfileDetailModal`):** Loại bỏ nickname nếu trùng với tên chính sau khi làm sạch, và loại trừ toàn bộ chuỗi dạng `(@...)` hoặc `@username`.
+  - **Bộ lọc Regex chuẩn hóa:** `cleanName` mở rộng xóa sạch cả pattern `(@...)` thiếu ngoặc đóng hoặc trailing `@.*`.
+
+### 2.17 Chống Rớt Dòng Ngày Sinh & Tinh Chỉnh Khung Thông Số Thú Cưng (Pet Specs Layout Integrity)
+- Tinh chỉnh `specFrostedChip` trong `MobileProfileScreen`:
+  - `minWidth: 64`, `paddingHorizontal: 4`.
+  - Nhãn `specChipValue` được cấu hình `numberOfLines={1}` và `adjustsFontSizeToFit={true}` với `fontSize: 11` cho chuỗi ngày sinh `DD/MM/YYYY`, đảm bảo không bao giờ bị rớt dòng thành `01/01/20 \n 24` trên các màn hình có mật độ hiển thị nhỏ.
+  - Ảnh đại diện Boss khi chưa tải ảnh lên sẽ sử dụng fallback banner màu ấm chất lượng cao thay cho khung nền màu đơn điệu.
+
+### 2.18 Cơ Chế Phân Đoạn Slide Thẻ Radar Tinder (Owner-First Then Pets Sequence)
+- **Chuỗi trình tự hiển thị Story/Slide trên thẻ Radar:**
+  - **Nhóm 1 - Slide Chủ Nuôi (Owner Slides):** Xuất hiện đầu tiên trong chuỗi slide.
+    - Hiển thị toàn bộ album ảnh cá nhân của người dùng (`photoUrls` của chủ nuôi).
+    - Thông tin đáy thẻ: Tên chủ nuôi & Tuổi (`Minh Anh, 24`), Khu vực sống & Giới tính (`Vinhomes Central Park · Nữ`), Khoảng cách tương đối (`Cách bạn 1.5 km`), Châm ngôn / Bio hẹn hò, kèm Chip thông báo số lượng Boss (`🐾 Có 2 bé cưng: Huhu, Miu`).
+  - **Nhóm 2 - Slide Thú Cưng (Pet Slides):** Xuất hiện nối tiếp ngay sau khi người dùng bấm chuyển hết toàn bộ ảnh cá nhân của chủ nuôi.
+    - Hiển thị lần lượt từng bé thú cưng trong danh sách `candidate.pets`.
+    - Thông tin đáy thẻ chuyển động đồng bộ theo đúng bé thú cưng đang hiển thị: Tên bé & Tuổi (`Huhu · 1 tuổi`), Giống loài & Cân nặng (`Phốc Sóc (Pomeranian) · 2.5 kg`), Mối quan hệ với chủ nuôi (`Bé cưng của Minh Anh (24t)`), Khoảng cách, kèm Badge thứ tự (`🐾 Bé cưng 1/2`).
+  - **Thanh đo tiến độ Dash Bar:** Tổng số vạch dash trên đầu thẻ bằng tổng số `[Ảnh cá nhân + Ảnh các bé thú cưng]`. Vạch sáng chuyển động nhịp nhàng theo đúng slide người dùng đang xem.
+
+### 2.19 Làm Sạch Luồng Đăng Ký & Form Thú Cưng Mới (Zero Dummy Data & Clean Onboarding)
+- **Chuẩn hóa luồng Đăng ký tài khoản mới:**
+  - Người dùng đăng ký chỉ điền Họ tên, Số điện thoại, Mật khẩu, Tên bé, Giống loài.
+  - Backend và Client tuyệt đối KHÔNG tự sinh dữ liệu giả (fake dummy data): tuổi, ngày sinh, cung hoàng đạo, MBTI, nghề nghiệp, học vấn, phong cách sống (hút thuốc, dắt cún, giao lưu) sẽ ở trạng thái `null` / `undefined`.
+  - Không tự gán ảnh Unsplash hay sổ tiêm mẫu "verified" vào bé cưng mới tạo. Khi chưa tải ảnh, hiển thị placeholder chuẩn thương hiệu (Card màu ấm kem, icon bàn chân dễ thương kèm nút `+ Thêm ảnh`).
+  - Toàn bộ thông tin nâng cao (Cân nặng, Thói quen, Sổ tiêm, Sở thích ăn uống) khi chưa nhập sẽ hiển thị trạng thái "Chưa cập nhật", khuyến khích người dùng tự hoàn thiện trong trang cá nhân.
+- **Chuẩn hóa Modal "Thêm bé cưng mới" & "Chỉnh sửa bé cưng":**
+  - Khởi tạo form ở trạng thái rỗng (`''`, `[]`), không tự điền trước bất kỳ giá trị mặc định nào (không mặc định 4.8kg, không mặc định Vàng kem, không mặc định Hạt dinh dưỡng & Ức gà, không tự thêm thói quen hay sổ tiêm).
+  - Loại bỏ hoàn toàn bộ chọn "Độ tuổi" (tự động tính từ ngày sinh khi có ngày sinh, nếu chưa có ngày sinh thì hiển thị "Chưa rõ").
+  - Lưu hồ sơ chỉ gửi đúng các trường người dùng thực sự nhập, không ép dữ liệu giả vào PostgreSQL.
+
+### 2.20 Chuẩn Hóa Điều Kiện Huy Hiệu "An Tâm Dạo Chung" (Safe Pet Verification Guard)
+- Huy hiệu `[✓ An tâm dạo chung]` trên thẻ chi tiết ứng viên Tinder và hồ sơ công khai chỉ được hiển thị khi:
+  - Chủ nuôi có ít nhất 1 thú cưng (`candidate.pets.length > 0`).
+  - Có ít nhất một bé đã được xác minh tiêm phòng đầy đủ (`candidate.pets.some(p => p.isVaccinatedAndRabies)`).
+- Nếu chủ nuôi chưa có thú cưng (`0 bé`) hoặc chưa tiêm phòng đầy đủ: Tuyệt đối KHÔNG hiển thị huy hiệu "An tâm dạo chung".
+
+### 2.21 Cô Lập Vùng Placeholder Ảnh Thú Cưng Rỗng (Zero Stacking Bug on Empty Pet Photo)
+- **Khắc phục lỗi đè chữ giao diện:**
+  - Vùng placeholder khi thú cưng chưa có ảnh đại diện (`hasUserPhotos === false`) được đặt cố định trọn vẹn bên trong `petPhotoSpacerArea` (khu vực 44% chiều cao phía trên), thay vì căn giữa toàn màn hình bằng `StyleSheet.absoluteFill`.
+  - Icon camera, tiêu đề "Bé [Tên] chưa có ảnh đại diện" và nút "+ Thêm ảnh bé cưng" luôn nằm độc lập ở nửa trên, tuyệt đối không bị thẻ kính mờ `petScrollableFrostedCard` đè lên.
+  - Khi hồ sơ bé còn thiếu các trường quan trọng (ảnh, ngày sinh, cân nặng), hiển thị thêm Banner nhắc nhở tinh tế: *"🐾 Hồ sơ bé [Tên] chưa hoàn tất · Chạm để cập nhật ảnh & thông số"* dẫn thẳng vào modal chỉnh sửa chi tiết.
+
+### 2.22 Luồng Hoàn Thiện Hồ Sơ Thú Cưng Sau Đăng Ký (Post-Registration Pet Setup Wizard)
+- **Luồng Onboarding 2 bước:**
+  - **Bước 1 (Đăng ký cơ bản):** Họ tên, SĐT, Mật khẩu, Tên bé, Giống loài.
+  - **Bước 2 (Hoàn tất hồ sơ Boss):** Hiển thị màn hình thiết lập nhanh ngay sau khi tạo tài khoản:
+    1. **Tải ảnh đại diện:** Chụp ảnh trực tiếp từ Camera hoặc chọn từ Thư viện ảnh (upload lên Cloudinary).
+    2. **Giới tính:** Bộ chọn 2 nút pill thân thiện `♂ Đực` / `♀ Cái` + Toggle `Đã triệt sản`.
+    3. **Ngày sinh:** Bộ chọn ngày sinh trực quan (DD/MM/YYYY), tự động quy đổi ra `... tháng tuổi` hoặc `... tuổi`.
+    4. **Cân nặng (kg):** Nhập cân nặng thực tế.
+    5. **Xác nhận sổ tiêm Safe Pet:** Checkbox nhanh "Đã tiêm phòng dại & 7 bệnh đầy đủ" để kích hoạt huy hiệu an toàn dạo chung.
+    6. **Hành động điều hướng:** Nút chính "Hoàn tất & Khám phá Pawty" (lưu vào PostgreSQL) và Nút phụ "Để sau" (cho phép bỏ qua nếu đang vội mà không làm crash/hỏng giao diện).
+
+### 2.23 Đồng Bộ Phản Hồi Bài Viết Tuyệt Đối (Zero Drift Like & Comment Sync: Explore vs Profile)
+- **Nguồn chân lý duy nhất (Single Source of Truth):**
+  - Cả Bảng tin Khám phá (`MobileExploreScreen`) và Lưới Khoảnh khắc Cá nhân / Xem trang người khác (`MobileProfileScreen`) đều sử dụng chung một state `posts` liên kết PostgreSQL thời gian thực.
+  - Loại bỏ hoàn toàn việc lưu object bài viết tĩnh `useState<MobilePost>(post)` trong `MobileProfileScreen`. Thay vào đó, lưu `selectedPreviewPostId: string | null` và `activePostDetailId: string | null` và derive trực tiếp từ mảng `posts` (`livePost = posts.find(p => p.id === activePostDetailId)`).
+- **Thống nhất chỉ số và hành động Thả Paw / Like:**
+  - Loại bỏ hoàn toàn giá trị fallback giả định (`|| 120`). Số lượt thích được tính chuẩn xác từ `totalLikes = (paws || 0) + (love || 0) + (wow || 0) + (helpful || 0)`.
+  - Icon phản hồi: Đồng nhất biểu tượng Paw và Coral `#FF6F61` khi đã thích (`userReaction !== null`). Thao tác thả thích ở Explore, Preview modal hay Chi tiết bài viết đều gọi chung một hàm `toggleReaction` và hiển thị đồng bộ 100%.
+- **Bình luận thời gian thực (Real-time Comments):**
+  - Gửi bình luận hoặc trả lời bình luận trong Modal chi tiết lập tức cập nhật giao diện ngay lập tức mà không cần đóng/mở lại modal, đồng thời số lượng bình luận tại Bảng tin Khám phá cũng tăng lên tương ứng.
+
+### 2.24 Chuẩn Hóa Theme Xem Bài Viết Cá Nhân & Phân Lập Tab "Được Lưu" (Profile Post UX & Saved Isolation)
+- **Đồng Bộ Theme Sáng / Trắng Kem (Warm Cream & Clean Light Theme):**
+  - Loại bỏ hoàn toàn giao diện màu đen tối (`#20242C`) của Popup xem nhanh bài viết (`postPreviewCard`) trên Trang cá nhân.
+  - Chuyển sang theme sáng chuẩn Pawty: Nền trắng ngà (`#FFFFFF`), viền bo mềm mại (`#EFE8DE`), chữ tiêu đề màu cà phê đậm (`#2C2520`), văn bản mô tả sắc nét và dễ đọc.
+  - Loại bỏ nút phụ "Đã thích / Thả Paw" bên dưới vì đã có dòng thống kê `{totalLikes} lượt thích · {totalComments} bình luận` phía trên; chỉ giữ nút chính nổi bật: **"Xem chi tiết & bình luận"** (`#FF6F61`).
+- **Phân Lập Tuyệt Đối Tab "Được Lưu" (Saved Posts Privacy):**
+  - Tab "Được lưu" là khu vực riêng tư 100% của chủ tài khoản, **tuyệt đối chỉ hiển thị khi xem trang cá nhân của chính mình (`!isViewingOther`)**. Khi xem trang cá nhân của người khác, tab này luôn bị ẩn và danh sách bài viết chỉ hiển thị bài của đối phương.
+  - Khắc phục lỗi rò rỉ: Khi điều hướng giữa các trang cá nhân, `ownerMediaTab` luôn tự động đặt lại về `'moments'`.
+  - **Phân định rõ ràng nút hành động:**
+    - Khi xem bài trong mục **"Được lưu"** (hoặc bài viết của người khác): Nút hành động hiển thị **"Xóa khỏi mục đã lưu"** (`toggleBookmark`), gỡ bài khỏi danh sách lưu trữ của người dùng kèm thông báo toast trực quan.
+    - Khi xem bài do chính mình đăng trong mục **"Khoảnh khắc"**: Nút hành động hiển thị **"Xóa bài viết"** (`deletePost`), có xác nhận và xóa khỏi cơ sở dữ liệu.
+- **Header Bài Viết Tinh Gọn (Loại Bỏ Username `@handle`):**
+  - Xóa bỏ việc hiển thị `@username` / `@handle` mang tính kỹ thuật ở cả Popup xem nhanh và Modal chi tiết bài viết.
+  - Bổ sung các thông số tiêu chuẩn như một bài viết thông thường trên Khám phá:
+    - Tên hiển thị đầy đủ của tác giả (`authorName`).
+    - Thời gian đăng bài (`createdAt` hoặc `Vừa xong`).
+    - Nhãn phân loại bài viết (`categoryLabel` hoặc `Khoảnh khắc`).
+    - Thẻ thú cưng / Giống loài nếu có và biểu tượng phạm vi chia sẻ (Công khai).
+
+### 2.25 Hệ Thống Bình Luận & Trả Lời Đa Tầng Chuẩn Facebook (Facebook-Style Nested Comment & Reply System)
+- **Đồng Bộ Hai Chiều Tuyệt Đối (Khám Phá & Trang Cá Nhân):**
+  - Mọi phản hồi (reply) cho một bình luận đều được lưu trữ bền vững vào bảng `comments` trong cơ sở dữ liệu PostgreSQL thông qua trường `parent_id` (`parentId`).
+  - Cả giao diện Khám phá (`MobileExploreScreen`) và Modal chi tiết bài viết ở Trang cá nhân (`MobileProfileScreen`) đều sử dụng chung một chuẩn hiển thị `FacebookCommentSection` thống nhất, đồng bộ 100% thời gian thực.
+  - Số lượng hiển thị trên huy hiệu icon bình luận phản ánh chính xác tổng số bình luận cha cộng toàn bộ câu trả lời con: `(comments + replies)`.
+- **Trải Nghiệm Trả Lời Bình Luận Chuẩn Facebook (Facebook UX):**
+  - **Bong bóng bình luận cha (Parent Comment Bubble):** Avatar tròn (36px), bong bóng xám nhạt (`#FAF7F2`), tên tác giả in đậm (click mở Profile), nội dung text, thời gian đăng, nút **Thích** (`Like` - đổi màu san hô khi đã thích, hiển thị số lượt thích) và nút **Trả lời** (`Reply`).
+  - **Bong bóng câu trả lời con (Child Reply Bubble):** Lùi lề trái (`marginLeft: 38px`), avatar nhỏ hơn (28px), có đường kẻ chữ L mềm mại (`borderLeft` và `borderBottomLeftRadius`) nối từ dưới avatar của bình luận cha sang avatar câu trả lời con.
+  - **Cơ chế Trả lời một câu trả lời (Reply to a Reply):**
+    - Khi người dùng nhấn nút 'Trả lời' ở một câu trả lời con (ví dụ trả lời cho bạn B):
+      - Gắn kết chặt chẽ vào cây bình luận cha gốc (Root Comment ID) để dữ liệu không bị phân mảnh hay thất lạc.
+      - Tự động điền tiền tố `@B ` hoặc hiển thị banner chỉ báo: `Đang trả lời B` (kèm nút `[x]` Hủy).
+      - Tự động kích hoạt bàn phím và focus trực tiếp vào ô nhập liệu (`inputRef.current?.focus()`).
+      - Khi hiển thị, tiền tố `@Tên ` được tô màu nổi bật (`#FF6F61`, font weight 800) mô phỏng chính xác trải nghiệm Facebook.
+  - **Hỗ trợ thu gọn / mở rộng phản hồi:** Hỗ trợ nút 'Xem thêm phản hồi' và 'Thu gọn phản hồi' khi một bình luận có nhiều câu trả lời, tránh chiếm dụng diện tích màn hình.
+  - **Thuật toán Chuẩn hóa Bình luận Đa Thế Hệ (Multi-Generation Root Resolver):** Khi nạp dữ liệu từ PostgreSQL, hàm chuẩn hóa sẽ đệ quy truy ngược `parentId` về root parent comment ID, đảm bảo 100% mọi câu trả lời thế hệ F1, F2,... đều được gom đúng vào cây hội thoại tương ứng mà không bao giờ bị biến mất.
+
+
+### 2.27. Cơ chế Đẩy View & Cuộn Thông Minh Khi Viết Bình Luận Khám Phá (Keyboard-Aware Comment Positioning)
+- **Vấn đề cốt lõi:** Khi người dùng mở bàn phím để viết bình luận cho một bài viết trên Bảng tin Khám phá (`MobileExploreScreen`), bàn phím ảo chiếm từ 300px - 340px chiều cao màn hình. Nếu chỉ cuộn theo index hoặc không đo đạc layout thực tế, thanh nhập liệu (`TextInput`) và nút gửi sẽ bị che khuất bên dưới bàn phím.
+- **Giải pháp chuẩn:**
+  1. **Đo đạc vị trí thực tế (`onLayout` Tracker):** Mỗi thẻ bài viết ghi nhận tọa độ `y` và chiều cao `height`. Tọa độ đáy bài viết (vị trí đặt thanh nhập liệu) được xác định chính xác bằng công thức: `bottomOfPost = layout.y + layout.height`.
+  2. **Tính toán `targetOffset` theo chiều cao bàn phím:** Khi bàn phím xuất hiện (`keyboardDidShow`) hoặc khi ô nhập liệu nhận tiêu điểm (`onFocusInput`), danh sách tự động cuộn đến:
+     $$\text{targetOffset} = \max(0, \text{bottomOfPost} - \text{visibleViewportHeight} + 40)$$
+     Trong đó $\text{visibleViewportHeight} = \text{windowHeight} - \text{keyboardHeight} - \text{statusBarHeight} - \text{headerHeight}$.
+  3. **Ẩn thanh Bottom Bar khi bàn phím mở:** Khi bàn phím xuất hiện trên màn hình, thanh điều hướng đáy tự động ẩn đi để nhường toàn bộ diện tích cho nội dung bình luận và thanh nhập liệu.
+
+### 2.28. Quy chuẩn Avatar Người Dùng & Chống Tràn Ảnh Ngẫu Nhiên (Zero Random Avatar Leakage)
+- **Nguyên tắc tôn trọng danh tính:** Nếu tài khoản người dùng chưa tải lên ảnh đại diện (`avatarUrl === null` hoặc `''`), hệ thống **BẮT BUỘC** hiển thị khung đại diện trống kèm icon người dùng mặc định (`Feather name="user"`).
+- **Tuyệt đối không gán ảnh người lạ:** Nghiêm cấm mọi logic fallback tự động gán đường dẫn ảnh Unsplash của người lạ vào tài khoản hoặc bình luận của người dùng.
+- **Đồng bộ bình luận và tài khoản:** Khi gửi bình luận mới (`addComment` / `addCommentReply`), trường `authorAvatar` chỉ lấy từ `ownerAvatarUrl || ownerAvatar` của tài khoản hiện tại. Nếu chưa có ảnh, giá trị phải là chuỗi rỗng `''`.

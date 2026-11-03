@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
+  FlatList,
   ScrollView,
   RefreshControl,
   TouchableOpacity,
@@ -11,9 +12,15 @@ import {
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  StatusBar,
 } from 'react-native';
 import { Feather } from '../components/FeatherIcon';
-import { useMobilePawty } from '../context/MobilePawtyContext';
+import { useMobilePawty, cleanName } from '../context/MobilePawtyContext';
+import { FacebookCommentSection } from '../components/FacebookCommentSection';
+import { MobilePost } from '../types/mobileTypes';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_MEDIA_WIDTH = SCREEN_WIDTH - 32 - 28;
@@ -38,13 +45,15 @@ export const MobileExploreScreen: React.FC = () => {
     openLightboxMedia,
     setActiveModal,
     pullToRefreshExplore,
+    ownerAvatarUrl,
+    ownerAvatar,
     showToast,
   } = useMobilePawty();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
-  const [commentInput, setCommentInput] = useState('');
+
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const [activePhotoIndexMap, setActivePhotoIndexMap] = useState<Record<string, number>>({});
 
@@ -89,12 +98,94 @@ export const MobileExploreScreen: React.FC = () => {
     );
   };
 
+  const flatListRef = useRef<FlatList<MobilePost>>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const postLayoutsRef = useRef<Record<string, { y: number; height: number }>>({});
+
+  const scrollToActiveComment = useCallback(
+    (postId: string, currentKbH?: number) => {
+      if (!flatListRef.current) return;
+      const kbH = currentKbH || keyboardHeight || 300;
+      const windowH = Dimensions.get('window').height;
+      const visibleH = windowH - kbH - (StatusBar.currentHeight || 24) - 75;
+
+      const layout = postLayoutsRef.current[postId];
+      let targetOffset = 0;
+
+      if (layout) {
+        // Đáy của bài viết (vị trí đặt thanh viết bình luận) = layout.y + layout.height
+        targetOffset = Math.max(0, layout.y + layout.height - visibleH + 40);
+      } else {
+        const postIndex = filteredPosts.findIndex((p) => p.id === postId);
+        const approxY = postIndex >= 0 ? postIndex * 540 : 0;
+        targetOffset = Math.max(0, approxY + 540 - visibleH + 40);
+      }
+
+      setTimeout(() => {
+        flatListRef.current?.scrollToOffset({
+          offset: targetOffset,
+          animated: true,
+        });
+      }, 100);
+    },
+    [keyboardHeight, filteredPosts]
+  );
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      const h = e.endCoordinates.height;
+      setKeyboardHeight(h);
+      if (expandedCommentId) {
+        scrollToActiveComment(expandedCommentId, h);
+      }
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [expandedCommentId, scrollToActiveComment]);
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 0) + 10}
+    >
+      <FlatList<MobilePost>
+        ref={flatListRef}
+        style={styles.container}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 120 : 36 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onScrollToIndexFailed={(info) => {
+          setTimeout(() => {
+            try {
+              flatListRef.current?.scrollToIndex({
+                index: info.index,
+                viewPosition: 1.0,
+                animated: true,
+              });
+            } catch (e) {
+              flatListRef.current?.scrollToOffset({
+                offset: info.averageItemLength * info.index,
+                animated: true,
+              });
+            }
+          }, 80);
+        }}
+      data={filteredPosts}
+      keyExtractor={(item) => item.id}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
@@ -105,14 +196,15 @@ export const MobileExploreScreen: React.FC = () => {
           titleColor="#78706A"
         />
       }
-    >
+      ListHeaderComponent={
+        <View style={{ marginBottom: 12 }}>
       {/* Search Bar with History & Trending Dropdown */}
       <View style={styles.searchSection}>
         <View style={styles.searchBar}>
           <Feather name="search" size={16} color="#8E8074" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Tìm bài viết, #hashtag, @tài_khoản..."
+            placeholder="Tìm bài viết, #hashtag, người dùng..."
             placeholderTextColor="#A3968A"
             value={searchQuery}
             onFocus={() => setIsSearchPanelOpen(true)}
@@ -207,8 +299,10 @@ export const MobileExploreScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Empty State when no posts exist yet */}
-      {filteredPosts.length === 0 ? (
+
+        </View>
+      }
+      ListEmptyComponent={
         <View style={styles.emptyFeedCard}>
           <View style={[styles.emptyFeedIconCircle, { backgroundColor: theme.primarySoft }]}>
             <Feather name="paw" size={28} color={theme.primary} />
@@ -233,9 +327,8 @@ export const MobileExploreScreen: React.FC = () => {
             </TouchableOpacity>
           )}
         </View>
-      ) : (
-        <View style={styles.stack}>
-          {filteredPosts.map((post) => {
+      }
+      renderItem={({ item: post }) => {
             const isCommentOpen = expandedCommentId === post.id;
             const isPlayingVideo = playingVideoId === post.id;
             const galleryUrls = post.mediaUrls.length > 0 ? post.mediaUrls : [];
@@ -249,7 +342,13 @@ export const MobileExploreScreen: React.FC = () => {
             const isLiked = Boolean(post.userReaction);
 
             return (
-              <View key={post.id} style={styles.postCard}>
+              <View
+                key={post.id}
+                style={styles.postCard}
+                onLayout={(e) => {
+                  postLayoutsRef.current[post.id] = e.nativeEvent.layout;
+                }}
+              >
                 <View style={styles.postHeader}>
                   <TouchableOpacity
                     style={styles.authorTouchRow}
@@ -265,8 +364,8 @@ export const MobileExploreScreen: React.FC = () => {
                     )}
                     <View style={{ flex: 1 }}>
                       <View style={styles.authorRow}>
-                        <Text style={styles.authorName}>{post.authorName}</Text>
-                        <Text style={styles.authorHandleText}>{post.authorHandle}</Text>
+                        <Text style={styles.authorName}>{cleanName(post.authorName)}</Text>
+                        
                       </View>
                       <Text style={styles.postMeta}>
                         {post.categoryLabel} · {post.createdAt}
@@ -452,7 +551,12 @@ export const MobileExploreScreen: React.FC = () => {
                       onPress={() => setExpandedCommentId(isCommentOpen ? null : post.id)}
                     >
                       <Feather name="message-circle" size={20} color="#2C2520" />
-                      <Text style={styles.igActionCount}>{post.comments.length}</Text>
+                      <Text style={styles.igActionCount}>
+                        {(post.comments || []).reduce(
+                          (sum, c) => sum + 1 + (Array.isArray(c.replies) ? c.replies.length : 0),
+                          0
+                        )}
+                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -477,48 +581,25 @@ export const MobileExploreScreen: React.FC = () => {
                 </View>
 
                 {isCommentOpen && (
-                  <View style={styles.commentBox}>
-                    {post.comments.map((c) => (
-                      <TouchableOpacity
-                        key={c.id}
-                        style={styles.commentItem}
-                        activeOpacity={0.8}
-                        onPress={() => openPublicUserProfile(c.authorHandle)}
-                      >
-                        <Text style={styles.commentAuthor}>
-                          {c.authorName}{' '}
-                          <Text style={styles.commentTime}>· {c.createdAt}</Text>
-                        </Text>
-                        <Text style={styles.commentBody}>{c.content}</Text>
-                      </TouchableOpacity>
-                    ))}
-                    <View style={styles.commentInputRow}>
-                      <TextInput
-                        style={styles.commentInput}
-                        placeholder="Viết bình luận..."
-                        placeholderTextColor="#A3968A"
-                        value={commentInput}
-                        onChangeText={setCommentInput}
-                        maxLength={240}
-                      />
-                      <TouchableOpacity
-                        style={[styles.sendBtn, { backgroundColor: theme.primary }]}
-                        onPress={() => {
-                          addComment(post.id, commentInput);
-                          setCommentInput('');
-                        }}
-                      >
-                        <Feather name="send" size={14} color="#FFFFFF" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                  <FacebookCommentSection
+                    postId={post.id}
+                    comments={post.comments}
+                    currentUserAvatar={(ownerAvatarUrl || ownerAvatar || '').trim()}
+                    onOpenProfile={openPublicUserProfile}
+                    compact
+                    onFocusInput={() => scrollToActiveComment(post.id)}
+                  />
                 )}
               </View>
-            );
-          })}
-        </View>
-      )}
-    </ScrollView>
+        );
+      }}
+      ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+      initialNumToRender={4}
+      maxToRenderPerBatch={4}
+      windowSize={5}
+      removeClippedSubviews={true}
+      />
+    </KeyboardAvoidingView>
   );
 };
 

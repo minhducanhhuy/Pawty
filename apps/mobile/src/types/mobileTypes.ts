@@ -84,6 +84,7 @@ export interface MobilePost {
       authorHandle: string;
       authorAvatar?: string;
       content: string;
+      replyToName?: string;
       createdAt: string;
       likesCount?: number;
       isLiked?: boolean;
@@ -172,8 +173,11 @@ export interface TinderCandidate {
 }
 
 export interface UserTinderSetupProfile {
+  displayName?: string;
+  bio?: string;
+  datingPetId?: string;
   age: number;
-  gender: 'Nam' | 'Nữ';
+  gender: 'Nam' | 'Nữ' | 'Khác';
   intent: TinderIntent;
   lookingFor: string;
   smoking: string;
@@ -183,6 +187,7 @@ export interface UserTinderSetupProfile {
   chatStyle: string;
   promptQuote: string;
   photoUrls?: string[];
+  photos?: string[];
 }
 
 export interface SuggestedPersonCard {
@@ -344,6 +349,9 @@ export function getTinderPurposeLabel(intent: TinderIntent): string {
 }
 
 export const EMPTY_USER_TINDER_SETUP: UserTinderSetupProfile = {
+  displayName: '',
+  bio: '',
+  datingPetId: '',
   age: 24,
   gender: 'Nữ',
   intent: 'playdate',
@@ -354,6 +362,8 @@ export const EMPTY_USER_TINDER_SETUP: UserTinderSetupProfile = {
   zodiac: 'Sư Tử',
   chatStyle: 'Thân thiện, phản hồi nhanh',
   promptQuote: '',
+  photoUrls: [],
+  photos: [],
 };
 
 /* ========================================================================== */
@@ -678,3 +688,145 @@ export const POPULAR_CAT_BREEDS: string[] = [
   'Mèo Mướp lai',
   'Khác',
 ];
+
+export function isFutureDate(dateStr?: string | null): boolean {
+  if (!dateStr) return false;
+  const parts = dateStr.split(/[\/\-\.]/);
+  if (parts.length < 3) return false;
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const year = parseInt(parts[2], 10);
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
+
+  const date = new Date(year, month, day);
+  const now = new Date();
+  now.setHours(23, 59, 59, 999);
+  return date > now;
+}
+
+export function calculatePetAgeFromBirthDate(birthDateStr?: string | null): string {
+  if (!birthDateStr || !birthDateStr.trim()) return 'Chưa rõ';
+  const parts = birthDateStr.split(/[\/\-\.]/);
+  if (parts.length < 3) return 'Chưa rõ';
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const year = parseInt(parts[2], 10);
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return 'Chưa rõ';
+
+  const birth = new Date(year, month, day);
+  const now = new Date();
+  if (birth > now) return 'Chưa rõ';
+
+  const diffMs = now.getTime() - birth.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffMonths = Math.floor(diffDays / 30.4375);
+  const diffYears = Math.floor(diffDays / 365.25);
+
+  if (diffMonths < 1) {
+    const weeks = Math.max(1, Math.floor(diffDays / 7));
+    return `${weeks} tuần tuổi`;
+  }
+  if (diffMonths < 12) {
+    return `${diffMonths} tháng tuổi`;
+  }
+  const remainingMonths = diffMonths % 12;
+  if (remainingMonths >= 3 && remainingMonths <= 9) {
+    return `${diffYears}.5 tuổi`;
+  }
+  return `${diffYears} tuổi`;
+}
+
+
+export interface CandidateSlide {
+  id: string;
+  type: 'owner' | 'pet';
+  imageUrl: string;
+  ownerName: string;
+  ownerAge?: number;
+  gender?: string;
+  area?: string;
+  distanceKm: number;
+  bio?: string;
+  lookingFor?: string;
+  intent: string;
+  totalOwnerPhotos?: number;
+  ownerPhotoIndex?: number;
+  pet?: CandidatePetItem;
+  petIndex?: number;
+  totalPets?: number;
+  petNamesSummary?: string;
+}
+
+export function getCandidateSlides(candidate: TinderCandidate): CandidateSlide[] {
+  if (!candidate) return [];
+  const cleanOwnerName = (candidate.ownerName || '')
+    .replace(/\s*\(@[^)]*\)?/g, '')
+    .replace(/@\w+/g, '')
+    .replace(/\s*@.*$/, '')
+    .replace(/\s*\([^)]*\)$/g, '')
+    .trim() || 'Thành viên Pawty';
+
+  const petImageUrls = (candidate.pets || [])
+    .map((p) => p.imageUrl)
+    .filter((u): u is string => Boolean(u));
+
+  // 1. Owner photos (filter out empty and any pet images)
+  const rawOwnerPhotos = (candidate.photoUrls || []).filter(
+    (u): u is string => Boolean(u) && !petImageUrls.includes(u)
+  );
+
+  let ownerPhotos = rawOwnerPhotos;
+  if (
+    ownerPhotos.length === 0 &&
+    candidate.avatarUrl &&
+    !petImageUrls.includes(candidate.avatarUrl)
+  ) {
+    ownerPhotos = [candidate.avatarUrl];
+  }
+  if (ownerPhotos.length === 0 && candidate.avatarUrl && !petImageUrls.includes(candidate.avatarUrl)) {
+    ownerPhotos = [candidate.avatarUrl];
+  }
+
+  const petNamesSummary = (candidate.pets || []).map((p) => p.name).join(', ');
+
+  const ownerSlides: CandidateSlide[] = ownerPhotos.map((url, idx) => ({
+    id: `owner-${candidate.id}-${idx}`,
+    type: 'owner',
+    imageUrl: url,
+    ownerName: cleanOwnerName,
+    ownerAge: candidate.ownerAge,
+    gender: candidate.gender,
+    area: candidate.area,
+    distanceKm: candidate.distanceKm,
+    bio: candidate.bio,
+    lookingFor: candidate.lookingFor,
+    intent: candidate.intent,
+    totalOwnerPhotos: ownerPhotos.length,
+    ownerPhotoIndex: idx + 1,
+    petNamesSummary,
+  }));
+
+  // 2. Pet slides (one slide per pet)
+  const petSlides: CandidateSlide[] = (candidate.pets || []).map((pet, pIdx) => ({
+    id: `pet-${candidate.id}-${pet.id || pIdx}`,
+    type: 'pet',
+    imageUrl:
+      pet.imageUrl ||
+      (pet.species === 'Mèo'
+        ? 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=900&q=80'
+        : 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=900&q=80'),
+    ownerName: cleanOwnerName,
+    ownerAge: candidate.ownerAge,
+    gender: candidate.gender,
+    distanceKm: candidate.distanceKm,
+    intent: candidate.intent,
+    lookingFor: candidate.lookingFor,
+    pet,
+    petIndex: pIdx + 1,
+    totalPets: candidate.pets.length,
+    petNamesSummary,
+  }));
+
+  const allSlides = [...ownerSlides, ...petSlides];
+  return allSlides;
+}

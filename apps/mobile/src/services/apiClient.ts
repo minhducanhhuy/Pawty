@@ -68,10 +68,17 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
     return await res.json();
   } catch (error: any) {
-    if (error.name === 'AbortError') {
-      console.warn(`[Pawty API] Timeout 20s requesting ${endpoint}`);
+    if (error instanceof ApiRequestError) {
+      throw error;
+    }
+    if (
+      error.name === 'AbortError' ||
+      String(error?.message || '').includes('Fetch request has been canceled') ||
+      String(error?.message || '').includes('canceled')
+    ) {
+      console.warn(`[Pawty API] Timeout / Canceled requesting ${endpoint}`);
       throw new Error(
-        'Kết nối máy chủ quá hạn (Timeout 20s). Vui lòng kiểm tra kết nối mạng và Backend.'
+        'Kết nối tới máy chủ bị gián đoạn hoặc quá hạn (Timeout). Vui lòng thử lại.'
       );
     }
     if (
@@ -110,6 +117,11 @@ export const apiClient = {
     petName?: string;
     petSpecies?: string;
     petBreed?: string;
+    petGender?: string;
+    petBirthDate?: string;
+    petWeightKg?: number;
+    petAvatarUrl?: string;
+    petVaccinated?: boolean;
   }) {
     return request<{ success: boolean; token: string; user: any; message: string }>(
       '/api/auth/register',
@@ -124,6 +136,15 @@ export const apiClient = {
   async getBootstrapData(userId?: string) {
     const query = userId ? `?userId=${encodeURIComponent(userId)}` : '';
     return request<any>(`/api/bootstrap${query}`);
+  },
+
+  // Media Upload (Cloudinary)
+  async uploadImage(image: string, folder = 'pawty/media') {
+    const res = await request<{ success: boolean; url: string }>('/api/upload', {
+      method: 'POST',
+      body: JSON.stringify({ image, folder }),
+    });
+    return res?.url || image;
   },
 
   // 2. User & Profile
@@ -210,12 +231,12 @@ export const apiClient = {
     );
   },
 
-  async addPostComment(postId: string, authorId: string, text: string) {
+  async addPostComment(postId: string, authorId: string, text: string, parentId?: string) {
     return request<{ success: boolean; comment: any }>(
       `/api/posts/${encodeURIComponent(postId)}/comments`,
       {
         method: 'POST',
-        body: JSON.stringify({ authorId, text }),
+        body: JSON.stringify({ authorId, text, parentId }),
       }
     );
   },
@@ -292,8 +313,11 @@ export const apiClient = {
   },
 
   // 6. Tinder / Radar Candidates, Likes You & Matches
-  async getTinderCandidates(userId = 'user-test1', intent?: string) {
-    const query = intent && intent !== 'all' ? `&intent=${encodeURIComponent(intent)}` : '';
+  async getTinderCandidates(userId = 'user-test1', intent?: string, gender?: string) {
+    let query = intent && intent !== 'all' ? `&intent=${encodeURIComponent(intent)}` : '';
+    if (gender && gender !== 'all' && gender !== 'Mọi người') {
+      query += `&gender=${encodeURIComponent(gender)}`;
+    }
     return request<{ candidates: any[] }>(
       `/api/tinder/candidates?userId=${encodeURIComponent(userId)}${query}`
     );
@@ -327,7 +351,11 @@ export const apiClient = {
     return request<{ chats: any[] }>(`/api/chats?userId=${encodeURIComponent(userId)}`);
   },
 
-  async openDirectChat(userId: string, partnerHandle: string) {
+  async openDirectChat(
+    userId: string,
+    partnerHandle: string,
+    chatType: 'social' | 'dating' = 'social'
+  ) {
     return request<{
       success: boolean;
       conversationId: string;
@@ -335,7 +363,7 @@ export const apiClient = {
       isFriend: boolean;
     }>('/api/chats/open', {
       method: 'POST',
-      body: JSON.stringify({ userId, partnerHandle }),
+      body: JSON.stringify({ userId, partnerHandle, chatType }),
     });
   },
 

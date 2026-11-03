@@ -13,10 +13,16 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
 import { MobileAnimatedLogo } from '../components/MobileAnimatedLogo';
-import { POPULAR_DOG_BREEDS, POPULAR_CAT_BREEDS } from '../types/mobileTypes';
+import { DatePickerModal } from '../components/DatePickerModal';
+import {
+  POPULAR_DOG_BREEDS,
+  POPULAR_CAT_BREEDS,
+  calculatePetAgeFromBirthDate,
+} from '../types/mobileTypes';
 
 const PAWTY_LOGO_FULL = require('../../assets/pawty-logo-full.png');
 const PAWTY_ICON = require('../../assets/pawty-icon.png');
@@ -31,16 +37,17 @@ export const MobileOnboardingScreen: React.FC = () => {
     savedSessionIdentifier,
     bootAuthError,
     loginOrRegister,
+    showToast,
   } = useMobilePawty();
 
-  const [mode, setMode] = useState<'welcome' | 'login' | 'register'>(
+  const [mode, setMode] = useState<'welcome' | 'login' | 'register' | 'pet_setup'>(
     hasSavedSession ? 'welcome' : 'login'
   );
   const [identifierInput, setIdentifierInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Register fields
+  // Register fields (Step 1)
   const [fullNameInput, setFullNameInput] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
   const [usernameInput, setUsernameInput] = useState('');
@@ -48,6 +55,14 @@ export const MobileOnboardingScreen: React.FC = () => {
   const [petSpeciesInput, setPetSpeciesInput] = useState<'Chó' | 'Mèo'>('Chó');
   const [petBreedInput, setPetBreedInput] = useState('');
   const [petVaccinated, setPetVaccinated] = useState(true);
+
+  // Pet Setup fields (Step 2)
+  const [petAvatarUri, setPetAvatarUri] = useState<string | null>(null);
+  const [petGenderInput, setPetGenderInput] = useState<'Đực' | 'Cái'>('Đực');
+  const [petIsNeutered, setPetIsNeutered] = useState(false);
+  const [petBirthDateInput, setPetBirthDateInput] = useState<string>('');
+  const [petWeightInput, setPetWeightInput] = useState<string>('');
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   // Breed selector modal state
   const [isBreedPickerOpen, setIsBreedPickerOpen] = useState(false);
@@ -121,7 +136,59 @@ export const MobileOnboardingScreen: React.FC = () => {
     }
   };
 
-  const handleRegister = async () => {
+  const handleProceedToPetSetup = () => {
+    Keyboard.dismiss();
+    setAuthError(null);
+    if (!fullNameInput.trim()) {
+      setAuthError('Vui lòng nhập Họ và tên.');
+      return;
+    }
+    if (!phoneInput.trim()) {
+      setAuthError('Vui lòng nhập Số điện thoại.');
+      return;
+    }
+    if (!passwordInput.trim()) {
+      setAuthError('Vui lòng nhập Mật khẩu.');
+      return;
+    }
+    if (!petNameInput.trim()) {
+      setAuthError('Vui lòng nhập Tên bé thú cưng.');
+      return;
+    }
+    if (!petBreedInput.trim()) {
+      setAuthError('Vui lòng chọn Giống loài cho bé.');
+      return;
+    }
+    setMode('pet_setup');
+  };
+
+  const handlePickPetPhoto = async (fromCamera = false) => {
+    try {
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        base64: true,
+        quality: 0.5,
+      };
+
+      const result = fromCamera
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const rawUri = asset.base64
+          ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
+          : asset.uri;
+        setPetAvatarUri(rawUri);
+      }
+    } catch (err: any) {
+      showToast('Không thể mở máy ảnh hoặc thư viện ảnh trên thiết bị.');
+    }
+  };
+
+  const handleRegister = async (skipPetDetails = false) => {
     Keyboard.dismiss();
     setAuthError(null);
     if (!fullNameInput.trim()) {
@@ -139,18 +206,26 @@ export const MobileOnboardingScreen: React.FC = () => {
 
     setIsLoading(true);
     try {
+      const weightNum = parseFloat(petWeightInput.replace(',', '.'));
       await loginOrRegister({
         isRegister: true,
         name: fullNameInput.trim(),
         phone: phoneInput.trim(),
         username: usernameInput.trim() || undefined,
         password: passwordInput.trim(),
-        petName: petNameInput.trim(),
+        petName: petNameInput.trim() || 'Boss',
         petSpecies: petSpeciesInput,
-        petBreed: petBreedInput.trim(),
+        petBreed: petBreedInput.trim() || 'Chưa rõ',
+        petGender: skipPetDetails ? 'Đực' : (petIsNeutered ? `${petGenderInput} (Đã triệt sản)` : petGenderInput),
+        petBirthDate: skipPetDetails ? undefined : (petBirthDateInput || undefined),
+        petWeightKg: skipPetDetails || isNaN(weightNum) ? undefined : weightNum,
+        petAvatarUrl: skipPetDetails ? undefined : (petAvatarUri || undefined),
+        petVaccinated: petVaccinated,
       });
     } catch (err: any) {
-      setAuthError(err.message || 'Đăng ký không thành công. Vui lòng thử lại.');
+      const msg = err.message || 'Đăng ký không thành công. Vui lòng thử lại.';
+      setAuthError(msg);
+      showToast(msg);
     } finally {
       setIsLoading(false);
     }
@@ -187,19 +262,11 @@ export const MobileOnboardingScreen: React.FC = () => {
           </Text>
         </View>
 
-        {/* Single Device Security Banner */}
-        <View style={styles.securityNoticeCard}>
-          <Feather name="smartphone" size={16} color={theme.primary} />
-          <Text style={styles.securityNoticeText}>
-            Bảo mật 1 thiết bị: Tài khoản chỉ được đăng nhập trên 1 điện thoại tại một thời điểm. Khi đăng nhập ở máy mới, thiết bị cũ sẽ tự động đăng xuất.
-          </Text>
-        </View>
-
         {mode === 'welcome' && hasSavedSession && (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Chào mừng bạn quay lại</Text>
             <Text style={styles.sectionSub}>
-              Thiết bị này đã lưu phiên đăng nhập trước đó. Hệ thống sẽ xác thực kết nối Database trước khi vào ứng dụng.
+              Thiết bị đã lưu phiên đăng nhập của bạn. Chạm vào tài khoản bên dưới để tiếp tục.
             </Text>
 
             {authError && (
@@ -239,7 +306,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               <View style={{ flex: 1 }}>
                 <Text style={styles.savedName}>{ownerName || savedSessionIdentifier}</Text>
                 <Text style={styles.savedMeta} numberOfLines={1}>
-                  {ownerHandle} {ownerBio ? `· ${ownerBio}` : ''}
+                  {ownerBio || 'Cư dân Pawty'}
                 </Text>
               </View>
               <View style={[styles.enterBadge, { backgroundColor: theme.primary }]}>
@@ -279,7 +346,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               }}
             >
               <Feather name="log-in" size={16} color="#4A3F35" />
-              <Text style={styles.secondaryBtnText}>Đăng nhập bằng SĐT / Username</Text>
+              <Text style={styles.secondaryBtnText}>Đăng nhập bằng SĐT hoặc Tên tài khoản</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -309,14 +376,14 @@ export const MobileOnboardingScreen: React.FC = () => {
               </View>
             )}
 
-            <Text style={styles.inputLabel}>Số điện thoại hoặc Tên đăng nhập (Username)</Text>
+            <Text style={styles.inputLabel}>Số điện thoại hoặc Tên đăng nhập</Text>
             <TextInput
               style={styles.input}
               value={identifierInput}
               onChangeText={setIdentifierInput}
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="VD: 0900000001 hoặc test1"
+              placeholder="Nhập số điện thoại hoặc tên đăng nhập"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(140)}
             />
@@ -359,7 +426,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               ) : (
                 <>
                   <Feather name="check" size={16} color="#FFFFFF" />
-                  <Text style={styles.primaryBtnText}>Đăng nhập ngay (1 Thiết bị)</Text>
+                  <Text style={styles.primaryBtnText}>Đăng nhập</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -401,7 +468,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               style={styles.input}
               value={fullNameInput}
               onChangeText={setFullNameInput}
-              placeholder="VD: Mai Nguyễn"
+              placeholder="Nhập họ và tên của bạn"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(120)}
             />
@@ -412,19 +479,19 @@ export const MobileOnboardingScreen: React.FC = () => {
               value={phoneInput}
               onChangeText={setPhoneInput}
               keyboardType="phone-pad"
-              placeholder="0912345678"
+              placeholder="Nhập số điện thoại của bạn"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(170)}
             />
 
-            <Text style={styles.inputLabel}>Tên đăng nhập (Username)</Text>
+            <Text style={styles.inputLabel}>Tên tài khoản (Tùy chọn)</Text>
             <TextInput
               style={styles.input}
               value={usernameInput}
               onChangeText={setUsernameInput}
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="VD: mai_nguyen"
+              placeholder="Tên tài khoản (ví dụ: mai_nguyen)"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(220)}
             />
@@ -585,19 +652,244 @@ export const MobileOnboardingScreen: React.FC = () => {
               style={[
                 styles.primaryBtn,
                 { backgroundColor: theme.primary, marginTop: 10 },
+              ]}
+              onPress={handleProceedToPetSetup}
+            >
+              <Feather name="arrow-right-circle" size={16} color="#FFFFFF" />
+              <Text style={styles.primaryBtnText}>
+                Tiếp tục: Thiết lập hồ sơ Boss {petNameInput ? `"${petNameInput}"` : ''} ➜
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryBtn}
+              disabled={isLoading}
+              onPress={() => handleRegister(true)}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#4A3F35" />
+              ) : (
+                <Text style={styles.secondaryBtnText}>Tạo nhanh & Bỏ qua thiết lập chi tiết</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {mode === 'pet_setup' && (
+          <View style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionTitle}>Hoàn tất hồ sơ Boss {petNameInput}</Text>
+                <Text style={styles.sectionSub}>
+                  Bước 2/2 · Thêm ảnh & thể trạng để bé sẵn sàng tỏa sáng trên Radar
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setMode('register')}>
+                <Text style={[styles.backLink, { color: theme.primary }]}>Quay lại</Text>
+              </TouchableOpacity>
+            </View>
+
+            {authError && (
+              <View style={styles.errorBox}>
+                <Feather name="alert-triangle" size={15} color="#D32F2F" />
+                <Text style={styles.errorText}>{authError}</Text>
+              </View>
+            )}
+
+            {/* 1. Ảnh đại diện bé cưng */}
+            <View style={styles.petSetupAvatarSection}>
+              <View style={styles.petSetupAvatarWrap}>
+                {petAvatarUri ? (
+                  <Image source={{ uri: petAvatarUri }} style={styles.petSetupAvatarImg} />
+                ) : (
+                  <View style={styles.petSetupAvatarEmpty}>
+                    <Feather name="camera" size={32} color={theme.primary} />
+                    <Text style={styles.petSetupAvatarEmptyText}>Chưa có ảnh</Text>
+                  </View>
+                )}
+                {petAvatarUri && (
+                  <TouchableOpacity
+                    style={styles.petSetupRemoveAvatarBtn}
+                    onPress={() => setPetAvatarUri(null)}
+                  >
+                    <Feather name="x" size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={styles.petSetupPhotoActionsRow}>
+                <TouchableOpacity
+                  style={styles.petSetupPhotoBtn}
+                  onPress={() => handlePickPetPhoto(false)}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="image" size={15} color="#4A3F35" />
+                  <Text style={styles.petSetupPhotoBtnText}>Chọn ảnh</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.petSetupPhotoBtn}
+                  onPress={() => handlePickPetPhoto(true)}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="camera" size={15} color="#4A3F35" />
+                  <Text style={styles.petSetupPhotoBtnText}>Chụp ảnh</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* 2. Giới tính & Triệt sản */}
+            <Text style={styles.inputLabel}>Giới tính của bé</Text>
+            <View style={styles.speciesRow}>
+              <TouchableOpacity
+                style={[
+                  styles.speciesChip,
+                  petGenderInput === 'Đực' && {
+                    backgroundColor: theme.primary,
+                    borderColor: theme.primary,
+                  },
+                ]}
+                onPress={() => setPetGenderInput('Đực')}
+              >
+                <Text
+                  style={[
+                    styles.speciesChipText,
+                    petGenderInput === 'Đực' && { color: '#FFFFFF' },
+                  ]}
+                >
+                  ♂ Bé Đực
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.speciesChip,
+                  petGenderInput === 'Cái' && {
+                    backgroundColor: theme.primary,
+                    borderColor: theme.primary,
+                  },
+                ]}
+                onPress={() => setPetGenderInput('Cái')}
+              >
+                <Text
+                  style={[
+                    styles.speciesChipText,
+                    petGenderInput === 'Cái' && { color: '#FFFFFF' },
+                  ]}
+                >
+                  ♀ Bé Cái
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.neuteredChip,
+                petIsNeutered && { backgroundColor: 'rgba(255, 111, 97, 0.12)', borderColor: theme.primary },
+              ]}
+              onPress={() => setPetIsNeutered(!petIsNeutered)}
+            >
+              <View
+                style={[
+                  styles.checkboxSquare,
+                  petIsNeutered && { backgroundColor: theme.primary, borderColor: theme.primary },
+                ]}
+              >
+                {petIsNeutered && <Feather name="check" size={13} color="#FFFFFF" />}
+              </View>
+              <Text style={[styles.neuteredChipText, petIsNeutered && { color: theme.primary, fontWeight: '700' }]}>
+                Bé đã triệt sản (Neutered / Spayed)
+              </Text>
+            </TouchableOpacity>
+
+            {/* 3. Ngày sinh / Tuổi */}
+            <Text style={styles.inputLabel}>Ngày sinh của bé (Tính tuổi tự động)</Text>
+            <TouchableOpacity
+              style={styles.breedSelectorBtn}
+              activeOpacity={0.8}
+              onPress={() => setIsDatePickerOpen(true)}
+            >
+              <Text
+                style={[
+                  styles.breedSelectorBtnText,
+                  !petBirthDateInput && { color: '#B8AEA4' },
+                ]}
+              >
+                {petBirthDateInput
+                  ? `${petBirthDateInput}  ·  ${calculatePetAgeFromBirthDate(petBirthDateInput)}`
+                  : 'Chạm để chọn ngày sinh cho bé...'}
+              </Text>
+              <Feather name="calendar" size={17} color="#7A6E63" />
+            </TouchableOpacity>
+
+            {/* 4. Cân nặng */}
+            <Text style={styles.inputLabel}>Cân nặng của bé (kg)</Text>
+            <TextInput
+              style={styles.input}
+              value={petWeightInput}
+              onChangeText={setPetWeightInput}
+              keyboardType="decimal-pad"
+              placeholder="VD: 4.5 (kg)"
+              placeholderTextColor="#B8AEA4"
+              onFocus={() => scrollToOffset(350)}
+            />
+
+            {/* 5. Tiêm chủng Safe Pet */}
+            <TouchableOpacity
+              style={[
+                styles.vaccineToggleBox,
+                petVaccinated && {
+                  backgroundColor: '#EAF7F1',
+                  borderColor: '#3E8E6C',
+                },
+              ]}
+              onPress={() => setPetVaccinated(!petVaccinated)}
+            >
+              <View
+                style={[
+                  styles.checkboxSquare,
+                  petVaccinated && { backgroundColor: '#3E8E6C', borderColor: '#3E8E6C' },
+                ]}
+              >
+                {petVaccinated && <Feather name="check" size={14} color="#FFFFFF" />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.vaccineToggleTitle}>
+                  Bé đã tiêm phòng dại & 7 bệnh đầy đủ
+                </Text>
+                <Text style={styles.vaccineToggleSub}>
+                  Kích hoạt huy hiệu [✓ An tâm dạo chung] trên Radar
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Nút Hoàn tất */}
+            <TouchableOpacity
+              style={[
+                styles.primaryBtn,
+                { backgroundColor: theme.primary, marginTop: 12 },
                 isLoading && { opacity: 0.7 },
               ]}
               disabled={isLoading}
-              onPress={handleRegister}
+              onPress={() => handleRegister(false)}
             >
               {isLoading ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <>
                   <Feather name="check-circle" size={16} color="#FFFFFF" />
-                  <Text style={styles.primaryBtnText}>Hoàn tất & Vào ứng dụng</Text>
+                  <Text style={styles.primaryBtnText}>Hoàn tất & Khám phá Pawty 🐾</Text>
                 </>
               )}
+            </TouchableOpacity>
+
+            {/* Nút Bỏ qua */}
+            <TouchableOpacity
+              style={[styles.secondaryBtn, { marginTop: 8 }]}
+              disabled={isLoading}
+              onPress={() => handleRegister(true)}
+            >
+              <Text style={styles.secondaryBtnText}>Để sau, vào trang chính ngay</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -722,6 +1014,16 @@ export const MobileOnboardingScreen: React.FC = () => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* DATE PICKER MODAL (BỘ CHỌN NGÀY SINH BOSS) */}
+      <DatePickerModal
+        visible={isDatePickerOpen}
+        title="Chọn ngày sinh của bé"
+        initialDate={petBirthDateInput}
+        isPet={true}
+        onConfirm={(d) => setPetBirthDateInput(d)}
+        onClose={() => setIsDatePickerOpen(false)}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -1126,5 +1428,91 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2C2520',
     fontWeight: '500',
+  },
+  /* PET SETUP STEP 2 STYLES */
+  petSetupAvatarSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 14,
+  },
+  petSetupAvatarWrap: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    position: 'relative',
+    marginBottom: 10,
+  },
+  petSetupAvatarImg: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    borderWidth: 2.5,
+    borderColor: '#FF6F61',
+  },
+  petSetupAvatarEmpty: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    borderWidth: 2,
+    borderColor: '#FF6F61',
+    borderStyle: 'dashed',
+    backgroundColor: 'rgba(255, 111, 97, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  petSetupAvatarEmptyText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF6F61',
+  },
+  petSetupRemoveAvatarBtn: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#FF6F61',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  petSetupPhotoActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  petSetupPhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F5F1EB',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8E0D5',
+  },
+  petSetupPhotoBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4A3F35',
+  },
+  neuteredChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8E0D5',
+    backgroundColor: '#FAF7F2',
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  neuteredChipText: {
+    fontSize: 13,
+    color: '#4A3F35',
+    fontWeight: '600',
   },
 });

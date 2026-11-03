@@ -16,7 +16,8 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.pawty.app"
+      "bundleIdentifier": "com.pawty.app",
+      "infoPlist": {}
     },
     "android": {
       "adaptiveIcon": {
@@ -31,6 +32,12 @@
       "expo-secure-store",
       "expo-sharing",
       "expo-status-bar"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0e8a7d89-db3b-4944-bfb7-a7d84fdfba67"
+      }
+    },
+    "owner": "turtlexe"
   }
 }

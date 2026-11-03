@@ -21,6 +21,7 @@
     "@pawty/utils": "*",
     "@pawty/validators": "*",
     "@prisma/client": "^6.19.3",
+    "cloudinary": "^2.11.0",
     "dotenv": "^18.0.9",
     "pg": "^8.23.1"
   },

@@ -9,6 +9,9 @@ import {
   BackHandler,
   Animated,
   Easing,
+  Modal,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from './src/components/FeatherIcon';
@@ -110,6 +113,18 @@ const MainMobileShell: React.FC = () => {
   } = useMobilePawty();
 
   const [isSplashDone, setIsSplashDone] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardOpen(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardOpen(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -360,7 +375,7 @@ const MainMobileShell: React.FC = () => {
       </View>
 
       {/* Bottom Navigation Bar (Ẩn khi đang trong chi tiết phòng chat) */}
-      {!(activeTab === 'chat' && activeChatId) && (
+      {!(activeTab === 'chat' && activeChatId) && !isKeyboardOpen && (
         <View style={styles.bottomBar}>
           {BOTTOM_TABS.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -411,11 +426,13 @@ const MainMobileShell: React.FC = () => {
         </View>
       )}
 
-      {/* Toast Banner */}
-      {toastMessage && (
-        <View style={[styles.toastBar, styles.toastInfo]} pointerEvents="none">
-          <Feather name="check-circle" size={16} color="#48BB78" />
-          <Text style={styles.toastText}>{toastMessage}</Text>
+      {/* Toast Banner Floating Overlay (Never blocks touch interactions) */}
+      {Boolean(toastMessage) && (
+        <View style={styles.toastOverlayContainer} pointerEvents="none">
+          <View style={[styles.toastBar, styles.toastInfo]}>
+            <Feather name="check-circle" size={16} color="#48BB78" />
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
         </View>
       )}
 
@@ -610,11 +627,24 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
   },
-  toastBar: {
+  toastOverlayContainer: {
     position: 'absolute',
-    top: 64,
-    left: 20,
-    right: 20,
+    top: 54,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 99999,
+    elevation: 999,
+  },
+  toastModalContainer: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingTop: 54,
+  },
+  toastBar: {
+    maxWidth: '92%',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

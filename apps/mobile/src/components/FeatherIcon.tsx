@@ -20,6 +20,7 @@ import {
   Clock,
   Coffee,
   Compass,
+  CornerDownRight,
   Edit2,
   Edit3,
   Ellipsis,
@@ -95,6 +96,7 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
   clock: Clock,
   coffee: Coffee,
   compass: Compass,
+  'corner-down-right': CornerDownRight,
   'edit-2': Edit2,
   'edit-3': Edit3,
   'file-text': FileText,
@@ -153,13 +155,14 @@ export interface FeatherIconProps {
   size?: number;
   color?: string;
   fill?: string;
+  strokeWidth?: number;
 }
 
 export const Feather: React.FC<FeatherIconProps> & {
   glyphMap: Record<string, number>;
-} = ({ name, size = 18, color = '#2A2522', fill = 'none' }) => {
+} = ({ name, size = 18, color = '#2A2522', fill = 'none', strokeWidth = 2.1 }) => {
   const IconComp = ICON_MAP[name] || Compass;
-  return <IconComp size={size} color={color} fill={fill} strokeWidth={2.1} />;
+  return <IconComp size={size} color={color} fill={fill} strokeWidth={strokeWidth} />;
 };
 
 Feather.glyphMap = {};

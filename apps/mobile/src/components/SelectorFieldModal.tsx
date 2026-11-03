@@ -18,6 +18,8 @@ export interface SelectorPickerModalProps {
   selectedValues?: string[];
   multiSelect?: boolean;
   searchable?: boolean;
+  allowCustomInput?: boolean;
+  customInputPlaceholder?: string;
   onSelect?: (value: string) => void;
   onSelectMulti?: (values: string[]) => void;
   onClose: () => void;
@@ -31,25 +33,51 @@ export const SelectorPickerModal: React.FC<SelectorPickerModalProps> = ({
   selectedValues = [],
   multiSelect = false,
   searchable = true,
+  allowCustomInput = true,
+  customInputPlaceholder,
+
   onSelect,
   onSelectMulti,
   onClose,
 }) => {
   const [query, setQuery] = useState('');
-  const [draftMulti, setDraftMulti] = useState<string[]>(selectedValues);
+  const [customText, setCustomText] = useState('');
+  const [draftMulti, setDraftMulti] = useState<string[]>(selectedValues || []);
+
+  const allDisplayOptions = useMemo(() => {
+    if (!multiSelect) return options;
+    const extraCustom = draftMulti.filter((item) => !options.includes(item));
+    return [...extraCustom, ...options];
+  }, [options, draftMulti, multiSelect]);
 
   useEffect(() => {
     if (visible) {
       setQuery('');
-      setDraftMulti(selectedValues);
+      setCustomText('');
+      setDraftMulti(selectedValues || []);
     }
-  }, [visible, selectedValues]);
+  }, [visible, (selectedValues || []).join('__')]);
 
   const filteredOptions = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((opt) => opt.toLowerCase().includes(q));
-  }, [options, query]);
+    if (!q) return allDisplayOptions;
+    return allDisplayOptions.filter((opt) => opt.toLowerCase().includes(q));
+  }, [allDisplayOptions, query]);
+
+  const handleApplyCustomText = () => {
+    const trimmed = customText.trim();
+    if (!trimmed) return;
+    if (multiSelect) {
+      if (!draftMulti.includes(trimmed)) {
+        setDraftMulti((prev) => [...prev, trimmed]);
+      }
+      setCustomText('');
+    } else {
+      onSelect?.(trimmed);
+      setCustomText('');
+      onClose();
+    }
+  };
 
   const toggleMultiOption = (item: string) => {
     setDraftMulti((prev) =>
@@ -70,6 +98,38 @@ export const SelectorPickerModal: React.FC<SelectorPickerModalProps> = ({
               <Feather name="x" size={18} color="#4A3F35" />
             </TouchableOpacity>
           </View>
+
+          {/* Ô tự nhập nội dung tùy chỉnh nếu không có sẵn trong danh sách */}
+          {allowCustomInput && (
+            <View style={styles.customInputSection}>
+              <View style={styles.customInputBar}>
+                <Feather name="edit-3" size={15} color="#FF6F61" />
+                <TextInput
+                  style={styles.customTextInput}
+                  placeholder={
+                    customInputPlaceholder ||
+                    (multiSelect ? 'Tự nhập thêm mục khác...' : 'Hoặc tự nhập nội dung riêng...')
+                  }
+                  placeholderTextColor="#A3968A"
+                  value={customText}
+                  onChangeText={setCustomText}
+                  onSubmitEditing={handleApplyCustomText}
+                  returnKeyType="done"
+                />
+                {customText.trim().length > 0 && (
+                  <TouchableOpacity
+                    style={styles.customApplyBtn}
+                    onPress={handleApplyCustomText}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.customApplyBtnText}>
+                      {multiSelect ? '+ Thêm' : 'Áp dụng'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          )}
 
           {searchable && options.length > 6 && (
             <View style={styles.searchBar}>
@@ -254,6 +314,39 @@ const styles = StyleSheet.create({
     backgroundColor: '#EDE5DB',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  customInputSection: {
+    paddingHorizontal: 18,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  customInputBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#FF6F61',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  customTextInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#2C2520',
+    paddingVertical: 0,
+  },
+  customApplyBtn: {
+    backgroundColor: '#FF6F61',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  customApplyBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   searchBar: {
     flexDirection: 'row',
