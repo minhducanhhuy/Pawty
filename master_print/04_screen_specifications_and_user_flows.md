@@ -100,9 +100,14 @@
   - **Biểu tượng xoay tròn ribbon (PawtySpinner):**
     - Sử dụng hình ảnh vòng dải băng san hô & xanh mint uốn lượn kèm biểu tượng chữ 'z z Z' đáng yêu (`pawty-spinner.png`).
     - Hoạt cảnh xoay tròn 360 độ liên tục vô tận (`continuous 360-degree rotation`, chu kỳ 2000ms), xoay quanh đúng tâm hình học đồng trục.
+    - Kích thước hiển thị chuẩn 80-84px, đường nét đậm đà, sắc nét, tương phản cao, triệt tiêu hiện tượng mờ nhạt pastel.
   - **Dòng thông điệp tải kèm hiệu ứng 3 chấm nhảy tuần tự (`PawtyLoadingState`):**
     - Câu thông điệp dễ thương: `"Đợi Pawty xíu nha..."`.
-    - Dấu 3 chấm xuất hiện tuần tự từng dấu chấm một và lặp lại (`""` -> `"."` -> `".."` -> `"..."`, chu kỳ ~400ms/nhịp).
+    - Dấu 3 chấm xuất hiện tuần tự từng dấu chấm một và lặp lại (`""` -> `"."` -> `".."` -> `"..."`, chu kỳ ~380ms/nhịp).
+  - **Quy chuẩn bố cục Không Đóng Thẻ Card (No Card Box Policy):**
+    - Tuyệt đối không đóng khung biểu tượng loading vào bất kỳ thẻ card trắng, viền bo tròn hay bóng đổ nào.
+    - Loading hòa trực tiếp và lơ lửng tự nhiên trên nền màu kem thương hiệu `#FDFBF7`.
+    - Ẩn triệt để vòng xoay tròn mặc định của Android `RefreshControl` (`colors={['transparent']}`, `progressBackgroundColor="transparent"`), đảm bảo chỉ có duy nhất biểu tượng ribbon xoay tròn của Pawty được hiển thị.
   - **Phạm vi áp dụng trong ứng dụng (In-App Loading):**
     - Kéo làm mới bảng tin Khám phá (`Pull-to-refresh Explore Feed`) khi mạng yếu hoặc tắt Wi-Fi.
     - Trạng thái chờ tải dữ liệu ban đầu của Bảng tin, Kết nối ghép đôi và Trang cá nhân.

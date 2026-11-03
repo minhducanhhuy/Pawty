@@ -13,7 +13,7 @@ interface PawtyLoadingStateProps {
 export const PawtyLoadingState: React.FC<PawtyLoadingStateProps> = ({
   text = 'Đợi Pawty xíu nha',
   subtext,
-  spinnerSize = 64,
+  spinnerSize = 80,
   compact = false,
   style,
 }) => {
@@ -89,3 +89,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

@@ -199,17 +199,16 @@ export const MobileExploreScreen: React.FC = () => {
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={handlePullRefresh}
-          tintColor={theme.primary}
-          colors={[theme.primary]}
-          title="Đang làm mới bảng tin..."
-          titleColor="#78706A"
+          tintColor="transparent"
+          colors={["transparent"]}
+          progressBackgroundColor="transparent"
         />
       }
       ListHeaderComponent={
         <View style={{ marginBottom: 12 }}>
           {isRefreshing && (
-            <View style={styles.pullRefreshBanner}>
-              <PawtyLoadingState text="Đợi Pawty xíu nha" spinnerSize={52} compact />
+            <View style={styles.pullRefreshArea}>
+              <PawtyLoadingState text="Đợi Pawty xíu nha" spinnerSize={84} />
             </View>
           )}
       {/* Search Bar with History & Trending Dropdown */}
@@ -318,11 +317,11 @@ export const MobileExploreScreen: React.FC = () => {
       }
       ListEmptyComponent={
         (isLoadingData || isRefreshing) && !searchQuery.trim() ? (
-          <View style={styles.loadingFeedCard}>
+          <View style={styles.loadingFeedContainer}>
             <PawtyLoadingState
               text="Đợi Pawty xíu nha"
               subtext="Đang kết nối cộng đồng Boss và tải bảng tin mới..."
-              spinnerSize={72}
+              spinnerSize={84}
             />
           </View>
         ) : (
@@ -1094,26 +1093,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  pullRefreshBanner: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#F3EFEA',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  loadingFeedCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    paddingVertical: 32,
-    paddingHorizontal: 24,
+  pullRefreshArea: {
+    paddingVertical: 14,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ECE6DF',
-    marginTop: 8,
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  loadingFeedContainer: {
+    paddingVertical: 42,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
