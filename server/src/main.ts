@@ -94,10 +94,12 @@ const server = http.createServer(async (req, res) => {
     // 0. Health & Full Ecosystem Bootstrap (PostgreSQL + PostGIS)
     if (pathname === '/api/health' && method === 'GET') {
       await prisma.$queryRaw`SELECT 1`;
+      const dbUrl = process.env.DATABASE_URL || '';
+      const dbHost = dbUrl.includes('@') ? dbUrl.split('@')[1].split('/')[0] : 'connected';
       sendJson(res, 200, {
         status: 'ok',
         service: 'Pawty API Gateway (PostgreSQL + Prisma)',
-        database: 'PostgreSQL (pawty) @ 127.0.0.1:5432',
+        database: `PostgreSQL @ ${dbHost}`,
         timestamp: new Date().toISOString(),
       });
       return;

@@ -931,67 +931,7 @@ export async function seedDatabase() {
     });
   }
 
-  // ==========================================
-  // 3. TẠO TEST USER NAM ANH (namanh2)
-  // ==========================================
-  console.log('[Seed] Khởi tạo tài khoản kiểm thử namanh2...');
-  const namAnhUser = await prisma.user.create({
-    data: {
-      id: 'bf63d93c-865e-437f-beab-05301ab19c8e',
-      username: 'namanh2',
-      phone: '0987654321',
-      displayName: 'Nam Anh',
-      password: bcrypt.hashSync('123456', 10),
-      avatarUrl: null, // Không có avatar, test đúng luồng fallback ký tự đầu
-      bio: 'Yêu thú cưng, thích dắt cún dạo mát bờ sông mỗi chiều',
-      district: 'Bình Thạnh',
-      neighborhood: 'Vinhomes Central Park',
-      isVip: true,
-      role: 'user',
-      status: 'active',
-      showLocation: true,
-      showPhone: false,
-      allowMessages: 'circle_and_matches',
-    },
-  });
-
-  const namAnhHousehold = await prisma.household.create({
-    data: {
-      name: 'Nhà của Nam Anh',
-      ownerId: namAnhUser.id,
-    },
-  });
-
-  // Tạo hồ sơ hẹn hò cho Nam Anh
-  await prisma.analyticsEvent.create({
-    data: {
-      userId: namAnhUser.id,
-      eventType: 'user_profile_meta',
-      eventData: {
-        age: 26,
-        gender: 'Nam',
-        occupation: 'Software Engineer',
-        tinderSetup: {
-          displayName: 'Nam Anh',
-          age: 26,
-          gender: 'Nam',
-          intent: 'dating',
-          lookingFor: 'Tìm bạn cùng gu yêu thú cưng và thích dạo mát bờ sông',
-          bio: 'Chào mọi người! Mình là Nam Anh, yêu cún cưng và thích trò chuyện chân thành.',
-          photos: [],
-          photoUrls: [],
-          smoking: 'Không hút thuốc',
-          workout: 'Chạy bộ mỗi sáng',
-          drinking: 'Không uống bia rượu',
-          zodiac: 'Thiên Bình',
-          chatStyle: 'Chân thành, ấm áp',
-        },
-      },
-    },
-  });
-
-  // ==========================================
-  // 4. TẠO BÀI VIẾT MXH KHÁM PHÁ (POSTS)
+  // 3. TẠO BÀI VIẾT MXH KHÁM PHÁ (POSTS)
   // ==========================================
   console.log('[Seed] Khởi tạo các bài viết cộng đồng sinh động...');
 
@@ -1140,7 +1080,7 @@ export async function seedDatabase() {
   });
 
   // ==========================================
-  // 5. TẠO REACTION (PAW LIKES)
+  // 4. TẠO REACTION (PAW LIKES)
   // ==========================================
   console.log('[Seed] Khởi tạo cảm xúc Paw cho bài viết...');
   await prisma.reaction.createMany({
@@ -1292,7 +1232,7 @@ export async function seedDatabase() {
   });
 
   // ==========================================
-  // 7. TẠO SOS ALERTS (BÁO ĐỘNG TÌM BOSS LẠC)
+  // 6. TẠO SOS ALERTS (BÁO ĐỘNG TÌM BOSS LẠC)
   // ==========================================
   console.log('[Seed] Khởi tạo các tin báo SOS tìm Boss lạc...');
 
@@ -1350,7 +1290,7 @@ export async function seedDatabase() {
   });
 
   // ==========================================
-  // 8. TẠO TƯƠNG TÁC MATCH & LIKE (TINDER KẾT NỐI)
+  // 7. TẠO TƯƠNG TÁC MATCH & LIKE (TINDER KẾT NỐI)
   // ==========================================
   console.log('[Seed] Khởi tạo các cặp Match và Lượt Thích...');
 
@@ -1374,19 +1314,28 @@ export async function seedDatabase() {
     },
   });
 
-  // Các nghệ sĩ nữ thích tài khoản Nam Anh (namanh2) -> Hiển thị trên tab "Ai Thích Tôi" của Nam Anh
+  // Ninh Dương Lan Ngọc và Quốc Anh đã Match
+  await prisma.match.create({
+    data: {
+      userAId: 'user-test10',
+      userBId: 'user-test17',
+      status: 'matched',
+    },
+  });
+
+  // Các nghệ sĩ đang gửi lượt thích kết nối
   await prisma.match.createMany({
     data: [
-      { userAId: 'user-test10', userBId: namAnhUser.id, status: 'matched' }, // Ninh Dương Lan Ngọc và Nam Anh đã Match!
-      { userAId: 'user-test1', userBId: namAnhUser.id, status: 'pending' },  // Chi Pu thích Nam Anh
-      { userAId: 'user-test5', userBId: namAnhUser.id, status: 'pending' },  // Phương Anh Đào thích Nam Anh
-      { userAId: 'user-test8', userBId: namAnhUser.id, status: 'pending' },  // Kaity Nguyễn thích Nam Anh
-      { userAId: 'user-test2', userBId: namAnhUser.id, status: 'pending' },  // Midu thích Nam Anh
+      { userAId: 'user-test5', userBId: 'user-test20', status: 'pending' },  // Phương Anh Đào thích Song Luân
+      { userAId: 'user-test8', userBId: 'user-test21', status: 'pending' },  // Kaity Nguyễn thích Isaac
+      { userAId: 'user-test11', userBId: 'user-test22', status: 'pending' }, // Thanh Thủy thích Sơn Tùng
+      { userAId: 'user-test14', userBId: 'user-test18', status: 'pending' }, // Bích Phương thích SOOBIN
+      { userAId: 'user-test10', userBId: 'user-test29', status: 'pending' }, // Lan Ngọc thích Quang Hùng
     ],
   });
 
   // ==========================================
-  // 9. TẠO PHÒNG CHAT & TIN NHẮN REAL-TIME
+  // 8. TẠO PHÒNG CHAT & TIN NHẮN REAL-TIME
   // ==========================================
   console.log('[Seed] Khởi tạo phòng chat và tin nhắn mẫu...');
 
@@ -1430,13 +1379,13 @@ export async function seedDatabase() {
     ],
   });
 
-  // Chat 2: Ninh Dương Lan Ngọc & Nam Anh
-  const convLanNgocNamAnh = await prisma.conversation.create({
+  // Chat 2: Ninh Dương Lan Ngọc & Quốc Anh
+  const convLanNgocQuocAnh = await prisma.conversation.create({
     data: {
-      id: 'conv-lanngoc-namanh',
+      id: 'conv-lanngoc-quocanh',
       type: 'direct',
-      participantIds: ['user-test10', namAnhUser.id],
-      lastMessageText: 'Cuối tuần này bên công viên có buổi offline thú cưng, bạn có định tham gia hông nè?',
+      participantIds: ['user-test10', 'user-test17'],
+      lastMessageText: 'Cuối tuần này bên công viên Landmark có buổi offline thú cưng, bạn có định tham gia hông nè?',
       lastMessageAt: new Date(Date.now() - 3600000 * 0.5),
     },
   });
@@ -1444,28 +1393,28 @@ export async function seedDatabase() {
   await prisma.message.createMany({
     data: [
       {
-        conversationId: convLanNgocNamAnh.id,
+        conversationId: convLanNgocQuocAnh.id,
         senderId: 'user-test10',
-        text: 'Chào Nam Anh! Rất vui được kết nối với bạn trên Pawty nha ✨',
+        text: 'Chào Quốc Anh! Rất vui được kết nối với bạn và bé Leo trên Pawty nha ✨',
         createdAt: new Date(Date.now() - 3600000 * 1.2),
       },
       {
-        conversationId: convLanNgocNamAnh.id,
-        senderId: namAnhUser.id,
-        text: 'Chào Ngọc! Mình rất vui được làm quen với bạn và bé Lucky nè',
+        conversationId: convLanNgocQuocAnh.id,
+        senderId: 'user-test17',
+        text: 'Chào Ngọc! Mình rất vui được làm quen với bạn và bé Lucky nè. Leo nhà mình to xác vậy chứ hiền khô à 😸',
         createdAt: new Date(Date.now() - 3600000 * 0.8),
       },
       {
-        conversationId: convLanNgocNamAnh.id,
+        conversationId: convLanNgocQuocAnh.id,
         senderId: 'user-test10',
-        text: 'Cuối tuần này bên công viên có buổi offline thú cưng, bạn có định tham gia hông nè?',
+        text: 'Cuối tuần này bên công viên Landmark có buổi offline thú cưng, bạn có định tham gia hông nè?',
         createdAt: new Date(Date.now() - 3600000 * 0.5),
       },
     ],
   });
 
   // ==========================================
-  // 10. TẠO THÔNG BÁO MẪU (NOTIFICATIONS)
+  // 9. TẠO THÔNG BÁO MẪU (NOTIFICATIONS)
   // ==========================================
   console.log('[Seed] Khởi tạo danh sách thông báo...');
   await prisma.notification.createMany({
@@ -1485,18 +1434,25 @@ export async function seedDatabase() {
         data: { postId: postChiPu.id },
       },
       {
-        userId: namAnhUser.id, // Nam Anh
+        userId: 'user-test17', // Quốc Anh
         type: 'match',
         title: 'Tương hợp mới! 🎉',
         body: 'Bạn và Ninh Dương Lan Ngọc đã tương hợp với nhau. Hãy bắt đầu trò chuyện ngay!',
-        data: { senderId: 'user-test10', senderName: 'Ninh Dương Lan Ngọc', conversationId: convLanNgocNamAnh.id },
+        data: { senderId: 'user-test10', senderName: 'Ninh Dương Lan Ngọc', conversationId: convLanNgocQuocAnh.id },
       },
       {
-        userId: namAnhUser.id, // Nam Anh
+        userId: 'user-test17', // Quốc Anh
         type: 'sos_alert',
         title: '🚨 Báo động SOS gần bạn',
         body: 'Bé Sói (Husky) bị lạc cách bạn khoảng 1.2km tại Vinhomes Central Park.',
         data: { sosAlertId: 'sos-active-husky' },
+      },
+      {
+        userId: 'user-test10', // Ninh Dương Lan Ngọc
+        type: 'match',
+        title: 'Tương hợp mới! 🎉',
+        body: 'Bạn và Quốc Anh đã tương hợp với nhau. Hãy bắt đầu trò chuyện ngay!',
+        data: { senderId: 'user-test17', senderName: 'Quốc Anh', conversationId: convLanNgocQuocAnh.id },
       },
     ],
   });
@@ -1517,7 +1473,7 @@ export async function seedDatabase() {
   console.log('  22. Sơn Tùng M-TP (Báo - Bengal) | 23. JSOL (Sữa - Siamese) | 24. B Trần (Trắng - Turkish Angora)');
   console.log('  25. Bình An (Chân Ngắn - Munchkin) | 26. Dương Domic (Yoda - Sphynx) | 27. RHYDER (Bắc - Siberian)');
   console.log('  28. MONO (Miu - American Shorthair) | 29. Quang Hùng MasterD (Nơ - Ragdoll) | 30. Anh Tú Atus (Hạt Dẻ - Abyssinian)');
-  console.log('- Tài khoản kiểm thử: namanh2 (Mật khẩu: 123456) đã được bảo lưu đầy đủ!');
+  console.log('- 100% tài khoản nghệ sĩ (Mật khẩu: 123456) đầy đủ thông tin, ảnh đại diện, ảnh hẹn hò, thú cưng, sổ tiêm và tiểu sử!');
   console.log('- 100% link ảnh người và thú cưng lưu trực tiếp vào database.');
   console.log('- Đầy đủ 8 bài viết, cây bình luận Facebook đa thế hệ (@mentions), 2 tin SOS, lượt thích Tinder và phòng chat thực tế.');
   console.log('===========================================================');
