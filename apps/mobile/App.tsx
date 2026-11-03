@@ -55,7 +55,7 @@ const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
     );
     runnerLoop.start();
 
-    const timer = setTimeout(onFinish, 8000);
+    const timer = setTimeout(onFinish, 0); // 0ms delay per user request (no startup delay)
     return () => {
       runnerLoop.stop();
       clearTimeout(timer);
@@ -127,7 +127,7 @@ const MainMobileShell: React.FC = () => {
     toastMessage,
   } = useMobilePawty();
 
-  const [isSplashDone, setIsSplashDone] = useState(false);
+  const [isSplashDone, setIsSplashDone] = useState(true); // Default true: no delay at app start
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   useEffect(() => {

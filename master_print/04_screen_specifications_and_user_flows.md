@@ -82,7 +82,7 @@
 ### 2.6 Màn Hình Khởi Động Mobile (Splash Screen), Hoạt Ảnh Mascot Frame-by-Frame & Bộ Loading Xoay Tròn (Pawty Loading Spinner)
 - **Quy chuẩn Splash Screen Mobile:**
   - **Màu nền toàn màn hình:** `#FDFBF7` (trắng kem ấm áp thương hiệu Pawty).
-  - **Thời gian chờ khởi động (Splash Boot Delay):** Kéo dài 8000ms (3s mặc định + 5s delay mở rộng theo yêu cầu người dùng) để trải nghiệm trọn vẹn chu kỳ hoạt cảnh chữ P đáng yêu trước khi chuyển tiếp vào màn hình chính / đăng nhập.
+  - **Thời gian chờ khởi động (Splash Boot Delay):** Loại bỏ hoàn toàn độ trễ mở đầu app (0s delay theo yêu cầu người dùng). Ứng dụng khởi động tức thì vào thẳng giao diện đăng nhập / màn hình chính mà không phải chờ đợi.
   - **Cụm đầu trang (Đẩy lên trên một chút):** Chữ Pawty hòa trực tiếp vào nền kem với hiệu ứng phát sáng mờ ảo bám sát từng nét chữ (`letter-contour drop-shadow blur`), tiêu đề "Những bàn chân nhỏ đang tới" màu san hô `#FF6F61` và dòng chữ nhỏ "Mạng xã hội kết nối người nuôi thú cưng" màu xám ấm `#7A6E63`.
   - **Hoạt cảnh Mascot Chữ P Frame-by-Frame Mượt Mà (Vị trí ô 1):**
     - Tách riêng nguyên chữ P từ 4 hình gốc của người dùng, loại bỏ đường gạch chân và thanh bar cũ.
