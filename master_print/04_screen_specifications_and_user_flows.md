@@ -82,7 +82,7 @@
 ### 2.6 Màn Hình Khởi Động Mobile (Splash Screen), Hoạt Ảnh Mascot Frame-by-Frame & Bộ Loading Xoay Tròn (Pawty Loading Spinner)
 - **Quy chuẩn Splash Screen Mobile:**
   - **Màu nền toàn màn hình:** `#FDFBF7` (trắng kem ấm áp thương hiệu Pawty).
-  - **Thời gian chờ khởi động (Splash Boot Delay):** Loại bỏ hoàn toàn độ trễ mở đầu app (0s delay theo yêu cầu người dùng). Ứng dụng khởi động tức thì vào thẳng giao diện đăng nhập / màn hình chính mà không phải chờ đợi.
+  - **Thời gian chờ khởi động (Splash Boot Delay):** Kéo dài 3000ms (3s mặc định + 5s delay mở rộng theo yêu cầu người dùng) để trải nghiệm trọn vẹn chu kỳ hoạt cảnh chữ P đáng yêu trước khi chuyển tiếp vào màn hình chính / đăng nhập.
   - **Cụm đầu trang (Đẩy lên trên một chút):** Chữ Pawty hòa trực tiếp vào nền kem với hiệu ứng phát sáng mờ ảo bám sát từng nét chữ (`letter-contour drop-shadow blur`), tiêu đề "Những bàn chân nhỏ đang tới" màu san hô `#FF6F61` và dòng chữ nhỏ "Mạng xã hội kết nối người nuôi thú cưng" màu xám ấm `#7A6E63`.
   - **Hoạt cảnh Mascot Chữ P Frame-by-Frame Mượt Mà (Vị trí ô 1):**
     - Tách riêng nguyên chữ P từ 4 hình gốc của người dùng, loại bỏ đường gạch chân và thanh bar cũ.
@@ -107,7 +107,7 @@
   - **Quy chuẩn bố cục Không Đóng Thẻ Card (No Card Box Policy):**
     - Tuyệt đối không đóng khung biểu tượng loading vào bất kỳ thẻ card trắng, viền bo tròn hay bóng đổ nào.
     - Loading hòa trực tiếp và lơ lửng tự nhiên trên nền màu kem thương hiệu `#FDFBF7`.
-    - Ẩn triệt để vòng xoay reload màu đen mặc định của hệ điều hành Android (sử dụng `progressViewOffset={-1000}` đẩy ra ngoài màn hình cùng `colors={['transparent']}`, `progressBackgroundColor="transparent"`), đảm bảo triệt tiêu hoàn toàn trùng lặp 2 biểu tượng reload và chỉ có duy nhất biểu tượng ribbon xoay tròn của Pawty được hiển thị.
+    - Ẩn triệt để vòng xoay tròn mặc định của Android `RefreshControl` (`colors={['transparent']}`, `progressBackgroundColor="transparent"`), đảm bảo chỉ có duy nhất biểu tượng ribbon xoay tròn của Pawty được hiển thị.
   - **Phạm vi áp dụng trong ứng dụng (In-App Loading):**
     - Kéo làm mới bảng tin Khám phá (`Pull-to-refresh Explore Feed`) khi mạng yếu hoặc tắt Wi-Fi.
     - Trạng thái chờ tải dữ liệu ban đầu của Bảng tin, Kết nối ghép đôi và Trang cá nhân.

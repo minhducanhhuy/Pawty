@@ -199,7 +199,6 @@ export const MobileExploreScreen: React.FC = () => {
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={handlePullRefresh}
-          progressViewOffset={-1000}
           tintColor="transparent"
           colors={["transparent"]}
           progressBackgroundColor="transparent"

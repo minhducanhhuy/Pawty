@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -55,7 +55,7 @@ const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
     );
     runnerLoop.start();
 
-    const timer = setTimeout(onFinish, 0); // 0ms delay per user request (no startup delay)
+    const timer = setTimeout(onFinish, 3000);
     return () => {
       runnerLoop.stop();
       clearTimeout(timer);
@@ -93,7 +93,7 @@ const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
                   {
                     translateX: runnerAnim.interpolate({
                       inputRange: [0, 1],
-                       outputRange: [-65, 185],
+                      outputRange: [-65, 185],
                     }),
                   },
                 ],
@@ -127,7 +127,7 @@ const MainMobileShell: React.FC = () => {
     toastMessage,
   } = useMobilePawty();
 
-  const [isSplashDone, setIsSplashDone] = useState(true); // Default true: no delay at app start
+  const [isSplashDone, setIsSplashDone] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   useEffect(() => {
