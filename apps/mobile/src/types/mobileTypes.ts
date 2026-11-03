@@ -828,5 +828,27 @@ export function getCandidateSlides(candidate: TinderCandidate): CandidateSlide[]
   }));
 
   const allSlides = [...ownerSlides, ...petSlides];
+  if (allSlides.length === 0) {
+    const fallbackAvatar =
+      candidate.gender === 'Nam'
+        ? 'https://cdn.24h.com.vn/upload/2-2026/images/2026-04-30/hieuthuhai-2-1777539695-750-width1366height1366.jpg'
+        : 'https://kenh14cdn.com/203336854389633024/2023/4/3/laem-chipu0415-16805352397721941667135.jpeg';
+    allSlides.push({
+      id: `owner-${candidate.id || 'default'}-fallback`,
+      type: 'owner',
+      imageUrl: candidate.avatarUrl || fallbackAvatar,
+      ownerName: cleanOwnerName,
+      ownerAge: candidate.ownerAge || 25,
+      gender: candidate.gender,
+      area: candidate.area || 'Cộng đồng Pawty',
+      distanceKm: candidate.distanceKm || 1,
+      bio: candidate.bio || 'Yêu thương thú cưng và gắn kết cộng đồng.',
+      lookingFor: candidate.lookingFor,
+      intent: candidate.intent || 'dating',
+      totalOwnerPhotos: 1,
+      ownerPhotoIndex: 1,
+      petNamesSummary: '',
+    });
+  }
   return allSlides;
 }

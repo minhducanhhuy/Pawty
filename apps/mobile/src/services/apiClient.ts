@@ -43,6 +43,16 @@ export class ApiRequestError extends Error {
   }
 }
 
+let currentAuthToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  currentAuthToken = token;
+}
+
+export function getAuthToken(): string | null {
+  return currentAuthToken;
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const controller = new AbortController();
@@ -55,6 +65,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
+        ...(currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {}),
         ...(options.headers || {}),
       },
     });
@@ -97,6 +108,9 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const apiClient = {
+  setAuthToken,
+  getAuthToken,
+
   // 0. Authentication (Phone / Username + Password)
   async login(identifier: string, password?: string) {
     return request<{ success: boolean; token: string; user: any; message: string }>(

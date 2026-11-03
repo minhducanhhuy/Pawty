@@ -8,6 +8,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config();
 
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -813,7 +814,7 @@ export async function seedDatabase() {
       data: {
         id: userId,
         username: config.username,
-        password: '123456',
+        password: bcrypt.hashSync('123456', 10),
         phone: config.phone,
         displayName: config.name,
         avatarUrl: config.avatarUrl,
@@ -940,7 +941,7 @@ export async function seedDatabase() {
       username: 'namanh2',
       phone: '0987654321',
       displayName: 'Nam Anh',
-      password: '123456',
+      password: bcrypt.hashSync('123456', 10),
       avatarUrl: null, // Không có avatar, test đúng luồng fallback ký tự đầu
       bio: 'Yêu thú cưng, thích dắt cún dạo mát bờ sông mỗi chiều',
       district: 'Bình Thạnh',

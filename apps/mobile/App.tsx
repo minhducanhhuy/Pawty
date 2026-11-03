@@ -40,7 +40,7 @@ const BOTTOM_TABS: { id: Exclude<MobileMainTab, 'sos'>; label: string; icon: str
   { id: 'profile', label: 'Tôi', icon: 'user' },
 ];
 
-const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
+const SplashBootScreen: React.FC<{ onFinish?: () => void }> = ({ onFinish }) => {
   const runnerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -55,12 +55,10 @@ const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
     );
     runnerLoop.start();
 
-    const timer = setTimeout(onFinish, 3000);
     return () => {
       runnerLoop.stop();
-      clearTimeout(timer);
     };
-  }, [onFinish, runnerAnim]);
+  }, [runnerAnim]);
 
   return (
     <SafeAreaView style={styles.splashContainer} edges={['top', 'bottom']}>
@@ -111,6 +109,7 @@ const MainMobileShell: React.FC = () => {
   const {
     theme,
     isAuthenticated,
+    isAuthLoaded,
     activeTab,
     setActiveTab,
     setSelectedProfileHandle,
@@ -127,7 +126,17 @@ const MainMobileShell: React.FC = () => {
     toastMessage,
   } = useMobilePawty();
 
-  const [isSplashDone, setIsSplashDone] = useState(false);
+  const [minSplashDone, setMinSplashDone] = useState(false);
+
+  useEffect(() => {
+    // Hoạt cảnh mascot chữ P chạy tối thiểu 2.5s để người dùng trải nghiệm trọn vẹn
+    const timer = setTimeout(() => {
+      setMinSplashDone(true);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const isSplashDone = minSplashDone && isAuthLoaded;
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   useEffect(() => {
@@ -150,7 +159,7 @@ const MainMobileShell: React.FC = () => {
   }, [handleHardwareBack]);
 
   if (!isSplashDone) {
-    return <SplashBootScreen onFinish={() => setIsSplashDone(true)} />;
+    return <SplashBootScreen />;
   }
 
   if (!isAuthenticated) {

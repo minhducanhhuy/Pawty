@@ -9,6 +9,11 @@ dotenv.config();
 
 import { PrismaClient } from '@prisma/client';
 import { cloudinaryService } from '../services/cloudinary.service';
+import {
+  hashPassword,
+  verifyAndUpgradePassword,
+  sanitizeUserOutput,
+} from '../utils/auth-crypto';
 
 export const prisma = new PrismaClient();
 
@@ -360,8 +365,9 @@ export class DatabaseService {
         }
       : defaultTinderSetup;
 
+    const { password: _pw, ...safeRawUser } = user;
     return {
-      ...user,
+      ...safeRawUser,
       displayName: cleanDisplayName(user.displayName),
       handle: formatUserHandle(user),
       coverUrl: meta.coverUrl || '',
@@ -389,8 +395,7 @@ export class DatabaseService {
 
   // --- Bootstrap ---
   public async getBootstrapData(currentUserId?: string) {
-    const rawPrimaryUser = await this.getPrimaryUserRaw(currentUserId);
-    if (currentUserId && !rawPrimaryUser) {
+    if (!currentUserId) {
       return {
         user: null,
         pets: [],
@@ -410,7 +415,28 @@ export class DatabaseService {
       };
     }
 
-    const resolvedUserId = rawPrimaryUser?.id || 'user-test1';
+    const rawPrimaryUser = await this.getPrimaryUserRaw(currentUserId);
+    if (!rawPrimaryUser) {
+      return {
+        user: null,
+        pets: [],
+        posts: [],
+        sosAlerts: [],
+        candidates: [],
+        likesYou: [],
+        chats: [],
+        notifications: [],
+        publicProfiles: {},
+        suggestedPeople: [],
+        trendingSuggestions: [],
+        tasks: [],
+        circleMembers: [],
+        reports: [],
+        metrics: { totalUsers: 0, totalPets: 0, totalPosts: 0, activeSos: 0 },
+      };
+    }
+
+    const resolvedUserId = rawPrimaryUser.id;
 
     const [
       userMetaMap,
@@ -441,7 +467,12 @@ export class DatabaseService {
       this.getNotifications(resolvedUserId),
       this.getAllPublicProfiles(resolvedUserId),
       this.getTasks(),
-      prisma.circleMember.findMany({ include: { user: true } }),
+      prisma.circleMember.findMany({ include: { user: true } }).then((cms) =>
+        cms.map((cm) => ({
+          ...cm,
+          user: cm.user ? sanitizeUserOutput(cm.user) : null,
+        }))
+      ),
       prisma.report.findMany({ orderBy: { createdAt: 'desc' } }),
       prisma.user.findMany({
         where: { id: { not: resolvedUserId } },
@@ -761,9 +792,7 @@ export class DatabaseService {
         include: { pets: { include: { vaccinations: true, behaviors: true, careRecords: true } } },
       });
     }
-    return prisma.user.findFirst({
-      include: { pets: { include: { vaccinations: true, behaviors: true, careRecords: true } } },
-    });
+    return null;
   }
 
   public async getPrimaryUser(userId?: string) {
@@ -803,11 +832,20 @@ export class DatabaseService {
   public async authenticateUser(identifier: string, password?: string) {
     const user = await this.findUserByIdentifier(identifier);
     if (!user) return null;
-    if (user.password && password !== undefined) {
-      if (user.password !== password) {
-        return null;
-      }
+    if (!password || !password.trim()) return null;
+    if (!user.password || !user.password.trim()) return null;
+
+    const isValid = await verifyAndUpgradePassword(password, user.password, async (newHash) => {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: newHash },
+      });
+    });
+
+    if (!isValid) {
+      return null;
     }
+
     const [metaMap, followSnap] = await Promise.all([
       this.getUserMetaMap([user.id]),
       this.getFollowSnapshot(),
@@ -834,9 +872,11 @@ export class DatabaseService {
     displayName?: string
   ) {
     if (typeof dataOrPhone === 'string') {
+      const defaultHashedPassword = await hashPassword('123456');
       const created = await prisma.user.create({
         data: {
           phone: dataOrPhone.slice(0, 15),
+          password: defaultHashedPassword,
           displayName: (displayName || `Người dùng ${dataOrPhone.slice(-4)}`).slice(0, 50),
           district: 'TP. Thủ Đức',
           neighborhood: 'Vinhomes Grand Park, TP. Thủ Đức',
@@ -854,11 +894,14 @@ export class DatabaseService {
       return this.getPrimaryUser(created.id);
     }
 
+    const rawPassword = dataOrPhone.password || '123456';
+    const hashedPassword = await hashPassword(rawPassword);
+
     const created = await prisma.user.create({
       data: {
         phone: dataOrPhone.phone.slice(0, 15),
         username: dataOrPhone.username ? dataOrPhone.username.slice(0, 50) : undefined,
-        password: dataOrPhone.password || '123456',
+        password: hashedPassword,
         displayName: (dataOrPhone.displayName || `Người dùng ${dataOrPhone.phone.slice(-4)}`).slice(
           0,
           50
@@ -1136,7 +1179,7 @@ export class DatabaseService {
     return this.formatPetOutput(fullPet);
   }
 
-  public async updatePet(petId: string, data: Record<string, any>) {
+  public async updatePet(petId: string, data: Record<string, any>, userId?: string) {
     const existingPet = await prisma.pet.findUnique({
       where: { id: petId },
       include: { vaccinations: true, behaviors: true, careRecords: true },
@@ -1285,7 +1328,16 @@ export class DatabaseService {
     return this.formatPetOutput(updated);
   }
 
-  public async deletePet(petId: string) {
+  public async deletePet(petId: string, userId?: string) {
+    const existingPet = await prisma.pet.findUnique({ where: { id: petId } });
+    if (!existingPet) {
+      return { success: true };
+    }
+    if (userId && existingPet.ownerId !== userId) {
+      const err = new Error('Bạn không có quyền xóa thú cưng này.');
+      (err as any).statusCode = 403;
+      throw err;
+    }
     await prisma.careRecord.deleteMany({ where: { petId } });
     await prisma.careTask.deleteMany({ where: { petId } });
     await prisma.sosAlert.deleteMany({ where: { petId } });
@@ -1353,7 +1405,7 @@ export class DatabaseService {
 
   // --- Posts, Reactions & Comments ---
   public async getPosts(_currentUserId?: string) {
-    return prisma.post.findMany({
+    const rawPosts = await prisma.post.findMany({
       include: {
         author: true,
         reactions: true,
@@ -1364,6 +1416,17 @@ export class DatabaseService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return rawPosts.map((p) => ({
+      ...p,
+      author: p.author ? sanitizeUserOutput(p.author) : null,
+      comments: Array.isArray(p.comments)
+        ? p.comments.map((c) => ({
+            ...c,
+            author: c.author ? sanitizeUserOutput(c.author) : null,
+          }))
+        : [],
+    }));
   }
 
   public async createPost(data: any) {
@@ -1438,10 +1501,17 @@ export class DatabaseService {
   }
 
   public async deletePost(postId: string, userId?: string) {
+    if (!userId) {
+      const err = new Error('Thiếu thông tin xác thực người dùng.');
+      (err as any).statusCode = 401;
+      throw err;
+    }
     const existing = await prisma.post.findUnique({ where: { id: postId } });
     if (!existing) return { success: true };
-    if (userId && existing.authorId !== userId) {
-      throw new Error('Bạn không có quyền xóa bài viết của người khác.');
+    if (existing.authorId !== userId) {
+      const err = new Error('Bạn không có quyền xóa bài viết của người khác.');
+      (err as any).statusCode = 403;
+      throw err;
     }
     await prisma.post.delete({ where: { id: postId } });
     return { success: true };
@@ -1779,48 +1849,65 @@ export class DatabaseService {
   public async unmatchUsers(userId: string, targetIdentifier: string) {
     const target = await this.resolveUserByHandleOrId(targetIdentifier);
     if (!target) {
-      throw new Error('Không tìm thấy tài khoản cần hủy tương hợp.');
+      const err = new Error('Không tìm thấy tài khoản cần hủy tương hợp.');
+      (err as any).statusCode = 404;
+      throw err;
     }
 
-    // 1. Tìm các cuộc trò chuyện giữa 2 người
-    const convs = await prisma.conversation.findMany({
-      where: {
-        participantIds: { hasEvery: [userId, target.id] },
-      },
-    });
-
-    for (const conv of convs) {
-      // 2. Xóa sạch 100% tin nhắn giữa hai người
-      await prisma.message.deleteMany({
-        where: { conversationId: conv.id },
-      });
-      // 3. Xóa cuộc trò chuyện
-      await prisma.conversation.delete({
-        where: { id: conv.id },
-      });
+    if (userId === target.id) {
+      const err = new Error('Không thể tự hủy tương hợp với chính mình.');
+      (err as any).statusCode = 400;
+      throw err;
     }
 
-    // 4. Xóa các match cũ và ghi nhận trạng thái 'unmatched' vĩnh viễn cho cả 2 chiều
-    await prisma.match.deleteMany({
-      where: {
-        OR: [
-          { userAId: userId, userBId: target.id },
-          { userAId: target.id, userBId: userId },
+    await prisma.$transaction(async (tx) => {
+      // 1. Chỉ tìm và xóa phòng chat hẹn hò (dating) giữa 2 người
+      const datingConvs = await tx.conversation.findMany({
+        where: {
+          type: 'dating',
+          participantIds: { hasEvery: [userId, target.id] },
+        },
+      });
+
+      // Lọc chính xác phòng dating có đúng 2 thành viên là userId và target.id
+      const exactDatingConvs = datingConvs.filter(
+        (c) =>
+          c.participantIds.length === 2 &&
+          c.participantIds.includes(userId) &&
+          c.participantIds.includes(target.id)
+      );
+
+      for (const conv of exactDatingConvs) {
+        await tx.message.deleteMany({
+          where: { conversationId: conv.id },
+        });
+        await tx.conversation.delete({
+          where: { id: conv.id },
+        });
+      }
+
+      // 2. Xóa các match cũ và ghi nhận trạng thái 'unmatched' vĩnh viễn cho cả 2 chiều
+      await tx.match.deleteMany({
+        where: {
+          OR: [
+            { userAId: userId, userBId: target.id },
+            { userAId: target.id, userBId: userId },
+          ],
+        },
+      });
+
+      await tx.match.createMany({
+        data: [
+          { userAId: userId, userBId: target.id, status: 'unmatched' },
+          { userAId: target.id, userBId: userId, status: 'unmatched' },
         ],
-      },
-    });
-
-    await prisma.match.createMany({
-      data: [
-        { userAId: userId, userBId: target.id, status: 'unmatched' },
-        { userAId: target.id, userBId: userId, status: 'unmatched' },
-      ],
-      skipDuplicates: true,
+        skipDuplicates: true,
+      });
     });
 
     return {
       success: true,
-      message: 'Đã hủy tương hợp, xóa toàn bộ tin nhắn và ẩn người dùng khỏi kết quả tìm kiếm.',
+      message: 'Đã hủy tương hợp, xóa phòng hẹn hò và giữ nguyên phòng xã hội.',
       targetId: target.id,
       targetHandle: formatUserHandle(target),
     };
@@ -1949,13 +2036,17 @@ export class DatabaseService {
 
   // --- SOS Alerts (100% Free + AI Photo Description Only) ---
   public async getSosAlerts() {
-    return prisma.sosAlert.findMany({
+    const alerts = await prisma.sosAlert.findMany({
       include: {
         user: true,
         pet: true,
       },
       orderBy: { createdAt: 'desc' },
     });
+    return alerts.map((a) => ({
+      ...a,
+      user: a.user ? sanitizeUserOutput(a.user) : null,
+    }));
   }
 
   public async createSosAlert(data: any) {
@@ -2107,13 +2198,27 @@ export class DatabaseService {
     return { sighting: newItem, sos: updatedSos };
   }
 
-  public async markSosResolved(sosId: string) {
+  public async markSosResolved(sosId: string, userId?: string) {
+    const sos = await prisma.sosAlert.findUnique({ where: { id: sosId } });
+    if (!sos) {
+      const err = new Error('Không tìm thấy tin báo SOS.');
+      (err as any).statusCode = 404;
+      throw err;
+    }
+    if (userId && sos.userId !== userId) {
+      const err = new Error('Bạn không có quyền đóng tin SOS của người khác.');
+      (err as any).statusCode = 403;
+      throw err;
+    }
     const updated = await prisma.sosAlert.update({
       where: { id: sosId },
       data: { status: 'resolved' },
       include: { user: true, pet: true },
     });
-    return updated;
+    return {
+      ...updated,
+      user: updated.user ? sanitizeUserOutput(updated.user) : null,
+    };
   }
 
   // --- Tinder Candidates, Likes You & Matching ---
@@ -2496,7 +2601,11 @@ export class DatabaseService {
   }
 
   // --- Chats & Messages ---
-  public async canUsersMessageEachOther(userAId: string, userBId: string): Promise<boolean> {
+  public async canUsersMessageEachOther(
+    userAId: string,
+    userBId: string,
+    chatType: 'social' | 'dating' = 'social'
+  ): Promise<boolean> {
     if (!userAId || !userBId || userAId === userBId) return true;
     const rows = await prisma.match.findMany({
       where: {
@@ -2507,8 +2616,8 @@ export class DatabaseService {
       },
     });
 
-    // Nếu đã bỏ match thì chặn vĩnh viễn không cho nhắn tin lại
-    if (rows.some((r) => r.status === 'unmatched')) {
+    // Nếu là phòng hẹn hò và đã bỏ match thì chặn nhắn tin lại
+    if (chatType === 'dating' && rows.some((r) => r.status === 'unmatched')) {
       return false;
     }
     // Mạng xã hội theo kiểu Pinterest / Facebook: nhắn tin mở trực tiếp không cần kết bạn
@@ -2559,8 +2668,8 @@ export class DatabaseService {
           (m.userAId === partnerId && m.userBId === userId)
       );
 
-      // Nếu đã bỏ match thì cuộc trò chuyện đã bị xóa và không bao giờ xuất hiện lại
-      if (pairMatches.some((m) => m.status === 'unmatched')) {
+      // CHỈ bỏ qua phòng chat hẹn hò (dating) nếu đã hủy match, KHÔNG ẩn phòng mạng xã hội (direct)!
+      if (chatType === 'dating' && pairMatches.some((m) => m.status === 'unmatched')) {
         continue;
       }
 
@@ -2644,7 +2753,7 @@ export class DatabaseService {
     if (!partner) {
       throw new Error('Không tìm thấy người dùng để mở cuộc trò chuyện.');
     }
-    const canMsg = await this.canUsersMessageEachOther(userId, partner.id);
+    const canMsg = await this.canUsersMessageEachOther(userId, partner.id, chatType);
     const targetConvType = chatType === 'dating' ? 'dating' : 'direct';
     let conv = await prisma.conversation.findFirst({
       where: {
@@ -2673,7 +2782,20 @@ export class DatabaseService {
     };
   }
 
-  public async getChatMessages(conversationId: string) {
+  public async getChatMessages(conversationId: string, userId?: string) {
+    const conv = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+    if (!conv) {
+      const err = new Error('Không tìm thấy cuộc trò chuyện.');
+      (err as any).statusCode = 404;
+      throw err;
+    }
+    if (userId && !conv.participantIds.includes(userId)) {
+      const err = new Error('Bạn không có quyền truy cập vào phòng chat này.');
+      (err as any).statusCode = 403;
+      throw err;
+    }
     return prisma.message.findMany({
       where: { conversationId },
       orderBy: { createdAt: 'asc' },
@@ -2721,6 +2843,12 @@ export class DatabaseService {
       where: { id: conversationId },
     });
 
+    if (conv && !conv.participantIds.includes(senderId)) {
+      const err = new Error('Bạn không phải là thành viên của cuộc trò chuyện này.');
+      (err as any).statusCode = 403;
+      throw err;
+    }
+
     if (!conv) {
       const targetUser = await this.resolveUserByHandleOrId(conversationId);
       const partnerId = targetUser?.id || conversationId;
@@ -2752,7 +2880,7 @@ export class DatabaseService {
 
     const partnerId = conv.participantIds.find((id) => id !== senderId);
     if (partnerId) {
-      const allowed = await this.canUsersMessageEachOther(senderId, partnerId);
+      const allowed = await this.canUsersMessageEachOther(senderId, partnerId, conv.type === "dating" ? "dating" : "social");
       if (!allowed) {
         const err = new Error(
           'Hai bạn đã hủy kết bạn nên không thể tiếp tục nhắn tin cho nhau.'
@@ -2791,10 +2919,15 @@ export class DatabaseService {
     };
   }
 
-  public async clearConversationMessages(conversationId: string, _userId?: string) {
+  public async clearConversationMessages(conversationId: string, userId?: string) {
     const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
     if (!conv) {
       return { success: true, deletedCount: 0 };
+    }
+    if (userId && !conv.participantIds.includes(userId)) {
+      const err = new Error('Bạn không có quyền xóa tin nhắn trong phòng chat này.');
+      (err as any).statusCode = 403;
+      throw err;
     }
     const deleted = await prisma.message.deleteMany({
       where: { conversationId: conv.id },

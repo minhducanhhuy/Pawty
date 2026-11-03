@@ -56,6 +56,10 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
     setImageError(false);
   }, [candidate?.id, photoIdx, currentSlide?.imageUrl]);
 
+  if (!candidate || !currentSlide) {
+    return null;
+  }
+
   const isOwnerSlide = currentSlide?.type === 'owner';
   const fallbackUrl = isOwnerSlide
     ? (candidate.gender === 'Nam' ? FALLBACK_OWNER_MALE : FALLBACK_OWNER_FEMALE)
@@ -128,7 +132,7 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
             </View>
           )}
 
-          {currentSlide.type === 'owner' ? (
+          {currentSlide?.type === 'owner' ? (
             <>
               {candidate.intent === 'dating' ? (
                 <View style={[styles.intentBadge, styles.datingBadge]}>
@@ -161,7 +165,7 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
               {/* Badge bé thú cưng đang hiển thị */}
               <View style={styles.petActiveSlideBadge}>
                 <Text style={styles.petActiveSlideBadgeText}>
-                  🐾 Bé cưng {currentSlide.petIndex}/{currentSlide.totalPets}
+                  🐾 Bé cưng {currentSlide?.petIndex}/{currentSlide?.totalPets}
                 </Text>
               </View>
 
@@ -178,25 +182,25 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
         {/* Nội dung thông tin chi tiết đáy thẻ */}
         <View style={styles.infoContentRow}>
           <View style={styles.infoTextColumn}>
-            {currentSlide.type === 'owner' ? (
+            {currentSlide?.type === 'owner' ? (
               <>
                 {/* 1. THÔNG TIN CHỦ NUÔI */}
                 <Text style={styles.primaryTitle} numberOfLines={1}>
-                  {currentSlide.ownerName}, {currentSlide.ownerAge}
+                  {currentSlide?.ownerName}, {currentSlide?.ownerAge}
                 </Text>
                 <Text style={styles.secondaryMeta} numberOfLines={1}>
-                  {currentSlide.area || 'Cộng đồng Pawty'}
-                  {currentSlide.gender ? ` · ${currentSlide.gender}` : ''}
+                  {currentSlide?.area || 'Cộng đồng Pawty'}
+                  {currentSlide?.gender ? ` · ${currentSlide?.gender}` : ''}
                 </Text>
                 <View style={styles.distanceBadgeRow}>
                   <Feather name="navigation" size={12} color="#A3E4D7" />
                   <Text style={styles.distanceBadgeText}>
-                    Cách bạn {currentSlide.distanceKm} km
+                    Cách bạn {currentSlide?.distanceKm} km
                   </Text>
                 </View>
-                {currentSlide.bio ? (
+                {currentSlide?.bio ? (
                   <Text style={styles.tertiarySub} numberOfLines={2}>
-                    {currentSlide.bio}
+                    {currentSlide?.bio}
                   </Text>
                 ) : null}
               </>
@@ -211,12 +215,12 @@ export const TinderCardSurface: React.FC<TinderCardSurfaceProps> = ({
                   {currentSlide.pet?.weightKg ? `· ${currentSlide.pet.weightKg} kg` : ''}
                 </Text>
                 <Text style={styles.tertiarySub} numberOfLines={1}>
-                  Bé cưng của {currentSlide.ownerName} ({currentSlide.ownerAge}t)
+                  Bé cưng của {currentSlide?.ownerName} ({currentSlide?.ownerAge}t)
                 </Text>
                 <View style={styles.distanceBadgeRow}>
                   <Feather name="navigation" size={12} color="#A3E4D7" />
                   <Text style={styles.distanceBadgeText}>
-                    Cách bạn {currentSlide.distanceKm} km
+                    Cách bạn {currentSlide?.distanceKm} km
                   </Text>
                 </View>
               </>

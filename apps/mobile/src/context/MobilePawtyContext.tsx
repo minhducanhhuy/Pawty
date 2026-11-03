@@ -1211,7 +1211,16 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setThemeIdState('warm_cream');
         if (savedAuth) {
           const parsed = JSON.parse(savedAuth);
-          if (parsed && parsed.isAuthenticated && parsed.userId) {
+          // Kiểm tra phiên có token xác thực hợp lệ (không chấp nhận token demo hoặc chỉ có userId)
+          if (
+            parsed &&
+            parsed.isAuthenticated &&
+            parsed.userId &&
+            parsed.token &&
+            parsed.token !== 'jwt-pawty-access-token'
+          ) {
+            apiClient.setAuthToken(parsed.token);
+            setCurrentUserId(parsed.userId);
             setHasSavedSession(true);
             setSavedSessionIdentifier(
               parsed.identifier ||
@@ -1222,23 +1231,43 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
             if (parsed.ownerName) setOwnerName(parsed.ownerName);
             if (parsed.ownerHandle) setOwnerHandle(parsed.ownerHandle);
             if (parsed.ownerBio) setOwnerBio(parsed.ownerBio);
+            setActiveDeviceSessionId(
+              parsed.deviceSessionId ||
+                `DEV-${Platform.OS.toUpperCase()}-${Date.now().toString().slice(-6)}`
+            );
+            // Đánh dấu đã xác thực ngay và vào thẳng Tab Khám phá (Zero-friction auto-login)
+            setIsAuthenticated(true);
+            setActiveTabState('explore');
+            setTabHistory(['explore']);
 
+            // Tải dữ liệu mới nhất ngầm từ PostgreSQL mà không ngắt phiên đăng nhập
             try {
               await refreshData(parsed.userId, true);
-              setActiveDeviceSessionId(
-                parsed.deviceSessionId ||
-                  `DEV-${Platform.OS.toUpperCase()}-${Date.now().toString().slice(-6)}`
-              );
               setBootAuthError(null);
-              setIsAuthenticated(true);
             } catch (dbErr: any) {
-              console.warn('[Pawty Auth] Không thể kết nối DB khi khôi phục phiên:', dbErr);
-              setIsAuthenticated(false);
-              setBootAuthError(
-                dbErr?.message ||
-                  'Không thể kết nối Cơ sở dữ liệu PostgreSQL. Vui lòng kiểm tra kết nối và đăng nhập lại.'
-              );
+              console.warn('[Pawty Auth] Không thể kết nối DB khi tải dữ liệu nền:', dbErr);
+              const errMsg = String(dbErr?.message || '');
+              const isNetworkError =
+                errMsg.includes('Không thể kết nối') ||
+                errMsg.includes('Network request failed') ||
+                errMsg.includes('Failed to fetch') ||
+                errMsg.includes('Timeout');
+
+              if (!isNetworkError && (dbErr?.status === 401 || errMsg.includes('401') || errMsg.includes('Phiên đăng nhập'))) {
+                console.warn('[Pawty Auth] Token phiên không còn hợp lệ trên máy chủ. Yêu cầu đăng nhập lại.');
+                setIsAuthenticated(false);
+                setHasSavedSession(false);
+                apiClient.setAuthToken(null);
+                await AsyncStorage.removeItem(STORAGE_KEY_AUTH);
+              }
             }
+          } else if (parsed && parsed.isAuthenticated) {
+            // Phiên cũ thiếu token xác thực hợp lệ -> yêu cầu đăng nhập lại một lần
+            console.log('[Pawty Auth] Phiên cũ thiếu token hợp lệ. Yêu cầu đăng nhập lại.');
+            setIsAuthenticated(false);
+            setHasSavedSession(false);
+            apiClient.setAuthToken(null);
+            await AsyncStorage.removeItem(STORAGE_KEY_AUTH);
           }
         }
       } catch (err) {
@@ -1526,6 +1555,11 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         ? `@${dbUser.username}`
         : `@${(dbUser.displayName || 'user').toLowerCase().replace(/\s+/g, '')}`;
 
+      // Gắn phiên hợp lệ TRƯỚC LẦN TẢI ĐẦU TIÊN (bootstrap qua refreshData)
+      if (authRes.token) {
+        apiClient.setAuthToken(authRes.token);
+      }
+
       await refreshData(dbUser.id, true);
 
       setBootAuthError(null);
@@ -1543,6 +1577,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
           JSON.stringify({
             isAuthenticated: true,
             userId: dbUser.id,
+            token: authRes.token,
             identifier: dbUser.username || dbUser.phone || '',
             deviceSessionId: nextSessionId,
             ownerName: dbUser.displayName,
@@ -1561,6 +1596,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 
   const logoutUser = useCallback(async () => {
+    apiClient.setAuthToken(null);
     setIsAuthenticated(false);
     setHasSavedSession(false);
     setSavedSessionIdentifier('');
@@ -2673,18 +2709,12 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
             showToast(`Đã làm mới ${fresh.length} hồ sơ kết nối!`);
           }
         } else {
-          setSwipedCandidateHistory((prevHistory) => {
-            if (prevHistory.length > 0) {
-              setTinderCandidates(prevHistory);
-              if (!silent) {
-                showToast('Đã làm mới lại hồ sơ phù hợp!');
-              }
-            }
-            return [];
-          });
-
-
-          if (!silent) {
+          // Khi đã lướt hết toàn bộ thẻ: giải phóng swipedCandidateIdsRef để có cọc thẻ vô tận (Infinite deck loop)
+          swipedCandidateIdsRef.current.clear();
+          const recycled = Array.isArray(freshRaw) && freshRaw.length > 0 ? freshRaw : [];
+          setTinderCandidates(recycled);
+          setSwipedCandidateHistory([]);
+          if (!silent && recycled.length > 0) {
             showToast('Đã làm mới lại hồ sơ phù hợp!');
           }
         }

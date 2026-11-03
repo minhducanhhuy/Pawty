@@ -48,30 +48,16 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
 }) => {
   const insets = useSafeAreaInsets();
 
-  if (!candidate) return null;
-
-  // Xử lý Safe Area Insets chuẩn Android & iOS
-  const androidStatusHeight = StatusBar.currentHeight || 28;
-  const topInset = Platform.OS === 'android' ? Math.max(insets.top, androidStatusHeight) : insets.top;
-  const bottomInset =
-    Platform.OS === 'android' ? Math.max(insets.bottom, 24) : Math.max(insets.bottom, 16);
-
-  // Danh sách slides: Ảnh chủ nuôi -> Ảnh các bé thú cưng
-  const slides = useMemo(() => getCandidateSlides(candidate), [candidate]);
-
-  const currentSlide = slides[activePhotoIdx % Math.max(slides.length, 1)] || slides[0];
-  const isOwnerSlide = currentSlide?.type === 'owner';
-  const defaultPhoto = isOwnerSlide
-    ? (candidate.gender === 'Nam' ? FALLBACK_OWNER_MALE : FALLBACK_OWNER_FEMALE)
-    : (currentSlide?.pet?.species === 'Mèo' ? FALLBACK_PET_CAT : FALLBACK_PET_DOG);
-  const currentPhoto = currentSlide?.imageUrl || defaultPhoto;
+  // Danh sách slides: Ảnh chủ nuôi -> Ảnh các bé thú cưng (Hooks luôn gọi trước mọi early return)
+  const slides = useMemo(() => (candidate ? getCandidateSlides(candidate) : []), [candidate]);
 
   // Tiêu đề đầu trang: Ưu tiên tên các bé thú cưng
   const petHeaderTitle = useMemo(() => {
+    if (!candidate) return '';
     if (candidate.pets && candidate.pets.length > 0) {
       return candidate.pets.map((p) => p.name).join(' & ');
     }
-    return candidate.ownerName.replace(/\s*\(@[^)]+\)/g, '').trim();
+    return candidate.ownerName ? candidate.ownerName.replace(/\s*\(@[^)]+\)/g, '').trim() : '';
   }, [candidate]);
 
   const cleanOwnerName = useMemo(() => {
@@ -90,6 +76,22 @@ export const TinderProfileDetailModal: React.FC<TinderProfileDetailModalProps> =
     if (!clean || clean.toLowerCase() === cleanOwnerName.toLowerCase()) return '';
     return clean;
   }, [candidate, cleanOwnerName]);
+
+  // Early return CHỈ ĐƯỢC ĐẶT SAU KHI TẤT CẢ CÁC HOOKS ĐÃ CHẠY (Tuân thủ Rules of Hooks)
+  if (!candidate) return null;
+
+  // Xử lý Safe Area Insets chuẩn Android & iOS
+  const androidStatusHeight = StatusBar.currentHeight || 28;
+  const topInset = Platform.OS === 'android' ? Math.max(insets.top, androidStatusHeight) : insets.top;
+  const bottomInset =
+    Platform.OS === 'android' ? Math.max(insets.bottom, 24) : Math.max(insets.bottom, 16);
+
+  const currentSlide = slides[activePhotoIdx % Math.max(slides.length, 1)] || slides[0];
+  const isOwnerSlide = currentSlide?.type === 'owner';
+  const defaultPhoto = isOwnerSlide
+    ? (candidate.gender === 'Nam' ? FALLBACK_OWNER_MALE : FALLBACK_OWNER_FEMALE)
+    : (currentSlide?.pet?.species === 'Mèo' ? FALLBACK_PET_CAT : FALLBACK_PET_DOG);
+  const currentPhoto = currentSlide?.imageUrl || defaultPhoto;
 
   return (
     <Modal

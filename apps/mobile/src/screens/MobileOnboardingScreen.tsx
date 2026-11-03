@@ -41,9 +41,7 @@ export const MobileOnboardingScreen: React.FC = () => {
     showToast,
   } = useMobilePawty();
 
-  const [mode, setMode] = useState<'welcome' | 'login' | 'register' | 'pet_setup'>(
-    hasSavedSession ? 'welcome' : 'login'
-  );
+  const [mode, setMode] = useState<'login' | 'register' | 'pet_setup'>('login');
   const [identifierInput, setIdentifierInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -255,103 +253,10 @@ export const MobileOnboardingScreen: React.FC = () => {
           <BubbleBouncingText />
         </View>
 
-        {mode === 'welcome' && hasSavedSession && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Chào mừng bạn quay lại</Text>
-
-            {authError && (
-              <View style={styles.errorBox}>
-                <Feather name="alert-triangle" size={15} color="#D32F2F" />
-                <Text style={styles.errorText}>{authError}</Text>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={[
-                styles.savedAccountBox,
-                isLoading && { opacity: 0.7 },
-              ]}
-              disabled={isLoading}
-              onPress={async () => {
-                setAuthError(null);
-                setIsLoading(true);
-                try {
-                  await loginOrRegister({
-                    identifier: savedSessionIdentifier || ownerHandle.replace(/^@/, ''),
-                  });
-                } catch (err: any) {
-                  setAuthError(
-                    err?.message ||
-                    'Không thể kết nối Cơ sở dữ liệu PostgreSQL để đăng nhập.'
-                  );
-                } finally {
-                  setIsLoading(false);
-                }
-              }}
-            >
-              <View style={[styles.savedAvatar, { backgroundColor: theme.primary }]}>
-                <Feather name="user" size={20} color="#FFFFFF" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.savedName}>{ownerName || savedSessionIdentifier}</Text>
-                <Text style={styles.savedMeta} numberOfLines={1}>
-                  {ownerBio || 'Cư dân Pawty'}
-                </Text>
-              </View>
-              <View style={[styles.enterBadge, { backgroundColor: theme.primary }]}>
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Text style={styles.enterBadgeText}>Vào thẳng</Text>
-                    <Feather name="arrow-right" size={13} color="#FFFFFF" />
-                  </>
-                )}
-              </View>
-            </TouchableOpacity>
-
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>hoặc sử dụng tài khoản khác</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
-              onPress={() => {
-                setAuthError(null);
-                setMode('register');
-              }}
-            >
-              <Feather name="user-plus" size={16} color="#FFFFFF" />
-              <Text style={styles.primaryBtnText}>Tạo tài khoản mới</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryBtn}
-              onPress={() => {
-                setAuthError(null);
-                setMode('login');
-              }}
-            >
-              <Feather name="log-in" size={16} color="#4A3F35" />
-              <Text style={styles.secondaryBtnText}>Đăng nhập bằng SĐT hoặc Tên tài khoản</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {(mode === 'login' || (mode === 'welcome' && !hasSavedSession)) && (
+        {mode === 'login' && (
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
               <Text style={styles.sectionTitle}>Chào mừng bạn đến với Pawty!</Text>
-              {hasSavedSession && (
-                <TouchableOpacity onPress={() => {
-                  setAuthError(null);
-                  setMode('welcome');
-                }}>
-                  <Text style={[styles.backLink, { color: theme.primary }]}>Quay lại</Text>
-                </TouchableOpacity>
-              )}
             </View>
 
 
@@ -437,7 +342,7 @@ export const MobileOnboardingScreen: React.FC = () => {
               <Text style={styles.sectionTitle}>Tạo tài khoản mới</Text>
               <TouchableOpacity onPress={() => {
                 setAuthError(null);
-                setMode(hasSavedSession ? 'welcome' : 'login');
+                setMode('login');
               }}>
                 <Text style={[styles.backLink, { color: theme.primary }]}>Quay lại</Text>
               </TouchableOpacity>

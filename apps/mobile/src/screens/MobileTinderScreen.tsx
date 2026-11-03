@@ -55,8 +55,8 @@ export const MobileTinderScreen: React.FC = () => {
     poolIndexRef.current = initial.length;
   }, [tinderCandidates]);
 
-  const currentCandidate = activeQueue.length > 0 ? activeQueue[0] : null;
-  const nextCandidate = activeQueue.length > 1 ? activeQueue[1] : null;
+  const currentCandidate = activeQueue.length > 0 && activeQueue[0] ? activeQueue[0] : null;
+  const nextCandidate = activeQueue.length > 1 && activeQueue[1] ? activeQueue[1] : null;
 
   const activeGoalLabel =
     tinderFilterGoal === 'all'
@@ -93,11 +93,13 @@ export const MobileTinderScreen: React.FC = () => {
 
     // Khi người dùng quẹt 1 thẻ: giải phóng thẻ cũ và nạp ngay 1 thẻ tiếp theo từ pool vào hàng chờ
     setActiveQueue((prev) => {
-      const remaining = prev.filter((c) => c.id !== candidateId);
+      const remaining = prev.filter((c) => Boolean(c) && c.id !== candidateId);
       if (poolIndexRef.current < tinderCandidates.length) {
         const nextFromPool = tinderCandidates[poolIndexRef.current];
         poolIndexRef.current += 1;
-        return [...remaining, nextFromPool];
+        if (nextFromPool) {
+          return [...remaining, nextFromPool];
+        }
       }
       return remaining;
     });

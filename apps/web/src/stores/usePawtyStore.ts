@@ -39,12 +39,24 @@ const API_BASE =
   ((import.meta as unknown as { env?: Record<string, string> }).env
     ?.VITE_API_URL as string) || "http://localhost:3000/api";
 
+let currentWebAuthToken: string | null = null;
+
+export function setWebAuthToken(token: string | null) {
+  currentWebAuthToken = token;
+}
+
+export function getWebAuthToken(): string | null {
+  return currentWebAuthToken;
+}
+
 async function requestBackendApi(path: string, options?: RequestInit): Promise<any> {
   let response: Response;
+  const token = currentWebAuthToken;
   try {
     response = await fetch(`${API_BASE}${path}`, {
       headers: {
         "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options?.headers || {}),
       },
       ...options,
@@ -182,7 +194,9 @@ interface PawtyAppState {
   hasCompletedOnboarding: boolean;
   hasSavedSession: boolean;
   savedSessionUserId: string;
+  authToken: string | null;
   bootAuthError: string | null;
+  setAuthToken: (token: string | null) => void;
   themeId: WebThemeId;
   activeTab: BottomTabId;
   exploreSubTab: ExploreSubTabId;
@@ -474,7 +488,12 @@ export const usePawtyStore = create<PawtyAppState>()(
       hasCompletedOnboarding: false,
       hasSavedSession: false,
       savedSessionUserId: "",
+      authToken: null,
       bootAuthError: null,
+      setAuthToken: (token: string | null) => {
+        setWebAuthToken(token);
+        set({ authToken: token });
+      },
       themeId: "coral",
       activeTab: "explore",
       exploreSubTab: "feed",
@@ -541,21 +560,55 @@ export const usePawtyStore = create<PawtyAppState>()(
           // Ignore storage cleanup failure in restricted contexts
         }
 
-        const { savedSessionUserId, hasSavedSession } = get();
+        const { savedSessionUserId, hasSavedSession, authToken } = get();
         if (!hasSavedSession || !savedSessionUserId) {
           return;
         }
 
-        try {
-          await get().hydrateFromServer(savedSessionUserId, true);
-          set({ bootAuthError: null });
-        } catch (err: any) {
+        // Nếu thiết bị cũ chỉ lưu userId hoặc token demo -> yêu cầu đăng nhập lại
+        if (!authToken || authToken === 'jwt-pawty-access-token') {
+          setWebAuthToken(null);
           set({
             hasCompletedOnboarding: false,
-            bootAuthError:
-              err?.message ||
-              "Không thể kết nối cơ sở dữ liệu PostgreSQL để khôi phục phiên đăng nhập.",
+            hasSavedSession: false,
+            savedSessionUserId: "",
+            authToken: null,
+            bootAuthError: "Phiên đăng nhập cũ đã hết hiệu lực. Vui lòng đăng nhập lại.",
           });
+          return;
+        }
+
+        setWebAuthToken(authToken);
+
+        try {
+          await get().hydrateFromServer(savedSessionUserId, true);
+          set({
+            hasCompletedOnboarding: true,
+            hasSavedSession: true,
+            bootAuthError: null,
+          });
+        } catch (err: any) {
+          const errMsg = String(err?.message || '');
+          const isNetworkError =
+            errMsg.includes("Không thể kết nối") ||
+            errMsg.includes("Failed to fetch") ||
+            errMsg.includes("NetworkError");
+
+          if (!isNetworkError) {
+            setWebAuthToken(null);
+            set({
+              hasCompletedOnboarding: false,
+              hasSavedSession: false,
+              savedSessionUserId: "",
+              authToken: null,
+              bootAuthError: errMsg || "Phiên đăng nhập không hợp lệ.",
+            });
+          } else {
+            // Lỗi mạng tạm thời không được làm mất phiên hợp lệ
+            set({
+              bootAuthError: errMsg,
+            });
+          }
         }
       },
 
@@ -902,11 +955,19 @@ export const usePawtyStore = create<PawtyAppState>()(
         });
 
         const registeredUser = res?.user;
-        if (!registeredUser?.id) {
+        const authToken = res?.token;
+        if (!registeredUser?.id || !authToken) {
           throw new Error(
             "Không thể khởi tạo tài khoản trên cơ sở dữ liệu PostgreSQL."
           );
         }
+
+        // Gắn phiên hợp lệ TRƯỚC LẦN TẢI ĐẦU TIÊN (bootstrap)
+        setWebAuthToken(authToken);
+        set({
+          authToken,
+          savedSessionUserId: registeredUser.id,
+        });
 
         await get().hydrateFromServer(registeredUser.id, true);
 
@@ -914,6 +975,7 @@ export const usePawtyStore = create<PawtyAppState>()(
           hasCompletedOnboarding: true,
           hasSavedSession: true,
           savedSessionUserId: registeredUser.id,
+          authToken,
           bootAuthError: null,
           activeTab: "explore",
           activeModal: null,
@@ -927,7 +989,15 @@ export const usePawtyStore = create<PawtyAppState>()(
         );
       },
 
-      restartOnboardingDemo: () => set({ hasCompletedOnboarding: false }),
+      restartOnboardingDemo: () => {
+        setWebAuthToken(null);
+        set({
+          hasCompletedOnboarding: false,
+          hasSavedSession: false,
+          savedSessionUserId: "",
+          authToken: null,
+        });
+      },
 
       loginWithSavedSession: async () => {
         const { savedSessionUserId } = get();
@@ -961,9 +1031,17 @@ export const usePawtyStore = create<PawtyAppState>()(
         });
 
         const authUser = res?.user;
-        if (!authUser?.id) {
+        const authToken = res?.token;
+        if (!authUser?.id || !authToken) {
           throw new Error("Thông tin đăng nhập không hợp lệ.");
         }
+
+        // Gắn phiên hợp lệ TRƯỚC LẦN TẢI ĐẦU TIÊN (bootstrap)
+        setWebAuthToken(authToken);
+        set({
+          authToken,
+          savedSessionUserId: authUser.id,
+        });
 
         await get().hydrateFromServer(authUser.id, true);
 
@@ -971,6 +1049,7 @@ export const usePawtyStore = create<PawtyAppState>()(
           hasCompletedOnboarding: true,
           hasSavedSession: true,
           savedSessionUserId: authUser.id,
+          authToken,
           bootAuthError: null,
           activeTab: "explore",
         });
@@ -2074,7 +2153,13 @@ export const usePawtyStore = create<PawtyAppState>()(
         themeId: state.themeId,
         hasSavedSession: state.hasSavedSession,
         savedSessionUserId: state.savedSessionUserId,
+        authToken: state.authToken,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.authToken) {
+          setWebAuthToken(state.authToken);
+        }
+      },
     }
   )
 );

@@ -155,6 +155,10 @@
   - Triệt tiêu 100% hiện tượng tin nhắn chớp nháy, biến mất rồi mới hiện lại sau khi database đám mây hoàn tất ghi.
 
 ### 2.7 Giao Diện Đăng Nhập & Onboarding Chuẩn Nhận Diện Mới (Playful Minimalism)
+- **Cơ Chế Ghi Nhớ Phiên Đăng Nhập & Tự Động Vào Thẳng Khám Phá (Zero-Friction Auto-Login):**
+  - Khi thiết bị đã có phiên đăng nhập hợp lệ trong máy (`AsyncStorage`), ngay khi màn hình Splash khởi động (`SplashBootScreen`) hoàn tất hoạt cảnh mascot, hệ thống sẽ tự động khôi phục dữ liệu phiên và **tiến thẳng vào Tab Khám phá (`explore`)**.
+  - **Loại bỏ hoàn toàn bước chạm trung gian:** Gỡ bỏ thẻ *"Chào mừng bạn quay lại"* và nút *"Vào thẳng ->"*. Người dùng mở app là vào thẳng không gian cộng đồng nuôi thú cưng mượt mà, không gián đoạn.
+  - Màn hình Onboarding/Đăng nhập chỉ hiển thị khi người dùng lần đầu cài đặt ứng dụng hoặc đã chủ động bấm **"Đăng xuất"** từ Tab Tôi.
 - **Bảo tồn hệ màu thương hiệu:** Nền kem ấm áp `#FDFBF7`, điểm nhấn san hô `#FF6F61` và xanh mint `#A3E4D7`.
 - **Hòa nền Wordmark Logo:** Tuyệt đối không đóng khung chữ trong bất kỳ hình bo tròn, hình oval hay thẻ card nào. Hiệu ứng phát sáng mờ ảo bám sát theo từng chữ cái (`drop-shadow glow`) trên nền kem ấm `#FDFBF7`.
 - **Loại bỏ đường viền bo tròn màu cam nhạt:** Thẻ lưu tài khoản (`savedAccountBox`) và các khối form loại bỏ viền cam (`borderWidth: 0`), chuyển sang giao diện phẳng hiện đại, tinh tế.
