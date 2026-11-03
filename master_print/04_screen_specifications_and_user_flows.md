@@ -79,21 +79,34 @@
 - **Đồng nhất tuyệt đối bố cục Hồ sơ giữa "Bản thân tự nhìn" và "Người ngoài nhìn vào":**
   - Khi người dùng bấm xem trang cá nhân của người khác từ **Khám phá**, **Tin nhắn**, **Kết nối (Tinder)**, **SOS**, hoặc **Thông báo**, hệ thống điều hướng về đúng giao diện chuẩn của **`MobileProfileScreen`**.
 
-### 2.6 Màn Hình Khởi Động Mobile (Splash Screen) & Hoạt Ảnh Mascot Frame-by-Frame (Hình 5)
+### 2.6 Màn Hình Khởi Động Mobile (Splash Screen), Hoạt Ảnh Mascot Frame-by-Frame & Bộ Loading Xoay Tròn (Pawty Loading Spinner)
 - **Quy chuẩn Splash Screen Mobile:**
   - **Màu nền toàn màn hình:** `#FDFBF7` (trắng kem ấm áp thương hiệu Pawty).
+  - **Thời gian chờ khởi động (Splash Boot Delay):** Kéo dài 8000ms (3s mặc định + 5s delay mở rộng theo yêu cầu người dùng) để trải nghiệm trọn vẹn chu kỳ hoạt cảnh chữ P đáng yêu trước khi chuyển tiếp vào màn hình chính / đăng nhập.
   - **Cụm đầu trang (Đẩy lên trên một chút):** Chữ Pawty hòa trực tiếp vào nền kem với hiệu ứng phát sáng mờ ảo bám sát từng nét chữ (`letter-contour drop-shadow blur`), tiêu đề "Những bàn chân nhỏ đang tới" màu san hô `#FF6F61` và dòng chữ nhỏ "Mạng xã hội kết nối người nuôi thú cưng" màu xám ấm `#7A6E63`.
-  - **Hoạt cảnh Mascot Chữ P Frame-by-Frame (Vị trí ô 1):**
+  - **Hoạt cảnh Mascot Chữ P Frame-by-Frame Mượt Mà (Vị trí ô 1):**
     - Tách riêng nguyên chữ P từ 4 hình gốc của người dùng, loại bỏ đường gạch chân và thanh bar cũ.
-    - Hoạt cảnh lặp tuần hoàn 4 khung hình chuyển động siêu đáng yêu:
-      1. Khung 1: Chữ P đứng vẫy nón sinh nhật vui tươi.
-      2. Khung 2: Chữ P nghiêng người chạy tăng tốc với nón ngủ vẫy theo gió.
-      3. Khung 3: Chữ P nằm bẹp ngủ say kèm bọt khí "z z Z".
-      4. Khung 4: Chữ P thức dậy phóng vụt về phía trước.
-    - Chuyển khung mượt mà mỗi ~300ms, căn chỉnh chân chữ P đồng phẳng mặt sàn, không giật hình.
+    - Hoạt cảnh lặp tuần hoàn 4 khung hình chuyển động siêu đáng yêu với hiệu ứng hòa mờ mượt mà (`Crossfade Opacity Transition`) và nhún nhảy hoạt hình nhẹ nhàng (`organic idle bounce`):
+      1. Khung 1: Chữ P đứng vẫy nón sinh nhật vui tươi (450ms).
+      2. Khung 2: Chữ P nghiêng người chạy tăng tốc với nón ngủ vẫy theo gió (380ms).
+      3. Khung 3: Chữ P nằm bẹp ngủ say kèm bọt khí "z z Z" (650ms).
+      4. Khung 4: Chữ P thức dậy phóng vụt về phía trước (380ms).
+    - Căn chỉnh chân chữ P đồng phẳng mặt sàn, hiệu ứng chuyển khung có làm mờ chuyển tiếp triệt tiêu giật hình.
   - **Thanh chạy tiến trình liên tiếp (Vị trí ô 2):**
     - Nằm ngay dưới hoạt cảnh mascot chữ P: Thanh chạy liên tiếp vô tận (`continuous indeterminate running bar`) với vệt san hô `#FF6F61` trượt tuần hoàn từ trái sang phải trên rãnh mờ, tạo cảm giác tải ứng dụng sống động.
     - Dưới cùng là dòng trạng thái tải: `ĐANG KẾT NỐI CỘNG ĐỒNG BOSS...` màu `#A89F95` dãn chữ (`letterSpacing: 1.5`).
+
+- **Bộ Biểu Tượng Tải Ứng Dụng (Pawty Loading Spinner & Loading State):**
+  - **Biểu tượng xoay tròn ribbon (PawtySpinner):**
+    - Sử dụng hình ảnh vòng dải băng san hô & xanh mint uốn lượn kèm biểu tượng chữ 'z z Z' đáng yêu (`pawty-spinner.png`).
+    - Hoạt cảnh xoay tròn 360 độ liên tục vô tận (`continuous 360-degree rotation`, chu kỳ 2000ms), xoay quanh đúng tâm hình học đồng trục.
+  - **Dòng thông điệp tải kèm hiệu ứng 3 chấm nhảy tuần tự (`PawtyLoadingState`):**
+    - Câu thông điệp dễ thương: `"Đợi Pawty xíu nha..."`.
+    - Dấu 3 chấm xuất hiện tuần tự từng dấu chấm một và lặp lại (`""` -> `"."` -> `".."` -> `"..."`, chu kỳ ~400ms/nhịp).
+  - **Phạm vi áp dụng trong ứng dụng (In-App Loading):**
+    - Kéo làm mới bảng tin Khám phá (`Pull-to-refresh Explore Feed`) khi mạng yếu hoặc tắt Wi-Fi.
+    - Trạng thái chờ tải dữ liệu ban đầu của Bảng tin, Kết nối ghép đôi và Trang cá nhân.
+    - Modal xác thực hoặc chờ phản hồi từ máy chủ.
 - **Hiệu ứng Logo Chữ Viết Cọ Mực (Calligraphy Brush Reveal & Dog Tail Wag):**
   - **Khắc phục triệt để lỗi đứt gãy khớp đuôi chữ Y:** Neo tâm quay chuẩn xác tại tọa độ tiếp giáp đuôi và thân chữ Y (`transform-origin: 66.4% 67.4% 0px`), đảm bảo khi lắc đuôi góc từ `-8deg` đến `+11deg`, khớp nối hoàn toàn liền mạch không tách rời một pixel nào.
   - **Hiệu ứng Cây cọ viết (Brush Writing Reveal):** Mô phỏng nét cọ vẽ mực ướt từ trái sang phải, chữ "Pawty" được hé lộ tuần tự từ chữ P đội nón sinh nhật sang chữ y bằng clipping mask động kết hợp mờ ảo (bloom). Khi nét cọ hoàn thành chữ y, đuôi cún lập tức xuất hiện và vẫy mừng vui nhộn cùng sóng âm xanh mint.

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -55,7 +55,7 @@ const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
     );
     runnerLoop.start();
 
-    const timer = setTimeout(onFinish, 3000);
+    const timer = setTimeout(onFinish, 8000);
     return () => {
       runnerLoop.stop();
       clearTimeout(timer);
@@ -79,7 +79,7 @@ const SplashBootScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
 
       {/* Middle Section (Circle 1): Frame-by-Frame Mascot Letter P Animation */}
       <View style={styles.splashMascotBox}>
-        <MascotFrameAnimation width={145} frameDuration={300} />
+        <MascotFrameAnimation width={145} />
       </View>
 
       {/* Bottom Section (Circle 2): Continuous Running Bar + Status */}

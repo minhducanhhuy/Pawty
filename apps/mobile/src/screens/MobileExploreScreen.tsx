@@ -20,6 +20,7 @@ import {
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty, cleanName } from '../context/MobilePawtyContext';
 import { FacebookCommentSection } from '../components/FacebookCommentSection';
+import { PawtyLoadingState } from '../components/PawtyLoadingState';
 import { MobilePost } from '../types/mobileTypes';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -29,6 +30,7 @@ export const MobileExploreScreen: React.FC = () => {
   const {
     theme,
     posts,
+    isLoadingData,
     searchHistory,
     trendingSuggestions,
     isSearchPanelOpen,
@@ -59,9 +61,16 @@ export const MobileExploreScreen: React.FC = () => {
 
   const handlePullRefresh = useCallback(async () => {
     setIsRefreshing(true);
+    const start = Date.now();
     try {
       await pullToRefreshExplore();
+      const elapsed = Date.now() - start;
+      if (elapsed < 900) {
+        await new Promise((resolve) => setTimeout(resolve, 900 - elapsed));
+      }
       showToast('Đã làm mới bảng tin Khám phá!');
+    } catch {
+      showToast('Đang kết nối lại máy chủ...');
     } finally {
       setIsRefreshing(false);
     }
@@ -198,6 +207,11 @@ export const MobileExploreScreen: React.FC = () => {
       }
       ListHeaderComponent={
         <View style={{ marginBottom: 12 }}>
+          {isRefreshing && (
+            <View style={styles.pullRefreshBanner}>
+              <PawtyLoadingState text="Đợi Pawty xíu nha" spinnerSize={52} compact />
+            </View>
+          )}
       {/* Search Bar with History & Trending Dropdown */}
       <View style={styles.searchSection}>
         <View style={styles.searchBar}>
@@ -303,7 +317,16 @@ export const MobileExploreScreen: React.FC = () => {
         </View>
       }
       ListEmptyComponent={
-        <View style={styles.emptyFeedCard}>
+        (isLoadingData || isRefreshing) && !searchQuery.trim() ? (
+          <View style={styles.loadingFeedCard}>
+            <PawtyLoadingState
+              text="Đợi Pawty xíu nha"
+              subtext="Đang kết nối cộng đồng Boss và tải bảng tin mới..."
+              spinnerSize={72}
+            />
+          </View>
+        ) : (
+          <View style={styles.emptyFeedCard}>
           <View style={[styles.emptyFeedIconCircle, { backgroundColor: theme.primarySoft }]}>
             <Feather name="paw" size={28} color={theme.primary} />
           </View>
@@ -327,6 +350,7 @@ export const MobileExploreScreen: React.FC = () => {
             </TouchableOpacity>
           )}
         </View>
+        )
       }
       renderItem={({ item: post }) => {
             const isCommentOpen = expandedCommentId === post.id;
@@ -1069,5 +1093,27 @@ const styles = StyleSheet.create({
   viewProfileHeaderBtnText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  pullRefreshBanner: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F3EFEA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  loadingFeedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ECE6DF',
+    marginTop: 8,
   },
 });
