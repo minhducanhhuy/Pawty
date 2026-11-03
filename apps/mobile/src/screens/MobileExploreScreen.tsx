@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,11 @@ import {
   Platform,
   Keyboard,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty, cleanName } from '../context/MobilePawtyContext';
-import { FacebookCommentSection } from '../components/FacebookCommentSection';
+import { FacebookCommentModal } from '../components/FacebookCommentModal';
 import { MobilePost } from '../types/mobileTypes';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -52,12 +53,23 @@ export const MobileExploreScreen: React.FC = () => {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedCommentId, setExpandedCommentId] = useState<string | null>(null);
+  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+
+  const POSTS_PER_PAGE = 5;
+  const [visiblePostsCount, setVisiblePostsCount] = useState(POSTS_PER_PAGE);
+  const [isLoadingMorePosts, setIsLoadingMorePosts] = useState(false);
 
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const [activePhotoIndexMap, setActivePhotoIndexMap] = useState<Record<string, number>>({});
 
+  const activeCommentPost = useMemo(() => {
+    if (!activeCommentPostId) return null;
+    return posts.find((p) => p.id === activeCommentPostId) || null;
+  }, [posts, activeCommentPostId]);
+
   const handlePullRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    setVisiblePostsCount(POSTS_PER_PAGE);
     setIsRefreshing(true);
     try {
       await pullToRefreshExplore();
@@ -67,21 +79,41 @@ export const MobileExploreScreen: React.FC = () => {
     }
   }, [pullToRefreshExplore, showToast]);
 
-  const filteredPosts = posts.filter((post) => {
-    if (!post) return false;
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return true;
-    const postContent = (post.content || '').toLowerCase();
-    const authorName = (post.authorName || '').toLowerCase();
-    const authorHandle = (post.authorHandle || '').toLowerCase();
-    const tags = Array.isArray(post.tags) ? post.tags : [];
-    return (
-      postContent.includes(q) ||
-      authorName.includes(q) ||
-      authorHandle.includes(q) ||
-      tags.some((h) => (h || '').toLowerCase().includes(q))
-    );
-  });
+  useEffect(() => {
+    setVisiblePostsCount(POSTS_PER_PAGE);
+  }, [searchQuery]);
+
+  const filteredPosts = useMemo(() => {
+    return posts.filter((post) => {
+      if (!post) return false;
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      const postContent = (post.content || '').toLowerCase();
+      const authorName = (post.authorName || '').toLowerCase();
+      const authorHandle = (post.authorHandle || '').toLowerCase();
+      const tags = Array.isArray(post.tags) ? post.tags : [];
+      return (
+        postContent.includes(q) ||
+        authorName.includes(q) ||
+        authorHandle.includes(q) ||
+        tags.some((h) => (h || '').toLowerCase().includes(q))
+      );
+    });
+  }, [posts, searchQuery]);
+
+  // Phân trang lazy loading 5 bài viết / lượt (Facebook-style)
+  const displayedPosts = useMemo(() => {
+    return filteredPosts.slice(0, visiblePostsCount);
+  }, [filteredPosts, visiblePostsCount]);
+
+  const handleLoadMorePosts = useCallback(() => {
+    if (visiblePostsCount >= filteredPosts.length || isLoadingMorePosts) return;
+    setIsLoadingMorePosts(true);
+    setTimeout(() => {
+      setVisiblePostsCount((prev) => Math.min(prev + POSTS_PER_PAGE, filteredPosts.length));
+      setIsLoadingMorePosts(false);
+    }, 300);
+  }, [visiblePostsCount, filteredPosts.length, isLoadingMorePosts]);
 
   const handleSelectSuggestion = (keyword: string) => {
     setSearchQuery(keyword);
@@ -138,10 +170,7 @@ export const MobileExploreScreen: React.FC = () => {
     const showSub = Keyboard.addListener(showEvent, (e) => {
       const h = e.endCoordinates.height;
       setKeyboardHeight(h);
-      if (expandedCommentId) {
-        scrollToActiveComment(expandedCommentId, h);
-      }
-    });
+      });
 
     const hideSub = Keyboard.addListener(hideEvent, () => {
       setKeyboardHeight(0);
@@ -151,7 +180,7 @@ export const MobileExploreScreen: React.FC = () => {
       showSub.remove();
       hideSub.remove();
     };
-  }, [expandedCommentId, scrollToActiveComment]);
+  }, [scrollToActiveComment]);
 
   return (
     <KeyboardAvoidingView
@@ -184,9 +213,25 @@ export const MobileExploreScreen: React.FC = () => {
             }
           }, 80);
         }}
-      data={filteredPosts}
+      data={displayedPosts}
       keyExtractor={(item) => item.id}
-      refreshControl={
+      onEndReached={handleLoadMorePosts}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          isLoadingMorePosts ? (
+            <View style={styles.feedFooterLoader}>
+              <ActivityIndicator size="small" color={theme.primary} />
+              <Text style={styles.feedFooterLoaderText}>Đang tải thêm bài viết...</Text>
+            </View>
+          ) : visiblePostsCount >= filteredPosts.length && filteredPosts.length > POSTS_PER_PAGE ? (
+            <View style={styles.feedFooterEnd}>
+              <Text style={styles.feedFooterEndText}>Đã xem hết bài viết hôm nay 🐾</Text>
+            </View>
+          ) : (
+            <View style={{ height: 20 }} />
+          )
+        }
+        refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={handlePullRefresh}
@@ -329,7 +374,7 @@ export const MobileExploreScreen: React.FC = () => {
         </View>
       }
       renderItem={({ item: post }) => {
-            const isCommentOpen = expandedCommentId === post.id;
+            
             const isPlayingVideo = playingVideoId === post.id;
             const galleryUrls = post.mediaUrls.length > 0 ? post.mediaUrls : [];
             const currentPhotoIdx = activePhotoIndexMap[post.id] || 0;
@@ -548,7 +593,7 @@ export const MobileExploreScreen: React.FC = () => {
 
                     <TouchableOpacity
                       style={styles.igActionBtn}
-                      onPress={() => setExpandedCommentId(isCommentOpen ? null : post.id)}
+                      onPress={() => setActiveCommentPostId(post.id)}
                     >
                       <Feather name="message-circle" size={20} color="#2C2520" />
                       <Text style={styles.igActionCount}>
@@ -580,16 +625,7 @@ export const MobileExploreScreen: React.FC = () => {
                   </TouchableOpacity>
                 </View>
 
-                {isCommentOpen && (
-                  <FacebookCommentSection
-                    postId={post.id}
-                    comments={post.comments}
-                    currentUserAvatar={(ownerAvatarUrl || ownerAvatar || '').trim()}
-                    onOpenProfile={openPublicUserProfile}
-                    compact
-                    onFocusInput={() => scrollToActiveComment(post.id)}
-                  />
-                )}
+                
               </View>
         );
       }}
@@ -598,6 +634,15 @@ export const MobileExploreScreen: React.FC = () => {
       maxToRenderPerBatch={4}
       windowSize={5}
       removeClippedSubviews={true}
+      />
+
+      {/* Modal bình luận dạng Bottom Sheet chuẩn Facebook */}
+      <FacebookCommentModal
+        visible={Boolean(activeCommentPostId)}
+        onClose={() => setActiveCommentPostId(null)}
+        post={activeCommentPost}
+        currentUserAvatar={(ownerAvatarUrl || ownerAvatar || '').trim()}
+        onOpenProfile={openPublicUserProfile}
       />
     </KeyboardAvoidingView>
   );
@@ -1069,5 +1114,26 @@ const styles = StyleSheet.create({
   viewProfileHeaderBtnText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  feedFooterLoader: {
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  feedFooterLoaderText: {
+    fontSize: 12,
+    color: '#8E8278',
+    fontWeight: '600',
+  },
+  feedFooterEnd: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedFooterEndText: {
+    fontSize: 12,
+    color: '#A3968A',
+    fontWeight: '600',
   },
 });

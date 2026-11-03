@@ -2,16 +2,13 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 function getDevApiHost(): string {
-  if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-
-  // 1. Khi chạy trên Web / Browser, kết nối trực tiếp localhost:3000
+  // 1. Khi chay tren Web / Browser, ket noi truc tiep localhost:3000
   if (Platform.OS === 'web') {
     return 'http://localhost:3000';
   }
 
-  // 2. Khi chạy với Expo Metro bundler
+  // 2. Khi chay voi Expo Metro bundler tren thiet bi that (Expo Go)
+  // hostUri la dia chi IP may chu Metro ma dien thoai quet QR ket noi toi (vd: 192.168.1.5)
   const hostUri =
     Constants.expoConfig?.hostUri ||
     (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
@@ -19,12 +16,14 @@ function getDevApiHost(): string {
 
   if (hostUri) {
     const host = hostUri.split(':')[0];
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return 'http://localhost:3000';
-    }
-    if (host) {
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
       return `http://${host}:3000`;
     }
+  }
+
+  // 3. Fallback bien moi truong hoac localhost
+  if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
   }
 
   return 'http://localhost:3000';
