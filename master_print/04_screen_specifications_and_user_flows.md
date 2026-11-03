@@ -107,7 +107,7 @@
   - **Quy chuẩn bố cục Không Đóng Thẻ Card (No Card Box Policy):**
     - Tuyệt đối không đóng khung biểu tượng loading vào bất kỳ thẻ card trắng, viền bo tròn hay bóng đổ nào.
     - Loading hòa trực tiếp và lơ lửng tự nhiên trên nền màu kem thương hiệu `#FDFBF7`.
-    - Ẩn triệt để vòng xoay tròn mặc định của Android `RefreshControl` (`colors={['transparent']}`, `progressBackgroundColor="transparent"`), đảm bảo chỉ có duy nhất biểu tượng ribbon xoay tròn của Pawty được hiển thị.
+    - Ẩn triệt để vòng xoay reload màu đen mặc định của hệ điều hành Android (sử dụng `progressViewOffset={-1000}` đẩy ra ngoài màn hình cùng `colors={['transparent']}`, `progressBackgroundColor="transparent"`), đảm bảo triệt tiêu hoàn toàn trùng lặp 2 biểu tượng reload và chỉ có duy nhất biểu tượng ribbon xoay tròn của Pawty được hiển thị.
   - **Phạm vi áp dụng trong ứng dụng (In-App Loading):**
     - Kéo làm mới bảng tin Khám phá (`Pull-to-refresh Explore Feed`) khi mạng yếu hoặc tắt Wi-Fi.
     - Trạng thái chờ tải dữ liệu ban đầu của Bảng tin, Kết nối ghép đôi và Trang cá nhân.
