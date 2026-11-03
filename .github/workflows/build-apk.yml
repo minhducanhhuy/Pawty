@@ -1,0 +1,93 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Loại APK muốn build (release hoặc debug)'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/build-apk.yml'
+    tags:
+      - 'v*'
+
+jobs:
+  build-android-apk:
+    name: Build Pawty Android APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 1. Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: 2. Cài đặt Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 3. Cài đặt Java 17 (JDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: 4. Thiết lập Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 5. Thiết lập Gradle Cache để tăng tốc
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 6. Cài đặt dependencies (npm ci)
+        run: npm ci
+
+      - name: 7. Khởi tạo Android Native Project (Expo Prebuild)
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform android --clean
+
+      - name: 8. Đóng gói mã nguồn JavaScript & Assets
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: https://pawty-api.vercel.app
+        run: |
+          mkdir -p android/app/src/main/assets
+          npx expo export:embed --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res/
+
+      - name: 9. Biên dịch APK qua Gradle
+        working-directory: apps/mobile/android
+        run: |
+          chmod +x gradlew
+          BUILD_TYPE="${{ github.event.inputs.build_type || 'release' }}"
+          if [ "$BUILD_TYPE" = "debug" ]; then
+            ./gradlew app:assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk ../../../Pawty-Debug.apk
+          else
+            ./gradlew app:assembleRelease --no-daemon
+            cp app/build/outputs/apk/release/app-release.apk ../../../Pawty-Release.apk
+          fi
+
+      - name: 10. Tải APK lên GitHub Artifacts (Tải trực tiếp trong tab Actions)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pawty-Android-${{ github.event.inputs.build_type || 'Release' }}-APK
+          path: Pawty-*.apk
+          retention-days: 30
+
+      - name: 11. Tự động tạo GitHub Release nếu có gắn Tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Pawty-*.apk
+          name: "Pawty Android Release ${{ github.ref_name }}"
+          generate_release_notes: true
