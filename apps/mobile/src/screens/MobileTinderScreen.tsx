@@ -15,7 +15,7 @@ import { TinderActionBar } from './tinder/TinderActionBar';
 import { TinderProfileDetailModal } from './tinder/TinderProfileDetailModal';
 import { TinderFilterModal } from './tinder/TinderFilterModal';
 import { TinderMenuModal } from './tinder/TinderMenuModal';
-import { TINDER_PURPOSE_OPTIONS, getCandidateSlides } from '../types/mobileTypes';
+import { TINDER_PURPOSE_OPTIONS, getCandidateSlides, TinderCandidate } from '../types/mobileTypes';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD = 85;
@@ -42,9 +42,21 @@ export const MobileTinderScreen: React.FC = () => {
     showToast,
   } = useMobilePawty();
 
-  const filteredCandidates = tinderCandidates;
-  const currentCandidate = filteredCandidates.length > 0 ? filteredCandidates[0] : null;
-  const nextCandidate = filteredCandidates.length > 1 ? filteredCandidates[1] : null;
+  // Cơ chế tải thông minh: Chỉ duy trì tối đa 5 thẻ trên FE (Sliding Window Buffer = 5)
+  const TINDER_BUFFER_SIZE = 5;
+  const [activeQueue, setActiveQueue] = useState<TinderCandidate[]>([]);
+  const poolIndexRef = useRef(0);
+
+  // Đồng bộ hoặc nạp ban đầu tối đa 5 thẻ vào hàng chờ FE khi cọc thẻ thay đổi
+  useEffect(() => {
+    poolIndexRef.current = 0;
+    const initial = tinderCandidates.slice(0, TINDER_BUFFER_SIZE);
+    setActiveQueue(initial);
+    poolIndexRef.current = initial.length;
+  }, [tinderCandidates]);
+
+  const currentCandidate = activeQueue.length > 0 ? activeQueue[0] : null;
+  const nextCandidate = activeQueue.length > 1 ? activeQueue[1] : null;
 
   const activeGoalLabel =
     tinderFilterGoal === 'all'
@@ -62,10 +74,10 @@ export const MobileTinderScreen: React.FC = () => {
 
   // Tự động làm mới cọc thẻ nếu danh sách trống
   useEffect(() => {
-    if (filteredCandidates.length === 0) {
+    if (activeQueue.length === 0 && tinderCandidates.length === 0) {
       reloadTinderDeck(true);
     }
-  }, [filteredCandidates.length, reloadTinderDeck]);
+  }, [activeQueue.length, tinderCandidates.length, reloadTinderDeck]);
 
   const pan = useRef(new Animated.ValueXY()).current;
   const isSwipingRef = useRef(false);
@@ -78,6 +90,18 @@ export const MobileTinderScreen: React.FC = () => {
     }
     const candidateId = currentCandidate.id;
     swipeTinderCandidate(candidateId, direction);
+
+    // Khi người dùng quẹt 1 thẻ: giải phóng thẻ cũ và nạp ngay 1 thẻ tiếp theo từ pool vào hàng chờ
+    setActiveQueue((prev) => {
+      const remaining = prev.filter((c) => c.id !== candidateId);
+      if (poolIndexRef.current < tinderCandidates.length) {
+        const nextFromPool = tinderCandidates[poolIndexRef.current];
+        poolIndexRef.current += 1;
+        return [...remaining, nextFromPool];
+      }
+      return remaining;
+    });
+
     pan.setValue({ x: 0, y: 0 });
     setPhotoIdx(0);
     isSwipingRef.current = false;
@@ -165,7 +189,7 @@ export const MobileTinderScreen: React.FC = () => {
           }).start();
         },
       }),
-    [currentCandidate, filteredCandidates]
+    [currentCandidate, activeQueue]
   );
 
   const rotateCard = pan.x.interpolate({

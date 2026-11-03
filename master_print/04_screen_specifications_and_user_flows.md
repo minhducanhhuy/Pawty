@@ -19,6 +19,16 @@
 ## 2. Đặc Tả Chi Tiết Từng Phân Hệ
 
 ### 2.1 Tab 1: Khám Phá (`Explore`) & Đăng Bài
+- **Cơ chế Lazy Loading Bảng Tin Facebook-style (5 bài/lượt):**
+  - Khám phá áp dụng phân trang tải thông minh: ban đầu chỉ tải và render đúng **5 bài viết đầu tiên** (`batch size = 5`).
+  - Khi người dùng cuộn đến gần cuối danh sách (`onEndReachedThreshold = 0.5`), hệ thống tự động lazy-load thêm 5 bài viết tiếp theo kèm biểu tượng xoay tải `ActivityIndicator`.
+  - Cấu hình FlatList tối ưu hóa bộ nhớ: `initialNumToRender = 3`, `maxToRenderPerBatch = 5`, `windowSize = 5`, `removeClippedSubviews = true` giúp ứng dụng hoạt động 60fps mượt mà, triệt tiêu hiện tượng lag/đơ máy khi bảng tin có nhiều bài viết.
+  - Khi kéo xuống để làm mới (`Pull-to-Refresh`), danh sách được tải lại và reset về đúng 5 bài viết đầu tiên.
+- **Modal Bình Luận Bottom-Sheet Facebook-style (Thay thế Accordion Xổ Xuống):**
+  - Khi người dùng ấn vào nút bình luận trên thẻ bài viết, hệ thống mở một **Modal Bottom Sheet riêng biệt trượt từ dưới lên (chiếm 80-85% chiều cao màn hình)** thay vì xổ xuống đẩy dài thẻ bài viết trong bảng tin.
+  - **Header Modal:** Thanh kéo nhỏ (drag indicator pill), tiêu đề *"Bình luận ({tổng số})"* và nút đóng `✕`.
+  - **Lazy Loading Bình Luận:** Ban đầu chỉ hiển thị **5 bình luận** đầu tiên. Nếu có nhiều hơn 5 bình luận, hiển thị nút *"Xem thêm bình luận cũ hơn..."* (+5 bình luận mỗi lần bấm) để không làm đơ giao diện khi bài viết có nhiều phản hồi.
+  - **Cố định thanh nhập liệu:** Thanh input bình luận được ghim cố định ở đáy Modal (`KeyboardAvoidingView`), có avatar của người dùng hiện tại, ô nhập *"Viết bình luận công khai..."*, nút gửi Paw và thanh thông báo *"Đang trả lời @[Tên] • [Hủy]"*.
 - **Kéo xuống để làm mới (`Pull-to-Refresh`):** Tích hợp `RefreshControl` trên danh sách Khám phá; khi người dùng kéo từ đỉnh xuống sẽ gọi lại `/api/bootstrap` để tải bài viết, hồ sơ và thông báo mới nhất từ PostgreSQL.
 - **Tinh gọn giao diện Khám phá:** Loại bỏ thanh nhắc đăng bài ("Chia sẻ khoảnh khắc của thú cưng...") dưới thanh tìm kiếm do đã có nút dấu cộng (`+`) chuyên dụng trên thanh Header.
 - **Đăng bài mới (`new_moment`) lưu trữ qua Cloudinary & PostgreSQL:**
@@ -33,6 +43,10 @@
   - **Hồ sơ Mạng xã hội (Social Profile):** Nằm tại Tab "Tôi", gồm thông tin cá nhân, các bé thú cưng, sổ tiêm, và lưới bài đăng khoảnh khắc.
   - **Hồ sơ Hẹn hò & Kết nối (Dating Profile):** Hoạt động độc lập, quản lý trực tiếp từ Tab "Kết nối" (thông qua nút xem/chỉnh sửa Hồ sơ hẹn hò của tôi). Bao gồm: Bộ ảnh hẹn hò riêng biệt, Mục đích tìm kiếm (duy nhất), Lời giới thiệu khi kết nối (`dating bio`), Thú cưng đi dạo cùng khi đi date, và các Chip phong cách sống / Lifestyle. Thẻ quẹt Tinder và modal chi tiết ứng viên hiển thị đúng thông tin của Hồ sơ Hẹn hò.
   - **Cô lập bảo mật:** Người dùng chỉ xem được Hồ sơ Hẹn hò trong phạm vi kết nối, tuyệt đối không lộ trang cá nhân hay bài đăng thường nhật.
+- **Cơ chế Bộ Đệm Trượt Thông Minh Tinder (Sliding Window Buffer = 5 Thẻ):**
+  - Để tối ưu hóa hiệu năng và hạn chế tiêu thụ RAM/bộ nhớ đệm ảnh trên thiết bị di động, cọc thẻ Tinder áp dụng cơ chế bộ đệm trượt (**Sliding Window Buffer = 5 cards**).
+  - FE chỉ duy trì tối đa 5 thẻ ứng viên trong hàng đợi hiển thị. Khi người dùng quẹt (Pass hoặc Like) 1 thẻ, thẻ đó được giải phóng và 1 thẻ tiếp theo từ kho dữ liệu sẽ được đẩy vào hàng chờ.
+  - Tránh hoàn toàn việc render hàng chục thẻ cùng lúc gây tải trước hàng loạt ảnh nặng và ngốn tài nguyên thiết bị.
 - **Cơ chế Duy Trì Cọc Thẻ Vô Tận & Tự Động Làm Mới (`Infinite Candidate Pool & Auto-Reload`):**
   - **Chỉ loại trừ người ĐANG MATCH (`status === 'matched'`):** Danh sách quẹt thẻ chỉ ẩn duy nhất những người dùng hiện tại đang tương hợp thành công. Khi người dùng từ chối (bấm Pass / quẹt trái) hoặc khi đã hủy match trước đó, ứng viên đó vẫn được giữ trong vòng quay và sẽ xuất hiện trở lại ở các lượt làm mới sau.
   - **Tự động làm mới cọc thẻ định kỳ:** Cứ mỗi 2-3 phút hoặc khi cọc thẻ về 0, hệ thống tự động đồng bộ lại danh sách ứng viên chưa match từ database.
