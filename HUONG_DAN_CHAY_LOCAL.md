@@ -41,7 +41,7 @@ git pull origin main
 
    ```env
    PORT=3000
-   DATABASE_URL="postgresql://postgres:MAT_KHAU_CUA_BAN@127.0.0.1:5432/pawty?schema=public"
+   DATABASE_URL="postgresql://postgres:MAT_KHAU_CUA_BAN@127.0.0.1:5432/pawtyv2?schema=public"
    ```
 
    *(Thay `MAT_KHAU_CUA_BAN` bằng mật khẩu tài khoản postgres trên máy cá nhân của bạn, ví dụ: `123456`, `admin`, hoặc `root`).*
@@ -50,7 +50,7 @@ git pull origin main
    ```bash
    cd server
 
-   # Đẩy cấu trúc bảng Prisma vào PostgreSQL (tự động tạo database 'pawty' nếu chưa có)
+   # Đẩy cấu trúc bảng Prisma vào PostgreSQL (tự động tạo database 'pawtyv2' nếu chưa có)
    npx prisma db push
 
    # Chạy script làm sạch database và tạo mới 30 tài khoản test
@@ -67,7 +67,7 @@ git pull origin main
    ```
 
 > 💡 **Mẹo xem dữ liệu trên pgAdmin:**
-> Nếu trên pgAdmin chỉ thấy `Databases (1) -> postgres`, hãy **click chuột phải vào mục `Databases`** $\rightarrow$ chọn **`Refresh`**. Bạn sẽ thấy database **`pawty`** xuất hiện ngay lập tức. Mở `Schemas` $\rightarrow$ `public` $\rightarrow$ `Tables` để xem dữ liệu.
+> Nếu trên pgAdmin chỉ thấy `Databases (1) -> postgres`, hãy **click chuột phải vào mục `Databases`** $\rightarrow$ chọn **`Refresh`**. Bạn sẽ thấy database **`pawtyv2`** xuất hiện ngay lập tức. Mở `Schemas` $\rightarrow$ `public` $\rightarrow$ `Tables` để xem dữ liệu.
 
 ---
 
