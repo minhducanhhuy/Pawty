@@ -23,6 +23,8 @@ import { FacebookCommentSection } from '../components/FacebookCommentSection';
 import { apiClient } from '../services/apiClient';
 import { SelectorPickerModal, ConfirmActionModal } from '../components/SelectorFieldModal';
 import { DatePickerModal } from '../components/DatePickerModal';
+import { sanitizeWeightInput, validatePetWeight } from '../utils/validators';
+import { isLocalMediaUri } from '../utils/mediaUtils';
 import {
   MobilePet,
   MobilePost,
@@ -499,7 +501,7 @@ export const MobileProfileScreen: React.FC = () => {
         const rawUri = asset.base64
           ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
           : asset.uri;
-        showToast('Đang tải ảnh lên Cloudinary...');
+        showToast('Đang cập nhật ảnh album...');
         const newUri = await apiClient.uploadImage(rawUri, 'pawty/pets');
         const targetPet = pets.find((p) => p.id === petId);
         if (targetPet) {
@@ -536,7 +538,7 @@ export const MobileProfileScreen: React.FC = () => {
         const rawUrl = asset.base64
           ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
           : asset.uri;
-        showToast('Đang tải ảnh đại diện lên Cloudinary...');
+        showToast('Đang cập nhật ảnh đại diện...');
         const dataUrl = await apiClient.uploadImage(rawUrl, 'pawty/avatars');
         setOwnerAvatarUrl(dataUrl);
         showToast('Đã cập nhật ảnh đại diện mới thành công!');
@@ -561,7 +563,7 @@ export const MobileProfileScreen: React.FC = () => {
         const rawUrl = asset.base64
           ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
           : asset.uri;
-        showToast('Đang tải ảnh bìa lên Cloudinary...');
+        showToast('Đang cập nhật ảnh bìa...');
         const dataUrl = await apiClient.uploadImage(rawUrl, 'pawty/covers');
         setOwnerCoverUrl(dataUrl);
         setIsChangingCoverModal(false);
@@ -586,10 +588,9 @@ export const MobileProfileScreen: React.FC = () => {
         const rawUrl = asset.base64
           ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
           : asset.uri;
-        showToast('Đang tải ảnh bé cưng lên Cloudinary...');
-        const dataUrl = await apiClient.uploadImage(rawUrl, 'pawty/pets');
-        setNewPetPhotoUrl(dataUrl);
-        showToast('Đã tải ảnh bé cưng lên Cloudinary thành công!');
+        // Preview-first: lưu URI xem trước cục bộ, chỉ upload Cloudinary khi ấn Thêm bé cưng
+        setNewPetPhotoUrl(rawUrl);
+        showToast('Đã chọn ảnh bé cưng!');
       }
     } catch {
       showToast('Không thể chọn ảnh từ thiết bị');
@@ -691,6 +692,13 @@ export const MobileProfileScreen: React.FC = () => {
       showToast('Ngày sinh của bé không được vượt quá ngày hiện tại!');
       return;
     }
+    if (editPetWeightDraft.trim()) {
+      const weightCheck = validatePetWeight(editPetWeightDraft);
+      if (!weightCheck.valid) {
+        showToast(weightCheck.error || 'Cân nặng của bé không hợp lệ (0.1 - 120 kg).');
+        return;
+      }
+    }
     const finalSpecies = editPetSpeciesDraft === 'Khác' && editPetCustomSpeciesDraft.trim()
       ? editPetCustomSpeciesDraft.trim()
       : editPetSpeciesDraft;
@@ -732,10 +740,21 @@ export const MobileProfileScreen: React.FC = () => {
       showToast('Ngày sinh của bé không được vượt quá ngày hiện tại!');
       return;
     }
+    if (newPetWeight.trim()) {
+      const weightCheck = validatePetWeight(newPetWeight);
+      if (!weightCheck.valid) {
+        showToast(weightCheck.error || 'Cân nặng của bé không hợp lệ (0.1 - 120 kg).');
+        return;
+      }
+    }
 
     setIsCreatingPetSubmitting(true);
     try {
-      const finalAvatar = newPetPhotoUrl.trim() || '';
+      let finalAvatar = newPetPhotoUrl.trim() || '';
+      // Deferred Upload: nếu ảnh đại diện bé là ảnh cục bộ xem trước, tải lên Cloudinary khi ấn lưu
+      if (finalAvatar && isLocalMediaUri(finalAvatar)) {
+        finalAvatar = (await apiClient.uploadImage(finalAvatar, 'pawty/pets')) || finalAvatar;
+      }
 
       const created = await addNewPetProfile({
         name: newPetName.trim(),
@@ -2090,26 +2109,42 @@ export const MobileProfileScreen: React.FC = () => {
               <View style={styles.fieldBlock}>
                 <Text style={styles.fieldLabel}>Ảnh thú cưng</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <TouchableOpacity
-                    style={styles.newPetPhotoPlaceholder}
-                    onPress={handlePickNewPetPhoto}
-                    activeOpacity={0.8}
-                  >
-                    {newPetPhotoUrl ? (
-                      <Image source={{ uri: newPetPhotoUrl }} style={styles.newPetPhotoImg} />
-                    ) : (
-                      <View style={styles.newPetPhotoEmpty}>
-                        <Feather name="camera" size={24} color="#FF6F61" />
-                        <Text style={styles.newPetPhotoEmptyText}>Chọn ảnh</Text>
-                      </View>
+                  <View style={{ position: 'relative' }}>
+                    <TouchableOpacity
+                      style={styles.newPetPhotoPlaceholder}
+                      onPress={handlePickNewPetPhoto}
+                      activeOpacity={0.8}
+                    >
+                      {newPetPhotoUrl ? (
+                        <Image source={{ uri: newPetPhotoUrl }} style={styles.newPetPhotoImg} />
+                      ) : (
+                        <View style={styles.newPetPhotoEmpty}>
+                          <Feather name="camera" size={24} color="#FF6F61" />
+                          <Text style={styles.newPetPhotoEmptyText}>Chọn ảnh</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                    {!!newPetPhotoUrl && (
+                      <TouchableOpacity
+                        style={styles.newPetRemovePhotoBtn}
+                        onPress={() => {
+                          setNewPetPhotoUrl('');
+                          showToast('Đã xóa ảnh đã chọn');
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Feather name="x" size={12} color="#FFFFFF" />
+                      </TouchableOpacity>
                     )}
-                  </TouchableOpacity>
+                  </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: '#1C1815' }}>
                       Hình ảnh đại diện của bé
                     </Text>
                     <Text style={{ fontSize: 11, color: '#7E6E60', marginTop: 2 }}>
-                      Ảnh sẽ hiển thị trên thẻ radar và hồ sơ toàn màn hình.
+                      {newPetPhotoUrl
+                        ? 'Đã chọn ảnh xem trước. Nhấn vào ảnh để đổi hoặc bấm (X) để xóa.'
+                        : 'Ảnh sẽ hiển thị trên thẻ radar và hồ sơ toàn màn hình.'}
                     </Text>
                   </View>
                 </View>
@@ -2244,8 +2279,9 @@ export const MobileProfileScreen: React.FC = () => {
                       placeholder="VD: 4.8"
                       placeholderTextColor="#A89E94"
                       keyboardType="decimal-pad"
+                      maxLength={5}
                       value={newPetWeight}
-                      onChangeText={setNewPetWeight}
+                      onChangeText={(t) => setNewPetWeight(sanitizeWeightInput(t))}
                     />
                     <TouchableOpacity
                       style={styles.pickerQuickIconBtn}
@@ -2633,8 +2669,9 @@ export const MobileProfileScreen: React.FC = () => {
                       placeholder="VD: 4.8"
                       placeholderTextColor="#A89E94"
                       keyboardType="decimal-pad"
+                      maxLength={5}
                       value={editPetWeightDraft}
-                      onChangeText={setEditPetWeightDraft}
+                      onChangeText={(t) => setEditPetWeightDraft(sanitizeWeightInput(t))}
                     />
                     <TouchableOpacity
                       style={styles.pickerQuickIconBtn}
@@ -4311,6 +4348,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FF6F61',
     marginTop: 2,
+  },
+  newPetRemovePhotoBtn: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#C9302C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    zIndex: 10,
+    elevation: 3,
   },
 
   unifiedTickBox: {

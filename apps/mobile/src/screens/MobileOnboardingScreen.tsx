@@ -19,6 +19,17 @@ import { useMobilePawty } from '../context/MobilePawtyContext';
 import { MobileAnimatedLogo } from '../components/MobileAnimatedLogo';
 import { BubbleBouncingText } from '../components/BubbleBouncingText';
 import { DatePickerModal } from '../components/DatePickerModal';
+import { apiClient } from '../services/apiClient';
+import { isLocalMediaUri } from '../utils/mediaUtils';
+import {
+  sanitizePhoneInput,
+  isValidVietnamesePhone,
+  validatePassword,
+  sanitizeWeightInput,
+  validatePetWeight,
+  isNotFutureDate,
+  sanitizeUsername,
+} from '../utils/validators';
 import {
   POPULAR_DOG_BREEDS,
   POPULAR_CAT_BREEDS,
@@ -45,6 +56,8 @@ export const MobileOnboardingScreen: React.FC = () => {
   const [identifierInput, setIdentifierInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Register fields (Step 1)
   const [fullNameInput, setFullNameInput] = useState('');
@@ -113,7 +126,10 @@ export const MobileOnboardingScreen: React.FC = () => {
   const handleLogin = async () => {
     Keyboard.dismiss();
     setAuthError(null);
-    if (!identifierInput.trim()) {
+    const cleanId = /^\+?\d+$/.test(identifierInput.trim())
+      ? sanitizePhoneInput(identifierInput)
+      : identifierInput.trim();
+    if (!cleanId) {
       setAuthError('Vui lòng nhập Số điện thoại hoặc Tên đăng nhập.');
       return;
     }
@@ -125,7 +141,7 @@ export const MobileOnboardingScreen: React.FC = () => {
     setIsLoading(true);
     try {
       await loginOrRegister({
-        identifier: identifierInput.trim(),
+        identifier: cleanId,
         password: passwordInput.trim(),
       });
     } catch (err: any) {
@@ -142,12 +158,22 @@ export const MobileOnboardingScreen: React.FC = () => {
       setAuthError('Vui lòng nhập Họ và tên.');
       return;
     }
-    if (!phoneInput.trim()) {
-      setAuthError('Vui lòng nhập Số điện thoại.');
+    if (fullNameInput.trim().length < 2 || fullNameInput.trim().length > 40) {
+      setAuthError('Họ và tên phải từ 2 đến 40 ký tự.');
       return;
     }
-    if (!passwordInput.trim()) {
-      setAuthError('Vui lòng nhập Mật khẩu.');
+    const cleanPhone = sanitizePhoneInput(phoneInput);
+    if (!isValidVietnamesePhone(cleanPhone)) {
+      setAuthError('Số điện thoại không hợp lệ. Vui lòng nhập đúng 10 chữ số (đầu số 03, 05, 07, 08, 09).');
+      return;
+    }
+    const pwdRes = validatePassword(passwordInput);
+    if (!pwdRes.valid) {
+      setAuthError(pwdRes.error || 'Mật khẩu phải từ 6 đến 50 ký tự.');
+      return;
+    }
+    if (passwordInput !== confirmPasswordInput) {
+      setAuthError('Mật khẩu xác nhận không trùng khớp.');
       return;
     }
     if (!petNameInput.trim()) {
@@ -194,31 +220,66 @@ export const MobileOnboardingScreen: React.FC = () => {
       setAuthError('Vui lòng nhập Họ và tên.');
       return;
     }
-    if (!phoneInput.trim()) {
-      setAuthError('Vui lòng nhập Số điện thoại.');
+    if (fullNameInput.trim().length < 2 || fullNameInput.trim().length > 40) {
+      setAuthError('Họ và tên phải từ 2 đến 40 ký tự.');
       return;
     }
-    if (!passwordInput.trim()) {
-      setAuthError('Vui lòng nhập Mật khẩu.');
+    const cleanPhone = sanitizePhoneInput(phoneInput);
+    if (!isValidVietnamesePhone(cleanPhone)) {
+      setAuthError('Số điện thoại không hợp lệ. Vui lòng nhập đúng 10 chữ số (đầu số 03, 05, 07, 08, 09).');
       return;
+    }
+    const pwdRes = validatePassword(passwordInput);
+    if (!pwdRes.valid) {
+      setAuthError(pwdRes.error || 'Mật khẩu phải từ 6 đến 50 ký tự.');
+      return;
+    }
+    if (passwordInput !== confirmPasswordInput) {
+      setAuthError('Mật khẩu xác nhận không trùng khớp.');
+      return;
+    }
+
+    if (!skipPetDetails) {
+      if (petWeightInput) {
+        const weightCheck = validatePetWeight(petWeightInput);
+        if (!weightCheck.valid) {
+          setAuthError(weightCheck.error || 'Cân nặng thú cưng không hợp lệ.');
+          return;
+        }
+      }
+      if (petBirthDateInput && !isNotFutureDate(petBirthDateInput)) {
+        setAuthError('Ngày sinh của thú cưng không thể ở tương lai.');
+        return;
+      }
     }
 
     setIsLoading(true);
     try {
       const weightNum = parseFloat(petWeightInput.replace(',', '.'));
+      let resolvedPetAvatar = petAvatarUri || undefined;
+      // Deferred Upload: nếu ảnh avatar bé là ảnh cục bộ xem trước, tải lên Cloudinary khi ấn Đăng ký
+      if (resolvedPetAvatar && !skipPetDetails && isLocalMediaUri(resolvedPetAvatar)) {
+        try {
+          resolvedPetAvatar = await apiClient.uploadImage(resolvedPetAvatar, 'pawty/pets');
+        } catch (uploadErr) {
+          console.warn('[Onboarding] Không thể tải ảnh đại diện bé lên Cloudinary:', uploadErr);
+        }
+      }
+
       await loginOrRegister({
         isRegister: true,
         name: fullNameInput.trim(),
-        phone: phoneInput.trim(),
+        phone: cleanPhone,
         username: usernameInput.trim() || undefined,
         password: passwordInput.trim(),
+        confirmPassword: confirmPasswordInput.trim(),
         petName: petNameInput.trim() || 'Boss',
         petSpecies: petSpeciesInput,
         petBreed: petBreedInput.trim() || 'Chưa rõ',
         petGender: skipPetDetails ? 'Đực' : (petIsNeutered ? `${petGenderInput} (Đã triệt sản)` : petGenderInput),
         petBirthDate: skipPetDetails ? undefined : (petBirthDateInput || undefined),
         petWeightKg: skipPetDetails || isNaN(weightNum) ? undefined : weightNum,
-        petAvatarUrl: skipPetDetails ? undefined : (petAvatarUri || undefined),
+        petAvatarUrl: skipPetDetails ? undefined : resolvedPetAvatar,
         petVaccinated: petVaccinated,
       });
     } catch (err: any) {
@@ -365,13 +426,14 @@ export const MobileOnboardingScreen: React.FC = () => {
               onFocus={() => scrollToOffset(120)}
             />
 
-            <Text style={styles.inputLabel}>Số điện thoại</Text>
+            <Text style={styles.inputLabel}>Số điện thoại *</Text>
             <TextInput
               style={styles.input}
               value={phoneInput}
-              onChangeText={setPhoneInput}
+              onChangeText={(t) => setPhoneInput(sanitizePhoneInput(t))}
               keyboardType="phone-pad"
-              placeholder="Nhập số điện thoại của bạn"
+              maxLength={10}
+              placeholder="Nhập 10 chữ số (VD: 0912345678)"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(170)}
             />
@@ -380,15 +442,16 @@ export const MobileOnboardingScreen: React.FC = () => {
             <TextInput
               style={styles.input}
               value={usernameInput}
-              onChangeText={setUsernameInput}
+              onChangeText={(t) => setUsernameInput(sanitizeUsername(t))}
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="Tên tài khoản (ví dụ: mai_nguyen)"
+              maxLength={25}
+              placeholder="Chữ thường không dấu (VD: mai_nguyen)"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(220)}
             />
 
-            <Text style={styles.inputLabel}>Mật khẩu</Text>
+            <Text style={styles.inputLabel}>Mật khẩu (Tối thiểu 6 ký tự) *</Text>
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
@@ -396,7 +459,8 @@ export const MobileOnboardingScreen: React.FC = () => {
                 onChangeText={setPasswordInput}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
-                placeholder="Nhập mật khẩu..."
+                maxLength={50}
+                placeholder="Nhập mật khẩu (từ 6 ký tự)..."
                 placeholderTextColor="#B8AEA4"
                 onFocus={() => scrollToOffset(270)}
               />
@@ -406,6 +470,31 @@ export const MobileOnboardingScreen: React.FC = () => {
               >
                 <Feather
                   name={showPassword ? 'eye-off' : 'eye'}
+                  size={18}
+                  color="#7A6E63"
+                />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.inputLabel}>Xác nhận mật khẩu *</Text>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                value={confirmPasswordInput}
+                onChangeText={setConfirmPasswordInput}
+                secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
+                maxLength={50}
+                placeholder="Nhập lại mật khẩu để xác nhận..."
+                placeholderTextColor="#B8AEA4"
+                onFocus={() => scrollToOffset(310)}
+              />
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={styles.eyeBtn}
+              >
+                <Feather
+                  name={showConfirmPassword ? 'eye-off' : 'eye'}
                   size={18}
                   color="#7A6E63"
                 />
@@ -715,12 +804,13 @@ export const MobileOnboardingScreen: React.FC = () => {
             </TouchableOpacity>
 
             {/* 4. Cân nặng */}
-            <Text style={styles.inputLabel}>Cân nặng của bé (kg)</Text>
+            <Text style={styles.inputLabel}>Cân nặng của bé (kg, từ 0.1 đến 120 kg)</Text>
             <TextInput
               style={styles.input}
               value={petWeightInput}
-              onChangeText={setPetWeightInput}
+              onChangeText={(t) => setPetWeightInput(sanitizeWeightInput(t))}
               keyboardType="decimal-pad"
+              maxLength={5}
               placeholder="VD: 4.5 (kg)"
               placeholderTextColor="#B8AEA4"
               onFocus={() => scrollToOffset(350)}

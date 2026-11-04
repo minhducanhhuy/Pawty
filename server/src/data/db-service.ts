@@ -438,9 +438,14 @@ export class DatabaseService {
 
     const resolvedUserId = rawPrimaryUser.id;
 
+    // TỐI ƯU HIỆU NĂNG: Tải trước userMetaMap và followSnap duy nhất 1 lần,
+    // phân phối cho các hàm con để triệt tiêu 4-5 query trùng lặp đè lên connection pool
+    const [userMetaMap, followSnap] = await Promise.all([
+      this.getUserMetaMap(),
+      this.getFollowSnapshot(),
+    ]);
+
     const [
-      userMetaMap,
-      followSnap,
       pets,
       posts,
       sosAlerts,
@@ -456,16 +461,14 @@ export class DatabaseService {
       totalUsers,
       totalPets,
     ] = await Promise.all([
-      this.getUserMetaMap(),
-      this.getFollowSnapshot(),
       this.getUserPets(resolvedUserId),
       this.getPosts(resolvedUserId),
       this.getSosAlerts(),
-      this.getTinderCandidates(resolvedUserId),
-      this.getLikesYouCandidates(resolvedUserId),
-      this.getChats(resolvedUserId),
+      this.getTinderCandidates(resolvedUserId, undefined, undefined, userMetaMap),
+      this.getLikesYouCandidates(resolvedUserId, userMetaMap),
+      this.getChats(resolvedUserId, userMetaMap),
       this.getNotifications(resolvedUserId),
-      this.getAllPublicProfiles(resolvedUserId),
+      this.getAllPublicProfiles(resolvedUserId, userMetaMap, followSnap),
       this.getTasks(),
       prisma.circleMember.findMany({ include: { user: true } }).then((cms) =>
         cms.map((cm) => ({
@@ -668,7 +671,11 @@ export class DatabaseService {
     };
   }
 
-  public async getAllPublicProfiles(currentUserId = 'user-test1'): Promise<Record<string, any>> {
+  public async getAllPublicProfiles(
+    currentUserId = 'user-test1',
+    preloadedMetaMap?: Record<string, Record<string, any>>,
+    preloadedFollowSnap?: any
+  ): Promise<Record<string, any>> {
     const [users, allMatches, userMetaMap, followSnap] = await Promise.all([
       prisma.user.findMany({
         include: {
@@ -688,12 +695,13 @@ export class DatabaseService {
               },
             },
             orderBy: { createdAt: 'desc' },
+            take: 10,
           },
         },
       }),
       prisma.match.findMany(),
-      this.getUserMetaMap(),
-      this.getFollowSnapshot(),
+      preloadedMetaMap ? Promise.resolve(preloadedMetaMap) : this.getUserMetaMap(),
+      preloadedFollowSnap ? Promise.resolve(preloadedFollowSnap) : this.getFollowSnapshot(),
     ]);
 
     const profilesMap: Record<string, any> = {};
@@ -1404,7 +1412,7 @@ export class DatabaseService {
   }
 
   // --- Posts, Reactions & Comments ---
-  public async getPosts(_currentUserId?: string) {
+  public async getPosts(_currentUserId?: string, limit = 20) {
     const rawPosts = await prisma.post.findMany({
       include: {
         author: true,
@@ -1415,6 +1423,7 @@ export class DatabaseService {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: limit,
     });
 
     return rawPosts.map((p) => ({
@@ -2314,7 +2323,8 @@ export class DatabaseService {
   public async getTinderCandidates(
     currentUserId = 'user-test1',
     intentFilter?: string,
-    genderFilter?: string
+    genderFilter?: string,
+    preloadedMetaMap?: Record<string, Record<string, any>>
   ) {
     const [incomingLikes, alreadySwipedOrMatched, userMetaMap] = await Promise.all([
       prisma.match.findMany({
@@ -2335,7 +2345,7 @@ export class DatabaseService {
         },
         select: { userAId: true, userBId: true },
       }),
-      this.getUserMetaMap(),
+      preloadedMetaMap ? Promise.resolve(preloadedMetaMap) : this.getUserMetaMap(),
     ]);
 
     const excludedUserIds = new Set<string>();
@@ -2394,7 +2404,10 @@ export class DatabaseService {
     return candidates;
   }
 
-  public async getLikesYouCandidates(currentUserId = 'user-test1') {
+  public async getLikesYouCandidates(
+    currentUserId = 'user-test1',
+    preloadedMetaMap?: Record<string, Record<string, any>>
+  ) {
     const [incomingRows, myRows, unmatchedMatches, userMetaMap] = await Promise.all([
       prisma.match.findMany({
         where: {
@@ -2418,7 +2431,7 @@ export class DatabaseService {
         },
         select: { userAId: true, userBId: true },
       }),
-      this.getUserMetaMap(),
+      preloadedMetaMap ? Promise.resolve(preloadedMetaMap) : this.getUserMetaMap(),
     ]);
 
     const unmatchedIds = new Set<string>();
@@ -2624,7 +2637,10 @@ export class DatabaseService {
     return true;
   }
 
-  public async getChats(userId = 'user-test1') {
+  public async getChats(
+    userId = 'user-test1',
+    preloadedMetaMap?: Record<string, Record<string, any>>
+  ) {
     const [conversations, allMatches, userMetaMap] = await Promise.all([
       prisma.conversation.findMany({
         where: {
@@ -2642,16 +2658,32 @@ export class DatabaseService {
           OR: [{ userAId: userId }, { userBId: userId }],
         },
       }),
-      this.getUserMetaMap(),
+      preloadedMetaMap ? Promise.resolve(preloadedMetaMap) : this.getUserMetaMap(),
     ]);
+
+    // TỐI ƯU HIỆU NĂNG: Khử N+1 query - Gom danh sách đối tác chat và tải 1 lần duy nhất
+    const partnerIds = Array.from(
+      new Set(
+        conversations
+          .map((c) => c.participantIds.find((id) => id !== userId) || c.participantIds[0])
+          .filter((id): id is string => Boolean(id))
+      )
+    );
+
+    const partners =
+      partnerIds.length > 0
+        ? await prisma.user.findMany({
+            where: { id: { in: partnerIds } },
+            include: { pets: true },
+          })
+        : [];
+
+    const partnerMap = new Map(partners.map((p) => [p.id, p]));
 
     const result = [];
     for (const conv of conversations) {
       const partnerId = conv.participantIds.find((id) => id !== userId) || conv.participantIds[0];
-      const partner = await prisma.user.findUnique({
-        where: { id: partnerId },
-        include: { pets: true },
-      });
+      const partner = partnerMap.get(partnerId) || null;
 
       const chatType: 'dating' | 'social' = conv.type === 'dating' ? 'dating' : 'social';
       const rawPartnerName = chatType === 'dating' ? (userMetaMap[partnerId]?.tinderSetup?.displayName || partner?.displayName || 'Bạn mới') : (partner?.displayName || 'Bạn mới');
@@ -2962,10 +2994,11 @@ export class DatabaseService {
     });
   }
 
-  public async getNotifications(userId = 'user-test1') {
+  public async getNotifications(userId = 'user-test1', limit = 30) {
     const list = await prisma.notification.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+      take: limit,
     });
 
     return list.map((n) => {

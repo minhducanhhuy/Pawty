@@ -532,6 +532,7 @@ interface MobilePawtyContextType {
     phone?: string;
     username?: string;
     password?: string;
+    confirmPassword?: string;
     identifier?: string;
     petName?: string;
     petSpecies?: 'Chó' | 'Mèo';
@@ -1352,7 +1353,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       } catch {
         // Im lặng bắt lỗi khi background poll
       }
-    }, 3500);
+    }, 15000); // 15 giây polling (cắt giảm 77% áp lực request lên Serverless & Database)
 
     return () => clearInterval(notifPoller);
   }, [currentUserId, isAuthenticated]);
@@ -1512,6 +1513,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
       phone?: string;
       username?: string;
       password?: string;
+      confirmPassword?: string;
       identifier?: string;
       petName?: string;
       petSpecies?: 'Chó' | 'Mèo';
@@ -1528,6 +1530,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
           phone: params.phone || '',
           username: params.username,
           password: params.password,
+          confirmPassword: params.confirmPassword,
           displayName: params.name,
           petName: params.petName,
           petSpecies: params.petSpecies,
@@ -1547,7 +1550,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const dbUser = authRes?.user;
       if (!dbUser || !dbUser.id) {
-        throw new Error('Không thể xác thực tài khoản từ Cơ sở dữ liệu PostgreSQL.');
+        throw new Error('Không thể xác thực tài khoản. Vui lòng kiểm tra lại thông tin.');
       }
 
       const nextSessionId = `DEV-${Platform.OS.toUpperCase()}-${Date.now().toString().slice(-6)}`;
@@ -1727,10 +1730,10 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
           avatarUrl: params.avatarUrl,
           privacySettings: params.privacySettings,
         });
-        showToast('Đã lưu hồ sơ cá nhân lên cơ sở dữ liệu.');
+        showToast('Đã cập nhật hồ sơ cá nhân thành công!');
       } catch (err: any) {
         console.warn('[Pawty Profile] Lỗi cập nhật hồ sơ chủ nuôi:', err);
-        showToast(err?.message || 'Không thể lưu hồ sơ lên máy chủ.');
+        showToast(err?.message || 'Không thể lưu hồ sơ. Vui lòng thử lại sau.');
       }
     },
     [currentUserId, showToast]
@@ -2021,7 +2024,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
           zodiac: normalizedPayload.zodiac,
           tinderSetup: normalizedPayload,
         });
-        showToast('Đã đồng bộ Hồ sơ Kết nối & Mục đích tìm kiếm!');
+        showToast('Đã lưu thiết lập kết nối thành công!');
       } catch (err: any) {
         console.warn('[Pawty Tinder Setup] Lỗi lưu thiết lập:', err);
         showToast(err?.message || 'Không thể lưu thiết lập kết nối.');

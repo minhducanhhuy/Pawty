@@ -60,3 +60,14 @@
 
 ### 1.9 Media Upload & Cloudinary Storage Pipeline
 - `POST /api/upload` (`{ image: string (base64 hoặc data URI), folder?: string }`) → Tải ảnh lên Cloudinary CDN (`pawty/<folder>`), trả về `{ success: true, url: string, public_id: string }`.
+
+### 1.10 Validation Rules & Input Sanitization Standards (Chuẩn Hóa Dữ Liệu Đầu Vào)
+- **Số điện thoại (`phone`):** Bắt buộc 10 chữ số, định dạng nhà mạng Việt Nam `^(0[35789])[0-9]{8}$`. Tự động lọc ký tự chữ cái trên client, backend kiểm tra và từ chối `400 Bad Request` nếu sai định dạng.
+- **Mật khẩu (`password`):** Tối thiểu 6 ký tự, tối đa 50 ký tự. Màn hình đăng ký có trường Xác nhận mật khẩu (`confirmPassword`).
+- **Tên tài khoản (`username`):** 3 đến 25 ký tự, chỉ gồm chữ cái thường, số và dấu gạch dưới `^[a-z0-9_]{3,25}$`.
+- **Hồ sơ thú cưng (`pet`):**
+  - Tên: 1 - 30 ký tự, loài thuộc `['Chó', 'Mèo', 'Khác']`, giống loài 1 - 50 ký tự.
+  - Cân nặng (`weightKg`): Số thực dương từ `0.1` đến `120.0` kg (chuyển dấu `,` thành `.`).
+  - Ngày sinh (`birthDate`): Không được lớn hơn ngày hiện tại (không nhận ngày tương lai).
+- **Tin SOS (`sos`):** Tên thú cưng 1 - 30 ký tự; mô tả nhận dạng bắt buộc tối thiểu 10 ký tự, tối đa 300 ký tự; SĐT người báo tin phát hiện (`phone` trong sighting) phải là SĐT hợp lệ 10 số.
+- **Tin nhắn & Bình luận:** Bình luận tối đa 300 ký tự; tin nhắn chat tối đa 1000 ký tự; nội dung bài viết tối đa 500 ký tự kèm kiểm duyệt từ khóa tự động qua `ModerationService`.

@@ -120,10 +120,28 @@ export function moderatePetContent(
 }
 
 export function validateVietnamesePhone(phone: string): boolean {
-  const cleaned = phone.replace(/\s+/g, '');
-  return /^(0|\+84)(3|5|7|8|9)\d{8}$/.test(cleaned);
+  if (!phone || typeof phone !== 'string') return false;
+  let cleaned = phone.replace(/\D/g, '');
+  if (cleaned.startsWith('84') && cleaned.length === 11) {
+    cleaned = '0' + cleaned.slice(2);
+  }
+  return /^(0[35789])[0-9]{8}$/.test(cleaned);
 }
 
+export function isValidPassword(password?: string | null): boolean {
+  return typeof password === 'string' && password.trim().length >= 6 && password.length <= 50;
+}
+
+export function isValidUsername(username?: string | null): boolean {
+  if (!username) return true;
+  return /^[a-z0-9_]{3,25}$/.test(username.trim().toLowerCase());
+}
+
+export function isValidPetWeight(rawWeight?: string | number | null): boolean {
+  if (rawWeight === undefined || rawWeight === null || rawWeight === '') return true;
+  const parsed = typeof rawWeight === 'number' ? rawWeight : parseFloat(String(rawWeight).replace(',', '.'));
+  return !isNaN(parsed) && parsed >= 0.1 && parsed <= 120.0;
+}
 
 export interface SosAlertValidationResult {
   valid: boolean;
@@ -137,14 +155,14 @@ export function validateSosAlertPayload(payload: {
   description?: string;
 }): SosAlertValidationResult {
   const errors: string[] = [];
-  if (!payload.petName || payload.petName.trim().length < 2) {
-    errors.push('Tên thú cưng phải có ít nhất 2 ký tự.');
+  if (!payload.petName || payload.petName.trim().length < 1) {
+    errors.push('Tên thú cưng không được để trống.');
   }
-  if (!payload.lastSeenLocation || payload.lastSeenLocation.trim().length < 4) {
+  if (!payload.lastSeenLocation || payload.lastSeenLocation.trim().length < 3) {
     errors.push('Vui lòng cung cấp vị trí nhìn thấy gần nhất để hàng xóm nhận diện.');
   }
-  if (!payload.description || payload.description.trim().length < 6) {
-    errors.push('Vui lòng mô tả đặc điểm nhận dạng (màu lông, vòng cổ...).');
+  if (!payload.description || payload.description.trim().length < 10) {
+    errors.push('Vui lòng mô tả đặc điểm nhận dạng (màu lông, vòng cổ...) ít nhất 10 ký tự.');
   }
   return { valid: errors.length === 0, errors };
 }

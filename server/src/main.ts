@@ -17,6 +17,17 @@ import {
   extractAuthUserId,
   deepSanitizePasswords,
 } from './utils/auth-crypto';
+import {
+  isValidVietnamesePhone,
+  normalizeVietnamesePhone,
+  isValidPassword,
+  isValidUsername,
+  isValidDisplayName,
+  isValidPetName,
+  isValidPetWeight,
+  isValidBirthDate,
+  sanitizeInputText,
+} from './utils/validators';
 
 const moderationService = new ModerationService();
 const geminiVisionService = new GeminiVisionService();
@@ -178,7 +189,7 @@ const server = http.createServer(async (req, res) => {
     // 1. Auth Endpoints
     if (pathname === '/api/auth/login' && method === 'POST') {
       const body = await parseJsonBody(req);
-      const identifier = String(body.identifier || body.phone || body.username || '').trim();
+      let identifier = String(body.identifier || body.phone || body.username || '').trim();
       const password = String(body.password || '').trim();
 
       if (!identifier) {
@@ -195,6 +206,11 @@ const server = http.createServer(async (req, res) => {
           error: 'Mật khẩu không được để trống.',
         });
         return;
+      }
+
+      // Tự động chuẩn hóa nếu là số điện thoại (10 số hoặc đầu +84)
+      if (/^\+?\d+$/.test(identifier)) {
+        identifier = normalizeVietnamesePhone(identifier);
       }
 
       const user = await dbService.authenticateUser(identifier, password);
@@ -219,28 +235,62 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/auth/register' && method === 'POST') {
       const body = await parseJsonBody(req);
-      const phone = String(body.phone || '').trim();
+      const rawPhone = String(body.phone || '').trim();
+      const phone = normalizeVietnamesePhone(rawPhone);
+
+      // 1. Validate Số điện thoại chuẩn Việt Nam (10 chữ số, đầu 03, 05, 07, 08, 09)
+      if (!isValidVietnamesePhone(phone)) {
+        sendJson(res, 400, {
+          success: false,
+          error: 'Số điện thoại không hợp lệ. Vui lòng nhập đúng 10 chữ số (đầu số 03, 05, 07, 08, 09).',
+        });
+        return;
+      }
+
+      // 2. Validate Mật khẩu (tối thiểu 6 ký tự, tối đa 50 ký tự)
+      const pwdCheck = isValidPassword(body.password);
+      if (!pwdCheck.valid) {
+        sendJson(res, 400, {
+          success: false,
+          error: pwdCheck.error,
+        });
+        return;
+      }
+      const password = String(body.password).trim();
+
+      // 3. Validate Xác nhận mật khẩu (nếu có gửi lên từ form đăng ký)
+      if (body.confirmPassword !== undefined && String(body.confirmPassword).trim() !== password) {
+        sendJson(res, 400, {
+          success: false,
+          error: 'Mật khẩu xác nhận không trùng khớp.',
+        });
+        return;
+      }
+
+      // 4. Validate Tên tài khoản (username) nếu có
       const username = body.username ? String(body.username).trim() : undefined;
-      const password = String(body.password || '').trim();
-      const displayName = String(
+      const userCheck = isValidUsername(username);
+      if (!userCheck.valid) {
+        sendJson(res, 400, {
+          success: false,
+          error: userCheck.error,
+        });
+        return;
+      }
+
+      // 5. Validate Tên hiển thị (displayName)
+      const rawDisplayName = String(
         body.displayName || body.name || `Người dùng ${phone.slice(-4)}`
       ).trim();
-
-      if (!phone) {
+      const nameCheck = isValidDisplayName(rawDisplayName);
+      if (!nameCheck.valid) {
         sendJson(res, 400, {
           success: false,
-          error: 'Vui lòng cung cấp số điện thoại đăng ký.',
+          error: nameCheck.error,
         });
         return;
       }
-
-      if (!password) {
-        sendJson(res, 400, {
-          success: false,
-          error: 'Mật khẩu không được để trống.',
-        });
-        return;
-      }
+      const displayName = sanitizeInputText(rawDisplayName, 40);
 
       const existingByPhone = await dbService.findUserByPhone(phone);
       const existingByUsername = username
@@ -271,6 +321,20 @@ const server = http.createServer(async (req, res) => {
       });
 
       if (createdUser && body.petName && typeof body.petName === 'string' && body.petName.trim()) {
+        let petAvatar: string | undefined = body.petAvatarUrl ? String(body.petAvatarUrl) : undefined;
+        if (
+          petAvatar &&
+          (petAvatar.startsWith('data:') ||
+            (!petAvatar.startsWith('http://') && !petAvatar.startsWith('https://')))
+        ) {
+          try {
+            const host = req.headers.host || 'localhost:3000';
+            petAvatar = await cloudinaryService.uploadImage(petAvatar, 'pawty/pets', host);
+          } catch (uploadErr) {
+            console.warn('[Register] Failed to upload pet avatar on server:', uploadErr);
+          }
+        }
+
         await dbService.createPet({
           ownerId: createdUser.id,
           name: body.petName.trim(),
@@ -278,8 +342,8 @@ const server = http.createServer(async (req, res) => {
           breed: body.petBreed && String(body.petBreed).trim() ? String(body.petBreed).trim() : 'Chưa rõ',
           weightKg: body.petWeightKg != null ? Number(body.petWeightKg) : undefined,
           gender: body.petGender || 'Đực',
-          avatarUrl: body.petAvatarUrl || undefined,
-          galleryUrls: body.petAvatarUrl ? [body.petAvatarUrl] : undefined,
+          avatarUrl: petAvatar || undefined,
+          galleryUrls: petAvatar ? [petAvatar] : undefined,
           birthDate: body.petBirthDate || undefined,
           isVaccinatedAndRabies: body.petVaccinated === true,
         });
@@ -475,6 +539,28 @@ const server = http.createServer(async (req, res) => {
       const authUserId = requireAuthUser(req, res);
       if (!authUserId) return;
       const body = await parseJsonBody(req);
+
+      const nameCheck = isValidPetName(body.name);
+      if (!nameCheck.valid) {
+        sendJson(res, 400, { success: false, error: nameCheck.error });
+        return;
+      }
+
+      const weightCheck = isValidPetWeight(body.weightKg ?? body.weight);
+      if (!weightCheck.valid) {
+        sendJson(res, 400, { success: false, error: weightCheck.error });
+        return;
+      }
+      if (weightCheck.weightKg !== undefined) {
+        body.weightKg = weightCheck.weightKg;
+      }
+
+      const birthCheck = isValidBirthDate(body.birthDate ?? body.dateOfBirth);
+      if (!birthCheck.valid) {
+        sendJson(res, 400, { success: false, error: birthCheck.error });
+        return;
+      }
+
       body.ownerId = authUserId; // Luôn gán chủ sở hữu là người dùng trong phiên
       const newPet = await dbService.createPet(body);
       sendJson(res, 201, { success: true, pet: newPet });
@@ -498,6 +584,34 @@ const server = http.createServer(async (req, res) => {
       if (!authUserId) return;
       const petId = petItemMatch[1];
       const body = await parseJsonBody(req);
+
+      if (body.name !== undefined) {
+        const nameCheck = isValidPetName(body.name);
+        if (!nameCheck.valid) {
+          sendJson(res, 400, { success: false, error: nameCheck.error });
+          return;
+        }
+      }
+
+      if (body.weightKg !== undefined || body.weight !== undefined) {
+        const weightCheck = isValidPetWeight(body.weightKg ?? body.weight);
+        if (!weightCheck.valid) {
+          sendJson(res, 400, { success: false, error: weightCheck.error });
+          return;
+        }
+        if (weightCheck.weightKg !== undefined) {
+          body.weightKg = weightCheck.weightKg;
+        }
+      }
+
+      if (body.birthDate !== undefined || body.dateOfBirth !== undefined) {
+        const birthCheck = isValidBirthDate(body.birthDate ?? body.dateOfBirth);
+        if (!birthCheck.valid) {
+          sendJson(res, 400, { success: false, error: birthCheck.error });
+          return;
+        }
+      }
+
       const updatedPet = await dbService.updatePet(petId, body, authUserId);
       sendJson(res, 200, { success: true, pet: updatedPet });
       return;
@@ -629,10 +743,10 @@ const server = http.createServer(async (req, res) => {
       if (!authUserId) return;
       const postId = postCommentMatch[1];
       const body = await parseJsonBody(req);
-      const text = String(body.text || body.textContent || body.content || '').trim();
+      const text = sanitizeInputText(String(body.text || body.textContent || body.content || ''), 300);
       const parentId = body.parentId ? String(body.parentId) : undefined;
       if (!text) {
-        sendJson(res, 400, { success: false, error: 'Thiếu nội dung bình luận.' });
+        sendJson(res, 400, { success: false, error: 'Nội dung bình luận không được để trống (tối đa 300 ký tự).' });
         return;
       }
       const comment = await dbService.addPostComment(postId, authUserId, text, parentId);
@@ -725,6 +839,28 @@ const server = http.createServer(async (req, res) => {
       const authUserId = requireAuthUser(req, res);
       if (!authUserId) return;
       const body = await parseJsonBody(req);
+
+      const petName = String(body.petName || '').trim();
+      if (!petName) {
+        sendJson(res, 400, { success: false, error: 'Vui lòng cung cấp tên thú cưng bị thất lạc.' });
+        return;
+      }
+
+      const location = String(body.lastSeenLocation || body.location || '').trim();
+      if (location.length < 3) {
+        sendJson(res, 400, { success: false, error: 'Vui lòng cung cấp khu vực nhìn thấy bé lần cuối (tối thiểu 3 ký tự).' });
+        return;
+      }
+
+      const description = String(body.description || '').trim();
+      if (description.length < 10) {
+        sendJson(res, 400, {
+          success: false,
+          error: 'Vui lòng mô tả đặc điểm nhận dạng của bé ít nhất 10 ký tự (màu lông, vòng cổ, vết bớt...).',
+        });
+        return;
+      }
+
       body.userId = authUserId; // Luôn gán chủ tin SOS là người trong phiên
       const newSos = await dbService.createSosAlert(body);
       sendJson(res, 201, { success: true, sos: newSos });
@@ -737,10 +873,21 @@ const server = http.createServer(async (req, res) => {
       const callerUserId = extractAuthUserId(authHeader);
       const sosId = sosSightingMatch[1];
       const body = await parseJsonBody(req);
+
+      const rawPhone = String(body.phone || '').trim();
+      const cleanPhone = normalizeVietnamesePhone(rawPhone);
+      if (rawPhone && !isValidVietnamesePhone(cleanPhone)) {
+        sendJson(res, 400, {
+          success: false,
+          error: 'Số điện thoại người báo tin không hợp lệ. Vui lòng nhập đúng 10 chữ số.',
+        });
+        return;
+      }
+
       const result = await dbService.addSosSighting(sosId, {
-        reporterName: String(body.reporterName || 'Cư dân hỗ trợ'),
-        phone: String(body.phone || ''),
-        note: String(body.note || ''),
+        reporterName: sanitizeInputText(String(body.reporterName || 'Cư dân hỗ trợ'), 40),
+        phone: cleanPhone,
+        note: sanitizeInputText(String(body.note || ''), 300),
         reporterId: callerUserId || (body.reporterId ? String(body.reporterId) : undefined),
       });
       sendJson(res, 201, { success: true, ...result });
@@ -919,10 +1066,10 @@ const server = http.createServer(async (req, res) => {
       if (!authUserId) return;
       const conversationId = chatMsgMatch[1];
       const body = await parseJsonBody(req);
-      const text = String(body.text || '');
+      const text = sanitizeInputText(String(body.text || ''), 1000);
       const mediaUrl = body.mediaUrl ? String(body.mediaUrl) : undefined;
       if (!text && !mediaUrl) {
-        sendJson(res, 400, { error: 'Text or media is required' });
+        sendJson(res, 400, { error: 'Nội dung tin nhắn hoặc hình ảnh không được để trống (tối đa 1000 ký tự).' });
         return;
       }
       try {

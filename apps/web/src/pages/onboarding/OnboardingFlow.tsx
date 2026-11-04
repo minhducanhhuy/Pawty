@@ -142,7 +142,18 @@ export const OnboardingFlow: React.FC = () => {
       return;
     }
 
-    if (!phone.trim() || !ownerName.trim() || !password.trim()) {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (!/^(0[35789])[0-9]{8}$/.test(cleanPhone)) {
+      setAuthError('Số điện thoại không hợp lệ. Vui lòng nhập đúng 10 chữ số (đầu số 03, 05, 07, 08, 09).');
+      return;
+    }
+
+    if (password.trim().length < 6) {
+      setAuthError('Mật khẩu phải có tối thiểu 6 ký tự.');
+      return;
+    }
+
+    if (!cleanPhone || !ownerName.trim()) {
       setAuthError('Vui lòng điền đầy đủ Số điện thoại, Mật khẩu và Họ tên.');
       return;
     }
@@ -150,7 +161,7 @@ export const OnboardingFlow: React.FC = () => {
     setIsLoading(true);
     try {
       await completeOnboardingWizard({
-        phone,
+        phone: cleanPhone,
         username,
         password,
         displayName: ownerName,
@@ -374,8 +385,9 @@ export const OnboardingFlow: React.FC = () => {
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Nhập số điện thoại"
+                    maxLength={10}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="Nhập 10 chữ số (VD: 0912345678)"
                     style={{ color: theme.text }}
                     className="w-full bg-transparent text-sm font-medium focus:outline-none"
                   />

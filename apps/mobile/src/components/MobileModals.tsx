@@ -23,6 +23,7 @@ import {
   useMobilePawty,
 } from '../context/MobilePawtyContext';
 import { apiClient } from '../services/apiClient';
+import { resolveLocalMediaUrls } from '../utils/mediaUtils';
 import {
   SUGGESTED_HASHTAGS,
   TINDER_PURPOSE_OPTIONS,
@@ -257,6 +258,7 @@ export const MobileModals: React.FC = () => {
   const [tinderZodiacInput, setTinderZodiacInput] = useState(userTinderSetup.zodiac);
   const [tinderChatStyleInput, setTinderChatStyleInput] = useState(userTinderSetup.chatStyle);
   const [tinderPromptInput, setTinderPromptInput] = useState(userTinderSetup.promptQuote || '');
+  const [isSavingTinder, setIsSavingTinder] = useState(false);
 
   // 4. Notifications Filter & Confirm State
   const [notifFilterTab, setNotifFilterTab] = useState<NotificationFilterTab>('all');
@@ -380,17 +382,14 @@ export const MobileModals: React.FC = () => {
         quality: 0.5,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        showToast('Đang tải ảnh hẹn hò lên Cloudinary...');
         const pickedDataUrls = result.assets.map((asset) =>
           asset.base64
             ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
             : asset.uri
         );
-        const uploadedUrls = await Promise.all(
-          pickedDataUrls.map((raw) => apiClient.uploadImage(raw, 'pawty/tinder'))
-        );
-        setTinderPhotosInput((prev) => [...prev, ...uploadedUrls].slice(0, 6));
-        showToast(`Đã thêm ${uploadedUrls.length} ảnh hẹn hò vào bộ ảnh!`);
+        // Preview-first: lưu trực tiếp vào state cục bộ, tải lên Cloudinary khi ấn Lưu
+        setTinderPhotosInput((prev) => [...prev, ...pickedDataUrls].slice(0, 6));
+        showToast(`Đã chọn ${pickedDataUrls.length} ảnh thẻ kết nối!`);
       }
     } catch (err) {
       console.warn('[Tinder Photo Picker] Lỗi:', err);
@@ -417,18 +416,15 @@ export const MobileModals: React.FC = () => {
         quality: 0.45,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        showToast('Đang tải ảnh lên Cloudinary...');
         const pickedDataUrls = result.assets.map((asset) =>
           asset.base64
             ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
             : asset.uri
         );
-        const uploadedUrls = await Promise.all(
-          pickedDataUrls.map((raw) => apiClient.uploadImage(raw, 'pawty/posts'))
-        );
-        setSelectedMediaUrls((prev) => [...prev, ...uploadedUrls].slice(0, 8));
+        // Preview-first: lưu trực tiếp vào state cục bộ, tải lên Cloudinary khi ấn Đăng bài
+        setSelectedMediaUrls((prev) => [...prev, ...pickedDataUrls].slice(0, 8));
         setIsSelectedVideo(false);
-        showToast(`Đã tải ${uploadedUrls.length} ảnh lên Cloudinary thành công!`);
+        showToast(`Đã chọn ${pickedDataUrls.length} ảnh!`);
       }
     } catch (err) {
       console.warn('[Post Media Picker] Lỗi chọn ảnh:', err);
@@ -453,11 +449,10 @@ export const MobileModals: React.FC = () => {
         const rawUrl = asset.base64
           ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
           : asset.uri;
-        showToast('Đang tải ảnh vừa chụp lên Cloudinary...');
-        const uploadedUrl = await apiClient.uploadImage(rawUrl, 'pawty/posts');
-        setSelectedMediaUrls((prev) => [uploadedUrl, ...prev].slice(0, 8));
+        // Preview-first: hiển thị ảnh chụp ngay, tải lên Cloudinary khi ấn Đăng bài
+        setSelectedMediaUrls((prev) => [rawUrl, ...prev].slice(0, 8));
         setIsSelectedVideo(false);
-        showToast('Đã tải ảnh chụp lên Cloudinary thành công!');
+        showToast('Đã thêm ảnh chụp vào bài viết!');
       }
     } catch (err) {
       console.warn('[Post Camera] Lỗi chụp ảnh:', err);
@@ -483,10 +478,12 @@ export const MobileModals: React.FC = () => {
     if (isSubmittingPost) return;
     setIsSubmittingPost(true);
     try {
+      // Deferred Upload: Tải các ảnh preview cục bộ lên Cloudinary song song bằng Promise.all
+      const resolvedMediaUrls = await resolveLocalMediaUrls(selectedMediaUrls, 'pawty/posts');
       const ok = await createPost({
         content: postCaption,
         tags: selectedHashtags,
-        mediaUrls: selectedMediaUrls,
+        mediaUrls: resolvedMediaUrls,
         mediaType: isSelectedVideo ? 'video' : 'image',
         category: 'moment',
       });
@@ -496,7 +493,11 @@ export const MobileModals: React.FC = () => {
         setIsSelectedVideo(false);
         // Lưu lại toàn bộ hashtag đã dùng vào danh sách lịch sử
         setSavedHashtags((prev) => Array.from(new Set([...selectedHashtags, ...prev])));
+        showToast('Đã đăng bài viết mới thành công!');
       }
+    } catch (err) {
+      console.warn('[handleSubmitNewPost] Lỗi:', err);
+      showToast('Không thể đăng bài viết. Vui lòng thử lại sau.');
     } finally {
       setIsSubmittingPost(false);
     }
@@ -1092,7 +1093,7 @@ export const MobileModals: React.FC = () => {
                   Hồ sơ Hẹn hò hoạt động hoàn toàn độc lập với Hồ sơ Con sen. Bạn có thể đặt biệt danh riêng, bộ ảnh thẻ hẹn hò riêng, lời giới thiệu riêng và chọn Boss đồng hành dắt dạo.
                 </Text>
 
-                {/* BỘ ẢNH THẺ HẸN HÒ (CLOUDINARY) */}
+                {/* BỘ ẢNH THẺ HẸN HÒ */}
                 <Text style={styles.label}>Bộ ảnh thẻ Hẹn hò (Ảnh đầu làm ảnh đại diện)</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
                   <TouchableOpacity
@@ -1391,30 +1392,50 @@ export const MobileModals: React.FC = () => {
                 />
 
                 <TouchableOpacity
-                  style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
+                  style={[styles.primaryBtn, { backgroundColor: theme.primary, opacity: isSavingTinder ? 0.7 : 1 }]}
+                  disabled={isSavingTinder}
                   onPress={async () => {
-                    await updateUserTinderSetup({
-                      displayName: tinderDisplayNameInput.trim(),
-                      bio: tinderBioInput.trim(),
-                      datingPetId: tinderDatingPetIdInput,
-                      photos: tinderPhotosInput,
-                      photoUrls: tinderPhotosInput,
-                      age: parseInt(tinderAgeInput, 10) || 24,
-                      gender: tinderGenderInput,
-                      intent: tinderIntentInput,
-                      lookingFor: getTinderPurposeLabel(tinderIntentInput),
-                      smoking: tinderSmokingInput,
-                      workout: tinderWorkoutInput,
-                      drinking: tinderDrinkingInput,
-                      zodiac: tinderZodiacInput,
-                      chatStyle: tinderChatStyleInput,
-                      promptQuote: tinderPromptInput.trim(),
-                    });
-                    setActiveModal(null);
+                    if (isSavingTinder) return;
+                    setIsSavingTinder(true);
+                    try {
+                      // Deferred upload: tải các ảnh thẻ hẹn hò cục bộ lên Cloudinary song song
+                      const resolvedPhotos = await resolveLocalMediaUrls(tinderPhotosInput, 'pawty/tinder');
+                      setTinderPhotosInput(resolvedPhotos);
+                      await updateUserTinderSetup({
+                        displayName: tinderDisplayNameInput.trim(),
+                        bio: tinderBioInput.trim(),
+                        datingPetId: tinderDatingPetIdInput,
+                        photos: resolvedPhotos,
+                        photoUrls: resolvedPhotos,
+                        age: parseInt(tinderAgeInput, 10) || 24,
+                        gender: tinderGenderInput,
+                        intent: tinderIntentInput,
+                        lookingFor: getTinderPurposeLabel(tinderIntentInput),
+                        smoking: tinderSmokingInput,
+                        workout: tinderWorkoutInput,
+                        drinking: tinderDrinkingInput,
+                        zodiac: tinderZodiacInput,
+                        chatStyle: tinderChatStyleInput,
+                        promptQuote: tinderPromptInput.trim(),
+                      });
+                      showToast('Đã lưu hồ sơ kết nối thành công!');
+                      setActiveModal(null);
+                    } catch (err) {
+                      console.warn('[Tinder Save] Lỗi:', err);
+                      showToast('Không thể lưu hồ sơ kết nối. Vui lòng thử lại sau.');
+                    } finally {
+                      setIsSavingTinder(false);
+                    }
                   }}
                 >
-                  <Feather name="check" size={16} color="#FFFFFF" />
-                  <Text style={styles.primaryBtnText}>Lưu Hồ sơ Kết nối</Text>
+                  {isSavingTinder ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Feather name="check" size={16} color="#FFFFFF" />
+                  )}
+                  <Text style={styles.primaryBtnText}>
+                    {isSavingTinder ? 'Đang lưu hồ sơ...' : 'Lưu Hồ sơ Kết nối'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}

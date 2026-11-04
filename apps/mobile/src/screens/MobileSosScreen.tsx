@@ -13,6 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
 import { apiClient } from '../services/apiClient';
+import { isLocalMediaUri } from '../utils/mediaUtils';
 import { SelectorPickerModal } from '../components/SelectorFieldModal';
 import {
   POPULAR_DOG_BREEDS,
@@ -81,10 +82,9 @@ export const MobileSosScreen: React.FC = () => {
         if (asset.base64) {
           setSosPhotoBase64(asset.base64);
         }
-        showToast('Đang tải ảnh SOS lên Cloudinary...');
-        const uploadedUrl = await apiClient.uploadImage(rawUri, 'pawty/sos');
-        setSosPhotoUri(uploadedUrl);
-        showToast('Đã tải ảnh thú cưng lên Cloudinary thành công!');
+        // Preview-first: lưu URI xem trước ngay lập tức, chỉ upload Cloudinary khi bấm Phát tín hiệu SOS
+        setSosPhotoUri(rawUri);
+        showToast('Đã chọn ảnh thú cưng!');
       }
     } catch {
       showToast('Không thể mở thư viện ảnh trên thiết bị.');
@@ -140,13 +140,19 @@ export const MobileSosScreen: React.FC = () => {
       showToast('Vui lòng nhập tên thú cưng cần tìm.');
       return;
     }
-    if (!sosDesc.trim()) {
-      showToast('Vui lòng dùng AI tạo mô tả từ ảnh hoặc nhập đặc điểm nhận dạng của bé.');
+    if (sosDesc.trim().length < 10) {
+      showToast('Vui lòng dùng AI tạo mô tả từ ảnh hoặc tự nhập đặc điểm nhận dạng của bé ít nhất 10 ký tự.');
       return;
     }
 
     setIsSubmittingSos(true);
     try {
+      let finalImageUrl = sosPhotoUri;
+      // Deferred Upload: nếu ảnh SOS là ảnh cục bộ xem trước, tải lên Cloudinary khi ấn Phát tín hiệu SOS
+      if (finalImageUrl && isLocalMediaUri(finalImageUrl)) {
+        finalImageUrl = (await apiClient.uploadImage(finalImageUrl, 'pawty/sos')) || finalImageUrl;
+      }
+
       const ok = await createSosAlert({
         petName: sosPetName.trim(),
         species: sosSpecies,
@@ -156,7 +162,7 @@ export const MobileSosScreen: React.FC = () => {
         rewardAmount: sosReward,
         contactPhone: ownerPhone,
         description: sosDesc.trim(),
-        imageUrl: sosPhotoUri,
+        imageUrl: finalImageUrl,
       });
 
       if (ok) {
@@ -257,7 +263,22 @@ export const MobileSosScreen: React.FC = () => {
           </Text>
 
           <View style={styles.photoPickerRow}>
-            <Image source={{ uri: sosPhotoUri }} style={styles.sosPreviewImg} />
+            <View style={{ position: 'relative' }}>
+              <Image source={{ uri: sosPhotoUri }} style={styles.sosPreviewImg} />
+              {sosPhotoUri !== DEFAULT_SOS_PHOTO && (
+                <TouchableOpacity
+                  style={styles.sosRemovePhotoBtn}
+                  onPress={() => {
+                    setSosPhotoUri(DEFAULT_SOS_PHOTO);
+                    setSosPhotoBase64(null);
+                    showToast('Đã xóa ảnh đã chọn');
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="x" size={12} color="#FFFFFF" />
+                </TouchableOpacity>
+              )}
+            </View>
             <View style={{ flex: 1, gap: 6 }}>
               <Text style={styles.inputLabel}>Ảnh thú cưng cần tìm</Text>
               <TouchableOpacity
@@ -266,7 +287,7 @@ export const MobileSosScreen: React.FC = () => {
               >
                 <Feather name="upload" size={14} color={theme.primary} />
                 <Text style={[styles.pickPhotoBtnText, { color: theme.primary }]}>
-                  Chọn ảnh từ điện thoại
+                  {sosPhotoUri !== DEFAULT_SOS_PHOTO ? 'Đổi ảnh khác' : 'Chọn ảnh từ điện thoại'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -756,6 +777,21 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 16,
     backgroundColor: '#F3EFEA',
+  },
+  sosRemovePhotoBtn: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#C9302C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    zIndex: 10,
+    elevation: 3,
   },
   pickPhotoBtn: {
     flexDirection: 'row',

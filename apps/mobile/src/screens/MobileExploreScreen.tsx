@@ -82,7 +82,7 @@ setVisiblePostsCount(POSTS_PER_PAGE);
       }
       showToast('Đã làm mới bảng tin Khám phá!');
     } catch {
-      showToast('Đang kết nối lại máy chủ...');
+      showToast('Đang làm mới dữ liệu...');
     } finally {
       setIsRefreshing(false);
     }
