@@ -174,6 +174,18 @@ export const apiClient = {
     });
   },
 
+  async updateLocation(data: {
+    latitude: number;
+    longitude: number;
+    district?: string;
+    neighborhood?: string;
+  }) {
+    return request<{ user: any }>('/api/users/me/location', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
   async getUserProfile(handle: string, currentUserId = 'user-test1') {
     const cleanHandle = encodeURIComponent(handle);
     const query = currentUserId ? `?currentUserId=${encodeURIComponent(currentUserId)}` : '';
@@ -327,19 +339,32 @@ export const apiClient = {
   },
 
   // 6. Tinder / Radar Candidates, Likes You & Matches
-  async getTinderCandidates(userId = 'user-test1', intent?: string, gender?: string) {
+  async getTinderCandidates(
+    userId = 'user-test1',
+    intent?: string,
+    gender?: string,
+    lat?: number,
+    lng?: number
+  ) {
     let query = intent && intent !== 'all' ? `&intent=${encodeURIComponent(intent)}` : '';
     if (gender && gender !== 'all' && gender !== 'Mọi người') {
       query += `&gender=${encodeURIComponent(gender)}`;
+    }
+    if (lat !== undefined && lng !== undefined) {
+      query += `&lat=${lat}&lng=${lng}`;
     }
     return request<{ candidates: any[] }>(
       `/api/tinder/candidates?userId=${encodeURIComponent(userId)}${query}`
     );
   },
 
-  async getLikesYouCandidates(userId = 'user-test1') {
+  async getLikesYouCandidates(userId = 'user-test1', lat?: number, lng?: number) {
+    let query = '';
+    if (lat !== undefined && lng !== undefined) {
+      query += `&lat=${lat}&lng=${lng}`;
+    }
     return request<{ likesYou: any[] }>(
-      `/api/tinder/likes-you?userId=${encodeURIComponent(userId)}`
+      `/api/tinder/likes-you?userId=${encodeURIComponent(userId)}${query}`
     );
   },
 

@@ -37,7 +37,16 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
   const [selectedMonth, setSelectedMonth] = useState(parts[1] || defaultMonth);
   const [selectedYear, setSelectedYear] = useState(parts[2] || (isPet ? defaultYear : '2000'));
 
-  const days = useMemo(() => Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0')), []);
+  const maxDaysInMonth = useMemo(() => {
+    const m = parseInt(selectedMonth, 10) || 1;
+    const y = parseInt(selectedYear, 10) || 2000;
+    return new Date(y, m, 0).getDate();
+  }, [selectedMonth, selectedYear]);
+
+  const days = useMemo(
+    () => Array.from({ length: maxDaysInMonth }, (_, i) => String(i + 1).padStart(2, '0')),
+    [maxDaysInMonth]
+  );
   const months = useMemo(() => Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')), []);
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -47,6 +56,14 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
   }, [isPet]);
 
   const [dateError, setDateError] = useState('');
+
+  // Tự động điều chỉnh ngày nếu tháng mới có ít ngày hơn (VD: từ 31 sang tháng 2/4/6...)
+  useEffect(() => {
+    const currentDayNum = parseInt(selectedDay, 10) || 1;
+    if (currentDayNum > maxDaysInMonth) {
+      setSelectedDay(String(maxDaysInMonth).padStart(2, '0'));
+    }
+  }, [maxDaysInMonth, selectedDay]);
 
   useEffect(() => {
     if (visible) {
@@ -66,7 +83,11 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
   const handleConfirm = () => {
     const formatted = `${selectedDay}/${selectedMonth}/${selectedYear}`;
     if (isFutureDate(formatted)) {
-      setDateError('Ngày sinh của bé không được vượt quá ngày hiện tại!');
+      setDateError(
+        isPet
+          ? 'Ngày sinh của bé không được vượt quá ngày hiện tại!'
+          : 'Ngày sinh của bạn không được vượt quá ngày hiện tại!'
+      );
       return;
     }
     setDateError('');

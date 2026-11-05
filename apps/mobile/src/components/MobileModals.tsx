@@ -25,6 +25,12 @@ import {
 import { apiClient } from '../services/apiClient';
 import { resolveLocalMediaUrls } from '../utils/mediaUtils';
 import {
+  validateDisplayName,
+  validatePetName,
+  validatePetWeight,
+  validateOwnerAge,
+} from '../utils/validators';
+import {
   SUGGESTED_HASHTAGS,
   TINDER_PURPOSE_OPTIONS,
   TinderIntent,
@@ -1396,6 +1402,16 @@ export const MobileModals: React.FC = () => {
                   disabled={isSavingTinder}
                   onPress={async () => {
                     if (isSavingTinder) return;
+                    const nameCheck = validateDisplayName(tinderDisplayNameInput, 2, 35);
+                    if (!nameCheck.valid) {
+                      showToast(nameCheck.error || 'Vui lòng nhập tên hiển thị trên thẻ hẹn hò (2 - 35 ký tự).');
+                      return;
+                    }
+                    const ageCheck = validateOwnerAge(tinderAgeInput, 18, 100);
+                    if (!ageCheck.valid) {
+                      showToast(ageCheck.error || 'Tính năng Hẹn hò yêu cầu bạn phải từ 18 tuổi trở lên.');
+                      return;
+                    }
                     setIsSavingTinder(true);
                     try {
                       // Deferred upload: tải các ảnh thẻ hẹn hò cục bộ lên Cloudinary song song
@@ -1407,7 +1423,7 @@ export const MobileModals: React.FC = () => {
                         datingPetId: tinderDatingPetIdInput,
                         photos: resolvedPhotos,
                         photoUrls: resolvedPhotos,
-                        age: parseInt(tinderAgeInput, 10) || 24,
+                        age: ageCheck.age || 24,
                         gender: tinderGenderInput,
                         intent: tinderIntentInput,
                         lookingFor: getTinderPurposeLabel(tinderIntentInput),
@@ -1640,6 +1656,25 @@ export const MobileModals: React.FC = () => {
                 <TouchableOpacity
                   style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
                   onPress={() => {
+                    const ownerNameCheck = validateDisplayName(editOwnerName, 2, 50);
+                    if (!ownerNameCheck.valid) {
+                      showToast(ownerNameCheck.error || 'Tên hiển thị chủ nuôi không hợp lệ (2 - 50 ký tự).');
+                      return;
+                    }
+                    if (activePet.id) {
+                      const petNameCheck = validatePetName(editPetName, 1, 30);
+                      if (!petNameCheck.valid) {
+                        showToast(petNameCheck.error || 'Tên thú cưng không hợp lệ (1 - 30 ký tự).');
+                        return;
+                      }
+                      if (editPetWeight.trim()) {
+                        const weightCheck = validatePetWeight(editPetWeight);
+                        if (!weightCheck.valid) {
+                          showToast(weightCheck.error || 'Cân nặng của bé không hợp lệ (0.1 - 120 kg).');
+                          return;
+                        }
+                      }
+                    }
                     setOwnerNoteBubble(editOwnerNote);
                     updateOwnerAndPetProfile({
                       ownerName: editOwnerName,

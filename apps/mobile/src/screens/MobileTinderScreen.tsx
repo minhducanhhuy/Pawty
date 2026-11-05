@@ -7,7 +7,12 @@ import {
   PanResponder,
   Dimensions,
   TouchableOpacity,
+  Linking,
+  AppState,
+  AppStateStatus,
+  ActivityIndicator,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
 import { TinderCardSurface } from './tinder/TinderCardSurface';
@@ -15,6 +20,8 @@ import { TinderActionBar } from './tinder/TinderActionBar';
 import { TinderProfileDetailModal } from './tinder/TinderProfileDetailModal';
 import { TinderFilterModal } from './tinder/TinderFilterModal';
 import { TinderMenuModal } from './tinder/TinderMenuModal';
+import { TinderLocationGate } from './tinder/TinderLocationGate';
+import { apiClient } from '../services/apiClient';
 import { TINDER_PURPOSE_OPTIONS, getCandidateSlides, TinderCandidate } from '../types/mobileTypes';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -40,7 +47,93 @@ export const MobileTinderScreen: React.FC = () => {
     setActiveModal,
     openPublicUserProfile,
     showToast,
+    setUserLocationCoords,
   } = useMobilePawty();
+
+  const [permissionState, setPermissionState] = useState<'checking' | 'prompt' | 'denied' | 'granted'>('checking');
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+
+  const syncCurrentLocation = async () => {
+    try {
+      setIsRequestingLocation(true);
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const coords = {
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      };
+      setUserLocationCoords(coords);
+      apiClient.updateLocation(coords).catch(() => {});
+      await reloadTinderDeck(true, undefined, coords);
+    } catch (err) {
+      console.warn('[Pawty Tinder] Không thể lấy tọa độ thiết bị:', err);
+    } finally {
+      setIsRequestingLocation(false);
+    }
+  };
+
+  const checkLocationPermission = async (autoPrompt = false) => {
+    try {
+      const { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
+      if (status === Location.PermissionStatus.GRANTED) {
+        setPermissionState('granted');
+        await syncCurrentLocation();
+        return true;
+      }
+
+      if (autoPrompt && canAskAgain) {
+        setPermissionState('prompt');
+      } else if (!canAskAgain) {
+        setPermissionState('denied');
+      } else {
+        setPermissionState('prompt');
+      }
+      return false;
+    } catch (err) {
+      console.warn('[Pawty Tinder] Lỗi kiểm tra quyền vị trí:', err);
+      setPermissionState('prompt');
+      return false;
+    }
+  };
+
+  const handleRequestPermission = async () => {
+    try {
+      setIsRequestingLocation(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === Location.PermissionStatus.GRANTED) {
+        setPermissionState('granted');
+        await syncCurrentLocation();
+      } else {
+        setPermissionState('denied');
+      }
+    } catch (err) {
+      console.warn('[Pawty Tinder] Lỗi yêu cầu cấp quyền vị trí:', err);
+      setPermissionState('denied');
+    } finally {
+      setIsRequestingLocation(false);
+    }
+  };
+
+  const handleOpenSettings = () => {
+    Linking.openSettings().catch((err) => {
+      console.warn('[Pawty Tinder] Không thể mở Cài đặt thiết bị:', err);
+    });
+  };
+
+  useEffect(() => {
+    checkLocationPermission(true);
+
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        checkLocationPermission(false);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   // Cơ chế tải thông minh: Chỉ duy trì tối đa 5 thẻ trên FE (Sliding Window Buffer = 5)
   const TINDER_BUFFER_SIZE = 5;
@@ -72,12 +165,12 @@ export const MobileTinderScreen: React.FC = () => {
     setPhotoIdx(0);
   }, [currentCandidateId]);
 
-  // Tự động làm mới cọc thẻ nếu danh sách trống
+  // Tự động làm mới cọc thẻ nếu danh sách trống (chỉ khi đã được cấp quyền vị trí)
   useEffect(() => {
-    if (activeQueue.length === 0 && tinderCandidates.length === 0) {
+    if (permissionState === 'granted' && activeQueue.length === 0 && tinderCandidates.length === 0) {
       reloadTinderDeck(true);
     }
-  }, [activeQueue.length, tinderCandidates.length, reloadTinderDeck]);
+  }, [permissionState, activeQueue.length, tinderCandidates.length, reloadTinderDeck]);
 
   const pan = useRef(new Animated.ValueXY()).current;
   const isSwipingRef = useRef(false);
@@ -213,6 +306,25 @@ export const MobileTinderScreen: React.FC = () => {
   });
 
   const likedYouCount = likesYouCandidates.length;
+
+  if (permissionState === 'checking') {
+    return (
+      <View style={[styles.rootContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
+  if (permissionState === 'prompt' || permissionState === 'denied') {
+    return (
+      <TinderLocationGate
+        mode={permissionState}
+        onRequestPermission={handleRequestPermission}
+        onOpenSettings={handleOpenSettings}
+        isLoading={isRequestingLocation}
+      />
+    );
+  }
 
   return (
     <View style={styles.rootContainer}>

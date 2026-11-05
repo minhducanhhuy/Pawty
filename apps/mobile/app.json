@@ -17,21 +17,33 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.pawty.app",
-      "infoPlist": {}
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Pawty cần quyền vị trí để hiển thị các bạn cún và boss xung quanh bạn."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/pawty-icon.png",
         "backgroundColor": "#FDFBF7"
       },
-      "package": "com.pawty.app"
+      "package": "com.pawty.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "plugins": [
       "expo-font",
       "expo-localization",
       "expo-secure-store",
       "expo-sharing",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Pawty cần quyền vị trí để hiển thị các bạn cún và boss xung quanh bạn."
+        }
+      ]
     ],
     "extra": {
       "eas": {

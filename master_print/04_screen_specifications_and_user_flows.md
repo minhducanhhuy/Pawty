@@ -332,3 +332,28 @@
 - **Nguyên tắc tôn trọng danh tính:** Nếu tài khoản người dùng chưa tải lên ảnh đại diện (`avatarUrl === null` hoặc `''`), hệ thống **BẮT BUỘC** hiển thị khung đại diện trống kèm icon người dùng mặc định (`Feather name="user"`).
 - **Tuyệt đối không gán ảnh người lạ:** Nghiêm cấm mọi logic fallback tự động gán đường dẫn ảnh Unsplash của người lạ vào tài khoản hoặc bình luận của người dùng.
 - **Đồng bộ bình luận và tài khoản:** Khi gửi bình luận mới (`addComment` / `addCommentReply`), trường `authorAvatar` chỉ lấy từ `ownerAvatarUrl || ownerAvatar` của tài khoản hiện tại. Nếu chưa có ảnh, giá trị phải là chuỗi rỗng `''`.
+
+### 2.29 Màn Hình Cổng Chặn Quyền Vị Trí Tinder Bắt Buộc (Mandatory Location Permission Gate & Dynamic GPS Distance Calculation)
+- **Luồng kiểm tra & Cổng chặn quyền vị trí bắt buộc (Location Permission Gate):**
+  - **Mục tiêu UX:** Phỏng dựng chính xác trải nghiệm Tinder (khi tắt quyền vị trí sẽ bị chặn không cho vào quẹt thẻ, yêu cầu cấp quyền hoặc mở Cài đặt thiết bị), nhưng được tùy biến hoàn toàn theo ngôn ngữ thiết kế của Pawty (Playful Minimalism: Màu Hồng San Hô `#FF6F61`, Xanh Mint `#A3E4D7`, Nền Trắng Kem `#FDFBF7`, bo góc mềm mại, icon chân cún, font chữ tròn thân thiện).
+  - **Trạng thái 1: Nhắc nhở cấp quyền ban đầu (`prompt`):**
+    - Hiển thị khi người dùng vào Tab Kết nối (Tinder) và chưa cấp quyền vị trí cho thiết bị.
+    - Tiêu đề lớn: **"Bạn có sống ở khu vực này không?"** (Font bold `#1C1815`, căn giữa).
+    - Phụ đề giải thích: **"Mở cài đặt địa điểm để xem có những ai ở quanh khu vực của bạn. Bạn sẽ không thể tìm bạn dắt cún nếu không chia sẻ thông tin này."** (Màu `#6B7280`, line-height thoáng, căn giữa).
+    - Đồ họa trung tâm: Vòng tròn bo tròn lớn (`width: 180, height: 180`), nền trắng đổ bóng nhẹ, chứa Ghim bản đồ (Location Pin) màu Hồng San Hô `#FF6F61`, ở tâm ghim có dấu chân cún đặc trưng của Pawty, cùng hiệu ứng gợn sóng radar lan tỏa.
+    - Nút hành động chính: **"Cho phép"** (Nút viên thuốc bo tròn toàn phần `rounded-full`, nền Hồng San Hô `#FF6F61`, chữ trắng in đậm). Khi bấm -> Kích hoạt hộp thoại cấp quyền hệ thống của thiết bị (`Location.requestForegroundPermissionsAsync()`).
+    - Nút hỗ trợ phụ: **"Thông tin địa điểm của bạn được sử dụng thế nào?  ↓"**. Khi bấm -> Mở Modal chi tiết giải thích rõ chính sách an toàn & quyền riêng tư thú cưng (Pawty chỉ dùng tọa độ để tính khoảng cách km tương đối, không bao giờ lộ số nhà hay chia sẻ định vị thời gian thực cho người khác).
+  - **Trạng thái 2: Chặn khi bị từ chối cấp quyền (`denied`):**
+    - Hiển thị khi người dùng chọn "Không cho phép" (hoặc quyền vị trí đã bị tắt trong hệ điều hành).
+    - Tiêu đề lớn: **"Không thể kết nối"** (Font bold `#1C1815`, căn giữa).
+    - Phụ đề giải thích: **"Để tìm bạn dắt cún quanh bạn, Pawty cần bạn bật vị trí thiết bị để chúng tôi có thể hiển thị những ai đang ở xung quanh."** (Màu `#6B7280`, căn giữa).
+    - Đồ họa trung tâm: Ghim vị trí biểu tượng khóa / cảnh báo nhẹ trong vòng tròn tối giản.
+    - Nút hành động duy nhất: **"Mở mục Cài đặt"** (Nút bo tròn `#FF6F61`). Khi bấm -> Gọi `Linking.openSettings()` để mở ngay trang Cài đặt ứng dụng của hệ điều hành (App Info Settings).
+  - **Cơ chế Tự động Nhận diện khi Người dùng Trở lại Ứng dụng (AppState Resume Listener):**
+    - Ứng dụng đăng ký lắng nghe sự kiện `AppState.addEventListener('change', state => ...)`.
+    - Khi người dùng sang Cài đặt bật quyền vị trí rồi quay lại màn hình Pawty (`nextAppState === 'active'`), hệ thống tự động kiểm tra lại quyền vị trí `Location.getForegroundPermissionsAsync()`.
+    - Nếu đã được cấp quyền: Màn hình cổng chặn tự động biến mất, hệ thống tự động lấy tọa độ GPS thực tế (`Location.getCurrentPositionAsync()`), đồng bộ vị trí lên máy chủ (`PUT /api/users/me/location`), và nạp cọc thẻ hẹn hò với khoảng cách chính xác theo km.
+- **Triệt tiêu Khoảng Cách Giả Lập & Tính Toán Động Bằng Tọa Độ GPS (Haversine Formula):**
+  - **Loại bỏ vĩnh viễn mảng mock cứng:** Tuyệt đối không sử dụng mảng cố định `deterministicDistances = [0.8, 1.5, 2.4...]`.
+  - **Công thức Haversine:** Khoảng cách giữa người dùng hiện tại và ứng viên được tính toán trực tiếp từ tọa độ GPS thực tế $(lat_1, lng_1)$ và $(lat_2, lng_2)$ qua bán kính trái đất $R = 6371\text{ km}$.
+  - **Sắp xếp ưu tiên độ gần:** Các ứng viên trong cọc thẻ Tinder và danh sách kết nối được tự động sắp xếp tăng dần theo `distanceKm` (gần nhất hiển thị trước).

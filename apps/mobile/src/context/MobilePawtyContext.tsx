@@ -665,8 +665,14 @@ interface MobilePawtyContextType {
   canRewind: boolean;
   matchedCandidateModal: TinderCandidate | null;
   closeMatchedCandidateModal: () => void;
+  userLocationCoords: { latitude: number; longitude: number } | null;
+  setUserLocationCoords: (coords: { latitude: number; longitude: number } | null) => void;
   swipeTinderCandidate: (candidateId: string, direction: 'left' | 'right') => Promise<void>;
-  reloadTinderDeck: (silent?: boolean, overrideGender?: 'all' | 'female' | 'male') => Promise<void>;
+  reloadTinderDeck: (
+    silent?: boolean,
+    overrideGender?: 'all' | 'female' | 'male',
+    overrideCoords?: { latitude: number; longitude: number }
+  ) => Promise<void>;
   likeBackCandidate: (candidate: TinderCandidate) => Promise<void>;
   passLikesYouCandidate: (candidate: TinderCandidate) => Promise<void>;
   rewindLastSwipe: () => Promise<void>;
@@ -825,6 +831,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [showLikesYouDrawer, setShowLikesYouDrawer] = useState(false);
   const [tinderDistanceLimit, setTinderDistanceLimit] = useState<number | 'all'>('all');
   const [activePassportArea, setActivePassportArea] = useState('Mọi khoảng cách');
+  const [userLocationCoords, setUserLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Chat
   const [chats, setChats] = useState<MobileChatRoom[]>([]);
@@ -2692,13 +2699,20 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // TINDER SWIPE, LIKES YOU & MATCHES (100% Free & Unlimited Distance)
   // =========================================================================
   const reloadTinderDeck = useCallback(
-    async (silent = false, overrideGender?: 'all' | 'female' | 'male') => {
+    async (
+      silent = false,
+      overrideGender?: 'all' | 'female' | 'male',
+      overrideCoords?: { latitude: number; longitude: number }
+    ) => {
       if (!currentUserId) return;
       try {
+        const coords = overrideCoords || userLocationCoords;
         const res = await apiClient.getTinderCandidates(
           currentUserId,
           tinderFilterGoal !== 'all' ? tinderFilterGoal : undefined,
-          (overrideGender ?? tinderGenderFilter) !== 'all' ? (overrideGender ?? tinderGenderFilter) : undefined
+          (overrideGender ?? tinderGenderFilter) !== 'all' ? (overrideGender ?? tinderGenderFilter) : undefined,
+          coords?.latitude,
+          coords?.longitude
         );
         const freshRaw = res?.candidates;
           const fresh = (Array.isArray(freshRaw) ? freshRaw : []).filter(
@@ -2725,7 +2739,7 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         console.warn('[Pawty Tinder] Lỗi làm mới cọc thẻ:', err);
       }
     },
-    [currentUserId, tinderFilterGoal, tinderGenderFilter, showToast]
+    [currentUserId, tinderFilterGoal, tinderGenderFilter, userLocationCoords, showToast]
   );
 
   // Định kỳ tự động làm mới cọc thẻ hẹn hò sau mỗi 2 phút (chỉ lấy người chưa match)
@@ -3264,6 +3278,8 @@ export const MobilePawtyProvider: React.FC<{ children: React.ReactNode }> = ({ c
         closeMatchedCandidateModal,
         swipeTinderCandidate,
         reloadTinderDeck,
+        userLocationCoords,
+        setUserLocationCoords,
         likeBackCandidate,
         passLikesYouCandidate,
         rewindLastSwipe,

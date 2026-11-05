@@ -23,7 +23,16 @@ import { FacebookCommentSection } from '../components/FacebookCommentSection';
 import { apiClient } from '../services/apiClient';
 import { SelectorPickerModal, ConfirmActionModal } from '../components/SelectorFieldModal';
 import { DatePickerModal } from '../components/DatePickerModal';
-import { sanitizeWeightInput, validatePetWeight } from '../utils/validators';
+import {
+  sanitizeWeightInput,
+  validatePetWeight,
+  calculateAgeFromBirthDate,
+  validateOwnerAge,
+  validateOwnerBirthDate,
+  validatePetBirthDate,
+  validateDisplayName,
+  validatePetName,
+} from '../utils/validators';
 import { isLocalMediaUri } from '../utils/mediaUtils';
 import {
   MobilePet,
@@ -602,7 +611,13 @@ export const MobileProfileScreen: React.FC = () => {
     setOwnerDraftName(ownerName);
     setOwnerDraftGender(ownerGender);
     setOwnerDraftArea(ownerArea);
-    setOwnerDraftAge(String(ownerAge));
+    const resolvedAge =
+      ownerAge >= 16 && ownerAge <= 100
+        ? ownerAge
+        : ownerBirthDate
+        ? calculateAgeFromBirthDate(ownerBirthDate) || 24
+        : 24;
+    setOwnerDraftAge(String(resolvedAge));
     setOwnerDraftBirthDate(ownerBirthDate);
     setOwnerDraftZodiac(ownerZodiac);
     setOwnerDraftMbti(ownerMbti);
@@ -626,15 +641,28 @@ export const MobileProfileScreen: React.FC = () => {
   };
 
   const handleSaveOwnerProfile = async () => {
-    if (!ownerDraftName.trim()) {
-      showToast('Vui lòng nhập họ và tên của bạn.');
+    const nameCheck = validateDisplayName(ownerDraftName, 2, 50);
+    if (!nameCheck.valid) {
+      showToast(nameCheck.error || 'Họ và tên của bạn không hợp lệ (2 - 50 ký tự).');
       return;
+    }
+    const ageCheck = validateOwnerAge(ownerDraftAge, 16, 100);
+    if (!ageCheck.valid) {
+      showToast(ageCheck.error || 'Vui lòng chọn độ tuổi của bạn (16 - 100 tuổi).');
+      return;
+    }
+    if (ownerDraftBirthDate && ownerDraftBirthDate.trim()) {
+      const birthCheck = validateOwnerBirthDate(ownerDraftBirthDate, 16, 100);
+      if (!birthCheck.valid) {
+        showToast(birthCheck.error || 'Ngày sinh của bạn không hợp lệ.');
+        return;
+      }
     }
     await updateOwnerProfile({
       name: ownerDraftName.trim(),
       gender: ownerDraftGender,
       area: ownerDraftArea.trim(),
-      age: parseInt(ownerDraftAge, 10) || 24,
+      age: ageCheck.age || 24,
       birthDate: ownerDraftBirthDate,
       zodiac: ownerDraftZodiac,
       mbti: ownerDraftMbti,
@@ -684,13 +712,21 @@ export const MobileProfileScreen: React.FC = () => {
 
   const handleSavePetEdits = async () => {
     if (!editingPet) return;
-    if (!editPetNameDraft.trim()) {
-      showToast('Vui lòng nhập tên cho bé thú cưng.');
+    const nameCheck = validatePetName(editPetNameDraft, 1, 30);
+    if (!nameCheck.valid) {
+      showToast(nameCheck.error || 'Vui lòng nhập tên cho bé thú cưng.');
       return;
     }
-    if (isFutureDate(editPetBirthDateDraft)) {
-      showToast('Ngày sinh của bé không được vượt quá ngày hiện tại!');
+    if (editPetSpeciesDraft === 'Khác' && !editPetCustomSpeciesDraft.trim()) {
+      showToast('Vui lòng nhập tên loài tùy chọn cho bé.');
       return;
+    }
+    if (editPetBirthDateDraft && editPetBirthDateDraft.trim()) {
+      const birthCheck = validatePetBirthDate(editPetBirthDateDraft);
+      if (!birthCheck.valid) {
+        showToast(birthCheck.error || 'Ngày sinh của bé không hợp lệ.');
+        return;
+      }
     }
     if (editPetWeightDraft.trim()) {
       const weightCheck = validatePetWeight(editPetWeightDraft);
@@ -732,13 +768,21 @@ export const MobileProfileScreen: React.FC = () => {
   /* ---------------- Add New Pet (Atomic & Persisted in PostgreSQL) ---------------- */
   const handleAddNewPet = async () => {
     if (isCreatingPetSubmitting) return;
-    if (!newPetName.trim()) {
-      showToast('Vui lòng nhập tên bé thú cưng.');
+    const nameCheck = validatePetName(newPetName, 1, 30);
+    if (!nameCheck.valid) {
+      showToast(nameCheck.error || 'Vui lòng nhập tên bé thú cưng.');
       return;
     }
-    if (isFutureDate(newPetBirthDate)) {
-      showToast('Ngày sinh của bé không được vượt quá ngày hiện tại!');
+    if (newPetSpecies === 'Khác' && !newPetCustomSpecies.trim()) {
+      showToast('Vui lòng nhập tên loài tùy chọn cho bé.');
       return;
+    }
+    if (newPetBirthDate && newPetBirthDate.trim()) {
+      const birthCheck = validatePetBirthDate(newPetBirthDate);
+      if (!birthCheck.valid) {
+        showToast(birthCheck.error || 'Ngày sinh của bé không hợp lệ.');
+        return;
+      }
     }
     if (newPetWeight.trim()) {
       const weightCheck = validatePetWeight(newPetWeight);
@@ -1898,7 +1942,7 @@ export const MobileProfileScreen: React.FC = () => {
                 </View>
 
                 <View style={[styles.fieldBlock, { flex: 1, marginLeft: 8 }]}>
-                  <Text style={styles.fieldLabel}>Độ tuổi</Text>
+                  <Text style={styles.fieldLabel}>Độ tuổi *</Text>
                   <TouchableOpacity
                     style={styles.pickerSelectorBtn}
                     onPress={() =>
@@ -1907,7 +1951,9 @@ export const MobileProfileScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.pickerSelectorBtnText}>{ownerDraftAge} tuổi</Text>
+                    <Text style={styles.pickerSelectorBtnText}>
+                      {ownerDraftAge && ownerDraftAge !== '0' ? `${ownerDraftAge} tuổi` : 'Chọn tuổi'}
+                    </Text>
                     <Feather name="chevron-down" size={14} color="#7E6E60" />
                   </TouchableOpacity>
                 </View>
@@ -1924,7 +1970,14 @@ export const MobileProfileScreen: React.FC = () => {
                       title: 'Chọn ngày sinh',
                       initialDate: ownerDraftBirthDate || '15/08/2000',
                       isPet: false,
-                      onConfirm: (date) => setOwnerDraftBirthDate(date),
+                      onConfirm: (date) => {
+                        setOwnerDraftBirthDate(date);
+                        const calcAge = calculateAgeFromBirthDate(date);
+                        if (calcAge >= 16 && calcAge <= 100) {
+                          setOwnerDraftAge(String(calcAge));
+                          showToast(`Đã chọn ngày sinh (Độ tuổi: ${calcAge} tuổi)`);
+                        }
+                      },
                     });
                   }}
                 >

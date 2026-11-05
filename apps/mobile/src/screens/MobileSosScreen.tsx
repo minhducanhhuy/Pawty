@@ -14,6 +14,7 @@ import { Feather } from '../components/FeatherIcon';
 import { useMobilePawty } from '../context/MobilePawtyContext';
 import { apiClient } from '../services/apiClient';
 import { isLocalMediaUri } from '../utils/mediaUtils';
+import { validatePetName } from '../utils/validators';
 import { SelectorPickerModal } from '../components/SelectorFieldModal';
 import {
   POPULAR_DOG_BREEDS,
@@ -136,8 +137,13 @@ export const MobileSosScreen: React.FC = () => {
   };
 
   const handlePublishFreeSos = async () => {
-    if (!sosPetName.trim()) {
-      showToast('Vui lòng nhập tên thú cưng cần tìm.');
+    const nameCheck = validatePetName(sosPetName, 1, 30);
+    if (!nameCheck.valid) {
+      showToast(nameCheck.error || 'Vui lòng nhập tên thú cưng cần tìm.');
+      return;
+    }
+    if (sosSpecies === 'Khác' && !sosCustomSpecies.trim()) {
+      showToast('Vui lòng chọn hoặc nhập chủng loại khi chọn Khác.');
       return;
     }
     if (sosDesc.trim().length < 10) {

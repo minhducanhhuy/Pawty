@@ -118,6 +118,89 @@ export function calculatePetAgeFromBirthDate(birthDateStr?: string | null): stri
   return `${diffYears} tuổi`;
 }
 
+function getCoordinatesForArea(areaOrDistrict?: string, indexSeed = 0): { lat: number; lng: number } {
+  const norm = (areaOrDistrict || '').toLowerCase();
+
+  // Specific Landmark / Complex in HCMC
+  if (norm.includes('grand park')) return { lat: 10.8491, lng: 106.8415 };
+  if (norm.includes('central park') || norm.includes('landmark 81')) return { lat: 10.7952, lng: 106.7218 };
+  if (norm.includes('sunwah pearl')) return { lat: 10.7891, lng: 106.7166 };
+  if (norm.includes('opal riverside')) return { lat: 10.8245, lng: 106.7215 };
+  if (norm.includes('thảo điền') || norm.includes('thao dien')) return { lat: 10.8037, lng: 106.7325 };
+  if (norm.includes('masteri an phú') || norm.includes('masteri')) return { lat: 10.8033, lng: 106.7412 };
+  if (norm.includes('đảo kim cương') || norm.includes('dao kim cuong')) return { lat: 10.7758, lng: 106.7554 };
+  if (norm.includes('thủ thiêm') || norm.includes('thu thiem')) return { lat: 10.7836, lng: 106.7212 };
+  if (norm.includes('gateway')) return { lat: 10.8042, lng: 106.7455 };
+  if (norm.includes('sailing tower') || norm.includes('bến nghé') || norm.includes('ben nghe')) return { lat: 10.7796, lng: 106.6961 };
+  if (norm.includes('ba son') || norm.includes('golden river')) return { lat: 10.7852, lng: 106.7088 };
+  if (norm.includes('grand manhattan')) return { lat: 10.7615, lng: 106.6912 };
+  if (norm.includes('goldview')) return { lat: 10.7588, lng: 106.6946 };
+  if (norm.includes('saigon royal')) return { lat: 10.7672, lng: 106.7042 };
+  if (norm.includes('phú mỹ hưng') || norm.includes('phu my hung') || norm.includes('midtown') || norm.includes('sky garden')) return { lat: 10.7288, lng: 106.7085 };
+  if (norm.includes('sunrise city')) return { lat: 10.7505, lng: 106.7001 };
+  if (norm.includes('nam kỳ khởi nghĩa') || norm.includes('nam ky khoi nghia')) return { lat: 10.7844, lng: 106.6875 };
+
+  // Specific Landmark / Complex in Hanoi
+  if (norm.includes('discovery complex')) return { lat: 21.0366, lng: 105.7932 };
+  if (norm.includes('indochina plaza') || norm.includes('ipha')) return { lat: 21.0372, lng: 105.7835 };
+  if (norm.includes('smart city')) return { lat: 20.9995, lng: 105.7428 };
+  if (norm.includes('the manor')) return { lat: 21.0152, lng: 105.7765 };
+  if (norm.includes('metropolis') || norm.includes('liễu giai') || norm.includes('lieu giai')) return { lat: 21.0322, lng: 105.8152 };
+  if (norm.includes('quảng an') || norm.includes('quang an') || norm.includes('hồ tây') || norm.includes('ho tay')) return { lat: 21.0667, lng: 105.8285 };
+  if (norm.includes('thụy khuê') || norm.includes('thuy khue')) return { lat: 21.0445, lng: 105.8232 };
+  if (norm.includes('nguyễn chí thanh') || norm.includes('nguyen chi thanh')) return { lat: 21.0245, lng: 105.8112 };
+  if (norm.includes('times city')) return { lat: 20.9952, lng: 105.8675 };
+  if (norm.includes('royal city')) return { lat: 21.0028, lng: 105.8155 };
+
+  // General Hanoi districts
+  if (norm.includes('cầu giấy') || norm.includes('cau giay')) return { lat: 21.0333, lng: 105.7894 };
+  if (norm.includes('đống đa') || norm.includes('dong da')) return { lat: 21.0180, lng: 105.8290 };
+  if (norm.includes('hoàn kiếm') || norm.includes('hoan kiem')) return { lat: 21.0285, lng: 105.8542 };
+  if (norm.includes('ba đình') || norm.includes('ba dinh')) return { lat: 21.0341, lng: 105.8202 };
+  if (norm.includes('tây hồ') || norm.includes('tay ho')) return { lat: 21.0716, lng: 105.8230 };
+  if (norm.includes('thanh xuân') || norm.includes('thanh xuan')) return { lat: 20.9937, lng: 105.8122 };
+  if (norm.includes('hai bà trưng') || norm.includes('hai ba trung')) return { lat: 21.0076, lng: 105.8576 };
+  if (norm.includes('nam từ liêm') || norm.includes('nam tu liem') || norm.includes('mỹ đình') || norm.includes('my dinh')) return { lat: 21.0125, lng: 105.7663 };
+  if (norm.includes('bắc từ liêm') || norm.includes('bac tu liem')) return { lat: 21.0754, lng: 105.7656 };
+  if (norm.includes('hà đông') || norm.includes('ha dong')) return { lat: 20.9631, lng: 105.7720 };
+  if (norm.includes('long biên') || norm.includes('long bien')) return { lat: 21.0360, lng: 105.8920 };
+  if (norm.includes('hoàng mai') || norm.includes('hoang mai')) return { lat: 20.9740, lng: 105.8480 };
+
+  // General HCMC districts
+  if (norm.includes('quận 1') || norm.includes('quan 1')) return { lat: 10.7769, lng: 106.7009 };
+  if (norm.includes('quận 2') || norm.includes('quan 2')) return { lat: 10.7872, lng: 106.7498 };
+  if (norm.includes('quận 3') || norm.includes('quan 3')) return { lat: 10.7844, lng: 106.6844 };
+  if (norm.includes('quận 4') || norm.includes('quan 4')) return { lat: 10.7635, lng: 106.6985 };
+  if (norm.includes('quận 7') || norm.includes('quan 7')) return { lat: 10.7340, lng: 106.7218 };
+  if (norm.includes('quận 10') || norm.includes('quan 10')) return { lat: 10.7716, lng: 106.6669 };
+  if (norm.includes('bình thạnh') || norm.includes('binh thanh')) return { lat: 10.8105, lng: 106.7091 };
+  if (norm.includes('thủ đức') || norm.includes('thu duc')) return { lat: 10.8494, lng: 106.7537 };
+  if (norm.includes('phú nhuận') || norm.includes('phu nhuan')) return { lat: 10.7992, lng: 106.6806 };
+  if (norm.includes('tân bình') || norm.includes('tan binh')) return { lat: 10.8015, lng: 106.6526 };
+
+  if (norm.includes('hà nội') || norm.includes('ha noi')) {
+    const spread = (indexSeed % 7) * 0.008;
+    return { lat: 21.0285 + spread, lng: 105.8542 + (indexSeed % 5) * 0.007 };
+  }
+  const spread = (indexSeed % 8) * 0.009;
+  return { lat: 10.7769 + spread, lng: 106.7009 + (indexSeed % 6) * 0.008 };
+}
+
+function calculateHaversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+  return Math.max(0.1, Number(distance.toFixed(1)));
+}
+
 export class DatabaseService {
   // --- Metadata & Follow Graph Helpers ---
   public async getUserMetaMap(userIds?: string[]): Promise<Record<string, Record<string, any>>> {
@@ -386,6 +469,14 @@ export class DatabaseService {
         tinderVisibility: true,
         allowDirectMessageFromAnyone: true,
       },
+      latitude:
+        meta.latitude !== undefined && meta.latitude !== null
+          ? Number(meta.latitude)
+          : undefined,
+      longitude:
+        meta.longitude !== undefined && meta.longitude !== null
+          ? Number(meta.longitude)
+          : undefined,
       tinderSetup,
       followersCount,
       followingCount,
@@ -445,6 +536,20 @@ export class DatabaseService {
       this.getFollowSnapshot(),
     ]);
 
+    const currentUserMeta = userMetaMap[resolvedUserId] || {};
+    const fallbackUserCoords = getCoordinatesForArea(
+      rawPrimaryUser.neighborhood || rawPrimaryUser.district || 'TP. Thủ Đức',
+      0
+    );
+    const bootstrapUserLat =
+      currentUserMeta.latitude !== undefined && currentUserMeta.latitude !== null
+        ? Number(currentUserMeta.latitude)
+        : fallbackUserCoords.lat;
+    const bootstrapUserLng =
+      currentUserMeta.longitude !== undefined && currentUserMeta.longitude !== null
+        ? Number(currentUserMeta.longitude)
+        : fallbackUserCoords.lng;
+
     const [
       pets,
       posts,
@@ -464,8 +569,20 @@ export class DatabaseService {
       this.getUserPets(resolvedUserId),
       this.getPosts(resolvedUserId),
       this.getSosAlerts(),
-      this.getTinderCandidates(resolvedUserId, undefined, undefined, userMetaMap),
-      this.getLikesYouCandidates(resolvedUserId, userMetaMap),
+      this.getTinderCandidates(
+        resolvedUserId,
+        undefined,
+        undefined,
+        userMetaMap,
+        bootstrapUserLat,
+        bootstrapUserLng
+      ),
+      this.getLikesYouCandidates(
+        resolvedUserId,
+        userMetaMap,
+        bootstrapUserLat,
+        bootstrapUserLng
+      ),
       this.getChats(resolvedUserId, userMetaMap),
       this.getNotifications(resolvedUserId),
       this.getAllPublicProfiles(resolvedUserId, userMetaMap, followSnap),
@@ -997,6 +1114,8 @@ export class DatabaseService {
       'noteBubble',
       'privacySettings',
       'tinderSetup',
+      'latitude',
+      'longitude',
     ];
     const metaPatch: Record<string, any> = {};
     for (const k of metaKeys) {
@@ -2235,7 +2354,8 @@ export class DatabaseService {
     u: any,
     meta: Record<string, any>,
     hasLikedMe: boolean,
-    indexSeed = 0
+    indexSeed = 0,
+    userCoords?: { lat: number; lng: number }
   ) {
     const candidatePets = (u.pets || []).map((p: any) => {
       const formatted = this.formatPetOutput(p);
@@ -2260,8 +2380,22 @@ export class DatabaseService {
     const intent = normalizeTinderIntent(tSetup.intent || tSetup.lookingFor || u.primaryNeed);
     const intentLabel = getTinderIntentLabel(intent);
 
-    const deterministicDistances = [0.8, 1.5, 2.4, 3.8, 5.2, 8.6, 12.0];
-    const distanceKm = deterministicDistances[indexSeed % deterministicDistances.length];
+    const cLat =
+      meta.latitude !== undefined && meta.latitude !== null
+        ? Number(meta.latitude)
+        : getCoordinatesForArea(u.neighborhood || u.district, indexSeed).lat;
+    const cLng =
+      meta.longitude !== undefined && meta.longitude !== null
+        ? Number(meta.longitude)
+        : getCoordinatesForArea(u.neighborhood || u.district, indexSeed).lng;
+
+    let distanceKm = 1.2;
+    if (userCoords && typeof userCoords.lat === 'number' && typeof userCoords.lng === 'number') {
+      distanceKm = calculateHaversineDistanceKm(userCoords.lat, userCoords.lng, cLat, cLng);
+    } else {
+      const refCoords = getCoordinatesForArea('Hà Nội', 0);
+      distanceKm = calculateHaversineDistanceKm(refCoords.lat, refCoords.lng, cLat, cLng);
+    }
 
     const resolvedGender = (tSetup.gender ||
       meta.gender ||
@@ -2324,7 +2458,9 @@ export class DatabaseService {
     currentUserId = 'user-test1',
     intentFilter?: string,
     genderFilter?: string,
-    preloadedMetaMap?: Record<string, Record<string, any>>
+    preloadedMetaMap?: Record<string, Record<string, any>>,
+    userLat?: number,
+    userLng?: number
   ) {
     const [incomingLikes, alreadySwipedOrMatched, userMetaMap] = await Promise.all([
       prisma.match.findMany({
@@ -2334,12 +2470,11 @@ export class DatabaseService {
         },
         select: { userAId: true },
       }),
-      // Loại trừ tất cả những người mà currentUserId đã quẹt (userAId === currentUserId: pending, rejected, matched, v.v.)
-      // và những người đã match thành công với currentUserId (userBId === currentUserId và status: matched)
+      // Chỉ loại trừ những người ĐANG MATCH với currentUserId (status: 'matched') theo Master Print 2.2
       prisma.match.findMany({
         where: {
           OR: [
-            { userAId: currentUserId },
+            { userAId: currentUserId, status: 'matched' },
             { userBId: currentUserId, status: 'matched' },
           ],
         },
@@ -2375,9 +2510,37 @@ export class DatabaseService {
       },
     });
 
+    const currentUserMeta = userMetaMap[currentUserId] || {};
+    let finalUserLat =
+      userLat !== undefined
+        ? userLat
+        : currentUserMeta.latitude !== undefined && currentUserMeta.latitude !== null
+        ? Number(currentUserMeta.latitude)
+        : undefined;
+    let finalUserLng =
+      userLng !== undefined
+        ? userLng
+        : currentUserMeta.longitude !== undefined && currentUserMeta.longitude !== null
+        ? Number(currentUserMeta.longitude)
+        : undefined;
+
+    if (finalUserLat === undefined || finalUserLng === undefined) {
+      const uRow = await prisma.user.findUnique({
+        where: { id: currentUserId },
+        select: { neighborhood: true, district: true },
+      });
+      const fallback = getCoordinatesForArea(
+        uRow?.neighborhood || uRow?.district || 'TP. Thủ Đức',
+        0
+      );
+      finalUserLat = fallback.lat;
+      finalUserLng = fallback.lng;
+    }
+    const userCoords = { lat: finalUserLat, lng: finalUserLng };
+
     const candidates = users
       .map((u, idx) =>
-        this.buildTinderCandidateOutput(u, userMetaMap[u.id] || {}, usersWhoLikedMe.has(u.id), idx)
+        this.buildTinderCandidateOutput(u, userMetaMap[u.id] || {}, usersWhoLikedMe.has(u.id), idx, userCoords)
       )
       .filter((candidate) => {
         const uMeta = userMetaMap[candidate.id] || {};
@@ -2401,12 +2564,17 @@ export class DatabaseService {
         return true;
       });
 
+    // Sắp xếp ưu tiên ứng viên theo khoảng cách thực tế tăng dần (gần nhất lên trước)
+    candidates.sort((a, b) => a.distanceKm - b.distanceKm);
+
     return candidates;
   }
 
   public async getLikesYouCandidates(
     currentUserId = 'user-test1',
-    preloadedMetaMap?: Record<string, Record<string, any>>
+    preloadedMetaMap?: Record<string, Record<string, any>>,
+    userLat?: number,
+    userLng?: number
   ) {
     const [incomingRows, myRows, unmatchedMatches, userMetaMap] = await Promise.all([
       prisma.match.findMany({
@@ -2447,6 +2615,34 @@ export class DatabaseService {
 
     if (likerIds.length === 0) return [];
 
+    const currentUserMeta = userMetaMap[currentUserId] || {};
+    let finalUserLat =
+      userLat !== undefined
+        ? userLat
+        : currentUserMeta.latitude !== undefined && currentUserMeta.latitude !== null
+        ? Number(currentUserMeta.latitude)
+        : undefined;
+    let finalUserLng =
+      userLng !== undefined
+        ? userLng
+        : currentUserMeta.longitude !== undefined && currentUserMeta.longitude !== null
+        ? Number(currentUserMeta.longitude)
+        : undefined;
+
+    if (finalUserLat === undefined || finalUserLng === undefined) {
+      const uRow = await prisma.user.findUnique({
+        where: { id: currentUserId },
+        select: { neighborhood: true, district: true },
+      });
+      const fallback = getCoordinatesForArea(
+        uRow?.neighborhood || uRow?.district || 'TP. Thủ Đức',
+        0
+      );
+      finalUserLat = fallback.lat;
+      finalUserLng = fallback.lng;
+    }
+    const userCoords = { lat: finalUserLat, lng: finalUserLng };
+
     const users = await prisma.user.findMany({
       where: { id: { in: likerIds } },
       include: {
@@ -2456,9 +2652,11 @@ export class DatabaseService {
       },
     });
 
-    return users.map((u, idx) =>
-      this.buildTinderCandidateOutput(u, userMetaMap[u.id] || {}, true, idx)
+    const results = users.map((u, idx) =>
+      this.buildTinderCandidateOutput(u, userMetaMap[u.id] || {}, true, idx, userCoords)
     );
+    results.sort((a, b) => a.distanceKm - b.distanceKm);
+    return results;
   }
 
   private async ensureDirectConversation(

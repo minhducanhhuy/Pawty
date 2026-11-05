@@ -18,12 +18,22 @@
 
 ### 1.2 Users, Unified Profiles & Tinder Setup
 - `GET /api/users/me` & `PUT /api/users/me` — Yêu cầu `Authorization: Bearer <token>`. Danh tính người thao tác được trích xuất trực tiếp từ phiên xác thực của server (loại bỏ tự chọn user đầu tiên hay `user-test1`). Người dùng chỉ được sửa hồ sơ của chính mình.
+  - **Validation chặt chẽ tại `PUT /api/users/me`:**
+    - `displayName` / `name`: 2 - 50 ký tự nếu có gửi lên.
+    - `age`: Số nguyên 16 - 100 tuổi (Hẹn hò: 18 - 100 tuổi).
+    - `birthDate`: Không được ở tương lai (`<= Date.now()`), tuổi tính từ ngày sinh phải >= 16 và <= 100.
+    - `bio`: Tối đa 200 ký tự.
 - `GET /api/users/profile/:handle?currentUserId=` — Lấy đầy đủ hồ sơ đồng nhất của bất kỳ người dùng nào (thông tin chủ nuôi đầy đủ, danh sách thú cưng kèm sổ tiêm/cân nặng/thói quen, danh sách bài viết, trạng thái `friendStatus` & `isFollowing`). Dữ liệu người dùng trả về được làm sạch không chứa mật khẩu.
 
 ### 1.3 Pets CRUD (Không giới hạn số lượng thú cưng)
 - `GET /api/pets` — Danh sách thú cưng của người dùng đang đăng nhập.
 - `POST /api/pets` — Tạo mới hồ sơ thú cưng gắn với `ownerId` từ phiên đăng nhập.
 - `PUT /api/pets/:id` & `DELETE /api/pets/:id` — Kiểm tra quyền sở hữu thú cưng trước khi cập nhật hoặc xóa. Nếu không phải chủ nuôi, trả về `403 Forbidden`.
+  - **Validation chặt chẽ tại `PUT /api/pets/:id` & `POST /api/pets`:**
+    - `name`: 1 - 30 ký tự, không rỗng.
+    - `weightKg`: 0.1 - 120.0 kg.
+    - `birthDate`: Không được ở tương lai, không quá 35 năm trước.
+    - `customSpecies`: Bắt buộc nếu loài là `'Khác'`.
 
 ### 1.4 Social Feed, Posts, Reactions, Comments, Friends & Follows
 - `GET /api/posts/feed` & `GET /api/posts/explore` — Danh sách bài viết từ PostgreSQL (tác giả bài viết và tác giả bình luận được lọc sạch mật khẩu).
@@ -32,8 +42,9 @@
 - `POST /api/posts/:id/reactions` & `POST /api/posts/:id/comments` — Người thao tác được lấy từ phiên đăng nhập hợp lệ.
 - `POST /api/social/friend-request`, `POST /api/social/friend-respond`, `POST /api/social/unfriend`, `POST /api/social/follow` — Người gửi yêu cầu được lấy trực tiếp từ phiên đăng nhập.
 
-### 1.5 Kết Nối Hẹn Dạo (`Tinder`) & Hủy Tương Hợp Chuẩn Xác
-- `GET /api/tinder/candidates` & `GET /api/tinder/likes-you` — Trả về danh sách ứng viên cho người dùng từ phiên.
+### 1.5 Kết Nối Hẹn Dạo (`Tinder`), Cập Nhật Vị Trí & Hủy Tương Hợp Chuẩn Xác
+- `PUT /api/users/me/location` (`latitude`, `longitude`, `district`, `neighborhood`) — Cập nhật tọa độ GPS thực tế của người dùng từ thiết bị di động, lưu vào `user_profile_meta`.
+- `GET /api/tinder/candidates` (`?lat=&lng=&intent=&gender=`) & `GET /api/tinder/likes-you` — Trả về danh sách ứng viên cho người dùng từ phiên. Khoảng cách `distanceKm` được tính toán động 100% bằng công thức Haversine giữa tọa độ GPS của người dùng và từng ứng viên, sắp xếp ưu tiên từ gần nhất đến xa nhất. Loại bỏ hoàn toàn mảng khoảng cách giả lập cố định.
 - `POST /api/matches/swipe` & `POST /api/matches/rewind` — Thao tác từ phiên người dùng.
 - `POST /api/matches/unmatch` & `POST /api/tinder/unmatch` (`targetIdentifier` / `partnerHandle` / `candidateId`) — **Hủy tương hợp (Bỏ Match):**
   - Lấy người hủy từ phiên đăng nhập.

@@ -174,3 +174,143 @@ export function validateMatchDecisionPayload(payload: {
   if (!payload.matchId) return false;
   return payload.decision === 'verified' || payload.decision === 'dismissed';
 }
+
+export function isNotFutureDate(dateStr?: string | null): boolean {
+  if (!dateStr || !dateStr.trim()) return true;
+  let date: Date;
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/').map(Number);
+    if (parts.length === 3) {
+      date = new Date(parts[2], parts[1] - 1, parts[0]);
+    } else {
+      date = new Date(dateStr);
+    }
+  } else {
+    date = new Date(dateStr);
+  }
+
+  if (isNaN(date.getTime())) return false;
+  return date.getTime() <= Date.now();
+}
+
+export function calculateAgeFromBirthDate(birthDateStr?: string | null): number {
+  if (!birthDateStr || !birthDateStr.trim()) return 0;
+  let birthDate: Date;
+  if (birthDateStr.includes('/')) {
+    const parts = birthDateStr.split('/').map(Number);
+    if (parts.length === 3) {
+      birthDate = new Date(parts[2], parts[1] - 1, parts[0]);
+    } else {
+      birthDate = new Date(birthDateStr);
+    }
+  } else {
+    birthDate = new Date(birthDateStr);
+  }
+  if (isNaN(birthDate.getTime())) return 0;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return Math.max(0, age);
+}
+
+export function validateOwnerAge(
+  age?: number | string | null,
+  minAge = 16,
+  maxAge = 100
+): { valid: boolean; age?: number; error?: string } {
+  if (age === undefined || age === null || String(age).trim() === '') {
+    return { valid: false, error: `Vui lòng chọn độ tuổi của bạn (từ ${minAge} đến ${maxAge} tuổi).` };
+  }
+  const parsed = typeof age === 'number' ? age : parseInt(String(age).trim(), 10);
+  if (isNaN(parsed) || parsed < minAge || parsed > maxAge) {
+    return {
+      valid: false,
+      error: `Độ tuổi của bạn phải từ ${minAge} đến ${maxAge} tuổi.`,
+    };
+  }
+  return { valid: true, age: parsed };
+}
+
+export function validateOwnerBirthDate(
+  birthDateStr?: string | null,
+  minAge = 16,
+  maxAge = 100
+): { valid: boolean; age?: number; error?: string } {
+  if (!birthDateStr || !birthDateStr.trim()) {
+    return { valid: true };
+  }
+  if (!isNotFutureDate(birthDateStr)) {
+    return { valid: false, error: 'Ngày sinh của bạn không được vượt quá ngày hiện tại!' };
+  }
+  const calculatedAge = calculateAgeFromBirthDate(birthDateStr);
+  if (calculatedAge < minAge) {
+    return {
+      valid: false,
+      age: calculatedAge,
+      error: `Bạn phải từ ${minAge} tuổi trở lên để sử dụng Pawty.`,
+    };
+  }
+  if (calculatedAge > maxAge) {
+    return {
+      valid: false,
+      age: calculatedAge,
+      error: 'Năm sinh không hợp lệ (không vượt quá 100 tuổi).',
+    };
+  }
+  return { valid: true, age: calculatedAge };
+}
+
+export function validatePetBirthDate(birthDateStr?: string | null): { valid: boolean; error?: string } {
+  if (!birthDateStr || !birthDateStr.trim()) return { valid: true };
+  if (!isNotFutureDate(birthDateStr)) {
+    return { valid: false, error: 'Ngày sinh của bé không được vượt quá ngày hiện tại!' };
+  }
+  const age = calculateAgeFromBirthDate(birthDateStr);
+  if (age > 35) {
+    return { valid: false, error: 'Ngày sinh thú cưng không thể vượt quá 35 năm trước.' };
+  }
+  return { valid: true };
+}
+
+export function getDaysInMonth(month: number, year: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+export function validateDisplayName(
+  name?: string | null,
+  minLength = 2,
+  maxLength = 50
+): { valid: boolean; error?: string } {
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return { valid: false, error: 'Họ và tên không được để trống.' };
+  }
+  const trimmed = name.trim();
+  if (trimmed.length < minLength) {
+    return { valid: false, error: `Họ và tên phải có ít nhất ${minLength} ký tự.` };
+  }
+  if (trimmed.length > maxLength) {
+    return { valid: false, error: `Họ và tên không được vượt quá ${maxLength} ký tự.` };
+  }
+  return { valid: true };
+}
+
+export function validatePetName(
+  name?: string | null,
+  minLength = 1,
+  maxLength = 30
+): { valid: boolean; error?: string } {
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return { valid: false, error: 'Tên thú cưng không được để trống.' };
+  }
+  const trimmed = name.trim();
+  if (trimmed.length < minLength) {
+    return { valid: false, error: `Tên thú cưng phải có ít nhất ${minLength} ký tự.` };
+  }
+  if (trimmed.length > maxLength) {
+    return { valid: false, error: `Tên thú cưng không được vượt quá ${maxLength} ký tự.` };
+  }
+  return { valid: true };
+}

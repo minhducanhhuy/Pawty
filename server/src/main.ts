@@ -27,6 +27,9 @@ import {
   isValidPetWeight,
   isValidBirthDate,
   sanitizeInputText,
+  validateOwnerAge,
+  validateOwnerBirthDate,
+  validatePetBirthDate,
 } from './utils/validators';
 
 const moderationService = new ModerationService();
@@ -459,6 +462,61 @@ const server = http.createServer(async (req, res) => {
       const authUserId = requireAuthUser(req, res);
       if (!authUserId) return;
       const body = await parseJsonBody(req);
+
+      // Validate họ và tên nếu có cập nhật
+      if (body.displayName !== undefined || body.name !== undefined) {
+        const nameVal = body.displayName ?? body.name;
+        const nameCheck = isValidDisplayName(nameVal);
+        if (!nameCheck.valid) {
+          sendJson(res, 400, { success: false, error: nameCheck.error });
+          return;
+        }
+        body.displayName = sanitizeInputText(String(nameVal), 50);
+      }
+
+      // Validate độ tuổi chủ nuôi (16 - 100 tuổi)
+      if (body.age !== undefined && body.age !== null && body.age !== '') {
+        const ageCheck = validateOwnerAge(body.age, 16, 100);
+        if (!ageCheck.valid) {
+          sendJson(res, 400, { success: false, error: ageCheck.error });
+          return;
+        }
+        body.age = ageCheck.age;
+      }
+
+      // Validate ngày sinh chủ nuôi
+      if (body.birthDate !== undefined && body.birthDate !== null && body.birthDate !== '') {
+        const birthCheck = validateOwnerBirthDate(body.birthDate, 16, 100);
+        if (!birthCheck.valid) {
+          sendJson(res, 400, { success: false, error: birthCheck.error });
+          return;
+        }
+      }
+
+      // Validate & sanitize bio
+      if (body.bio !== undefined && typeof body.bio === 'string') {
+        body.bio = sanitizeInputText(body.bio, 200);
+      }
+
+      // Validate thiết lập Tinder nếu có
+      if (body.tinderSetup && typeof body.tinderSetup === 'object') {
+        if (body.tinderSetup.displayName) {
+          const tinderNameCheck = isValidDisplayName(body.tinderSetup.displayName);
+          if (!tinderNameCheck.valid) {
+            sendJson(res, 400, { success: false, error: 'Tên hiển thị hẹn hò không hợp lệ.' });
+            return;
+          }
+        }
+        if (body.tinderSetup.age !== undefined && body.tinderSetup.age !== null && body.tinderSetup.age !== '') {
+          const tinderAgeCheck = validateOwnerAge(body.tinderSetup.age, 18, 100);
+          if (!tinderAgeCheck.valid) {
+            sendJson(res, 400, { success: false, error: 'Tính năng Hẹn hò yêu cầu bạn phải từ 18 tuổi trở lên.' });
+            return;
+          }
+          body.tinderSetup.age = tinderAgeCheck.age;
+        }
+      }
+
       const updatedUser = await dbService.updateUser(authUserId, body);
       sendJson(res, 200, { success: true, user: updatedUser });
       return;
@@ -476,6 +534,14 @@ const server = http.createServer(async (req, res) => {
       const updatedUser = await dbService.updateUser(authUserId, {
         district: body.district ? String(body.district) : user.district,
         neighborhood: body.neighborhood ? String(body.neighborhood) : user.neighborhood,
+        latitude:
+          body.latitude !== undefined && body.latitude !== null
+            ? Number(body.latitude)
+            : undefined,
+        longitude:
+          body.longitude !== undefined && body.longitude !== null
+            ? Number(body.longitude)
+            : undefined,
       });
       sendJson(res, 200, { user: updatedUser });
       return;
@@ -555,7 +621,12 @@ const server = http.createServer(async (req, res) => {
         body.weightKg = weightCheck.weightKg;
       }
 
-      const birthCheck = isValidBirthDate(body.birthDate ?? body.dateOfBirth);
+      if (body.species === 'Khác' && (!body.customSpecies || !String(body.customSpecies).trim())) {
+        sendJson(res, 400, { success: false, error: 'Vui lòng nhập tên chủng loại khi chọn loài Khác.' });
+        return;
+      }
+
+      const birthCheck = validatePetBirthDate(body.birthDate ?? body.dateOfBirth);
       if (!birthCheck.valid) {
         sendJson(res, 400, { success: false, error: birthCheck.error });
         return;
@@ -605,7 +676,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (body.birthDate !== undefined || body.dateOfBirth !== undefined) {
-        const birthCheck = isValidBirthDate(body.birthDate ?? body.dateOfBirth);
+        const birthCheck = validatePetBirthDate(body.birthDate ?? body.dateOfBirth);
         if (!birthCheck.valid) {
           sendJson(res, 400, { success: false, error: birthCheck.error });
           return;
@@ -956,7 +1027,18 @@ const server = http.createServer(async (req, res) => {
         parsedUrl.searchParams.get('gender') ||
         parsedUrl.searchParams.get('targetGender') ||
         undefined;
-      const candidates = await dbService.getTinderCandidates(authUserId, intent, gender);
+      const latQuery = parsedUrl.searchParams.get('lat');
+      const lngQuery = parsedUrl.searchParams.get('lng');
+      const userLat = latQuery ? Number(latQuery) : undefined;
+      const userLng = lngQuery ? Number(lngQuery) : undefined;
+      const candidates = await dbService.getTinderCandidates(
+        authUserId,
+        intent,
+        gender,
+        undefined,
+        userLat,
+        userLng
+      );
       sendJson(res, 200, { candidates });
       return;
     }
@@ -964,7 +1046,16 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/tinder/likes-you' && method === 'GET') {
       const authUserId = requireAuthUser(req, res);
       if (!authUserId) return;
-      const likesYou = await dbService.getLikesYouCandidates(authUserId);
+      const latQuery = parsedUrl.searchParams.get('lat');
+      const lngQuery = parsedUrl.searchParams.get('lng');
+      const userLat = latQuery ? Number(latQuery) : undefined;
+      const userLng = lngQuery ? Number(lngQuery) : undefined;
+      const likesYou = await dbService.getLikesYouCandidates(
+        authUserId,
+        undefined,
+        userLat,
+        userLng
+      );
       sendJson(res, 200, { likesYou });
       return;
     }
